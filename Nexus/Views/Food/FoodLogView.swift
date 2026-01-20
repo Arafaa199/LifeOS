@@ -24,7 +24,6 @@ struct FoodLogView: View {
     private let haptics = UIImpactFeedbackGenerator(style: .medium)
     private let successHaptics = UINotificationFeedbackGenerator()
 
-    // Can submit if we have text OR a captured photo
     private var canSubmit: Bool {
         !foodDescription.isEmpty || capturedImage != nil
     }
@@ -32,205 +31,29 @@ struct FoodLogView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
                     // Meal Type Selector
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Meal Type")
-                            .font(.headline)
-
-                        Picker("Meal Type", selection: $selectedMeal) {
-                            ForEach(MealType.allCases) { meal in
-                                Text(meal.rawValue).tag(meal)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                    .padding(.horizontal)
+                    mealTypeSection
 
                     // Food Description Input
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("What did you eat?")
-                                .font(.headline)
-
-                            Spacer()
-
-                            Button(action: toggleVoiceInput) {
-                                Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
-                                    .foregroundColor(speechRecognizer.isRecording ? .red : .blue)
-                                    .font(.title3)
-                                    .symbolEffect(.pulse, isActive: speechRecognizer.isRecording)
-                            }
-                        }
-
-                        ZStack(alignment: .topLeading) {
-                            TextEditor(text: speechRecognizer.isRecording ? $speechRecognizer.transcript : $foodDescription)
-                                .frame(minHeight: 120)
-                                .padding(8)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                                .focused($isInputFocused)
-                                .disabled(speechRecognizer.isRecording)
-
-                            if speechRecognizer.isRecording {
-                                // Recording indicator
-                                HStack {
-                                    Spacer()
-                                    VStack {
-                                        Image(systemName: "waveform")
-                                            .foregroundColor(.red)
-                                            .symbolEffect(.variableColor.iterative, isActive: true)
-                                        Text("Listening...")
-                                            .font(.caption2)
-                                            .foregroundColor(.red)
-                                    }
-                                    .padding(8)
-                                }
-                            }
-                        }
-
-                        if !speechRecognizer.isRecording {
-                            Text("Examples: \"2 eggs and avocado toast\", \"chicken stir fry, serving 2 of 5\", \"burger and fries, estimate it\"")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("Describe what you ate, tap mic when done")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-                    }
-                    .padding(.horizontal)
+                    descriptionSection
 
                     // Photo Capture Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Snap a Photo")
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        HStack(spacing: 12) {
-                            // Camera button
-                            Button(action: { showCameraPicker = true }) {
-                                VStack(spacing: 6) {
-                                    Image(systemName: "camera.fill")
-                                        .font(.title2)
-                                    Text("Camera")
-                                        .font(.caption)
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color.blue.opacity(0.1))
-                                .cornerRadius(12)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-
-                            // Photo library button
-                            Button(action: { showPhotoPicker = true }) {
-                                VStack(spacing: 6) {
-                                    Image(systemName: "photo.on.rectangle")
-                                        .font(.title2)
-                                    Text("Library")
-                                        .font(.caption)
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color.purple.opacity(0.1))
-                                .cornerRadius(12)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                        .padding(.horizontal)
-
-                        // Show captured image preview
-                        if let image = capturedImage {
-                            HStack {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 80, height: 80)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Photo ready")
-                                        .font(.subheadline)
-                                        .bold()
-                                    Text("Add optional notes above, then tap Log Food")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Spacer()
-
-                                Button(action: { capturedImage = nil }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
-                            .padding(.horizontal)
-                        }
-
-                        Text("AI will identify food and estimate nutrition")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                    }
+                    photoCaptureSection
 
                     // Quick Food Buttons
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Quick Add")
-                            .font(.headline)
-                            .padding(.horizontal)
+                    quickFoodSection
 
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
-                                QuickFoodButton(title: "Coffee", icon: "cup.and.saucer") {
-                                    addQuickFood("coffee with milk")
-                                }
-                                QuickFoodButton(title: "Eggs", icon: "circle") {
-                                    addQuickFood("2 eggs")
-                                }
-                                QuickFoodButton(title: "Protein Shake", icon: "bolt") {
-                                    addQuickFood("protein shake")
-                                }
-                                QuickFoodButton(title: "Chicken & Rice", icon: "fork.knife") {
-                                    addQuickFood("chicken and rice")
-                                }
-                                QuickFoodButton(title: "Oats", icon: "circle.grid.3x3") {
-                                    addQuickFood("oatmeal")
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                    }
-
-                    Spacer()
+                    Spacer(minLength: 20)
 
                     // Submit Button
-                    Button(action: submitFoodLog) {
-                        HStack {
-                            if isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Image(systemName: capturedImage != nil ? "camera.fill" : "checkmark.circle.fill")
-                            }
-                            Text(isLoading ? "Processing..." : (capturedImage != nil ? "Log Photo" : "Log Food"))
-                                .bold()
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(canSubmit ? Color.orange : Color.gray)
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                    }
-                    .disabled(!canSubmit || isLoading)
-                    .padding(.horizontal)
+                    submitButton
                 }
-                .padding(.top)
+                .padding()
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Log Food")
+            .navigationBarTitleDisplayMode(.large)
             .alert("Food Logged", isPresented: $showSuccess) {
                 Button("OK", role: .cancel) {
                     foodDescription = ""
@@ -249,16 +72,250 @@ struct FoodLogView: View {
         }
     }
 
+    // MARK: - Meal Type Section
+
+    private var mealTypeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Meal Type")
+                .font(.headline)
+
+            HStack(spacing: 8) {
+                ForEach(MealType.allCases) { meal in
+                    Button(action: { selectedMeal = meal }) {
+                        VStack(spacing: 6) {
+                            Image(systemName: meal.icon)
+                                .font(.system(size: 20, weight: .medium))
+
+                            Text(meal.rawValue)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(selectedMeal == meal ? .white : .primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            selectedMeal == meal ?
+                            Color.nexusFood :
+                            Color(.systemBackground)
+                        )
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(selectedMeal == meal ? Color.nexusFood : Color(.systemGray4), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+        }
+        .nexusCard()
+    }
+
+    // MARK: - Description Section
+
+    private var descriptionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("What did you eat?")
+                    .font(.headline)
+
+                Spacer()
+
+                Button(action: toggleVoiceInput) {
+                    ZStack {
+                        Circle()
+                            .fill(speechRecognizer.isRecording ? Color.nexusError.opacity(0.15) : Color.nexusPrimary.opacity(0.15))
+                            .frame(width: 44, height: 44)
+
+                        Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(speechRecognizer.isRecording ? .nexusError : .nexusPrimary)
+                            .symbolEffect(.pulse, isActive: speechRecognizer.isRecording)
+                    }
+                }
+            }
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: speechRecognizer.isRecording ? $speechRecognizer.transcript : $foodDescription)
+                    .frame(minHeight: 100)
+                    .padding(12)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(speechRecognizer.isRecording ? Color.nexusError : Color.nexusPrimary.opacity(0.3), lineWidth: speechRecognizer.isRecording ? 2 : 1)
+                    )
+                    .focused($isInputFocused)
+                    .disabled(speechRecognizer.isRecording)
+
+                if foodDescription.isEmpty && !speechRecognizer.isRecording {
+                    Text("Describe your meal...")
+                        .font(.body)
+                        .foregroundColor(.secondary.opacity(0.6))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 20)
+                        .allowsHitTesting(false)
+                }
+
+                if speechRecognizer.isRecording {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 4) {
+                            Image(systemName: "waveform")
+                                .font(.title2)
+                                .foregroundColor(.nexusError)
+                                .symbolEffect(.variableColor.iterative, isActive: true)
+                            Text("Listening...")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.nexusError)
+                        }
+                        .padding(12)
+                    }
+                }
+            }
+
+            Text("Examples: \"2 eggs and avocado toast\", \"chicken stir fry\"")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .nexusCard()
+    }
+
+    // MARK: - Photo Capture Section
+
+    private var photoCaptureSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Or snap a photo")
+                .font(.headline)
+
+            HStack(spacing: 12) {
+                Button(action: { showCameraPicker = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                        Text("Camera")
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.nexusPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.nexusPrimary.opacity(0.12))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                Button(action: { showPhotoPicker = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 18, weight: .semibold))
+                        Text("Library")
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.nexusMood)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.nexusMood.opacity(0.12))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            // Show captured image preview
+            if let image = capturedImage {
+                HStack(spacing: 12) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 72, height: 72)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.nexusSuccess)
+                            Text("Photo ready")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
+
+                        Text("AI will analyze and estimate nutrition")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button(action: { capturedImage = nil }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(12)
+                .background(Color.nexusSuccess.opacity(0.08))
+                .cornerRadius(12)
+            }
+        }
+        .nexusCard()
+    }
+
+    // MARK: - Quick Food Section
+
+    private var quickFoodSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Quick Add")
+                .font(.headline)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    QuickFoodChip(title: "Coffee", icon: "cup.and.saucer") {
+                        addQuickFood("coffee with milk")
+                    }
+                    QuickFoodChip(title: "Eggs", icon: "oval") {
+                        addQuickFood("2 eggs")
+                    }
+                    QuickFoodChip(title: "Protein Shake", icon: "bolt") {
+                        addQuickFood("protein shake")
+                    }
+                    QuickFoodChip(title: "Chicken & Rice", icon: "fork.knife") {
+                        addQuickFood("chicken and rice")
+                    }
+                    QuickFoodChip(title: "Oats", icon: "leaf") {
+                        addQuickFood("oatmeal")
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Submit Button
+
+    private var submitButton: some View {
+        Button(action: submitFoodLog) {
+            HStack(spacing: 10) {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                } else {
+                    Image(systemName: capturedImage != nil ? "camera.fill" : "checkmark.circle.fill")
+                        .font(.body.weight(.semibold))
+                }
+                Text(isLoading ? "Processing..." : (capturedImage != nil ? "Analyze Photo" : "Log Food"))
+                    .fontWeight(.semibold)
+            }
+        }
+        .nexusAccentButton(disabled: !canSubmit || isLoading)
+        .disabled(!canSubmit || isLoading)
+    }
+
+    // MARK: - Actions
+
     private func submitFoodLog() {
-        // Allow submission if we have text OR a photo
         guard !foodDescription.isEmpty || capturedImage != nil else { return }
 
-        // Haptic feedback
         haptics.impactOccurred()
-
-        // Dismiss keyboard
         isInputFocused = false
-
         isLoading = true
 
         Task {
@@ -266,27 +323,21 @@ struct FoodLogView: View {
                 let response: NexusResponse
 
                 if let image = capturedImage {
-                    // Photo-based logging
                     let resized = photoLogger.resizeImage(image, maxDimension: 1024)
                     guard let imageData = photoLogger.compressImage(resized, maxSizeKB: 500) else {
                         throw APIError.invalidResponse
                     }
 
-                    // Include any text description as context
                     let context = foodDescription.isEmpty ? nil : "\(foodDescription) for \(selectedMeal.rawValue.lowercased())"
                     response = try await photoLogger.logFoodFromPhoto(imageData, additionalContext: context)
                 } else {
-                    // Text-based logging (use offline-capable API)
                     let fullDescription = "\(foodDescription) for \(selectedMeal.rawValue.lowercased())"
                     response = try await api.logFoodOffline(fullDescription)
                 }
 
                 await MainActor.run {
                     isLoading = false
-                    // Success haptic
                     successHaptics.notificationOccurred(.success)
-
-                    // Update dashboard
                     viewModel.updateSummaryAfterLog(type: .food, response: response)
 
                     if let data = response.data, let calories = data.calories, let protein = data.protein {
@@ -299,10 +350,7 @@ struct FoodLogView: View {
             } catch {
                 await MainActor.run {
                     isLoading = false
-
-                    // Error haptic
                     successHaptics.notificationOccurred(.error)
-
                     resultMessage = "Error: \(error.localizedDescription)"
                     showSuccess = true
                 }
@@ -320,41 +368,63 @@ struct FoodLogView: View {
 
     private func toggleVoiceInput() {
         if speechRecognizer.isRecording {
-            // Stop recording
             haptics.impactOccurred()
             speechRecognizer.stopRecording()
 
-            // Transfer transcript to foodDescription
             if !speechRecognizer.transcript.isEmpty {
                 foodDescription = speechRecognizer.transcript
             }
         } else {
-            // Start recording
             haptics.impactOccurred()
-            foodDescription = "" // Clear previous input
+            foodDescription = ""
 
             speechRecognizer.requestAuthorization { authorized in
                 if authorized {
                     speechRecognizer.startRecording { result in
                         switch result {
                         case .success(let transcript):
-                            // Final transcript
                             if !transcript.isEmpty {
                                 foodDescription = transcript
                             }
                         case .failure(let error):
                             successHaptics.notificationOccurred(.error)
-                            resultMessage = "Speech recognition error: \(error.localizedDescription)"
+                            resultMessage = "Speech error: \(error.localizedDescription)"
                             showSuccess = true
                         }
                     }
                 } else {
                     successHaptics.notificationOccurred(.error)
-                    resultMessage = "Speech recognition not authorized. Please enable in Settings."
+                    resultMessage = "Speech recognition not authorized"
                     showSuccess = true
                 }
             }
         }
+    }
+}
+
+// MARK: - Supporting Views
+
+struct QuickFoodChip: View {
+    let title: String
+    let icon: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.nexusFood.opacity(0.12))
+            .foregroundColor(.nexusFood)
+            .cornerRadius(20)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -365,30 +435,27 @@ enum MealType: String, CaseIterable, Identifiable {
     case snack = "Snack"
 
     var id: String { self.rawValue }
+
+    var icon: String {
+        switch self {
+        case .breakfast: return "sunrise"
+        case .lunch: return "sun.max"
+        case .dinner: return "moon.stars"
+        case .snack: return "leaf"
+        }
+    }
 }
 
+// Keep QuickFoodButton for backwards compatibility
 struct QuickFoodButton: View {
     let title: String
     let icon: String
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.title3)
-                Text(title)
-                    .font(.caption)
-            }
-            .padding()
-            .frame(minWidth: 80)
-            .background(Color.orange.opacity(0.1))
-            .cornerRadius(12)
-        }
-        .buttonStyle(PlainButtonStyle())
+        QuickFoodChip(title: title, icon: icon, action: action)
     }
 }
-
 
 #Preview {
     FoodLogView(viewModel: DashboardViewModel())

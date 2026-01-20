@@ -8,116 +8,34 @@ struct DashboardView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 20) {
-                    // Network & Sync Status Bar
-                    HStack(spacing: 12) {
-                        // Network status
-                        HStack(spacing: 4) {
-                            Image(systemName: networkMonitor.isConnected ? networkMonitor.connectionType.icon : "wifi.slash")
-                                .foregroundColor(networkMonitor.isConnected ? .green : .orange)
-                                .font(.caption)
-                            Text(networkMonitor.isConnected ? "Online" : "Offline")
-                                .font(.caption)
-                                .foregroundColor(networkMonitor.isConnected ? .secondary : .orange)
-                        }
+                VStack(spacing: 24) {
+                    // Header with greeting
+                    headerSection
 
-                        // Pending items indicator
-                        if pendingCount > 0 {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                    .foregroundColor(.orange)
-                                    .font(.caption)
-                                    .symbolEffect(.pulse, isActive: true)
-                                Text("\(pendingCount) pending")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                            }
-                        }
-
-                        Spacer()
-
-                        // Last sync
-                        if let lastSync = viewModel.lastSyncDate {
-                            Text("Updated \(lastSync, style: .relative) ago")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+                    // Network & Sync Status
+                    statusBar
 
                     // Daily Summary Cards
-                    VStack(spacing: 15) {
-                        SummaryCard(
-                            title: "Calories",
-                            value: "\(viewModel.summary.totalCalories)",
-                            unit: "kcal",
-                            icon: "flame.fill",
-                            color: .orange,
-                            isLoading: viewModel.isLoading
-                        )
+                    summaryCardsSection
 
-                        SummaryCard(
-                            title: "Protein",
-                            value: String(format: "%.1f", viewModel.summary.totalProtein),
-                            unit: "g",
-                            icon: "bolt.fill",
-                            color: .red,
-                            isLoading: viewModel.isLoading
-                        )
-
-                        SummaryCard(
-                            title: "Water",
-                            value: "\(viewModel.summary.totalWater)",
-                            unit: "ml",
-                            icon: "drop.fill",
-                            color: .blue,
-                            isLoading: viewModel.isLoading
-                        )
-
-                        if let weight = viewModel.summary.latestWeight {
-                            SummaryCard(
-                                title: "Weight",
-                                value: String(format: "%.1f", weight),
-                                unit: "kg",
-                                icon: "scalemass.fill",
-                                color: .green,
-                                isLoading: viewModel.isLoading
-                            )
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // Recent Logs
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Recent Logs")
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        if viewModel.recentLogs.isEmpty {
-                            Text("No logs yet. Start logging!")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .padding()
-                        } else {
-                            ForEach(viewModel.recentLogs) { log in
-                                LogRow(entry: log)
-                                    .padding(.horizontal)
-                            }
-                        }
-                    }
+                    // Recent Logs Section
+                    recentLogsSection
                 }
-                .padding(.top)
+                .padding(.top, 8)
             }
+            .background(Color(.systemGroupedBackground))
             .refreshable {
                 await viewModel.refresh()
                 pendingCount = OfflineQueue.shared.getQueueCount()
             }
             .navigationTitle("Nexus")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { viewModel.loadTodaysSummary() }) {
                         Image(systemName: "arrow.clockwise")
+                            .font(.body.weight(.medium))
+                            .foregroundColor(.nexusPrimary)
                             .symbolEffect(.rotate, isActive: viewModel.isLoading)
                     }
                     .disabled(viewModel.isLoading)
@@ -128,7 +46,232 @@ struct DashboardView: View {
             }
         }
     }
+
+    // MARK: - Header Section
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(greeting)
+                .font(.title2)
+                .fontWeight(.bold)
+
+            Text(Date(), style: .date)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal)
+    }
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<21: return "Good evening"
+        default: return "Good night"
+        }
+    }
+
+    // MARK: - Status Bar
+
+    private var statusBar: some View {
+        HStack(spacing: 12) {
+            // Network status badge
+            NexusStatusBadge(status: networkMonitor.isConnected ? .online : .offline)
+
+            // Pending items indicator
+            if pendingCount > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.caption)
+                        .symbolEffect(.pulse, isActive: true)
+                    Text("\(pendingCount) pending")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .foregroundColor(.nexusWarning)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.nexusWarning.opacity(0.12))
+                .cornerRadius(8)
+            }
+
+            Spacer()
+
+            // Last sync
+            if let lastSync = viewModel.lastSyncDate {
+                Text("Updated \(lastSync, style: .relative) ago")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Summary Cards
+
+    private var summaryCardsSection: some View {
+        VStack(spacing: 12) {
+            NexusStatCard(
+                title: "Calories",
+                value: "\(viewModel.summary.totalCalories)",
+                unit: "kcal",
+                icon: "flame.fill",
+                color: .nexusFood,
+                isLoading: viewModel.isLoading
+            )
+
+            NexusStatCard(
+                title: "Protein",
+                value: String(format: "%.1f", viewModel.summary.totalProtein),
+                unit: "g",
+                icon: "bolt.fill",
+                color: .nexusProtein,
+                isLoading: viewModel.isLoading
+            )
+
+            NexusStatCard(
+                title: "Water",
+                value: "\(viewModel.summary.totalWater)",
+                unit: "ml",
+                icon: "drop.fill",
+                color: .nexusWater,
+                isLoading: viewModel.isLoading
+            )
+
+            if let weight = viewModel.summary.latestWeight {
+                NexusStatCard(
+                    title: "Weight",
+                    value: String(format: "%.1f", weight),
+                    unit: "kg",
+                    icon: "scalemass.fill",
+                    color: .nexusWeight,
+                    isLoading: viewModel.isLoading
+                )
+            }
+
+            if let mood = viewModel.summary.mood {
+                NexusStatCard(
+                    title: "Mood",
+                    value: "\(mood)",
+                    unit: "/ 10",
+                    icon: "face.smiling.fill",
+                    color: .nexusMood,
+                    isLoading: viewModel.isLoading
+                )
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - Recent Logs
+
+    private var recentLogsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Recent Activity")
+                    .font(.headline)
+
+                Spacer()
+
+                if !viewModel.recentLogs.isEmpty {
+                    Text("\(viewModel.recentLogs.count) entries")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal)
+
+            if viewModel.recentLogs.isEmpty {
+                NexusEmptyState(
+                    icon: "list.bullet.clipboard",
+                    title: "No logs yet",
+                    message: "Start tracking your day!\nUse the Log tab to add entries."
+                )
+                .frame(maxWidth: .infinity)
+                .nexusCard()
+                .padding(.horizontal)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(viewModel.recentLogs.prefix(8).enumerated()), id: \.element.id) { index, log in
+                        EnhancedLogRow(entry: log)
+
+                        if index < min(viewModel.recentLogs.count - 1, 7) {
+                            Divider()
+                                .padding(.leading, 56)
+                        }
+                    }
+                }
+                .background(Color.nexusCardBackground)
+                .cornerRadius(16)
+                .padding(.horizontal)
+            }
+        }
+    }
 }
+
+// MARK: - Enhanced Log Row
+
+struct EnhancedLogRow: View {
+    let entry: LogEntry
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon with colored background
+            ZStack {
+                Circle()
+                    .fill(colorForType(entry.type).opacity(0.15))
+                    .frame(width: 40, height: 40)
+
+                Image(systemName: entry.type.icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(colorForType(entry.type))
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.description)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(2)
+
+                Text(entry.timestamp, style: .time)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // Nutrition info badges
+            VStack(alignment: .trailing, spacing: 4) {
+                if let calories = entry.calories {
+                    Text("\(calories) cal")
+                        .nexusChip(color: .nexusFood)
+                }
+
+                if let protein = entry.protein {
+                    Text(String(format: "%.0fg", protein))
+                        .nexusChip(color: .nexusProtein)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private func colorForType(_ type: LogType) -> Color {
+        switch type {
+        case .food: return .nexusFood
+        case .water: return .nexusWater
+        case .weight: return .nexusWeight
+        case .mood: return .nexusMood
+        case .note: return .secondary
+        case .other: return .secondary
+        }
+    }
+}
+
+// MARK: - Legacy Support (keep SummaryCard for backwards compatibility)
 
 struct SummaryCard: View {
     let title: String
@@ -139,33 +282,14 @@ struct SummaryCard: View {
     var isLoading: Bool = false
 
     var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
-                .frame(width: 40)
-                .symbolEffect(.pulse, isActive: isLoading)
-
-            VStack(alignment: .leading) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(value)
-                        .font(.title2)
-                        .bold()
-                        .redacted(reason: isLoading ? .placeholder : [])
-                    Text(unit)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+        NexusStatCard(
+            title: title,
+            value: value,
+            unit: unit,
+            icon: icon,
+            color: color,
+            isLoading: isLoading
+        )
     }
 }
 
@@ -173,41 +297,10 @@ struct LogRow: View {
     let entry: LogEntry
 
     var body: some View {
-        HStack {
-            Image(systemName: entry.type.icon)
-                .foregroundColor(colorForType(entry.type))
-                .frame(width: 30)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.description)
-                    .font(.subheadline)
-                Text(entry.timestamp, style: .time)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
-            if let calories = entry.calories {
-                Text("\(calories) cal")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.orange.opacity(0.2))
-                    .cornerRadius(8)
-            }
-        }
-        .padding(.vertical, 8)
+        EnhancedLogRow(entry: entry)
     }
+}
 
-    private func colorForType(_ type: LogType) -> Color {
-        switch type {
-        case .food: return .orange
-        case .water: return .blue
-        case .weight: return .green
-        case .mood: return .purple
-        case .note: return .gray
-        case .other: return .secondary
-        }
-    }
+#Preview {
+    DashboardView(viewModel: DashboardViewModel())
 }

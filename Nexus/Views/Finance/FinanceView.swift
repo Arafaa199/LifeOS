@@ -8,14 +8,34 @@ struct FinanceView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // Custom Tab Picker
-                Picker("Finance Tab", selection: $selectedTab) {
-                    Text("Quick").tag(0)
-                    Text("Transactions").tag(1)
-                    Text("Budget").tag(2)
-                    Text("Insights").tag(3)
+                HStack(spacing: 0) {
+                    ForEach(0..<4) { index in
+                        Button(action: { withAnimation(.easeInOut(duration: 0.2)) { selectedTab = index } }) {
+                            VStack(spacing: 6) {
+                                Image(systemName: tabIcon(for: index))
+                                    .font(.system(size: 18, weight: selectedTab == index ? .semibold : .regular))
+                                Text(tabTitle(for: index))
+                                    .font(.caption2)
+                                    .fontWeight(selectedTab == index ? .semibold : .regular)
+                            }
+                            .foregroundColor(selectedTab == index ? .nexusFinance : .secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                selectedTab == index ?
+                                Color.nexusFinance.opacity(0.1) :
+                                Color.clear
+                            )
+                        }
+                    }
                 }
-                .pickerStyle(.segmented)
-                .padding()
+                .background(Color(.systemBackground))
+                .overlay(
+                    Rectangle()
+                        .fill(Color(.separator).opacity(0.3))
+                        .frame(height: 1),
+                    alignment: .bottom
+                )
 
                 // Tab Content
                 TabView(selection: $selectedTab) {
@@ -34,7 +54,7 @@ struct FinanceView: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
             .navigationTitle("Finance")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
@@ -43,9 +63,30 @@ struct FinanceView: View {
                         }
                     }) {
                         Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundColor(.nexusFinance)
                     }
                 }
             }
+        }
+    }
+
+    private func tabIcon(for index: Int) -> String {
+        switch index {
+        case 0: return selectedTab == 0 ? "bolt.fill" : "bolt"
+        case 1: return selectedTab == 1 ? "list.bullet.rectangle.fill" : "list.bullet.rectangle"
+        case 2: return selectedTab == 2 ? "chart.bar.fill" : "chart.bar"
+        case 3: return selectedTab == 3 ? "lightbulb.fill" : "lightbulb"
+        default: return "circle"
+        }
+    }
+
+    private func tabTitle(for index: Int) -> String {
+        switch index {
+        case 0: return "Quick"
+        case 1: return "History"
+        case 2: return "Budget"
+        case 3: return "Insights"
+        default: return ""
         }
     }
 }
@@ -139,9 +180,10 @@ struct QuickExpenseView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.red)
+                        .background(Color.nexusError)
                         .foregroundColor(.white)
                         .cornerRadius(12)
+                        .shadow(color: Color.nexusError.opacity(0.3), radius: 6, x: 0, y: 3)
                     }
 
                     Button(action: {
@@ -154,9 +196,10 @@ struct QuickExpenseView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.green)
+                        .background(Color.nexusSuccess)
                         .foregroundColor(.white)
                         .cornerRadius(12)
+                        .shadow(color: Color.nexusSuccess.opacity(0.3), radius: 6, x: 0, y: 3)
                     }
                 }
 
@@ -693,11 +736,11 @@ struct FilterChip: View {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(isSelected ? .semibold : .regular)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(isSelected ? Color.blue : Color(.secondarySystemBackground))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(isSelected ? Color.nexusFinance : Color(.secondarySystemBackground))
                 .foregroundColor(isSelected ? .white : .primary)
-                .cornerRadius(16)
+                .cornerRadius(20)
         }
     }
 }

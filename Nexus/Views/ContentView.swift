@@ -8,35 +8,35 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             DashboardView(viewModel: viewModel)
                 .tabItem {
-                    Label("Dashboard", systemImage: "house.fill")
+                    Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
                 }
                 .tag(0)
 
             QuickLogView(viewModel: viewModel)
                 .tabItem {
-                    Label("Quick Log", systemImage: "plus.circle.fill")
+                    Label("Log", systemImage: selectedTab == 1 ? "plus.circle.fill" : "plus.circle")
                 }
                 .tag(1)
 
             FoodLogView(viewModel: viewModel)
                 .tabItem {
-                    Label("Food", systemImage: "fork.knife")
+                    Label("Food", systemImage: selectedTab == 2 ? "fork.knife.circle.fill" : "fork.knife")
                 }
                 .tag(2)
 
             FinanceView()
                 .tabItem {
-                    Label("Finance", systemImage: "dollarsign.circle.fill")
+                    Label("Finance", systemImage: selectedTab == 3 ? "chart.pie.fill" : "chart.pie")
                 }
                 .tag(3)
 
             SettingsView()
                 .tabItem {
-                    Label("Settings", systemImage: "gear")
+                    Label("Settings", systemImage: selectedTab == 4 ? "gearshape.fill" : "gearshape")
                 }
                 .tag(4)
         }
-        .accentColor(.blue)
+        .tint(.nexusPrimary)
         .environmentObject(viewModel)
     }
 }
