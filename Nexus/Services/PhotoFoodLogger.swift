@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import PhotosUI
+import Combine
 
 // Service for photo-based food logging using Claude Vision
 @MainActor
@@ -9,6 +10,10 @@ class PhotoFoodLogger: ObservableObject {
 
     @Published var isProcessing = false
     @Published var lastResult: PhotoLogResult?
+
+    func clearLastResult() {
+        lastResult = nil
+    }
 
     struct PhotoLogResult {
         let success: Bool

@@ -2,7 +2,9 @@ import WidgetKit
 import SwiftUI
 
 // Widget Bundle - Entry point for all Nexus widgets
-@main
+// Note: This will be moved to a Widget Extension target
+// @main - Commented out to avoid conflict with NexusApp.swift
+// Uncomment this when widgets are in their own extension target
 struct NexusWidgets: WidgetBundle {
     var body: some Widget {
         WaterQuickLogWidget()

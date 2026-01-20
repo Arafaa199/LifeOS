@@ -1,5 +1,6 @@
 import Speech
 import AVFoundation
+import Combine
 
 class SpeechRecognizer: ObservableObject {
     @Published var isRecording = false
@@ -112,10 +113,20 @@ class SpeechRecognizer: ObservableObject {
 
     func stopRecording() {
         audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
         recognitionRequest?.endAudio()
+        recognitionRequest = nil
+        recognitionTask?.cancel()
+        recognitionTask = nil
 
         DispatchQueue.main.async {
             self.isRecording = false
         }
+    }
+
+    deinit {
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        recognitionTask?.cancel()
     }
 }

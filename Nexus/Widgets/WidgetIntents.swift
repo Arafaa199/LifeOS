@@ -22,15 +22,15 @@ struct LogWaterIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         // Log water via API
         do {
-            let response = try await NexusAPI.shared.logWater(amount)
+            let response = try await NexusAPI.shared.logWater(amountML: amount)
 
             if response.success {
-                return .result(dialog: "Logged \(amount)ml of water")
+                return .result(dialog: IntentDialog("Logged \(amount)ml of water"))
             } else {
-                return .result(dialog: "Failed to log water")
+                return .result(dialog: IntentDialog("Failed to log water"))
             }
         } catch {
-            return .result(dialog: "Error: \(error.localizedDescription)")
+            return .result(dialog: IntentDialog("Error: \(error.localizedDescription)"))
         }
     }
 }
@@ -55,19 +55,19 @@ struct LogFoodIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         guard !foodDescription.isEmpty else {
-            return .result(dialog: "Please provide a food description")
+            return .result(dialog: IntentDialog("Please provide a food description"))
         }
 
         do {
             let response = try await NexusAPI.shared.logFood(foodDescription)
 
             if response.success {
-                return .result(dialog: "Logged: \(foodDescription)")
+                return .result(dialog: IntentDialog("Logged: \(foodDescription)"))
             } else {
-                return .result(dialog: "Failed to log food")
+                return .result(dialog: IntentDialog("Failed to log food"))
             }
         } catch {
-            return .result(dialog: "Error: \(error.localizedDescription)")
+            return .result(dialog: IntentDialog("Error: \(error.localizedDescription)"))
         }
     }
 }
@@ -92,19 +92,19 @@ struct UniversalLogIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         guard !text.isEmpty else {
-            return .result(dialog: "Please provide a description")
+            return .result(dialog: IntentDialog("Please provide a description"))
         }
 
         do {
             let response = try await NexusAPI.shared.logUniversal(text)
 
             if response.success {
-                return .result(dialog: response.message ?? "Logged successfully")
+                return .result(dialog: IntentDialog(stringLiteral: response.message ?? "Logged successfully"))
             } else {
-                return .result(dialog: response.message ?? "Failed to log")
+                return .result(dialog: IntentDialog(stringLiteral: response.message ?? "Failed to log"))
             }
         } catch {
-            return .result(dialog: "Error: \(error.localizedDescription)")
+            return .result(dialog: IntentDialog("Error: \(error.localizedDescription)"))
         }
     }
 }
@@ -119,7 +119,7 @@ struct NexusAppShortcuts: AppShortcutsProvider {
             phrases: [
                 "Log water in \(.applicationName)",
                 "Add water to \(.applicationName)",
-                "I drank water"
+                "Track water in \(.applicationName)"
             ],
             shortTitle: "Log Water",
             systemImageName: "drop.fill"
@@ -141,7 +141,7 @@ struct NexusAppShortcuts: AppShortcutsProvider {
             phrases: [
                 "Log food in \(.applicationName)",
                 "Add meal to \(.applicationName)",
-                "I ate \(\.$foodDescription)"
+                "Track food in \(.applicationName)"
             ],
             shortTitle: "Log Food",
             systemImageName: "fork.knife"

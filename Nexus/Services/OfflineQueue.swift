@@ -7,6 +7,8 @@ class OfflineQueue {
     private let queueKey = "offline_log_queue"
     private let maxRetries = 3
     private let retryDelay: TimeInterval = 5.0 // seconds
+    private var processingTask: Task<Void, Never>?
+    private var isProcessing = false
 
     struct QueuedEntry: Codable {
         let id: UUID
@@ -36,9 +38,15 @@ class OfflineQueue {
     }
 
     private init() {
-        // Start processing queue on init
-        Task {
+        // Process queue on init if items exist
+        scheduleProcessing()
+    }
+
+    private func scheduleProcessing() {
+        guard processingTask == nil, !isProcessing else { return }
+        processingTask = Task {
             await processQueue()
+            processingTask = nil
         }
     }
 
@@ -59,23 +67,27 @@ class OfflineQueue {
         queue.append(entry)
         saveQueue(queue)
 
-        // Try to process immediately
-        Task {
-            await processQueue()
-        }
+        // Schedule processing (won't start if already running)
+        scheduleProcessing()
     }
 
     // MARK: - Process Queue
 
     func processQueue() async {
-        var queue = loadQueue()
+        guard !isProcessing else { return }
+        isProcessing = true
+        defer { isProcessing = false }
 
+        var queue = loadQueue()
         guard !queue.isEmpty else { return }
 
         var processed: [UUID] = []
         var failed: [QueuedEntry] = []
 
         for var entry in queue {
+            // Check for cancellation
+            if Task.isCancelled { break }
+
             do {
                 // Try to send the request
                 try await sendRequest(entry.originalRequest)
@@ -110,10 +122,14 @@ class OfflineQueue {
 
         saveQueue(queue)
 
-        // Schedule next process if queue not empty
-        if !queue.isEmpty {
-            try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
-            await processQueue()
+        // If items remain, schedule retry after delay (but don't block)
+        if !queue.isEmpty && !Task.isCancelled {
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
+                if !Task.isCancelled {
+                    scheduleProcessing()
+                }
+            }
         }
     }
 

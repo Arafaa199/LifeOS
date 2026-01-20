@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @State private var webhookURL: String = ""
+    @State private var apiKey: String = ""
     @State private var showingSaveConfirmation = false
 
     var body: some View {
@@ -20,8 +21,21 @@ struct SettingsView: View {
                             .keyboardType(.URL)
                     }
 
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("API Key")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        SecureField("Enter your API key", text: $apiKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+
                     Button("Save Settings") {
                         settings.webhookBaseURL = webhookURL
+                        if !apiKey.isEmpty {
+                            UserDefaults.standard.set(apiKey, forKey: "nexusAPIKey")
+                        }
                         showingSaveConfirmation = true
                     }
                     .disabled(webhookURL.isEmpty)
@@ -66,6 +80,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .onAppear {
                 webhookURL = settings.webhookBaseURL
+                apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") ?? ""
             }
             .alert("Settings Saved", isPresented: $showingSaveConfirmation) {
                 Button("OK", role: .cancel) { }
@@ -121,8 +136,8 @@ struct TestConnectionView: View {
 
         Task {
             do {
-                // Try a simple log
-                let response = try await NexusAPI.shared.logUniversal("test connection")
+                // Try fetching finance summary (this endpoint is always active)
+                let response = try await NexusAPI.shared.fetchFinanceSummary()
                 await MainActor.run {
                     isTesting = false
                     testSuccess = response.success

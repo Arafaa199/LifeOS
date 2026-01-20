@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import Combine
 
 // Network connectivity monitor for offline-aware UI
 @MainActor

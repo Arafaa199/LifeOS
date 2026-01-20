@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import WidgetKit
+import Combine
 
 @MainActor
 class DashboardViewModel: ObservableObject {
@@ -14,10 +15,15 @@ class DashboardViewModel: ObservableObject {
     private let api = NexusAPI.shared
     private let storage = SharedStorage.shared
     private let persistenceKey = "cached_summary"
+    private var loadTask: Task<Void, Never>?
 
     init() {
         loadFromCache()
         loadTodaysSummary()
+    }
+
+    deinit {
+        loadTask?.cancel()
     }
 
     // MARK: - Load Data
@@ -52,10 +58,12 @@ class DashboardViewModel: ObservableObject {
     }
 
     func loadTodaysSummary() {
+        loadTask?.cancel()
         isLoading = true
         errorMessage = nil
 
-        Task {
+        loadTask = Task {
+            guard !Task.isCancelled else { return }
             do {
                 // Try to fetch from backend
                 let response = try await api.fetchDailySummary()

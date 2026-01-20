@@ -24,11 +24,17 @@ struct ContentView: View {
                 }
                 .tag(2)
 
+            FinanceView()
+                .tabItem {
+                    Label("Finance", systemImage: "dollarsign.circle.fill")
+                }
+                .tag(3)
+
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gear")
                 }
-                .tag(3)
+                .tag(4)
         }
         .accentColor(.blue)
         .environmentObject(viewModel)
