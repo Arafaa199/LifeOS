@@ -107,54 +107,7 @@ class NexusAPI: ObservableObject {
     }
 
     func fetchFinanceSummary() async throws -> FinanceResponse {
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-finance-summary") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let dateString = try container.decode(String.self)
-
-            // Try ISO8601DateFormatter first (handles 'Z' suffix properly)
-            let iso8601 = ISO8601DateFormatter()
-            iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = iso8601.date(from: dateString) {
-                return date
-            }
-
-            // Try without fractional seconds
-            iso8601.formatOptions = [.withInternetDateTime]
-            if let date = iso8601.date(from: dateString) {
-                return date
-            }
-
-            // Fallback to simple date format (YYYY-MM-DD)
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            if let date = formatter.date(from: dateString) {
-                return date
-            }
-
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
-        }
-        return try decoder.decode(FinanceResponse.self, from: data)
+        return try await get("/webhook/nexus-finance-summary", decoder: Self.financeDateDecoder)
     }
 
     func triggerSMSImport() async throws -> NexusResponse {
@@ -191,28 +144,7 @@ class NexusAPI: ObservableObject {
     }
 
     func fetchBudgets() async throws -> BudgetsResponse {
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-budgets") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(BudgetsResponse.self, from: data)
+        return try await get("/webhook/nexus-budgets")
     }
 
     func deleteBudget(id: Int) async throws -> NexusResponse {
@@ -246,28 +178,7 @@ class NexusAPI: ObservableObject {
     }
 
     func fetchMonthlyTrends(months: Int) async throws -> MonthlyTrendsResponse {
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-monthly-trends?months=\(months)") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(MonthlyTrendsResponse.self, from: data)
+        return try await get("/webhook/nexus-monthly-trends?months=\(months)")
     }
 
     private func postBudget<T: Encodable>(_ endpoint: String, body: T) async throws -> BudgetResponse {
@@ -387,6 +298,61 @@ class NexusAPI: ObservableObject {
         let decoder = JSONDecoder()
         return try decoder.decode(NexusResponse.self, from: data)
     }
+
+    // MARK: - Generic GET Helper
+
+    func get<T: Decodable>(_ endpoint: String, decoder: JSONDecoder = JSONDecoder()) async throws -> T {
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let apiKey = apiKey {
+            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.serverError(httpResponse.statusCode)
+        }
+
+        return try decoder.decode(T.self, from: data)
+    }
+
+    private static var financeDateDecoder: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+
+            let iso8601 = ISO8601DateFormatter()
+            iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = iso8601.date(from: dateString) {
+                return date
+            }
+
+            iso8601.formatOptions = [.withInternetDateTime]
+            if let date = iso8601.date(from: dateString) {
+                return date
+            }
+
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            if let date = formatter.date(from: dateString) {
+                return date
+            }
+
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
+        }
+        return decoder
+    }
 }
 
 enum APIError: LocalizedError {
@@ -440,34 +406,94 @@ struct LogEntryData: Codable {
 }
 
 extension NexusAPI {
-    // Fetch today's summary from the backend
-    func fetchDailySummary(for date: Date = Date()) async throws -> DailySummaryResponse {
+    private static var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: date)
+        return formatter
+    }
 
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-summary?date=\(dateString)") else {
-            throw APIError.invalidURL
-        }
+    func fetchDailySummary(for date: Date = Date()) async throws -> DailySummaryResponse {
+        let dateString = Self.dateFormatter.string(from: date)
+        return try await get("/webhook/nexus-summary?date=\(dateString)")
+    }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
+    func fetchSleepData(for date: Date = Date()) async throws -> SleepResponse {
+        let dateString = Self.dateFormatter.string(from: date)
+        return try await get("/webhook/nexus-sleep?date=\(dateString)")
+    }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+    func fetchSleepHistory(days: Int = 7) async throws -> SleepHistoryResponse {
+        return try await get("/webhook/nexus-sleep-history?days=\(days)")
+    }
+}
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
+// MARK: - Sleep/Recovery Models
 
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
+struct SleepResponse: Codable {
+    let success: Bool
+    let data: SleepData?
+}
 
-        let decoder = JSONDecoder()
-        return try decoder.decode(DailySummaryResponse.self, from: data)
+struct SleepHistoryResponse: Codable {
+    let success: Bool
+    let data: [SleepData]?
+}
+
+struct SleepData: Codable, Identifiable {
+    var id: String { date }
+    let date: String
+    let sleep: SleepMetrics?
+    let recovery: RecoveryMetrics?
+}
+
+struct SleepMetrics: Codable {
+    let timeInBedMin: Int?
+    let awakeMin: Int?
+    let lightSleepMin: Int?
+    let deepSleepMin: Int?
+    let remSleepMin: Int?
+    let sleepEfficiency: Double?
+    let sleepConsistency: Int?
+    let sleepPerformance: Int?
+    let sleepNeededMin: Int?
+    let sleepDebtMin: Int?
+    let cycles: Int?
+    let disturbances: Int?
+    let respiratoryRate: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case timeInBedMin = "time_in_bed_min"
+        case awakeMin = "awake_min"
+        case lightSleepMin = "light_sleep_min"
+        case deepSleepMin = "deep_sleep_min"
+        case remSleepMin = "rem_sleep_min"
+        case sleepEfficiency = "sleep_efficiency"
+        case sleepConsistency = "sleep_consistency"
+        case sleepPerformance = "sleep_performance"
+        case sleepNeededMin = "sleep_needed_min"
+        case sleepDebtMin = "sleep_debt_min"
+        case cycles
+        case disturbances
+        case respiratoryRate = "respiratory_rate"
+    }
+
+    var totalSleepMin: Int {
+        (lightSleepMin ?? 0) + (deepSleepMin ?? 0) + (remSleepMin ?? 0)
+    }
+}
+
+struct RecoveryMetrics: Codable {
+    let recoveryScore: Int?
+    let hrv: Double?
+    let rhr: Int?
+    let spo2: Double?
+    let skinTemp: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case recoveryScore = "recovery_score"
+        case hrv = "hrv_rmssd"
+        case rhr
+        case spo2
+        case skinTemp = "skin_temp"
     }
 }
