@@ -33,6 +33,131 @@ struct Transaction: Identifiable, Codable {
         let absAmount = abs(amount)
         return String(format: "%@ %.2f", currency, absAmount)
     }
+
+    /// Returns a normalized copy with cleaned merchant name and corrected category
+    func normalized() -> Transaction {
+        let cleanedMerchant = Self.normalizeMerchantName(merchantName)
+        let correctedCategory = Self.inferCategory(
+            merchant: cleanedMerchant,
+            originalCategory: category,
+            amount: amount
+        )
+
+        return Transaction(
+            id: id,
+            date: date,
+            merchantName: cleanedMerchant,
+            amount: amount,
+            currency: currency,
+            category: correctedCategory,
+            subcategory: subcategory,
+            isGrocery: correctedCategory == "Grocery",
+            isRestaurant: correctedCategory == "Restaurant",
+            notes: notes,
+            tags: tags
+        )
+    }
+
+    // MARK: - Merchant Name Normalization
+
+    private static let merchantNameMapping: [String: String] = [
+        // Careem variants
+        "CAREEM QUIK": "Careem Quik",
+        "CAREEM FOOD": "Careem Food",
+        "CAREEMQUIK": "Careem Quik",
+        "CAREEMFOOD": "Careem Food",
+        "CAREEM": "Careem",
+        // Grocery
+        "CARREFOUR": "Carrefour",
+        "LULU": "Lulu Hypermarket",
+        "CHOITHRAMS": "Choithrams",
+        "SPINNEYS": "Spinneys",
+        "VIVA": "Viva Supermarket",
+        "UNION COOP": "Union Coop",
+        // Food delivery
+        "TALABAT": "Talabat",
+        "DELIVEROO": "Deliveroo",
+        "NOON FOOD": "Noon Food",
+        "ZOMATO": "Zomato",
+        // Transport
+        "UBER": "Uber",
+        "SALIK": "Salik",
+        "RTA": "RTA",
+        "ENOC": "ENOC",
+        "ADNOC": "ADNOC",
+        // Utilities
+        "DEWA": "DEWA",
+        "ETISALAT": "Etisalat",
+        "DU": "du"
+    ]
+
+    private static func normalizeMerchantName(_ name: String) -> String {
+        let upper = name.uppercased().trimmingCharacters(in: .whitespaces)
+
+        // Check direct mapping
+        for (pattern, normalized) in merchantNameMapping {
+            if upper.contains(pattern) {
+                return normalized
+            }
+        }
+
+        // Clean up bank entries
+        if upper.contains("EMIRATESNBD") || upper.contains("EMIRATES NBD") {
+            let cleaned = name
+                .replacingOccurrences(of: "EmiratesNBD", with: "", options: .caseInsensitive)
+                .replacingOccurrences(of: "Emirates NBD", with: "", options: .caseInsensitive)
+                .trimmingCharacters(in: .whitespaces)
+            if !cleaned.isEmpty && cleaned.count > 3 {
+                return cleaned
+            }
+            return "Emirates NBD Transfer"
+        }
+
+        if upper.contains("ALRAJHI") || upper.contains("AL RAJHI") {
+            let cleaned = name
+                .replacingOccurrences(of: "AlRajhiBank", with: "", options: .caseInsensitive)
+                .replacingOccurrences(of: "Al Rajhi Bank", with: "", options: .caseInsensitive)
+                .trimmingCharacters(in: .whitespaces)
+            if !cleaned.isEmpty && cleaned.count > 3 {
+                return cleaned
+            }
+            return "Al Rajhi Transfer"
+        }
+
+        return name
+    }
+
+    // MARK: - Category Inference
+
+    private static let categoryMapping: [String: String] = [
+        // Grocery
+        "Carrefour": "Grocery", "Lulu": "Grocery", "Choithrams": "Grocery",
+        "Spinneys": "Grocery", "Viva": "Grocery", "Union Coop": "Grocery",
+        // Restaurant/Food
+        "Talabat": "Restaurant", "Deliveroo": "Restaurant", "Careem Food": "Restaurant",
+        "Noon Food": "Restaurant", "Zomato": "Restaurant",
+        // Transport
+        "Uber": "Transport", "Careem": "Transport", "Salik": "Transport",
+        "RTA": "Transport", "ENOC": "Transport", "ADNOC": "Transport",
+        // Utilities
+        "DEWA": "Utilities", "Etisalat": "Utilities", "du": "Utilities"
+    ]
+
+    private static func inferCategory(merchant: String, originalCategory: String?, amount: Double) -> String? {
+        // If already categorized and not "Other", keep it
+        if let original = originalCategory, original != "Other" && !original.isEmpty {
+            return original
+        }
+
+        // Try to infer from merchant name
+        for (merchantKey, category) in categoryMapping {
+            if merchant.lowercased().contains(merchantKey.lowercased()) {
+                return category
+            }
+        }
+
+        return originalCategory
+    }
 }
 
 struct Account: Identifiable, Codable {

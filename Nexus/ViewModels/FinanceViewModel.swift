@@ -346,6 +346,49 @@ class FinanceViewModel: ObservableObject {
 
         return patterns.sorted { $0.amount > $1.amount }
     }
+
+    // MARK: - Duplicate Detection
+
+    /// Finds potential duplicate transactions (same merchant/amount within ±1 day)
+    func detectDuplicateTransactions() -> [[Transaction]] {
+        var duplicateGroups: [[Transaction]] = []
+
+        let sorted = recentTransactions.sorted { $0.date < $1.date }
+        var processed = Set<Int>()
+
+        for (index, transaction) in sorted.enumerated() {
+            guard let id = transaction.id, !processed.contains(id) else { continue }
+
+            var group: [Transaction] = [transaction]
+            processed.insert(id)
+
+            // Look for duplicates within ±1 day
+            for otherIndex in (index + 1)..<sorted.count {
+                let other = sorted[otherIndex]
+                guard let otherId = other.id, !processed.contains(otherId) else { continue }
+
+                // Check if within 1 day
+                let dayDifference = abs(transaction.date.timeIntervalSince(other.date)) / (24 * 60 * 60)
+                guard dayDifference <= 1 else { continue }
+
+                // Check if same merchant and amount
+                let sameMerchant = transaction.merchantName.lowercased() == other.merchantName.lowercased()
+                let sameAmount = abs(transaction.amount - other.amount) < 0.01
+
+                if sameMerchant && sameAmount {
+                    group.append(other)
+                    processed.insert(otherId)
+                }
+            }
+
+            // Only include groups with actual duplicates (2+ transactions)
+            if group.count > 1 {
+                duplicateGroups.append(group)
+            }
+        }
+
+        return duplicateGroups.sorted { $0.first?.date ?? Date() > $1.first?.date ?? Date() }
+    }
 }
 
 struct RecurringPattern: Identifiable {
