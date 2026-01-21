@@ -273,35 +273,9 @@ struct DashboardView: View {
                 .padding(.horizontal)
             }
 
-            if !healthKit.isAuthorized && healthKit.isHealthDataAvailable {
-                // Prompt to connect HealthKit
-                HStack(spacing: 12) {
-                    Image(systemName: "heart.fill")
-                        .font(.title2)
-                        .foregroundColor(.pink)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Connect Apple Health")
-                            .font(.subheadline.weight(.medium))
-                        Text("Sync weight & activity from Eufy, Apple Watch")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(Color.nexusCardBackground)
-                .cornerRadius(12)
-                .onTapGesture { showHealthPermission = true }
-                .padding(.horizontal)
-            } else {
-                VStack(spacing: 8) {
-                    // WHOOP Error State with Retry
-                    if whoopError != nil && whoopData == nil && !isHealthSyncing {
+            VStack(spacing: 8) {
+                // WHOOP Error State with Retry
+                if whoopError != nil && whoopData == nil && !isHealthSyncing {
                         HStack(spacing: 12) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.title2)
@@ -423,40 +397,67 @@ struct DashboardView: View {
                         }
                     }
 
-                    // Local HealthKit data (weight, steps, calories)
-                    HStack(spacing: 12) {
-                        if let weight = localWeight {
+                    // HealthKit Connect Prompt (if not authorized)
+                    if !healthKit.isAuthorized && healthKit.isHealthDataAvailable {
+                        HStack(spacing: 12) {
+                            Image(systemName: "heart.fill")
+                                .font(.title2)
+                                .foregroundColor(.pink)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Connect Apple Health")
+                                    .font(.subheadline.weight(.medium))
+                                Text("Sync weight & activity from Eufy, Apple Watch")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(Color.nexusCardBackground)
+                        .cornerRadius(12)
+                        .onTapGesture { showHealthPermission = true }
+                    }
+
+                    // Local HealthKit data (weight, steps, calories) - only if authorized
+                    if healthKit.isAuthorized {
+                        HStack(spacing: 12) {
+                            if let weight = localWeight {
+                                HealthMetricCard(
+                                    title: "Weight",
+                                    value: String(format: "%.1f", weight),
+                                    unit: "kg",
+                                    icon: "scalemass.fill",
+                                    color: .nexusWeight,
+                                    isLoading: isHealthSyncing
+                                )
+                            }
+
                             HealthMetricCard(
-                                title: "Weight",
-                                value: String(format: "%.1f", weight),
-                                unit: "kg",
-                                icon: "scalemass.fill",
-                                color: .nexusWeight,
+                                title: "Steps",
+                                value: formatNumber(localSteps),
+                                unit: "",
+                                icon: "figure.walk",
+                                color: .green,
+                                isLoading: isHealthSyncing
+                            )
+
+                            HealthMetricCard(
+                                title: "Active Cal",
+                                value: "\(localCalories)",
+                                unit: "kcal",
+                                icon: "flame.fill",
+                                color: .orange,
                                 isLoading: isHealthSyncing
                             )
                         }
-
-                        HealthMetricCard(
-                            title: "Steps",
-                            value: formatNumber(localSteps),
-                            unit: "",
-                            icon: "figure.walk",
-                            color: .green,
-                            isLoading: isHealthSyncing
-                        )
-
-                        HealthMetricCard(
-                            title: "Active Cal",
-                            value: "\(localCalories)",
-                            unit: "kcal",
-                            icon: "flame.fill",
-                            color: .orange,
-                            isLoading: isHealthSyncing
-                        )
                     }
                 }
                 .padding(.horizontal)
-            }
         }
     }
 
