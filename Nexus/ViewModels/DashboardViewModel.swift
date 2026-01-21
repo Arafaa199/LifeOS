@@ -12,9 +12,14 @@ class DashboardViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var lastSyncDate: Date?
 
-    private let api = NexusAPI.shared
+    // New unified dashboard payload
+    @Published var dashboardPayload: DashboardPayload?
+    @Published var dataSource: DashboardResult.DataSource?
+    @Published var isDataStale = false
+    @Published var lastUpdatedFormatted: String?
+
+    private let dashboardService = DashboardService.shared
     private let storage = SharedStorage.shared
-    private let persistenceKey = "cached_summary"
     private var loadTask: Task<Void, Never>?
 
     init() {
@@ -29,13 +34,25 @@ class DashboardViewModel: ObservableObject {
     // MARK: - Load Data
 
     private func loadFromCache() {
-        // Load from SharedStorage for widgets
-        let cached = SharedStorage.DailySummary.current()
-        summary.totalCalories = cached.calories
-        summary.totalProtein = cached.protein
-        summary.totalWater = cached.water
-        summary.latestWeight = cached.weight
-        lastSyncDate = cached.lastUpdate
+        // Try to load cached dashboard payload first
+        if let cachedResult = dashboardService.loadCached() {
+            dashboardPayload = cachedResult.payload
+            dataSource = cachedResult.source
+            isDataStale = cachedResult.isStale
+            lastUpdatedFormatted = cachedResult.lastUpdatedFormatted
+            lastSyncDate = cachedResult.lastUpdated
+
+            // Map to DailySummary for backwards compatibility
+            mapPayloadToSummary(cachedResult.payload)
+        } else {
+            // Fall back to SharedStorage for widgets
+            let cached = SharedStorage.DailySummary.current()
+            summary.totalCalories = cached.calories
+            summary.totalProtein = cached.protein
+            summary.totalWater = cached.water
+            summary.latestWeight = cached.weight
+            lastSyncDate = cached.lastUpdate
+        }
 
         // Load recent logs
         let logsData = storage.getRecentLogs()
@@ -57,6 +74,13 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
+    private func mapPayloadToSummary(_ payload: DashboardPayload) {
+        summary.totalCalories = payload.todayFacts.caloriesConsumed ?? 0
+        summary.totalWater = payload.todayFacts.waterMl ?? 0
+        summary.latestWeight = payload.todayFacts.weightKg
+        summary.weight = payload.todayFacts.weightKg
+    }
+
     func loadTodaysSummary() {
         loadTask?.cancel()
         isLoading = true
@@ -65,47 +89,52 @@ class DashboardViewModel: ObservableObject {
         loadTask = Task {
             guard !Task.isCancelled else { return }
             do {
-                // Try to fetch from backend
-                let response = try await api.fetchDailySummary()
+                // Fetch from unified dashboard endpoint
+                let result = try await dashboardService.fetchDashboard()
 
                 await MainActor.run {
-                    if response.success, let data = response.data {
-                        // Update summary from server
-                        summary.totalCalories = data.calories
-                        summary.totalProtein = data.protein
-                        summary.totalWater = data.water
-                        summary.latestWeight = data.weight
-                        summary.weight = data.weight
-                        summary.mood = data.mood
-                        summary.energy = data.energy
+                    // Update dashboard payload
+                    dashboardPayload = result.payload
+                    dataSource = result.source
+                    isDataStale = result.isStale
+                    lastUpdatedFormatted = result.lastUpdatedFormatted
+                    lastSyncDate = result.lastUpdated
 
-                        // Update recent logs if provided
-                        if let logs = data.logs {
-                            recentLogs = logs.compactMap { logData -> LogEntry? in
-                                let type = LogType(rawValue: logData.type) ?? .other
-                                let timestamp = ISO8601DateFormatter().date(from: logData.timestamp) ?? Date()
+                    // Map to DailySummary for backwards compatibility
+                    mapPayloadToSummary(result.payload)
 
-                                return LogEntry(
-                                    timestamp: timestamp,
-                                    type: type,
-                                    description: logData.description,
-                                    calories: logData.calories,
-                                    protein: logData.protein
-                                )
-                            }
-                        }
+                    // Map recent events to recent logs
+                    recentLogs = result.payload.recentEvents.prefix(10).compactMap { event -> LogEntry? in
+                        let timestamp = ISO8601DateFormatter().date(from: "\(event.eventDate)T\(event.eventTime)") ?? Date()
+                        let type = mapEventTypeToLogType(event.eventType)
+                        let description = formatEventDescription(event)
 
-                        // Save to SharedStorage for widgets
-                        saveToStorage()
+                        return LogEntry(
+                            timestamp: timestamp,
+                            type: type,
+                            description: description,
+                            calories: nil,
+                            protein: nil
+                        )
                     }
+
+                    // Save to SharedStorage for widgets
+                    saveToStorage()
+
+                    // Clear error if we got data from cache
+                    if result.source == .cache {
+                        errorMessage = "Using cached data"
+                    } else {
+                        errorMessage = nil
+                    }
+
                     isLoading = false
-                    lastSyncDate = Date()
                 }
             } catch {
                 await MainActor.run {
                     isLoading = false
                     // Show error but keep cached data
-                    if recentLogs.isEmpty && summary.totalCalories == 0 {
+                    if dashboardPayload == nil && recentLogs.isEmpty {
                         errorMessage = "Failed to load data. Please try again."
                     } else {
                         errorMessage = "Using cached data - sync failed"
@@ -116,18 +145,63 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
+    private func mapEventTypeToLogType(_ eventType: String) -> LogType {
+        switch eventType {
+        case "weight":
+            return .weight
+        case "food":
+            return .food
+        case "water":
+            return .water
+        case "mood":
+            return .mood
+        default:
+            return .other
+        }
+    }
+
+    private func formatEventDescription(_ event: RecentEvent) -> String {
+        switch event.eventType {
+        case "transaction":
+            if let merchant = event.payload.merchant, let amount = event.payload.amount {
+                return "\(merchant): \(String(format: "%.2f", amount)) AED"
+            }
+            return "Transaction"
+        case "weight":
+            if let weight = event.payload.weightKg {
+                return "Weight: \(String(format: "%.1f", weight)) kg"
+            }
+            return "Weight logged"
+        default:
+            return event.payload.description ?? event.eventType
+        }
+    }
+
     func refresh() async {
         isRefreshing = true
+        errorMessage = nil
 
-        // Reload from cache in case widgets updated it
-        loadFromCache()
+        do {
+            let result = try await dashboardService.fetchDashboard()
 
-        try? await Task.sleep(nanoseconds: 300_000_000)
+            dashboardPayload = result.payload
+            dataSource = result.source
+            isDataStale = result.isStale
+            lastUpdatedFormatted = result.lastUpdatedFormatted
+            lastSyncDate = result.lastUpdated
 
-        await MainActor.run {
-            isRefreshing = false
-            lastSyncDate = Date()
+            mapPayloadToSummary(result.payload)
+            saveToStorage()
+
+            if result.source == .cache {
+                errorMessage = "Using cached data"
+            }
+        } catch {
+            // Keep existing data, show error
+            errorMessage = "Refresh failed - using cached data"
         }
+
+        isRefreshing = false
     }
 
     // MARK: - Update After Logging
