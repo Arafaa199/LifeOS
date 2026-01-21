@@ -16,6 +16,7 @@ struct DashboardView: View {
     // WHOOP data from Nexus API
     @State private var whoopData: SleepData?
     @State private var whoopError: String?
+    @State private var whoopLastFetched: Date?
 
     var body: some View {
         NavigationView {
@@ -94,6 +95,7 @@ struct DashboardView: View {
                 await MainActor.run {
                     whoopData = response.data
                     whoopError = nil
+                    whoopLastFetched = Date()
                 }
             } else {
                 await MainActor.run { whoopError = "Failed to load WHOOP data" }
@@ -252,6 +254,24 @@ struct DashboardView: View {
                 }
             }
             .padding(.horizontal)
+
+            // Stale data indicator when WHOOP data is >1 hour old
+            if let lastFetched = whoopLastFetched, whoopData != nil {
+                let minutesAgo = Int(-lastFetched.timeIntervalSinceNow / 60)
+                let isStale = minutesAgo >= 60
+
+                HStack(spacing: 6) {
+                    if isStale {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundColor(.nexusWarning)
+                    }
+                    Text("Updated \(formatTimeAgo(lastFetched))")
+                        .font(.caption)
+                        .foregroundColor(isStale ? .nexusWarning : .secondary)
+                }
+                .padding(.horizontal)
+            }
 
             if !healthKit.isAuthorized && healthKit.isHealthDataAvailable {
                 // Prompt to connect HealthKit
@@ -456,6 +476,18 @@ struct DashboardView: View {
 
     private func formatNumber(_ number: Int) -> String {
         number >= 1000 ? String(format: "%.1fk", Double(number) / 1000) : "\(number)"
+    }
+
+    private func formatTimeAgo(_ date: Date) -> String {
+        let minutes = Int(-date.timeIntervalSinceNow / 60)
+        if minutes < 1 {
+            return "just now"
+        } else if minutes < 60 {
+            return "\(minutes) min ago"
+        } else {
+            let hours = minutes / 60
+            return hours == 1 ? "1 hr ago" : "\(hours) hrs ago"
+        }
     }
 
     // MARK: - Summary Cards
