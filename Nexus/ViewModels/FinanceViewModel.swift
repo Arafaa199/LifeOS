@@ -105,8 +105,10 @@ class FinanceViewModel: ObservableObject {
         }
     }
 
-    func logExpense(_ text: String) async {
-        guard !text.isEmpty else { return }
+    /// Logs a quick expense from natural language. Returns true on success.
+    @discardableResult
+    func logExpense(_ text: String) async -> Bool {
+        guard !text.isEmpty else { return false }
 
         isLoading = true
         errorMessage = nil
@@ -115,10 +117,10 @@ class FinanceViewModel: ObservableObject {
             let response = try await api.logExpenseOffline(text)
 
             if response.success {
-                // Check if queued offline
+                // Queued offline is still a success
                 if response.message?.contains("Queued offline") == true {
                     updateQueuedCount()
-                    errorMessage = "Queued - will sync when online"
+                    // Note: NOT setting errorMessage - this is a success state
                 } else if let data = response.data {
                     if let totalSpent = data.totalSpent {
                         summary.totalSpent = totalSpent
@@ -131,10 +133,10 @@ class FinanceViewModel: ObservableObject {
                         }
 
                         if normalizedTransaction.isGrocery {
-                            summary.grocerySpent += normalizedTransaction.amount
+                            summary.grocerySpent += abs(normalizedTransaction.amount)
                         }
                         if normalizedTransaction.isRestaurant {
-                            summary.eatingOutSpent += normalizedTransaction.amount
+                            summary.eatingOutSpent += abs(normalizedTransaction.amount)
                         }
                     }
                 }
@@ -142,15 +144,21 @@ class FinanceViewModel: ObservableObject {
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
 
-                loadFinanceSummary()
+                // Refresh in background
+                Task { loadFinanceSummary() }
+
+                isLoading = false
+                return true
             } else {
                 errorMessage = response.message ?? "Failed to log expense"
+                isLoading = false
+                return false
             }
         } catch {
             errorMessage = "Error: \(error.localizedDescription)"
+            isLoading = false
+            return false
         }
-
-        isLoading = false
     }
 
     func refresh() async {
@@ -181,7 +189,10 @@ class FinanceViewModel: ObservableObject {
         isLoading = false
     }
 
-    func addManualTransaction(merchantName: String, amount: Double, category: String, notes: String?, date: Date) async {
+    /// Adds a manual transaction. Returns true on success (including offline queue).
+    /// Only sets errorMessage on actual failure, not for offline queue.
+    @discardableResult
+    func addManualTransaction(merchantName: String, amount: Double, category: String, notes: String?, date: Date) async -> Bool {
         isLoading = true
         errorMessage = nil
 
@@ -193,10 +204,10 @@ class FinanceViewModel: ObservableObject {
             )
 
             if response.success {
-                // Check if queued offline
+                // Queued offline is still a success - don't set errorMessage
                 if response.message?.contains("Queued offline") == true {
                     updateQueuedCount()
-                    errorMessage = "Queued - will sync when online"
+                    // Note: NOT setting errorMessage - this is a success state
                 } else {
                     // Update summary with absolute value (expenses are stored negative)
                     let spentAmount = abs(amount)
@@ -211,15 +222,21 @@ class FinanceViewModel: ObservableObject {
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
 
-                await refresh()
+                // Refresh in background, don't block success
+                Task { loadFinanceSummary() }
+
+                isLoading = false
+                return true
             } else {
                 errorMessage = response.message ?? "Failed to add transaction"
+                isLoading = false
+                return false
             }
         } catch {
             errorMessage = "Error: \(error.localizedDescription)"
+            isLoading = false
+            return false
         }
-
-        isLoading = false
     }
 
     func updateTransaction(id: Int, merchantName: String, amount: Double, category: String, notes: String?, date: Date) async {
@@ -277,34 +294,48 @@ class FinanceViewModel: ObservableObject {
 
     // MARK: - Income Tracking
 
-    func addIncome(source: String, amount: Double, category: String, notes: String?, date: Date, isRecurring: Bool) async {
+    /// Adds income. Returns true on success (including offline queue).
+    /// Income amounts are always stored as positive values.
+    @discardableResult
+    func addIncome(source: String, amount: Double, category: String, notes: String?, date: Date, isRecurring: Bool) async -> Bool {
         isLoading = true
         errorMessage = nil
+
+        // Income is always positive
+        let incomeAmount = abs(amount)
 
         do {
             let response = try await api.addIncomeOffline(
                 source: source,
-                amount: amount,
+                amount: incomeAmount,
                 category: category
             )
 
             if response.success {
+                // Queued offline is still a success
                 if response.message?.contains("Queued offline") == true {
                     updateQueuedCount()
-                    errorMessage = "Queued - will sync when online"
+                    // Note: NOT setting errorMessage - this is a success state
                 }
 
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
-                await refresh()
+
+                // Refresh in background, don't block success
+                Task { loadFinanceSummary() }
+
+                isLoading = false
+                return true
             } else {
                 errorMessage = response.message ?? "Failed to add income"
+                isLoading = false
+                return false
             }
         } catch {
             errorMessage = "Error: \(error.localizedDescription)"
+            isLoading = false
+            return false
         }
-
-        isLoading = false
     }
 
     // MARK: - Recurring Transactions Detection

@@ -54,6 +54,9 @@ struct AddExpenseView: View {
                             HStack {
                                 Spacer()
                                 ProgressView()
+                                Text("Saving...")
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 8)
                                 Spacer()
                             }
                         } else {
@@ -102,7 +105,8 @@ struct AddExpenseView: View {
         isSubmitting = true
 
         Task {
-            await viewModel.addManualTransaction(
+            // Use returned success bool - don't rely on errorMessage
+            let success = await viewModel.addManualTransaction(
                 merchantName: merchantName,
                 amount: expenseAmount,
                 category: selectedCategory.rawValue,
@@ -110,11 +114,11 @@ struct AddExpenseView: View {
                 date: date
             )
 
-            isSubmitting = false
-
-            if viewModel.errorMessage == nil {
+            // Always dismiss on success (including offline queue)
+            if success {
                 dismiss()
             } else {
+                isSubmitting = false
                 errorMessage = viewModel.errorMessage ?? "Failed to add expense"
                 showingError = true
             }

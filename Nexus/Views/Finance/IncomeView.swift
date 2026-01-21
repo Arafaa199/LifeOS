@@ -12,6 +12,7 @@ struct IncomeView: View {
     @State private var isRecurring = false
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var isSubmitting = false
 
     var body: some View {
         NavigationView {
@@ -52,10 +53,13 @@ struct IncomeView: View {
 
                 Section {
                     Button(action: saveIncome) {
-                        if viewModel.isLoading {
+                        if isSubmitting || viewModel.isLoading {
                             HStack {
                                 Spacer()
                                 ProgressView()
+                                Text("Saving...")
+                                    .foregroundColor(.secondary)
+                                    .padding(.leading, 8)
                                 Spacer()
                             }
                         } else {
@@ -67,7 +71,7 @@ struct IncomeView: View {
                             }
                         }
                     }
-                    .disabled(source.isEmpty || amount.isEmpty || viewModel.isLoading)
+                    .disabled(source.isEmpty || amount.isEmpty || isSubmitting || viewModel.isLoading)
                 }
             }
             .navigationTitle("Add Income")
@@ -88,25 +92,37 @@ struct IncomeView: View {
     }
 
     private func saveIncome() {
+        // Prevent double-submit
+        guard !isSubmitting else { return }
+
         guard let amountValue = Double(amount) else {
             errorMessage = "Invalid amount"
             showingError = true
             return
         }
 
+        // Income is always positive
+        let incomeAmount = abs(amountValue)
+
+        // Set immediately (synchronous) to prevent double-tap
+        isSubmitting = true
+
         Task {
-            await viewModel.addIncome(
+            // Use returned success bool - don't rely on errorMessage
+            let success = await viewModel.addIncome(
                 source: source,
-                amount: amountValue,
+                amount: incomeAmount,
                 category: selectedCategory.rawValue,
                 notes: notes.isEmpty ? nil : notes,
                 date: date,
                 isRecurring: isRecurring
             )
 
-            if viewModel.errorMessage == nil {
+            // Always dismiss on success (including offline queue)
+            if success {
                 dismiss()
             } else {
+                isSubmitting = false
                 errorMessage = viewModel.errorMessage ?? "Failed to add income"
                 showingError = true
             }

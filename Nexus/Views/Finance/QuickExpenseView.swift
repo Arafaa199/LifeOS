@@ -6,6 +6,7 @@ struct QuickExpenseView: View {
     @FocusState private var isTextFieldFocused: Bool
     @State private var showingAddExpense = false
     @State private var showingAddIncome = false
+    @State private var isSubmitting = false
 
     private var overBudgetCategories: [Budget] {
         viewModel.summary.budgets.filter { budget in
@@ -54,17 +55,21 @@ struct QuickExpenseView: View {
                             .foregroundColor(.secondary)
 
                         Button(action: submitExpense) {
-                            if viewModel.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .frame(maxWidth: .infinity)
+                            if isSubmitting || viewModel.isLoading {
+                                HStack {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                    Text("Saving...")
+                                        .padding(.leading, 4)
+                                }
+                                .frame(maxWidth: .infinity)
                             } else {
                                 Text("Log Expense")
                                     .frame(maxWidth: .infinity)
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(expenseText.isEmpty || viewModel.isLoading)
+                        .disabled(expenseText.isEmpty || isSubmitting || viewModel.isLoading)
                     }
                 }
                 .padding()
@@ -207,9 +212,20 @@ struct QuickExpenseView: View {
     }
 
     private func submitExpense() {
+        // Prevent double-submit
+        guard !isSubmitting else { return }
+
+        isSubmitting = true
+
         Task {
-            await viewModel.logExpense(expenseText)
-            expenseText = ""
+            let success = await viewModel.logExpense(expenseText)
+
+            // Always clear on success
+            if success {
+                expenseText = ""
+            }
+
+            isSubmitting = false
             isTextFieldFocused = false
         }
     }
