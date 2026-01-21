@@ -174,6 +174,43 @@ struct DashboardView: View {
 
     private var statusBar: some View {
         VStack(spacing: 8) {
+            // Offline banner - prominent indicator when network unavailable
+            if !networkMonitor.isConnected {
+                HStack(spacing: 10) {
+                    Image(systemName: "wifi.slash")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.white)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("No Internet Connection")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white)
+                        Text("Changes will sync when back online")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+
+                    Spacer()
+
+                    // Pending queue count if any
+                    if pendingCount > 0 {
+                        Text("\(pendingCount) queued")
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(.white.opacity(0.9))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.2))
+                            .cornerRadius(6)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.gray.opacity(0.85))
+                .cornerRadius(12)
+                .padding(.horizontal)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
             // Error banner
             if let error = viewModel.errorMessage {
                 HStack(spacing: 8) {
