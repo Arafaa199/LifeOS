@@ -7,10 +7,16 @@ struct InsightsView: View {
     @State private var showingMonthlyTrends = false
     @State private var cachedRecurringPatterns: [RecurringPattern] = []
     @State private var cachedTopMerchants: [(merchant: String, total: Double, count: Int)] = []
+    @State private var cachedDuplicateGroups: [[Transaction]] = []
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Potential Duplicates Warning
+                if !cachedDuplicateGroups.isEmpty {
+                    duplicatesSection
+                }
+
                 // Quick Stats
                 quickStatsSection
 
@@ -251,6 +257,7 @@ struct InsightsView: View {
     private func updateCachedComputations() {
         cachedTopMerchants = computeTopMerchants()
         cachedRecurringPatterns = viewModel.detectRecurringTransactions()
+        cachedDuplicateGroups = viewModel.detectDuplicateTransactions()
     }
 
     private func computeTopMerchants() -> [(merchant: String, total: Double, count: Int)] {
@@ -305,6 +312,40 @@ struct InsightsView: View {
                 .background(Color(.secondarySystemBackground))
                 .cornerRadius(8)
             }
+        }
+    }
+
+    private var duplicatesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            duplicatesSectionHeader
+
+            Text("Transactions with same merchant and amount within 1 day")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            ForEach(Array(cachedDuplicateGroups.prefix(5).enumerated()), id: \.offset) { _, group in
+                DuplicateGroupRow(group: group)
+            }
+
+            if cachedDuplicateGroups.count > 5 {
+                Text("Showing 5 of \(cachedDuplicateGroups.count) groups")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+        }
+    }
+
+    private var duplicatesSectionHeader: some View {
+        HStack {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+            Text("Potential Duplicates")
+                .font(.headline)
+            Spacer()
+            Text("\(cachedDuplicateGroups.count) group\(cachedDuplicateGroups.count == 1 ? "" : "s")")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 
@@ -409,5 +450,62 @@ struct PatternCard: View {
         .padding()
         .background(Color(.secondarySystemBackground))
         .cornerRadius(8)
+    }
+}
+
+struct DuplicateGroupRow: View {
+    let group: [Transaction]
+
+    var body: some View {
+        if let first = group.first {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(first.merchantName)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Text("\(group.count) transactions")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(first.displayAmount)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text("each")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                duplicateDates
+            }
+            .padding()
+            .background(Color.orange.opacity(0.1))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+
+    private var duplicateDates: some View {
+        HStack(spacing: 4) {
+            ForEach(group.prefix(3)) { transaction in
+                Text(transaction.date, style: .date)
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.orange.opacity(0.2))
+                    .cornerRadius(4)
+            }
+            if group.count > 3 {
+                Text("+\(group.count - 3)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
     }
 }
