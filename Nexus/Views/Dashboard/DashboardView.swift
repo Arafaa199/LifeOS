@@ -91,20 +91,16 @@ struct DashboardView: View {
 
         do {
             let response = try await whoopResponse
-            print("[WHOOP DEBUG] Response success: \(response.success)")
-            print("[WHOOP DEBUG] Response data: \(String(describing: response.data))")
             if response.success {
                 await MainActor.run {
                     whoopData = response.data
                     whoopError = nil
                     whoopLastFetched = Date()
-                    print("[WHOOP DEBUG] Set whoopData, recovery: \(String(describing: response.data?.recovery))")
                 }
             } else {
                 await MainActor.run { whoopError = "Failed to load WHOOP data" }
             }
         } catch {
-            print("[WHOOP DEBUG] Error: \(error)")
             await MainActor.run { whoopError = error.localizedDescription }
         }
 
