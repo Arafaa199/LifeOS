@@ -19,6 +19,56 @@ class DashboardViewModel: ObservableObject {
     @Published var lastUpdatedFormatted: String?
 
     private let dashboardService = DashboardService.shared
+
+    // MARK: - Computed Properties for Legacy View Compatibility
+
+    /// Recovery metrics from unified payload (for WHOOPRecoveryRow)
+    var recoveryMetrics: RecoveryMetrics? {
+        guard let facts = dashboardPayload?.todayFacts,
+              facts.recoveryScore != nil || facts.hrv != nil || facts.rhr != nil else {
+            return nil
+        }
+        return RecoveryMetrics(
+            recoveryScore: facts.recoveryScore,
+            hrv: facts.hrv,
+            rhr: facts.rhr,
+            spo2: nil,
+            skinTemp: nil
+        )
+    }
+
+    /// Sleep metrics from unified payload (for WHOOPSleepRow)
+    var sleepMetrics: SleepMetrics? {
+        guard let facts = dashboardPayload?.todayFacts,
+              facts.sleepMinutes != nil else {
+            return nil
+        }
+        return SleepMetrics(
+            timeInBedMin: facts.sleepMinutes,
+            awakeMin: nil,
+            lightSleepMin: facts.lightSleepMinutes,
+            deepSleepMin: facts.deepSleepMinutes,
+            remSleepMin: facts.remSleepMinutes,
+            sleepEfficiency: facts.sleepEfficiency,
+            sleepConsistency: nil,
+            sleepPerformance: facts.sleepEfficiency != nil ? Int(facts.sleepEfficiency!) : nil,
+            sleepNeededMin: nil,
+            sleepDebtMin: nil,
+            cycles: nil,
+            disturbances: nil,
+            respiratoryRate: nil
+        )
+    }
+
+    /// Stale feeds from payload
+    var staleFeeds: [String] {
+        dashboardPayload?.staleFeeds ?? []
+    }
+
+    /// Whether any feeds are stale
+    var hasStaleFeeds: Bool {
+        !staleFeeds.isEmpty
+    }
     private let storage = SharedStorage.shared
     private var loadTask: Task<Void, Never>?
 

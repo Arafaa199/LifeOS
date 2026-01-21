@@ -6,10 +6,10 @@ struct DashboardView: View {
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @StateObject private var healthKit = HealthKitManager.shared
     @State private var pendingCount = 0
-    @State private var isHealthSyncing = false
+    @State private var isHealthKitSyncing = false
     @State private var showHealthPermission = false
 
-    // Local HealthKit data (weight, steps, calories)
+    // Local HealthKit data (weight, steps, calories) - device-local reads, not API calls
     @State private var localWeight: Double?
     @State private var localSteps: Int = 0
     @State private var localCalories: Int = 0
@@ -18,14 +18,9 @@ struct DashboardView: View {
     @State private var weightHistory: [(date: Date, weight: Double)] = []
     @State private var showWeightChart = false
 
-    // WHOOP data from Nexus API
-    @State private var whoopData: SleepData?
-    @State private var whoopError: String?
-    @State private var whoopLastFetched: Date?
-
-    // HealthKit sleep fallback (when WHOOP unavailable)
-    @State private var healthKitSleep: HealthKitManager.SleepData?
-    @State private var usingHealthKitFallback = false
+    // Stale feeds banner dismissal (resets on new fetch)
+    @State private var staleBannerDismissed = false
+    @State private var lastPayloadDate: String?
 
     var body: some View {
         NavigationView {
@@ -37,21 +32,27 @@ struct DashboardView: View {
                     // Network & Sync Status
                     statusBar
 
-                    // Daily Summary Cards
-                    summaryCardsSection
+                    // Empty state when no data and no network
+                    if viewModel.dashboardPayload == nil && !networkMonitor.isConnected && !viewModel.isLoading {
+                        emptyStateView
+                    } else {
+                        // Daily Summary Cards
+                        summaryCardsSection
 
-                    // Health Section (HealthKit + WHOOP from API)
-                    healthSection
+                        // Health Section (WHOOP from unified payload + local HealthKit)
+                        healthSection
 
-                    // Recent Logs Section
-                    recentLogsSection
+                        // Recent Logs Section
+                        recentLogsSection
+                    }
                 }
                 .padding(.top, 8)
             }
             .background(Color(.systemGroupedBackground))
             .refreshable {
+                staleBannerDismissed = false  // Reset banner on refresh
                 await viewModel.refresh()
-                await syncAllHealthData()
+                await syncLocalHealthKit()
                 pendingCount = OfflineQueue.shared.getQueueCount()
             }
             .navigationTitle("Nexus")
@@ -69,13 +70,20 @@ struct DashboardView: View {
             }
             .onAppear {
                 pendingCount = OfflineQueue.shared.getQueueCount()
-                Task { await syncAllHealthData() }
+                Task { await syncLocalHealthKit() }
+            }
+            .onChange(of: viewModel.dashboardPayload?.meta.forDate) { _, newDate in
+                // Reset stale banner when payload date changes (new fetch)
+                if newDate != lastPayloadDate {
+                    staleBannerDismissed = false
+                    lastPayloadDate = newDate
+                }
             }
             .alert("Health Access", isPresented: $showHealthPermission) {
                 Button("Enable") {
                     Task {
                         try? await healthKit.requestAuthorization()
-                        await syncAllHealthData()
+                        await syncLocalHealthKit()
                     }
                 }
                 Button("Not Now", role: .cancel) { }
@@ -85,75 +93,22 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Health Sync
+    // MARK: - Local HealthKit Sync (device-local, no API calls)
 
-    private func syncAllHealthData() async {
-        guard !isHealthSyncing else { return }
-        isHealthSyncing = true
-        whoopError = nil
-        usingHealthKitFallback = false
-
-        // Fetch HealthKit local data and WHOOP data from API in parallel
-        async let localData = fetchLocalHealthData()
-        async let whoopResponse = NexusAPI.shared.fetchSleepData()
-
-        _ = await localData
-
-        do {
-            let response = try await whoopResponse
-            if response.success {
-                await MainActor.run {
-                    whoopData = response.data
-                    whoopError = nil
-                    whoopLastFetched = Date()
-                    healthKitSleep = nil
-                    usingHealthKitFallback = false
-
-                    // Save to SharedStorage for widget
-                    if let recovery = response.data?.recovery,
-                       let score = recovery.recoveryScore {
-                        SharedStorage.shared.saveRecoveryData(
-                            score: score,
-                            hrv: recovery.hrv,
-                            rhr: recovery.rhr
-                        )
-                    }
-                }
-            } else {
-                await MainActor.run { whoopError = "Failed to load WHOOP data" }
-                await tryHealthKitSleepFallback()
-            }
-        } catch {
-            await MainActor.run { whoopError = error.localizedDescription }
-            await tryHealthKitSleepFallback()
-        }
-
-        await MainActor.run { isHealthSyncing = false }
-    }
-
-    private func tryHealthKitSleepFallback() async {
-        guard healthKit.isAuthorized else { return }
-
-        do {
-            if let sleepData = try await healthKit.fetchLastNightSleep() {
-                await MainActor.run {
-                    healthKitSleep = sleepData
-                    usingHealthKitFallback = true
-                }
-            }
-        } catch {
-            // HealthKit fallback also failed, keep the original error
-        }
-    }
-
-    private func fetchLocalHealthData() async {
+    private func syncLocalHealthKit() async {
+        guard !isHealthKitSyncing else { return }
         guard healthKit.isHealthDataAvailable else { return }
+
+        isHealthKitSyncing = true
 
         if !healthKit.isAuthorized {
             try? await healthKit.requestAuthorization()
         }
 
-        guard healthKit.isAuthorized else { return }
+        guard healthKit.isAuthorized else {
+            await MainActor.run { isHealthKitSyncing = false }
+            return
+        }
 
         async let weightResult = healthKit.fetchLatestWeight()
         async let stepsResult = healthKit.fetchTodaysSteps()
@@ -170,11 +125,22 @@ struct DashboardView: View {
             localSteps = steps
             localCalories = calories
             weightHistory = history
+            isHealthKitSyncing = false
         }
 
-        // Sync weight to Nexus backend
+        // Sync weight to Nexus backend (fire-and-forget)
         if let w = weight?.weight {
             _ = try? await NexusAPI.shared.logWeight(kg: w)
+        }
+
+        // Save recovery to widget storage from unified payload
+        if let payload = viewModel.dashboardPayload,
+           let score = payload.todayFacts.recoveryScore {
+            SharedStorage.shared.saveRecoveryData(
+                score: score,
+                hrv: payload.todayFacts.hrv,
+                rhr: payload.todayFacts.rhr
+            )
         }
     }
 
@@ -216,10 +182,10 @@ struct DashboardView: View {
                         .foregroundColor(.white)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("No Internet Connection")
+                        Text("Offline")
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.white)
-                        Text("Changes will sync when back online")
+                        Text(viewModel.dashboardPayload != nil ? "Showing cached data" : "Connect to load data")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.8))
                     }
@@ -244,9 +210,43 @@ struct DashboardView: View {
                 .padding(.horizontal)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
+            // Cache fallback banner - when online but showing cached data due to fetch failure
+            else if viewModel.dataSource == .cache && viewModel.errorMessage != nil {
+                HStack(spacing: 10) {
+                    Image(systemName: "arrow.clockwise.icloud")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.blue)
 
-            // Error banner
-            if let error = viewModel.errorMessage {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Showing Cached Data")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.primary)
+                        if let lastSync = viewModel.lastSyncDate {
+                            Text("Last synced \(lastSync, style: .relative) ago")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button("Retry") {
+                        viewModel.errorMessage = nil
+                        viewModel.loadTodaysSummary()
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.blue)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(12)
+                .padding(.horizontal)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+
+            // Error banner (only show if not already showing cache fallback banner)
+            if let error = viewModel.errorMessage, viewModel.dataSource != .cache {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.nexusWarning)
@@ -266,6 +266,31 @@ struct DashboardView: View {
                 .background(Color.nexusWarning.opacity(0.12))
                 .cornerRadius(8)
                 .padding(.horizontal)
+            }
+
+            // Stale feeds banner - shows when data sources are outdated
+            if viewModel.hasStaleFeeds && !staleBannerDismissed {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock.badge.exclamationmark")
+                        .foregroundColor(.orange)
+                    Text("Some data may be outdated: \(viewModel.staleFeeds.map { formatFeedName($0) }.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button {
+                        withAnimation { staleBannerDismissed = true }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.12))
+                .cornerRadius(8)
+                .padding(.horizontal)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             HStack(spacing: 12) {
@@ -302,44 +327,29 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Health Section (HealthKit + WHOOP)
+    // MARK: - Health Section (WHOOP from unified payload + local HealthKit)
 
     private var healthSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             healthSectionHeader
-            staleDataIndicator
 
             VStack(spacing: 8) {
-                // WHOOP Error State
-                if whoopError != nil && whoopData == nil && !isHealthSyncing && !usingHealthKitFallback {
-                    WHOOPErrorView(errorMessage: whoopError) {
-                        Task { await syncAllHealthData() }
-                    }
-                }
-
-                // HealthKit Sleep Fallback
-                if usingHealthKitFallback, let hkSleep = healthKitSleep {
-                    HealthKitSleepFallbackView(sleepData: hkSleep) {
-                        Task { await syncAllHealthData() }
-                    }
-                }
-
-                // WHOOP Recovery & Sleep
-                WHOOPRecoveryRow(recovery: whoopData?.recovery, isLoading: isHealthSyncing)
-                WHOOPSleepRow(sleep: whoopData?.sleep, isLoading: isHealthSyncing)
+                // WHOOP Recovery & Sleep (from unified dashboard payload)
+                WHOOPRecoveryRow(recovery: viewModel.recoveryMetrics, isLoading: viewModel.isLoading)
+                WHOOPSleepRow(sleep: viewModel.sleepMetrics, isLoading: viewModel.isLoading)
 
                 // HealthKit Connect Prompt
                 if !healthKit.isAuthorized && healthKit.isHealthDataAvailable {
                     HealthKitConnectPrompt { showHealthPermission = true }
                 }
 
-                // HealthKit data (weight, steps, calories)
+                // HealthKit data (weight, steps, calories) - local device reads
                 if healthKit.isAuthorized {
                     HealthKitDataRow(
                         weight: localWeight,
                         steps: localSteps,
                         calories: localCalories,
-                        isLoading: isHealthSyncing,
+                        isLoading: isHealthKitSyncing,
                         hasWeightHistory: weightHistory.count >= 2
                     ) {
                         showWeightChart.toggle()
@@ -362,7 +372,7 @@ struct DashboardView: View {
 
             Spacer()
 
-            if isHealthSyncing {
+            if isHealthKitSyncing {
                 HStack(spacing: 6) {
                     ProgressView()
                         .scaleEffect(0.8)
@@ -371,7 +381,7 @@ struct DashboardView: View {
                         .foregroundColor(.secondary)
                 }
             } else if healthKit.isAuthorized {
-                Button(action: { Task { await syncAllHealthData() } }) {
+                Button(action: { Task { await syncLocalHealthKit() } }) {
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(.nexusPrimary)
@@ -385,28 +395,46 @@ struct DashboardView: View {
         .padding(.horizontal)
     }
 
-    @ViewBuilder
-    private var staleDataIndicator: some View {
-        if let lastFetched = whoopLastFetched, whoopData != nil {
-            let minutesAgo = Int(-lastFetched.timeIntervalSinceNow / 60)
-            let isStale = minutesAgo >= 60
+    // MARK: - Empty State
 
-            HStack(spacing: 6) {
-                if isStale {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundColor(.nexusWarning)
-                }
-                Text("Updated \(formatTimeAgo(lastFetched))")
-                    .font(.caption)
-                    .foregroundColor(isStale ? .nexusWarning : .secondary)
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "tray")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+
+            Text("No Data Available")
+                .font(.headline)
+
+            Text("Connect to the internet to load your dashboard.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                viewModel.loadTodaysSummary()
+            } label: {
+                Label("Try Again", systemImage: "arrow.clockwise")
+                    .font(.subheadline.weight(.semibold))
             }
-            .padding(.horizontal)
+            .buttonStyle(.bordered)
+            .tint(.nexusPrimary)
         }
+        .padding(.vertical, 60)
+        .frame(maxWidth: .infinity)
     }
 
-    private func formatTimeAgo(_ date: Date) -> String {
-        TimeFormatter.formatTimeAgo(date)
+    // MARK: - Helper Functions
+
+    private func formatFeedName(_ feed: String) -> String {
+        switch feed {
+        case "whoop_recovery": return "WHOOP Recovery"
+        case "whoop_sleep": return "WHOOP Sleep"
+        case "whoop_strain": return "WHOOP Strain"
+        case "weight": return "Weight"
+        case "transactions": return "Transactions"
+        default: return feed.replacingOccurrences(of: "_", with: " ").capitalized
+        }
     }
 
     // MARK: - Summary Cards
