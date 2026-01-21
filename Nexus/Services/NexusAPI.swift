@@ -189,6 +189,43 @@ class NexusAPI: ObservableObject {
 
     // MARK: - Network Layer
 
+    private let maxRetries = 3
+    private let initialRetryDelay: TimeInterval = 0.5
+    private let retryMultiplier: Double = 2.0
+
+    private func performRequest(_ request: URLRequest, attempt: Int = 1) async throws -> (Data, HTTPURLResponse) {
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+
+            // Retry on 5xx server errors or specific transient errors
+            if httpResponse.statusCode >= 500, attempt < maxRetries {
+                let delay = initialRetryDelay * pow(retryMultiplier, Double(attempt - 1))
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                return try await performRequest(request, attempt: attempt + 1)
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                throw APIError.serverError(httpResponse.statusCode)
+            }
+
+            return (data, httpResponse)
+        } catch let error as APIError {
+            throw error
+        } catch {
+            // Retry on network errors (timeout, connection lost, etc.)
+            if attempt < maxRetries {
+                let delay = initialRetryDelay * pow(retryMultiplier, Double(attempt - 1))
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                return try await performRequest(request, attempt: attempt + 1)
+            }
+            throw error
+        }
+    }
+
     /// Generic POST method for all API calls
     private func post<Body: Encodable, Response: Decodable>(
         _ endpoint: String,
@@ -209,16 +246,7 @@ class NexusAPI: ObservableObject {
         let encoder = JSONEncoder()
         request.httpBody = try encoder.encode(body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
+        let (data, _) = try await performRequest(request)
         return try decoder.decode(Response.self, from: data)
     }
 
@@ -245,16 +273,7 @@ class NexusAPI: ObservableObject {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
+        let (data, _) = try await performRequest(request)
         return try decoder.decode(T.self, from: data)
     }
 
