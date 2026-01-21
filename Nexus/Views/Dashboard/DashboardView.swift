@@ -220,8 +220,13 @@ struct DashboardView: View {
                 Spacer()
 
                 if isHealthSyncing {
-                    ProgressView()
-                        .scaleEffect(0.8)
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Syncing...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 } else if healthKit.isAuthorized {
                     Button(action: { Task { await syncAllHealthData() } }) {
                         Image(systemName: "arrow.triangle.2.circlepath")
@@ -272,7 +277,8 @@ struct DashboardView: View {
                                     value: "\(score)",
                                     unit: "%",
                                     icon: "heart.circle.fill",
-                                    color: recoveryColor(score)
+                                    color: recoveryColor(score),
+                                    isLoading: isHealthSyncing
                                 )
                             }
 
@@ -282,7 +288,8 @@ struct DashboardView: View {
                                     value: String(format: "%.0f", hrv),
                                     unit: "ms",
                                     icon: "waveform.path.ecg",
-                                    color: .purple
+                                    color: .purple,
+                                    isLoading: isHealthSyncing
                                 )
                             }
 
@@ -292,9 +299,17 @@ struct DashboardView: View {
                                     value: "\(rhr)",
                                     unit: "bpm",
                                     icon: "heart.fill",
-                                    color: .red
+                                    color: .red,
+                                    isLoading: isHealthSyncing
                                 )
                             }
+                        }
+                    } else if isHealthSyncing {
+                        // Show placeholder cards while loading WHOOP data
+                        HStack(spacing: 12) {
+                            HealthMetricCard(title: "Recovery", value: "--", unit: "%", icon: "heart.circle.fill", color: .gray, isLoading: true)
+                            HealthMetricCard(title: "HRV", value: "--", unit: "ms", icon: "waveform.path.ecg", color: .gray, isLoading: true)
+                            HealthMetricCard(title: "Resting HR", value: "--", unit: "bpm", icon: "heart.fill", color: .gray, isLoading: true)
                         }
                     }
 
@@ -307,7 +322,8 @@ struct DashboardView: View {
                                     value: formatDuration(sleep.totalSleepMin),
                                     unit: "",
                                     icon: "bed.double.fill",
-                                    color: .indigo
+                                    color: .indigo,
+                                    isLoading: isHealthSyncing
                                 )
                             }
 
@@ -317,7 +333,8 @@ struct DashboardView: View {
                                     value: formatDuration(deep),
                                     unit: "",
                                     icon: "moon.zzz.fill",
-                                    color: .blue
+                                    color: .blue,
+                                    isLoading: isHealthSyncing
                                 )
                             }
 
@@ -327,9 +344,17 @@ struct DashboardView: View {
                                     value: "\(perf)",
                                     unit: "%",
                                     icon: "sparkles",
-                                    color: .cyan
+                                    color: .cyan,
+                                    isLoading: isHealthSyncing
                                 )
                             }
+                        }
+                    } else if isHealthSyncing {
+                        // Show placeholder cards while loading sleep data
+                        HStack(spacing: 12) {
+                            HealthMetricCard(title: "Sleep", value: "--", unit: "", icon: "bed.double.fill", color: .gray, isLoading: true)
+                            HealthMetricCard(title: "Deep", value: "--", unit: "", icon: "moon.zzz.fill", color: .gray, isLoading: true)
+                            HealthMetricCard(title: "Sleep Score", value: "--", unit: "%", icon: "sparkles", color: .gray, isLoading: true)
                         }
                     }
 
@@ -341,7 +366,8 @@ struct DashboardView: View {
                                 value: String(format: "%.1f", weight),
                                 unit: "kg",
                                 icon: "scalemass.fill",
-                                color: .nexusWeight
+                                color: .nexusWeight,
+                                isLoading: isHealthSyncing
                             )
                         }
 
@@ -350,7 +376,8 @@ struct DashboardView: View {
                             value: formatNumber(localSteps),
                             unit: "",
                             icon: "figure.walk",
-                            color: .green
+                            color: .green,
+                            isLoading: isHealthSyncing
                         )
 
                         HealthMetricCard(
@@ -358,7 +385,8 @@ struct DashboardView: View {
                             value: "\(localCalories)",
                             unit: "kcal",
                             icon: "flame.fill",
-                            color: .orange
+                            color: .orange,
+                            isLoading: isHealthSyncing
                         )
                     }
                 }
@@ -585,13 +613,15 @@ struct HealthMetricCard: View {
     let unit: String
     let icon: String
     let color: Color
+    var isLoading: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.caption)
-                    .foregroundColor(color)
+                    .foregroundColor(isLoading ? .secondary : color)
+                    .symbolEffect(.pulse, isActive: isLoading && value == "--")
                 Text(title)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -600,17 +630,21 @@ struct HealthMetricCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value)
                     .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .opacity(isLoading ? 0.6 : 1.0)
+                    .redacted(reason: isLoading && value == "--" ? .placeholder : [])
                 if !unit.isEmpty {
                     Text(unit)
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .opacity(isLoading ? 0.6 : 1.0)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(color.opacity(0.1))
+        .background((isLoading && value == "--" ? Color.gray : color).opacity(0.1))
         .cornerRadius(10)
+        .animation(.easeInOut(duration: 0.2), value: isLoading)
     }
 }
 
