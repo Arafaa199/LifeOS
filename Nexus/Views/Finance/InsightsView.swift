@@ -12,6 +12,9 @@ struct InsightsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // Spending Summary Card (at-a-glance health)
+                spendingSummaryCard
+
                 // Potential Duplicates Warning
                 if !cachedDuplicateGroups.isEmpty {
                     duplicatesSection
@@ -100,6 +103,190 @@ struct InsightsView: View {
                 )
             }
         }
+    }
+
+    private var spendingSummaryCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Spending Summary")
+                        .font(.headline)
+                    Text(currentMonthName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                spendingHealthIndicator
+            }
+
+            // Main spending figure
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(viewModel.summary.formatAmount(viewModel.summary.totalSpent))
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                Text("spent")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            // Budget progress (if budgets exist)
+            if let totalBudget = totalBudgetAmount, totalBudget > 0 {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Budget")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(Int(budgetPercentage))%")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(budgetStatusColor)
+                    }
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(.systemGray5))
+                                .frame(height: 8)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(budgetStatusColor)
+                                .frame(width: min(geometry.size.width * budgetPercentage / 100, geometry.size.width), height: 8)
+                        }
+                    }
+                    .frame(height: 8)
+                    HStack {
+                        Text(viewModel.summary.formatAmount(viewModel.summary.totalSpent))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(viewModel.summary.formatAmount(totalBudget))
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            // Daily pace indicator
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Daily avg")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text(dailyAverageAmount)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                Divider()
+                    .frame(height: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Days tracked")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text("\(daysWithTransactions)")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                Divider()
+                    .frame(height: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Top category")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text(topCategoryName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+            }
+        }
+        .padding()
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private var spendingHealthIndicator: some View {
+        let health = spendingHealth
+        HStack(spacing: 4) {
+            Circle()
+                .fill(health.color)
+                .frame(width: 8, height: 8)
+            Text(health.label)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(health.color)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(health.color.opacity(0.15))
+        .cornerRadius(12)
+    }
+
+    private var currentMonthName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: Date())
+    }
+
+    private var totalBudgetAmount: Double? {
+        guard !viewModel.summary.budgets.isEmpty else { return nil }
+        return viewModel.summary.budgets.reduce(0) { $0 + $1.budgetAmount }
+    }
+
+    private var budgetPercentage: Double {
+        guard let totalBudget = totalBudgetAmount, totalBudget > 0 else { return 0 }
+        return (viewModel.summary.totalSpent / totalBudget) * 100
+    }
+
+    private var budgetStatusColor: Color {
+        if budgetPercentage >= 100 { return .red }
+        if budgetPercentage >= 80 { return .orange }
+        return .green
+    }
+
+    private var dailyAverageAmount: String {
+        guard !viewModel.recentTransactions.isEmpty else { return "AED 0" }
+        let calendar = Calendar.current
+        let uniqueDays = Set(viewModel.recentTransactions.map { calendar.startOfDay(for: $0.date) }).count
+        guard uniqueDays > 0 else { return "AED 0" }
+        let avg = viewModel.summary.totalSpent / Double(uniqueDays)
+        return String(format: "AED %.0f", avg)
+    }
+
+    private var daysWithTransactions: Int {
+        let calendar = Calendar.current
+        return Set(viewModel.recentTransactions.map { calendar.startOfDay(for: $0.date) }).count
+    }
+
+    private var topCategoryName: String {
+        guard let top = viewModel.summary.categoryBreakdown.max(by: { $0.value < $1.value }) else {
+            return "N/A"
+        }
+        return top.key
+    }
+
+    private var spendingHealth: (label: String, color: Color) {
+        // Determine health based on budget usage and spending patterns
+        if let _ = totalBudgetAmount {
+            if budgetPercentage >= 100 {
+                return ("Over Budget", .red)
+            } else if budgetPercentage >= 80 {
+                return ("Near Limit", .orange)
+            } else if budgetPercentage >= 50 {
+                return ("On Track", .blue)
+            } else {
+                return ("Under Budget", .green)
+            }
+        }
+        // No budgets set - just show neutral status
+        return ("Tracking", .blue)
     }
 
     private var topMerchantsSection: some View {
