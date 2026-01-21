@@ -71,7 +71,7 @@ class FinanceViewModel: ObservableObject {
                         summary.currency = currency
                     }
                     if let transactions = data.recentTransactions {
-                        recentTransactions = transactions
+                        recentTransactions = transactions.map { $0.normalized() }
                     }
                     if let budgets = data.budgets {
                         summary.budgets = budgets
@@ -118,17 +118,18 @@ class FinanceViewModel: ObservableObject {
                         // Update category breakdown
                     }
                     if let transaction = data.transaction {
-                        recentTransactions.insert(transaction, at: 0)
+                        let normalizedTransaction = transaction.normalized()
+                        recentTransactions.insert(normalizedTransaction, at: 0)
                         if recentTransactions.count > 20 {
                             recentTransactions = Array(recentTransactions.prefix(20))
                         }
 
                         // Update category totals
-                        if transaction.isGrocery {
-                            summary.grocerySpent += transaction.amount
+                        if normalizedTransaction.isGrocery {
+                            summary.grocerySpent += normalizedTransaction.amount
                         }
-                        if transaction.isRestaurant {
-                            summary.eatingOutSpent += transaction.amount
+                        if normalizedTransaction.isRestaurant {
+                            summary.eatingOutSpent += normalizedTransaction.amount
                         }
                     }
                 }
