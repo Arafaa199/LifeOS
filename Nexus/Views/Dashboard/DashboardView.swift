@@ -15,6 +15,7 @@ struct DashboardView: View {
 
     // WHOOP data from Nexus API
     @State private var whoopData: SleepData?
+    @State private var whoopError: String?
 
     var body: some View {
         NavigationView {
@@ -79,6 +80,7 @@ struct DashboardView: View {
     private func syncAllHealthData() async {
         guard !isHealthSyncing else { return }
         isHealthSyncing = true
+        whoopError = nil
 
         // Fetch HealthKit local data and WHOOP data from API in parallel
         async let localData = fetchLocalHealthData()
@@ -86,8 +88,18 @@ struct DashboardView: View {
 
         _ = await localData
 
-        if let response = try? await whoopResponse, response.success {
-            await MainActor.run { whoopData = response.data }
+        do {
+            let response = try await whoopResponse
+            if response.success {
+                await MainActor.run {
+                    whoopData = response.data
+                    whoopError = nil
+                }
+            } else {
+                await MainActor.run { whoopError = "Failed to load WHOOP data" }
+            }
+        } catch {
+            await MainActor.run { whoopError = error.localizedDescription }
         }
 
         await MainActor.run { isHealthSyncing = false }
@@ -268,6 +280,39 @@ struct DashboardView: View {
                 .padding(.horizontal)
             } else {
                 VStack(spacing: 8) {
+                    // WHOOP Error State with Retry
+                    if whoopError != nil && whoopData == nil && !isHealthSyncing {
+                        HStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.title2)
+                                .foregroundColor(.orange)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Couldn't load WHOOP data")
+                                    .font(.subheadline.weight(.medium))
+                                Text(whoopError ?? "Unknown error")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            Button(action: { Task { await syncAllHealthData() } }) {
+                                Text("Retry")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.nexusPrimary)
+                                    .cornerRadius(8)
+                            }
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(12)
+                    }
+
                     // WHOOP Recovery row (from API)
                     if let recovery = whoopData?.recovery {
                         HStack(spacing: 12) {
