@@ -413,20 +413,11 @@ struct SleepView: View {
     }
 
     private func formatMinutes(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let mins = minutes % 60
-        if hours > 0 {
-            return "\(hours)h \(mins)m"
-        }
-        return "\(mins)m"
+        TimeFormatter.formatMinutes(minutes)
     }
 
     private func recoveryColor(_ score: Int) -> Color {
-        switch score {
-        case 67...100: return .nexusSuccess
-        case 34...66: return .nexusFood
-        default: return .nexusError
-        }
+        ColorHelper.recoveryColor(for: score)
     }
 }
 
@@ -570,12 +561,7 @@ struct SleepStageRow: View {
     }
 
     private func formatMinutes(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let mins = minutes % 60
-        if hours > 0 {
-            return "\(hours)h \(mins)m"
-        }
-        return "\(mins)m"
+        TimeFormatter.formatMinutes(minutes)
     }
 }
 
@@ -635,11 +621,7 @@ struct SleepHistoryBar: View {
     }
 
     private var recoveryColor: Color {
-        switch recoveryScore {
-        case 67...100: return .nexusSuccess
-        case 34...66: return .nexusFood
-        default: return .nexusError
-        }
+        ColorHelper.recoveryColor(for: recoveryScore)
     }
 }
 

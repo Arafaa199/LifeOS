@@ -44,26 +44,26 @@ class PhotoFoodLogger: ObservableObject {
 
         var body = Data()
 
-        // Add image data
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"photo\"; filename=\"food.jpg\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        // Add image data (using safe string append)
+        body.appendString("--\(boundary)\r\n")
+        body.appendString("Content-Disposition: form-data; name=\"photo\"; filename=\"food.jpg\"\r\n")
+        body.appendString("Content-Type: image/jpeg\r\n\r\n")
         body.append(imageData)
-        body.append("\r\n".data(using: .utf8)!)
+        body.appendString("\r\n")
 
         // Add source field
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"source\"\r\n\r\n".data(using: .utf8)!)
-        body.append("ios-photo\r\n".data(using: .utf8)!)
+        body.appendString("--\(boundary)\r\n")
+        body.appendString("Content-Disposition: form-data; name=\"source\"\r\n\r\n")
+        body.appendString("ios-photo\r\n")
 
         // Add context if provided
         if let context = additionalContext, !context.isEmpty {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"context\"\r\n\r\n".data(using: .utf8)!)
-            body.append("\(context)\r\n".data(using: .utf8)!)
+            body.appendString("--\(boundary)\r\n")
+            body.appendString("Content-Disposition: form-data; name=\"context\"\r\n\r\n")
+            body.appendString("\(context)\r\n")
         }
 
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        body.appendString("--\(boundary)--\r\n")
 
         request.httpBody = body
 

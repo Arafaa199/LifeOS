@@ -12,19 +12,19 @@ class HealthKitManager: ObservableObject {
     @Published var latestWeight: Double?
     @Published var latestWeightDate: Date?
 
-    // Quantity types
-    private let weightType = HKQuantityType.quantityType(forIdentifier: .bodyMass)!
-    private let bodyFatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage)!
-    private let hrvType = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
-    private let rhrType = HKQuantityType.quantityType(forIdentifier: .restingHeartRate)!
-    private let respiratoryRateType = HKQuantityType.quantityType(forIdentifier: .respiratoryRate)!
-    private let oxygenSatType = HKQuantityType.quantityType(forIdentifier: .oxygenSaturation)!
-    private let stepsType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
-    private let activeCaloriesType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
-    private let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate)!
+    // Quantity types (guaranteed to exist in HealthKit for these standard identifiers)
+    private var weightType: HKQuantityType { HKQuantityType(.bodyMass) }
+    private var bodyFatType: HKQuantityType { HKQuantityType(.bodyFatPercentage) }
+    private var hrvType: HKQuantityType { HKQuantityType(.heartRateVariabilitySDNN) }
+    private var rhrType: HKQuantityType { HKQuantityType(.restingHeartRate) }
+    private var respiratoryRateType: HKQuantityType { HKQuantityType(.respiratoryRate) }
+    private var oxygenSatType: HKQuantityType { HKQuantityType(.oxygenSaturation) }
+    private var stepsType: HKQuantityType { HKQuantityType(.stepCount) }
+    private var activeCaloriesType: HKQuantityType { HKQuantityType(.activeEnergyBurned) }
+    private var heartRateType: HKQuantityType { HKQuantityType(.heartRate) }
 
     // Category types
-    private let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis)!
+    private var sleepType: HKCategoryType { HKCategoryType(.sleepAnalysis) }
 
     private init() {
         checkAuthorization()

@@ -603,14 +603,7 @@ struct HistoryLogRow: View {
     }
 
     private var colorForType: Color {
-        switch logType {
-        case .food: return .nexusFood
-        case .water: return .nexusWater
-        case .weight: return .nexusWeight
-        case .mood: return .nexusMood
-        case .note: return .secondary
-        case .other: return .secondary
-        }
+        ColorHelper.color(for: logType)
     }
 }
 
