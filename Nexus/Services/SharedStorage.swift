@@ -37,6 +37,10 @@ class SharedStorage {
         static let goalProtein = "goal_protein"
         static let goalWater = "goal_water"
         static let goalWeight = "goal_weight"
+        static let recoveryScore = "recovery_score"
+        static let recoveryHRV = "recovery_hrv"
+        static let recoveryRHR = "recovery_rhr"
+        static let recoveryDate = "recovery_date"
     }
 
     // MARK: - Goals
@@ -149,6 +153,46 @@ class SharedStorage {
 
     func getLastUpdateDate() -> Date? {
         defaults?.object(forKey: Keys.lastUpdateDate) as? Date
+    }
+
+    // MARK: - Recovery Data (WHOOP)
+
+    func saveRecoveryData(score: Int, hrv: Double?, rhr: Int?) {
+        defaults?.set(score, forKey: Keys.recoveryScore)
+        if let hrv = hrv {
+            defaults?.set(hrv, forKey: Keys.recoveryHRV)
+        }
+        if let rhr = rhr {
+            defaults?.set(rhr, forKey: Keys.recoveryRHR)
+        }
+        defaults?.set(Date(), forKey: Keys.recoveryDate)
+    }
+
+    func getRecoveryScore() -> Int? {
+        guard isRecoveryDataCurrent() else { return nil }
+        let score = defaults?.integer(forKey: Keys.recoveryScore) ?? 0
+        return score > 0 ? score : nil
+    }
+
+    func getRecoveryHRV() -> Double? {
+        guard isRecoveryDataCurrent() else { return nil }
+        let hrv = defaults?.double(forKey: Keys.recoveryHRV) ?? 0
+        return hrv > 0 ? hrv : nil
+    }
+
+    func getRecoveryRHR() -> Int? {
+        guard isRecoveryDataCurrent() else { return nil }
+        let rhr = defaults?.integer(forKey: Keys.recoveryRHR) ?? 0
+        return rhr > 0 ? rhr : nil
+    }
+
+    func getRecoveryDate() -> Date? {
+        defaults?.object(forKey: Keys.recoveryDate) as? Date
+    }
+
+    private func isRecoveryDataCurrent() -> Bool {
+        guard let recoveryDate = getRecoveryDate() else { return false }
+        return Calendar.current.isDateInToday(recoveryDate)
     }
 
     // MARK: - Reset Methods

@@ -9,6 +9,7 @@ struct NexusWidgets: WidgetBundle {
     var body: some Widget {
         WaterQuickLogWidget()
         DailySummaryWidget()
+        RecoveryScoreWidget()
     }
 }
 
@@ -178,6 +179,196 @@ struct DailySummaryWidgetView: View {
     }
 }
 
+// MARK: - Recovery Score Widget
+
+struct RecoveryScoreWidget: Widget {
+    let kind: String = "RecoveryScoreWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: RecoveryWidgetProvider()) { entry in
+            RecoveryScoreWidgetView(entry: entry)
+                .containerBackground(.fill.tertiary, for: .widget)
+        }
+        .configurationDisplayName("Recovery Score")
+        .description("View your WHOOP recovery score at a glance.")
+        .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular])
+    }
+}
+
+struct RecoveryWidgetEntry: TimelineEntry {
+    let date: Date
+    let recoveryScore: Int?
+    let hrv: Double?
+    let rhr: Int?
+    let lastUpdated: Date?
+}
+
+struct RecoveryWidgetProvider: TimelineProvider {
+    func placeholder(in context: Context) -> RecoveryWidgetEntry {
+        RecoveryWidgetEntry(date: Date(), recoveryScore: 65, hrv: 45.0, rhr: 52, lastUpdated: Date())
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (RecoveryWidgetEntry) -> Void) {
+        let storage = SharedStorage.shared
+        let entry = RecoveryWidgetEntry(
+            date: Date(),
+            recoveryScore: storage.getRecoveryScore(),
+            hrv: storage.getRecoveryHRV(),
+            rhr: storage.getRecoveryRHR(),
+            lastUpdated: storage.getRecoveryDate()
+        )
+        completion(entry)
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<RecoveryWidgetEntry>) -> Void) {
+        let storage = SharedStorage.shared
+        let entry = RecoveryWidgetEntry(
+            date: Date(),
+            recoveryScore: storage.getRecoveryScore(),
+            hrv: storage.getRecoveryHRV(),
+            rhr: storage.getRecoveryRHR(),
+            lastUpdated: storage.getRecoveryDate()
+        )
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
+        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+        completion(timeline)
+    }
+}
+
+struct RecoveryScoreWidgetView: View {
+    var entry: RecoveryWidgetProvider.Entry
+    @Environment(\.widgetFamily) var family
+
+    var body: some View {
+        switch family {
+        case .systemSmall:
+            smallWidget
+        case .accessoryCircular:
+            circularWidget
+        case .accessoryRectangular:
+            rectangularWidget
+        default:
+            smallWidget
+        }
+    }
+
+    var smallWidget: some View {
+        VStack(spacing: 8) {
+            if let score = entry.recoveryScore {
+                ZStack {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 8)
+                    Circle()
+                        .trim(from: 0, to: CGFloat(score) / 100.0)
+                        .stroke(recoveryColor(for: score), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    VStack(spacing: 2) {
+                        Text("\(score)")
+                            .font(.title)
+                            .bold()
+                        Text("%")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .frame(width: 80, height: 80)
+
+                Text("Recovery")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                HStack(spacing: 12) {
+                    if let hrv = entry.hrv {
+                        VStack(spacing: 2) {
+                            Text(String(format: "%.0f", hrv))
+                                .font(.caption2)
+                                .bold()
+                            Text("HRV")
+                                .font(.system(size: 8))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    if let rhr = entry.rhr {
+                        VStack(spacing: 2) {
+                            Text("\(rhr)")
+                                .font(.caption2)
+                                .bold()
+                            Text("RHR")
+                                .font(.system(size: 8))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            } else {
+                Image(systemName: "heart.circle")
+                    .font(.largeTitle)
+                    .foregroundColor(.gray)
+                Text("No Data")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Open app to sync")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+    }
+
+    var circularWidget: some View {
+        ZStack {
+            if let score = entry.recoveryScore {
+                AccessoryWidgetBackground()
+                Gauge(value: Double(score), in: 0...100) {
+                    Text("")
+                } currentValueLabel: {
+                    Text("\(score)")
+                        .font(.title3)
+                        .bold()
+                }
+                .gaugeStyle(.accessoryCircular)
+                .tint(recoveryColor(for: score))
+            } else {
+                Image(systemName: "heart.circle")
+                    .font(.title2)
+            }
+        }
+    }
+
+    var rectangularWidget: some View {
+        HStack {
+            if let score = entry.recoveryScore {
+                Gauge(value: Double(score), in: 0...100) {
+                    Text("")
+                }
+                .gaugeStyle(.accessoryLinear)
+                .tint(recoveryColor(for: score))
+                .frame(width: 60)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Recovery")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text("\(score)%")
+                        .font(.headline)
+                        .bold()
+                }
+            } else {
+                Image(systemName: "heart.circle")
+                Text("No Data")
+                    .font(.caption)
+            }
+        }
+    }
+
+    private func recoveryColor(for score: Int) -> Color {
+        switch score {
+        case 67...100: return .green
+        case 34...66: return .yellow
+        default: return .red
+        }
+    }
+}
+
 struct StatView: View {
     let icon: String
     let value: String
@@ -243,4 +434,11 @@ struct WideStatRow: View {
     DailySummaryWidget()
 } timeline: {
     SummaryWidgetEntry(date: .now, calories: 1850, protein: 120.5, water: 2000, weight: 75.2)
+}
+
+#Preview(as: .systemSmall) {
+    RecoveryScoreWidget()
+} timeline: {
+    RecoveryWidgetEntry(date: .now, recoveryScore: 72, hrv: 48.5, rhr: 54, lastUpdated: .now)
+    RecoveryWidgetEntry(date: .now, recoveryScore: nil, hrv: nil, rhr: nil, lastUpdated: nil)
 }

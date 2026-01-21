@@ -108,6 +108,16 @@ struct DashboardView: View {
                     whoopLastFetched = Date()
                     healthKitSleep = nil
                     usingHealthKitFallback = false
+
+                    // Save to SharedStorage for widget
+                    if let recovery = response.data?.recovery,
+                       let score = recovery.recoveryScore {
+                        SharedStorage.shared.saveRecoveryData(
+                            score: score,
+                            hrv: recovery.hrv,
+                            rhr: recovery.rhr
+                        )
+                    }
                 }
             } else {
                 await MainActor.run { whoopError = "Failed to load WHOOP data" }
