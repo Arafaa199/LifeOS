@@ -102,11 +102,14 @@ class DashboardViewModel: ObservableObject {
                     lastSyncDate = Date()
                 }
             } catch {
-                // Fallback to cached data (already loaded in init)
                 await MainActor.run {
                     isLoading = false
-                    // Don't show error - we have cached data
-                    // Just update timestamp to indicate we tried
+                    // Show error but keep cached data
+                    if recentLogs.isEmpty && summary.totalCalories == 0 {
+                        errorMessage = "Failed to load data. Please try again."
+                    } else {
+                        errorMessage = "Using cached data - sync failed"
+                    }
                     lastSyncDate = Date()
                 }
             }

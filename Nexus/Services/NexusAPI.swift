@@ -140,7 +140,7 @@ class NexusAPI: ObservableObject {
 
     func setBudget(category: String, amount: Double) async throws -> BudgetResponse {
         let request = SetBudgetRequest(category: category, amount: amount)
-        return try await postBudget("/webhook/nexus-set-budget", body: request)
+        return try await post("/webhook/nexus-set-budget", body: request, decoder: JSONDecoder())
     }
 
     func fetchBudgets() async throws -> BudgetsResponse {
@@ -174,74 +174,21 @@ class NexusAPI: ObservableObject {
 
     func getSpendingInsights(summary: String) async throws -> InsightsResponse {
         let request = InsightsRequest(summary: summary)
-        return try await postInsights("/webhook/nexus-insights", body: request)
+        return try await post("/webhook/nexus-insights", body: request, decoder: JSONDecoder())
     }
 
     func fetchMonthlyTrends(months: Int) async throws -> MonthlyTrendsResponse {
         return try await get("/webhook/nexus-monthly-trends?months=\(months)")
     }
 
-    private func postBudget<T: Encodable>(_ endpoint: String, body: T) async throws -> BudgetResponse {
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let encoder = JSONEncoder()
-        request.httpBody = try encoder.encode(body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(BudgetResponse.self, from: data)
-    }
-
-    private func postInsights<T: Encodable>(_ endpoint: String, body: T) async throws -> InsightsResponse {
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let encoder = JSONEncoder()
-        request.httpBody = try encoder.encode(body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(InsightsResponse.self, from: data)
-    }
-
     // MARK: - Network Layer
 
-    func postFinance<T: Encodable>(_ endpoint: String, body: T) async throws -> FinanceResponse {
+    /// Generic POST method for all API calls
+    private func post<Body: Encodable, Response: Decodable>(
+        _ endpoint: String,
+        body: Body,
+        decoder: JSONDecoder = JSONDecoder()
+    ) async throws -> Response {
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
             throw APIError.invalidURL
         }
@@ -266,37 +213,16 @@ class NexusAPI: ObservableObject {
             throw APIError.serverError(httpResponse.statusCode)
         }
 
-        let decoder = JSONDecoder()
-        return try decoder.decode(FinanceResponse.self, from: data)
+        return try decoder.decode(Response.self, from: data)
     }
 
+    // Convenience wrappers for specific response types
     func post<T: Encodable>(_ endpoint: String, body: T) async throws -> NexusResponse {
-        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            throw APIError.invalidURL
-        }
+        try await post(endpoint, body: body, decoder: JSONDecoder())
+    }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let encoder = JSONEncoder()
-        request.httpBody = try encoder.encode(body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(NexusResponse.self, from: data)
+    func postFinance<T: Encodable>(_ endpoint: String, body: T) async throws -> FinanceResponse {
+        try await post(endpoint, body: body, decoder: Self.financeDateDecoder)
     }
 
     // MARK: - Generic GET Helper

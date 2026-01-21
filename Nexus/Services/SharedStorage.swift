@@ -2,12 +2,22 @@ import Foundation
 
 // Shared storage between app and widgets using App Groups
 // Note: Requires App Group capability enabled in Xcode
-// Format: group.com.yourdomain.nexus
+// App Group ID: group.com.rfanw.nexus
+
+// MARK: - Helper Extensions
+
+fileprivate extension Int {
+    var nonZero: Int? { self == 0 ? nil : self }
+}
+
+fileprivate extension Double {
+    var nonZero: Double? { self == 0 ? nil : self }
+}
 
 class SharedStorage {
     static let shared = SharedStorage()
 
-    private let appGroupID = "group.com.yourdomain.nexus"
+    private let appGroupID = "group.com.rfanw.nexus"
     private let defaults: UserDefaults?
 
     private init() {
@@ -23,6 +33,39 @@ class SharedStorage {
         static let todayWeight = "today_weight"
         static let lastUpdateDate = "last_update_date"
         static let recentLogs = "recent_logs"
+        static let goalCalories = "goal_calories"
+        static let goalProtein = "goal_protein"
+        static let goalWater = "goal_water"
+        static let goalWeight = "goal_weight"
+    }
+
+    // MARK: - Goals
+
+    struct Goals {
+        var calories: Int
+        var protein: Double
+        var water: Int
+        var weight: Double?
+
+        static let `default` = Goals(calories: 2000, protein: 150, water: 2500, weight: nil)
+    }
+
+    func getGoals() -> Goals {
+        Goals(
+            calories: defaults?.integer(forKey: Keys.goalCalories).nonZero ?? Goals.default.calories,
+            protein: defaults?.double(forKey: Keys.goalProtein).nonZero ?? Goals.default.protein,
+            water: defaults?.integer(forKey: Keys.goalWater).nonZero ?? Goals.default.water,
+            weight: defaults?.double(forKey: Keys.goalWeight).nonZero
+        )
+    }
+
+    func saveGoals(_ goals: Goals) {
+        defaults?.set(goals.calories, forKey: Keys.goalCalories)
+        defaults?.set(goals.protein, forKey: Keys.goalProtein)
+        defaults?.set(goals.water, forKey: Keys.goalWater)
+        if let weight = goals.weight {
+            defaults?.set(weight, forKey: Keys.goalWeight)
+        }
     }
 
     // MARK: - Save Methods

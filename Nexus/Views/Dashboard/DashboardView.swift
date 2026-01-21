@@ -76,37 +76,62 @@ struct DashboardView: View {
     // MARK: - Status Bar
 
     private var statusBar: some View {
-        HStack(spacing: 12) {
-            // Network status badge
-            NexusStatusBadge(status: networkMonitor.isConnected ? .online : .offline)
-
-            // Pending items indicator
-            if pendingCount > 0 {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
+        VStack(spacing: 8) {
+            // Error banner
+            if let error = viewModel.errorMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.nexusWarning)
+                    Text(error)
                         .font(.caption)
-                        .symbolEffect(.pulse, isActive: true)
-                    Text("\(pendingCount) pending")
-                        .font(.caption)
-                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("Retry") {
+                        viewModel.errorMessage = nil
+                        viewModel.loadTodaysSummary()
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.nexusPrimary)
                 }
-                .foregroundColor(.nexusWarning)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
                 .background(Color.nexusWarning.opacity(0.12))
                 .cornerRadius(8)
+                .padding(.horizontal)
             }
 
-            Spacer()
+            HStack(spacing: 12) {
+                // Network status badge
+                NexusStatusBadge(status: networkMonitor.isConnected ? .online : .offline)
 
-            // Last sync
-            if let lastSync = viewModel.lastSyncDate {
-                Text("Updated \(lastSync, style: .relative) ago")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Pending items indicator
+                if pendingCount > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.caption)
+                            .symbolEffect(.pulse, isActive: true)
+                        Text("\(pendingCount) pending")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.nexusWarning)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.nexusWarning.opacity(0.12))
+                    .cornerRadius(8)
+                }
+
+                Spacer()
+
+                // Last sync
+                if let lastSync = viewModel.lastSyncDate {
+                    Text("Updated \(lastSync, style: .relative) ago")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
+            .padding(.horizontal)
         }
-        .padding(.horizontal)
     }
 
     // MARK: - Summary Cards

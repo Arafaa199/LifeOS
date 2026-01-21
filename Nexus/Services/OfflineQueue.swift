@@ -1,14 +1,17 @@
 import Foundation
+import Combine
 
 // Offline queue manager for handling failed API requests
 class OfflineQueue {
     static let shared = OfflineQueue()
 
     private let queueKey = "offline_log_queue"
-    private let maxRetries = 3
-    private let retryDelay: TimeInterval = 5.0 // seconds
+    private let maxRetries = 5
+    private let baseRetryDelay: TimeInterval = 5.0 // Base delay for exponential backoff
+    private let maxRetryDelay: TimeInterval = 60.0 // Cap at 60 seconds
     private var processingTask: Task<Void, Never>?
     private var isProcessing = false
+    private var networkCancellable: AnyCancellable?
 
     struct QueuedEntry: Codable {
         let id: UUID
@@ -40,6 +43,30 @@ class OfflineQueue {
     private init() {
         // Process queue on init if items exist
         scheduleProcessing()
+
+        // Observe network changes - process queue when network becomes available
+        observeNetworkChanges()
+    }
+
+    private func observeNetworkChanges() {
+        // Subscribe to network connectivity changes
+        networkCancellable = NetworkMonitor.shared.$isConnected
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isConnected in
+                guard let self = self else { return }
+                if isConnected && !self.isProcessing {
+                    // Network became available - try to process queue
+                    self.scheduleProcessing()
+                }
+            }
+    }
+
+    /// Calculate retry delay with exponential backoff
+    /// 5s -> 10s -> 20s -> 40s -> 60s (capped)
+    private func retryDelay(forAttempt attempt: Int) -> TimeInterval {
+        let delay = baseRetryDelay * pow(2.0, Double(attempt))
+        return min(delay, maxRetryDelay)
     }
 
     private func scheduleProcessing() {
@@ -122,10 +149,14 @@ class OfflineQueue {
 
         saveQueue(queue)
 
-        // If items remain, schedule retry after delay (but don't block)
+        // If items remain, schedule retry after delay with exponential backoff
         if !queue.isEmpty && !Task.isCancelled {
+            // Use the max retry count from remaining items to determine delay
+            let maxAttempt = queue.map(\.retryCount).max() ?? 0
+            let delay = retryDelay(forAttempt: maxAttempt)
+
             Task {
-                try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 if !Task.isCancelled {
                     scheduleProcessing()
                 }

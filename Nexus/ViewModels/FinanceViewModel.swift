@@ -36,12 +36,17 @@ class FinanceViewModel: ObservableObject {
 
     func loadFinanceSummary() {
         loadTask?.cancel()
+        isLoading = true
         loadTask = Task {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else {
+                isLoading = false
+                return
+            }
 
             // Check network connectivity
             guard networkMonitor.isConnected else {
                 isOffline = true
+                isLoading = false
                 errorMessage = "No internet connection. Showing cached data."
                 return
             }
@@ -83,9 +88,11 @@ class FinanceViewModel: ObservableObject {
 
                     errorMessage = nil
                 }
+                isLoading = false
             } catch {
                 // Use cached data on error
                 isOffline = true
+                isLoading = false
                 errorMessage = "Could not fetch latest data. Showing cached data."
                 print("Finance summary fetch failed: \(error)")
             }
@@ -129,6 +136,9 @@ class FinanceViewModel: ObservableObject {
                 // Success feedback
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
+
+                // Refresh to get updated summary from server
+                loadFinanceSummary()
             } else {
                 errorMessage = response.message ?? "Failed to log expense"
             }
