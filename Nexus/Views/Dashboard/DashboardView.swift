@@ -3,7 +3,18 @@ import SwiftUI
 struct DashboardView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var healthKit = HealthKitManager.shared
     @State private var pendingCount = 0
+    @State private var isHealthSyncing = false
+    @State private var showHealthPermission = false
+
+    // Local HealthKit data (weight, steps, calories)
+    @State private var localWeight: Double?
+    @State private var localSteps: Int = 0
+    @State private var localCalories: Int = 0
+
+    // WHOOP data from Nexus API
+    @State private var whoopData: SleepData?
 
     var body: some View {
         NavigationView {
@@ -18,6 +29,9 @@ struct DashboardView: View {
                     // Daily Summary Cards
                     summaryCardsSection
 
+                    // Health Section (HealthKit + WHOOP from API)
+                    healthSection
+
                     // Recent Logs Section
                     recentLogsSection
                 }
@@ -26,6 +40,7 @@ struct DashboardView: View {
             .background(Color(.systemGroupedBackground))
             .refreshable {
                 await viewModel.refresh()
+                await syncAllHealthData()
                 pendingCount = OfflineQueue.shared.getQueueCount()
             }
             .navigationTitle("Nexus")
@@ -43,7 +58,67 @@ struct DashboardView: View {
             }
             .onAppear {
                 pendingCount = OfflineQueue.shared.getQueueCount()
+                Task { await syncAllHealthData() }
             }
+            .alert("Health Access", isPresented: $showHealthPermission) {
+                Button("Enable") {
+                    Task {
+                        try? await healthKit.requestAuthorization()
+                        await syncAllHealthData()
+                    }
+                }
+                Button("Not Now", role: .cancel) { }
+            } message: {
+                Text("Nexus reads weight and activity from Apple Health (Eufy scale, Apple Watch).")
+            }
+        }
+    }
+
+    // MARK: - Health Sync
+
+    private func syncAllHealthData() async {
+        guard !isHealthSyncing else { return }
+        isHealthSyncing = true
+
+        // Fetch HealthKit local data and WHOOP data from API in parallel
+        async let localData = fetchLocalHealthData()
+        async let whoopResponse = NexusAPI.shared.fetchSleepData()
+
+        _ = await localData
+
+        if let response = try? await whoopResponse, response.success {
+            await MainActor.run { whoopData = response.data }
+        }
+
+        await MainActor.run { isHealthSyncing = false }
+    }
+
+    private func fetchLocalHealthData() async {
+        guard healthKit.isHealthDataAvailable else { return }
+
+        if !healthKit.isAuthorized {
+            try? await healthKit.requestAuthorization()
+        }
+
+        guard healthKit.isAuthorized else { return }
+
+        async let weightResult = healthKit.fetchLatestWeight()
+        async let stepsResult = healthKit.fetchTodaysSteps()
+        async let caloriesResult = healthKit.fetchTodaysActiveCalories()
+
+        let weight = try? await weightResult
+        let steps = (try? await stepsResult) ?? 0
+        let calories = (try? await caloriesResult) ?? 0
+
+        await MainActor.run {
+            localWeight = weight?.weight
+            localSteps = steps
+            localCalories = calories
+        }
+
+        // Sync weight to Nexus backend
+        if let w = weight?.weight {
+            _ = try? await NexusAPI.shared.logWeight(kg: w)
         }
     }
 
@@ -132,6 +207,182 @@ struct DashboardView: View {
             }
             .padding(.horizontal)
         }
+    }
+
+    // MARK: - Health Section (HealthKit + WHOOP)
+
+    private var healthSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Health")
+                    .font(.headline)
+
+                Spacer()
+
+                if isHealthSyncing {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else if healthKit.isAuthorized {
+                    Button(action: { Task { await syncAllHealthData() } }) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.nexusPrimary)
+                    }
+                } else if healthKit.isHealthDataAvailable {
+                    Button("Connect") { showHealthPermission = true }
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.nexusPrimary)
+                }
+            }
+            .padding(.horizontal)
+
+            if !healthKit.isAuthorized && healthKit.isHealthDataAvailable {
+                // Prompt to connect HealthKit
+                HStack(spacing: 12) {
+                    Image(systemName: "heart.fill")
+                        .font(.title2)
+                        .foregroundColor(.pink)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Connect Apple Health")
+                            .font(.subheadline.weight(.medium))
+                        Text("Sync weight & activity from Eufy, Apple Watch")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.nexusCardBackground)
+                .cornerRadius(12)
+                .onTapGesture { showHealthPermission = true }
+                .padding(.horizontal)
+            } else {
+                VStack(spacing: 8) {
+                    // WHOOP Recovery row (from API)
+                    if let recovery = whoopData?.recovery {
+                        HStack(spacing: 12) {
+                            if let score = recovery.recoveryScore {
+                                HealthMetricCard(
+                                    title: "Recovery",
+                                    value: "\(score)",
+                                    unit: "%",
+                                    icon: "heart.circle.fill",
+                                    color: recoveryColor(score)
+                                )
+                            }
+
+                            if let hrv = recovery.hrv {
+                                HealthMetricCard(
+                                    title: "HRV",
+                                    value: String(format: "%.0f", hrv),
+                                    unit: "ms",
+                                    icon: "waveform.path.ecg",
+                                    color: .purple
+                                )
+                            }
+
+                            if let rhr = recovery.rhr {
+                                HealthMetricCard(
+                                    title: "Resting HR",
+                                    value: "\(rhr)",
+                                    unit: "bpm",
+                                    icon: "heart.fill",
+                                    color: .red
+                                )
+                            }
+                        }
+                    }
+
+                    // WHOOP Sleep row (from API)
+                    if let sleep = whoopData?.sleep {
+                        HStack(spacing: 12) {
+                            if sleep.totalSleepMin > 0 {
+                                HealthMetricCard(
+                                    title: "Sleep",
+                                    value: formatDuration(sleep.totalSleepMin),
+                                    unit: "",
+                                    icon: "bed.double.fill",
+                                    color: .indigo
+                                )
+                            }
+
+                            if let deep = sleep.deepSleepMin, deep > 0 {
+                                HealthMetricCard(
+                                    title: "Deep",
+                                    value: formatDuration(deep),
+                                    unit: "",
+                                    icon: "moon.zzz.fill",
+                                    color: .blue
+                                )
+                            }
+
+                            if let perf = sleep.sleepPerformance {
+                                HealthMetricCard(
+                                    title: "Sleep Score",
+                                    value: "\(perf)",
+                                    unit: "%",
+                                    icon: "sparkles",
+                                    color: .cyan
+                                )
+                            }
+                        }
+                    }
+
+                    // Local HealthKit data (weight, steps, calories)
+                    HStack(spacing: 12) {
+                        if let weight = localWeight {
+                            HealthMetricCard(
+                                title: "Weight",
+                                value: String(format: "%.1f", weight),
+                                unit: "kg",
+                                icon: "scalemass.fill",
+                                color: .nexusWeight
+                            )
+                        }
+
+                        HealthMetricCard(
+                            title: "Steps",
+                            value: formatNumber(localSteps),
+                            unit: "",
+                            icon: "figure.walk",
+                            color: .green
+                        )
+
+                        HealthMetricCard(
+                            title: "Active Cal",
+                            value: "\(localCalories)",
+                            unit: "kcal",
+                            icon: "flame.fill",
+                            color: .orange
+                        )
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    private func recoveryColor(_ score: Int) -> Color {
+        switch score {
+        case 67...100: return .green
+        case 34...66: return .yellow
+        default: return .red
+        }
+    }
+
+    private func formatDuration(_ minutes: Int) -> String {
+        let hours = minutes / 60
+        let mins = minutes % 60
+        return hours > 0 ? "\(hours)h \(mins)m" : "\(mins)m"
+    }
+
+    private func formatNumber(_ number: Int) -> String {
+        number >= 1000 ? String(format: "%.1fk", Double(number) / 1000) : "\(number)"
     }
 
     // MARK: - Summary Cards
@@ -323,6 +574,43 @@ struct LogRow: View {
 
     var body: some View {
         EnhancedLogRow(entry: entry)
+    }
+}
+
+// MARK: - Health Metric Card
+
+struct HealthMetricCard: View {
+    let title: String
+    let value: String
+    let unit: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundColor(color)
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(color.opacity(0.1))
+        .cornerRadius(10)
     }
 }
 

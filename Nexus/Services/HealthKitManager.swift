@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import Combine
 
 @MainActor
 class HealthKitManager: ObservableObject {
