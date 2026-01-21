@@ -9,6 +9,7 @@ class FinanceViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var isOffline = false
+    @Published var queuedCount = 0
 
     private let api = NexusAPI.shared
     private let cache = CacheManager.shared
@@ -18,6 +19,11 @@ class FinanceViewModel: ObservableObject {
     init() {
         loadFromCache()
         loadFinanceSummary()
+        updateQueuedCount()
+    }
+
+    func updateQueuedCount() {
+        queuedCount = OfflineQueue.shared.getQueueCount()
     }
 
     deinit {
@@ -106,16 +112,16 @@ class FinanceViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            let response = try await api.logExpense(text)
+            let response = try await api.logExpenseOffline(text)
 
             if response.success {
-                // Update summary with response data
-                if let data = response.data {
+                // Check if queued offline
+                if response.message?.contains("Queued offline") == true {
+                    updateQueuedCount()
+                    errorMessage = "Queued - will sync when online"
+                } else if let data = response.data {
                     if let totalSpent = data.totalSpent {
                         summary.totalSpent = totalSpent
-                    }
-                    if let categorySpent = data.categorySpent {
-                        // Update category breakdown
                     }
                     if let transaction = data.transaction {
                         let normalizedTransaction = transaction.normalized()
@@ -124,7 +130,6 @@ class FinanceViewModel: ObservableObject {
                             recentTransactions = Array(recentTransactions.prefix(20))
                         }
 
-                        // Update category totals
                         if normalizedTransaction.isGrocery {
                             summary.grocerySpent += normalizedTransaction.amount
                         }
@@ -134,11 +139,9 @@ class FinanceViewModel: ObservableObject {
                     }
                 }
 
-                // Success feedback
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
 
-                // Refresh to get updated summary from server
                 loadFinanceSummary()
             } else {
                 errorMessage = response.message ?? "Failed to log expense"
@@ -183,27 +186,31 @@ class FinanceViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            let response = try await api.addTransaction(
-                merchantName,
+            let response = try await api.addTransactionOffline(
+                merchant: merchantName,
                 amount: amount,
-                category: category,
-                notes: notes
+                category: category
             )
 
             if response.success {
-                // Success feedback
+                // Check if queued offline
+                if response.message?.contains("Queued offline") == true {
+                    updateQueuedCount()
+                    errorMessage = "Queued - will sync when online"
+                } else {
+                    // Update summary with absolute value (expenses are stored negative)
+                    let spentAmount = abs(amount)
+                    summary.totalSpent += spentAmount
+                    if category == "Grocery" {
+                        summary.grocerySpent += spentAmount
+                    } else if category == "Restaurant" {
+                        summary.eatingOutSpent += spentAmount
+                    }
+                }
+
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
 
-                // Update local summary
-                summary.totalSpent += amount
-                if category == "Grocery" {
-                    summary.grocerySpent += amount
-                } else if category == "Restaurant" {
-                    summary.eatingOutSpent += amount
-                }
-
-                // Reload transactions
                 await refresh()
             } else {
                 errorMessage = response.message ?? "Failed to add transaction"
@@ -275,16 +282,18 @@ class FinanceViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            let response = try await api.addIncome(
+            let response = try await api.addIncomeOffline(
                 source: source,
                 amount: amount,
-                category: category,
-                notes: notes,
-                date: date,
-                isRecurring: isRecurring
+                category: category
             )
 
             if response.success {
+                if response.message?.contains("Queued offline") == true {
+                    updateQueuedCount()
+                    errorMessage = "Queued - will sync when online"
+                }
+
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
                 await refresh()

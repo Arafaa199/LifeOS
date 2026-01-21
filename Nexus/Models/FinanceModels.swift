@@ -224,6 +224,17 @@ struct FinanceSummary: Codable {
 
 struct QuickExpenseRequest: Codable {
     let text: String
+    let clientId: String?
+
+    init(text: String, clientId: String? = nil) {
+        self.text = text
+        self.clientId = clientId
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case clientId = "client_id"
+    }
 }
 
 // MARK: - Transaction Request
@@ -233,7 +244,17 @@ struct AddTransactionRequest: Codable {
     let amount: Double
     let category: String?
     let notes: String?
-    let date: String?  // ISO8601 format
+    let date: String?
+    let clientId: String?
+
+    init(merchantName: String, amount: Double, category: String? = nil, notes: String? = nil, date: String? = nil, clientId: String? = nil) {
+        self.merchantName = merchantName
+        self.amount = amount
+        self.category = category
+        self.notes = notes
+        self.date = date
+        self.clientId = clientId
+    }
 
     enum CodingKeys: String, CodingKey {
         case merchantName = "merchant_name"
@@ -241,6 +262,7 @@ struct AddTransactionRequest: Codable {
         case category
         case notes
         case date
+        case clientId = "client_id"
     }
 }
 
@@ -267,8 +289,19 @@ struct AddIncomeRequest: Codable {
     let amount: Double
     let category: String
     let notes: String?
-    let date: String?  // ISO8601 format
+    let date: String?
     let isRecurring: Bool
+    let clientId: String?
+
+    init(source: String, amount: Double, category: String, notes: String? = nil, date: String? = nil, isRecurring: Bool = false, clientId: String? = nil) {
+        self.source = source
+        self.amount = amount
+        self.category = category
+        self.notes = notes
+        self.date = date
+        self.isRecurring = isRecurring
+        self.clientId = clientId
+    }
 
     enum CodingKeys: String, CodingKey {
         case source
@@ -277,6 +310,7 @@ struct AddIncomeRequest: Codable {
         case notes
         case date
         case isRecurring = "is_recurring"
+        case clientId = "client_id"
     }
 }
 

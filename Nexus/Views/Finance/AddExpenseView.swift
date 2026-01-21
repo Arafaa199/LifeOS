@@ -11,6 +11,7 @@ struct AddExpenseView: View {
     @State private var date = Date()
     @State private var showingError = false
     @State private var errorMessage = ""
+    @State private var isSubmitting = false
 
     var body: some View {
         NavigationView {
@@ -49,7 +50,7 @@ struct AddExpenseView: View {
 
                 Section {
                     Button(action: saveExpense) {
-                        if viewModel.isLoading {
+                        if isSubmitting || viewModel.isLoading {
                             HStack {
                                 Spacer()
                                 ProgressView()
@@ -64,7 +65,7 @@ struct AddExpenseView: View {
                             }
                         }
                     }
-                    .disabled(merchantName.isEmpty || amount.isEmpty || viewModel.isLoading)
+                    .disabled(merchantName.isEmpty || amount.isEmpty || isSubmitting || viewModel.isLoading)
                 }
             }
             .navigationTitle("Add Expense")
@@ -85,20 +86,31 @@ struct AddExpenseView: View {
     }
 
     private func saveExpense() {
+        // Prevent double-submit
+        guard !isSubmitting else { return }
+
         guard let amountValue = Double(amount) else {
             errorMessage = "Invalid amount"
             showingError = true
             return
         }
 
+        // Expenses are stored as negative amounts
+        let expenseAmount = -abs(amountValue)
+
+        // Set immediately (synchronous) to prevent double-tap
+        isSubmitting = true
+
         Task {
             await viewModel.addManualTransaction(
                 merchantName: merchantName,
-                amount: amountValue,
+                amount: expenseAmount,
                 category: selectedCategory.rawValue,
                 notes: notes.isEmpty ? nil : notes,
                 date: date
             )
+
+            isSubmitting = false
 
             if viewModel.errorMessage == nil {
                 dismiss()

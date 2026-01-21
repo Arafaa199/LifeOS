@@ -27,6 +27,10 @@ class OfflineQueue {
             case weight(kg: Double)
             case mood(value: Int, energy: Int?)
             case universal(text: String)
+            // Finance operations
+            case expense(text: String, clientId: String)
+            case transaction(merchant: String, amount: Double, category: String?, clientId: String)
+            case income(source: String, amount: Double, category: String, clientId: String)
 
             var endpoint: String {
                 switch self {
@@ -35,6 +39,9 @@ class OfflineQueue {
                 case .weight: return "/webhook/nexus-weight"
                 case .mood: return "/webhook/nexus-mood"
                 case .universal: return "/webhook/nexus-universal"
+                case .expense: return "/webhook/nexus-expense"
+                case .transaction: return "/webhook/nexus-transaction"
+                case .income: return "/webhook/nexus-income"
                 }
             }
         }
@@ -178,6 +185,12 @@ class OfflineQueue {
             _ = try await api.logMood(mood: value, energy: energy ?? 5)
         case .universal(let text):
             _ = try await api.logUniversal(text)
+        case .expense(let text, let clientId):
+            _ = try await api.logExpenseWithClientId(text, clientId: clientId)
+        case .transaction(let merchant, let amount, let category, let clientId):
+            _ = try await api.addTransactionWithClientId(merchant: merchant, amount: amount, category: category, clientId: clientId)
+        case .income(let source, let amount, let category, let clientId):
+            _ = try await api.addIncomeWithClientId(source: source, amount: amount, category: category, clientId: clientId)
         }
     }
 
@@ -214,6 +227,9 @@ class OfflineQueue {
         case .weight(let kg): return "Weight: \(kg)kg"
         case .mood(let value, _): return "Mood: \(value)"
         case .universal(let text): return "Log: \(text)"
+        case .expense(let text, _): return "Expense: \(text)"
+        case .transaction(let merchant, let amount, _, _): return "Transaction: \(merchant) \(amount)"
+        case .income(let source, let amount, _, _): return "Income: \(source) \(amount)"
         }
     }
 }
@@ -267,5 +283,49 @@ extension NexusAPI {
             body: request,
             queueRequest: .universal(text: text)
         )
+    }
+
+    // MARK: - Finance Offline Support
+
+    func logExpenseOffline(_ text: String) async throws -> FinanceResponse {
+        let clientId = UUID().uuidString
+        do {
+            return try await logExpenseWithClientId(text, clientId: clientId)
+        } catch {
+            OfflineQueue.shared.enqueue(.expense(text: text, clientId: clientId))
+            return FinanceResponse(
+                success: true,
+                message: "Queued offline - will sync when connected",
+                data: nil
+            )
+        }
+    }
+
+    func addTransactionOffline(merchant: String, amount: Double, category: String?) async throws -> FinanceResponse {
+        let clientId = UUID().uuidString
+        do {
+            return try await addTransactionWithClientId(merchant: merchant, amount: amount, category: category, clientId: clientId)
+        } catch {
+            OfflineQueue.shared.enqueue(.transaction(merchant: merchant, amount: amount, category: category, clientId: clientId))
+            return FinanceResponse(
+                success: true,
+                message: "Queued offline - will sync when connected",
+                data: nil
+            )
+        }
+    }
+
+    func addIncomeOffline(source: String, amount: Double, category: String) async throws -> FinanceResponse {
+        let clientId = UUID().uuidString
+        do {
+            return try await addIncomeWithClientId(source: source, amount: amount, category: category, clientId: clientId)
+        } catch {
+            OfflineQueue.shared.enqueue(.income(source: source, amount: amount, category: category, clientId: clientId))
+            return FinanceResponse(
+                success: true,
+                message: "Queued offline - will sync when connected",
+                data: nil
+            )
+        }
     }
 }

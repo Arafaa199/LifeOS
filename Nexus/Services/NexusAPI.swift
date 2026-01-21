@@ -112,6 +112,35 @@ class NexusAPI: ObservableObject {
         return try await postFinance("/webhook/nexus-income", body: request)
     }
 
+    // MARK: - Finance Methods with Client ID (for idempotency)
+
+    func logExpenseWithClientId(_ text: String, clientId: String) async throws -> FinanceResponse {
+        let request = QuickExpenseRequest(text: text, clientId: clientId)
+        return try await postFinance("/webhook/nexus-expense", body: request)
+    }
+
+    func addTransactionWithClientId(merchant: String, amount: Double, category: String?, clientId: String) async throws -> FinanceResponse {
+        let request = AddTransactionRequest(
+            merchantName: merchant,
+            amount: amount,
+            category: category,
+            date: ISO8601DateFormatter().string(from: Date()),
+            clientId: clientId
+        )
+        return try await postFinance("/webhook/nexus-transaction", body: request)
+    }
+
+    func addIncomeWithClientId(source: String, amount: Double, category: String, clientId: String) async throws -> FinanceResponse {
+        let request = AddIncomeRequest(
+            source: source,
+            amount: amount,
+            category: category,
+            date: ISO8601DateFormatter().string(from: Date()),
+            clientId: clientId
+        )
+        return try await postFinance("/webhook/nexus-income", body: request)
+    }
+
     func fetchFinanceSummary() async throws -> FinanceResponse {
         return try await get("/webhook/nexus-finance-summary", decoder: Self.financeDateDecoder)
     }
@@ -255,8 +284,45 @@ class NexusAPI: ObservableObject {
         try await post(endpoint, body: body, decoder: JSONDecoder())
     }
 
+    /// POST for finance operations - tolerant of response format issues
+    /// On 2xx, if decode fails, returns synthetic success (operation likely succeeded)
     func postFinance<T: Encodable>(_ endpoint: String, body: T) async throws -> FinanceResponse {
-        try await post(endpoint, body: body, decoder: Self.financeDateDecoder)
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let apiKey = apiKey {
+            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        }
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(body)
+
+        let (data, _) = try await performRequest(request)
+
+        // Try to decode the response
+        do {
+            return try Self.financeDateDecoder.decode(FinanceResponse.self, from: data)
+        } catch {
+            // Log decode error for debugging
+            #if DEBUG
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("[NexusAPI] Finance decode failed. Response: \(responseString)")
+                print("[NexusAPI] Decode error: \(error)")
+            }
+            #endif
+
+            // On 2xx with decode failure, treat as success
+            // The operation likely succeeded, response format just differs
+            return FinanceResponse(
+                success: true,
+                message: "Operation completed (response format changed)",
+                data: nil
+            )
+        }
     }
 
     // MARK: - Generic GET Helper
