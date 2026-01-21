@@ -11,8 +11,7 @@ struct SleepView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     if isLoading {
-                        NexusLoadingView(message: "Loading sleep data...")
-                            .frame(height: 300)
+                        sleepSkeletonView
                     } else if let error = errorMessage {
                         errorView(error)
                     } else if let data = sleepData {
@@ -258,6 +257,100 @@ struct SleepView: View {
 
     // MARK: - Supporting Views
 
+    private var sleepSkeletonView: some View {
+        VStack(spacing: 20) {
+            // Recovery Hero Skeleton
+            VStack(spacing: 16) {
+                // Recovery Score Circle placeholder
+                ZStack {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 12)
+                        .frame(width: 140, height: 140)
+
+                    VStack(spacing: 4) {
+                        Text("--%")
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .redacted(reason: .placeholder)
+
+                        Text("Recovery")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                // HRV & RHR placeholders
+                HStack(spacing: 24) {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "waveform.path.ecg")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Text("--")
+                                .font(.title3.weight(.bold))
+                                .redacted(reason: .placeholder)
+                        }
+                        Text("HRV (ms)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Divider()
+                        .frame(height: 30)
+
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "heart.fill")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Text("--")
+                                .font(.title3.weight(.bold))
+                                .redacted(reason: .placeholder)
+                        }
+                        Text("RHR (bpm)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity)
+            .background(Color.nexusCardBackground)
+            .cornerRadius(20)
+            .padding(.horizontal)
+
+            // Sleep Stats Skeleton
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Sleep Stats")
+                    .font(.headline)
+                    .padding(.horizontal)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(0..<6, id: \.self) { _ in
+                        SkeletonStatCard()
+                    }
+                }
+                .padding(.horizontal)
+            }
+
+            // Sleep Stages Skeleton
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Sleep Stages")
+                    .font(.headline)
+                    .padding(.horizontal)
+
+                VStack(spacing: 8) {
+                    ForEach(["Deep Sleep", "REM Sleep", "Light Sleep", "Awake"], id: \.self) { stage in
+                        SkeletonStageRow(stage: stage)
+                    }
+                }
+                .padding()
+                .background(Color.nexusCardBackground)
+                .cornerRadius(16)
+                .padding(.horizontal)
+            }
+        }
+    }
+
     private var emptyStateView: some View {
         NexusEmptyState(
             icon: "moon.zzz",
@@ -333,6 +426,70 @@ struct SleepView: View {
         case 67...100: return .nexusSuccess
         case 34...66: return .nexusFood
         default: return .nexusError
+        }
+    }
+}
+
+// MARK: - Skeleton Views
+
+struct SkeletonStatCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 16, height: 12)
+                Spacer()
+            }
+
+            Text("--")
+                .font(.title2.weight(.bold))
+                .redacted(reason: .placeholder)
+
+            Text("Loading...")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .redacted(reason: .placeholder)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.nexusCardBackground)
+        .cornerRadius(12)
+    }
+}
+
+struct SkeletonStageRow: View {
+    let stage: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack {
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 10, height: 10)
+
+                Text(stage)
+                    .font(.subheadline)
+
+                Spacer()
+
+                Text("--")
+                    .font(.subheadline.weight(.medium))
+                    .redacted(reason: .placeholder)
+
+                Text("--%")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(width: 40, alignment: .trailing)
+                    .redacted(reason: .placeholder)
+            }
+
+            GeometryReader { geometry in
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 6)
+            }
+            .frame(height: 6)
         }
     }
 }

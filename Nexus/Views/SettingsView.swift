@@ -112,6 +112,20 @@ struct SettingsView: View {
                     Text("Data")
                 }
 
+                // Developer Section
+                Section {
+                    NavigationLink(destination: DebugView()) {
+                        SettingsRow(
+                            icon: "ladybug",
+                            iconColor: .orange,
+                            title: "Debug Panel",
+                            subtitle: "Test APIs and view logs"
+                        )
+                    }
+                } header: {
+                    Text("Developer")
+                }
+
                 // About Section
                 Section {
                     SettingsRow(
