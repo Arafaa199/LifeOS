@@ -39,6 +39,12 @@ class NexusAPI: ObservableObject {
         return try await post("/webhook/nexus-universal", body: request)
     }
 
+    // MARK: - Installments (BNPL)
+
+    func fetchInstallments() async throws -> InstallmentsResponse {
+        try await get("/webhook/nexus-installments", decoder: Self.financeDateDecoder)
+    }
+
     // MARK: - Finance Methods
 
     func logExpense(_ text: String) async throws -> FinanceResponse {

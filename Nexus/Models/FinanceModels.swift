@@ -393,6 +393,94 @@ struct MonthlySpending: Identifiable, Codable {
     }
 }
 
+// MARK: - Installment Plan (BNPL)
+
+struct InstallmentPlan: Identifiable, Codable {
+    let id: Int
+    let source: String
+    let merchant: String
+    let totalAmount: Double
+    let installmentsTotal: Int
+    let installmentsPaid: Int
+    let installmentAmount: Double
+    let currency: String
+    let purchaseDate: Date?
+    let nextDueDate: Date?
+    let finalDueDate: Date?
+    let status: String
+    let remainingPayments: Int
+    let remainingAmount: Double
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case source
+        case merchant
+        case totalAmount = "total_amount"
+        case installmentsTotal = "installments_total"
+        case installmentsPaid = "installments_paid"
+        case installmentAmount = "installment_amount"
+        case currency
+        case purchaseDate = "purchase_date"
+        case nextDueDate = "next_due_date"
+        case finalDueDate = "final_due_date"
+        case status
+        case remainingPayments = "remaining_payments"
+        case remainingAmount = "remaining_amount"
+    }
+
+    var progress: String {
+        "\(installmentsPaid)/\(installmentsTotal)"
+    }
+
+    var sourceIcon: String {
+        switch source.lowercased() {
+        case "tabby": return "creditcard.fill"
+        case "tamara": return "creditcard.fill"
+        case "postpay": return "creditcard.fill"
+        default: return "calendar.badge.clock"
+        }
+    }
+
+    var sourceColor: String {
+        switch source.lowercased() {
+        case "tabby": return "purple"
+        case "tamara": return "blue"
+        case "postpay": return "green"
+        default: return "gray"
+        }
+    }
+
+    var isDueSoon: Bool {
+        guard let nextDue = nextDueDate else { return false }
+        let daysUntilDue = Calendar.current.dateComponents([.day], from: Date(), to: nextDue).day ?? 0
+        return daysUntilDue <= 7 && daysUntilDue >= 0
+    }
+
+    var isOverdue: Bool {
+        guard let nextDue = nextDueDate else { return false }
+        return nextDue < Date()
+    }
+}
+
+struct InstallmentsResponse: Codable {
+    let plans: [InstallmentPlan]
+    let summary: InstallmentsSummary
+}
+
+struct InstallmentsSummary: Codable {
+    let activePlans: Int
+    let totalRemaining: String
+    let dueThisWeek: Int
+    let dueThisWeekAmount: String
+
+    enum CodingKeys: String, CodingKey {
+        case activePlans = "active_plans"
+        case totalRemaining = "total_remaining"
+        case dueThisWeek = "due_this_week"
+        case dueThisWeekAmount = "due_this_week_amount"
+    }
+}
+
 // MARK: - Expense Categories
 
 enum ExpenseCategory: String, CaseIterable {

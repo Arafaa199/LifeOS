@@ -9,7 +9,7 @@ struct FinanceView: View {
             VStack(spacing: 0) {
                 // Custom Tab Picker
                 HStack(spacing: 0) {
-                    ForEach(0..<4) { index in
+                    ForEach(0..<5) { index in
                         Button(action: { withAnimation(.easeInOut(duration: 0.2)) { selectedTab = index } }) {
                             VStack(spacing: 6) {
                                 Image(systemName: tabIcon(for: index))
@@ -48,8 +48,11 @@ struct FinanceView: View {
                     BudgetView(viewModel: viewModel)
                         .tag(2)
 
-                    InsightsView(viewModel: viewModel)
+                    InstallmentsView(viewModel: viewModel)
                         .tag(3)
+
+                    InsightsView(viewModel: viewModel)
+                        .tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
@@ -75,7 +78,8 @@ struct FinanceView: View {
         case 0: return selectedTab == 0 ? "bolt.fill" : "bolt"
         case 1: return selectedTab == 1 ? "list.bullet.rectangle.fill" : "list.bullet.rectangle"
         case 2: return selectedTab == 2 ? "chart.bar.fill" : "chart.bar"
-        case 3: return selectedTab == 3 ? "lightbulb.fill" : "lightbulb"
+        case 3: return selectedTab == 3 ? "creditcard.fill" : "creditcard"
+        case 4: return selectedTab == 4 ? "lightbulb.fill" : "lightbulb"
         default: return "circle"
         }
     }
@@ -85,7 +89,8 @@ struct FinanceView: View {
         case 0: return "Quick"
         case 1: return "History"
         case 2: return "Budget"
-        case 3: return "Insights"
+        case 3: return "BNPL"
+        case 4: return "Insights"
         default: return ""
         }
     }
