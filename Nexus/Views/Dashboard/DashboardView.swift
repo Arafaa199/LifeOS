@@ -23,6 +23,10 @@ struct DashboardView: View {
     @State private var whoopError: String?
     @State private var whoopLastFetched: Date?
 
+    // HealthKit sleep fallback (when WHOOP unavailable)
+    @State private var healthKitSleep: HealthKitManager.SleepData?
+    @State private var usingHealthKitFallback = false
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -87,6 +91,7 @@ struct DashboardView: View {
         guard !isHealthSyncing else { return }
         isHealthSyncing = true
         whoopError = nil
+        usingHealthKitFallback = false
 
         // Fetch HealthKit local data and WHOOP data from API in parallel
         async let localData = fetchLocalHealthData()
@@ -101,15 +106,34 @@ struct DashboardView: View {
                     whoopData = response.data
                     whoopError = nil
                     whoopLastFetched = Date()
+                    healthKitSleep = nil
+                    usingHealthKitFallback = false
                 }
             } else {
                 await MainActor.run { whoopError = "Failed to load WHOOP data" }
+                await tryHealthKitSleepFallback()
             }
         } catch {
             await MainActor.run { whoopError = error.localizedDescription }
+            await tryHealthKitSleepFallback()
         }
 
         await MainActor.run { isHealthSyncing = false }
+    }
+
+    private func tryHealthKitSleepFallback() async {
+        guard healthKit.isAuthorized else { return }
+
+        do {
+            if let sleepData = try await healthKit.fetchLastNightSleep() {
+                await MainActor.run {
+                    healthKitSleep = sleepData
+                    usingHealthKitFallback = true
+                }
+            }
+        } catch {
+            // HealthKit fallback also failed, keep the original error
+        }
     }
 
     private func fetchLocalHealthData() async {
@@ -319,8 +343,8 @@ struct DashboardView: View {
             }
 
             VStack(spacing: 8) {
-                // WHOOP Error State with Retry
-                if whoopError != nil && whoopData == nil && !isHealthSyncing {
+                // WHOOP Error State with Retry (only if no HealthKit fallback available)
+                if whoopError != nil && whoopData == nil && !isHealthSyncing && !usingHealthKitFallback {
                         HStack(spacing: 12) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.title2)
@@ -350,6 +374,90 @@ struct DashboardView: View {
                         .padding()
                         .background(Color.orange.opacity(0.1))
                         .cornerRadius(12)
+                    }
+
+                    // HealthKit Sleep Fallback (when WHOOP unavailable)
+                    if usingHealthKitFallback, let hkSleep = healthKitSleep {
+                        // Fallback notice
+                        HStack(spacing: 8) {
+                            Image(systemName: "applewatch")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("Sleep data from Apple Watch (WHOOP unavailable)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Button(action: { Task { await syncAllHealthData() } }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.caption)
+                                    .foregroundColor(.nexusPrimary)
+                            }
+                        }
+                        .padding(.horizontal, 4)
+
+                        // HealthKit sleep data cards
+                        HStack(spacing: 12) {
+                            HealthMetricCard(
+                                title: "Sleep",
+                                value: formatDuration(hkSleep.asleepMinutes),
+                                unit: "",
+                                icon: "bed.double.fill",
+                                color: .indigo,
+                                isLoading: false
+                            )
+
+                            if hkSleep.deepMinutes > 0 {
+                                HealthMetricCard(
+                                    title: "Deep",
+                                    value: formatDuration(hkSleep.deepMinutes),
+                                    unit: "",
+                                    icon: "moon.zzz.fill",
+                                    color: .blue,
+                                    isLoading: false
+                                )
+                            }
+
+                            if hkSleep.remMinutes > 0 {
+                                HealthMetricCard(
+                                    title: "REM",
+                                    value: formatDuration(hkSleep.remMinutes),
+                                    unit: "",
+                                    icon: "brain.head.profile",
+                                    color: .purple,
+                                    isLoading: false
+                                )
+                            }
+                        }
+
+                        // Second row with efficiency if available
+                        if hkSleep.sleepEfficiency > 0 {
+                            HStack(spacing: 12) {
+                                HealthMetricCard(
+                                    title: "Efficiency",
+                                    value: String(format: "%.0f", hkSleep.sleepEfficiency * 100),
+                                    unit: "%",
+                                    icon: "chart.bar.fill",
+                                    color: .cyan,
+                                    isLoading: false
+                                )
+
+                                if hkSleep.awakeMinutes > 0 {
+                                    HealthMetricCard(
+                                        title: "Awake",
+                                        value: formatDuration(hkSleep.awakeMinutes),
+                                        unit: "",
+                                        icon: "eye.fill",
+                                        color: .orange,
+                                        isLoading: false
+                                    )
+                                }
+
+                                // Spacer card if needed for alignment
+                                if hkSleep.awakeMinutes == 0 {
+                                    Color.clear.frame(maxWidth: .infinity)
+                                }
+                            }
+                        }
                     }
 
                     // WHOOP Recovery row (from API)
