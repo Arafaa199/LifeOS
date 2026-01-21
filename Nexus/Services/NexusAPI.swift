@@ -216,6 +216,48 @@ class NexusAPI: ObservableObject {
         return try await get("/webhook/nexus-monthly-trends?months=\(months)")
     }
 
+    // MARK: - Finance Planning Methods
+
+    func fetchCategories() async throws -> CategoriesResponse {
+        return try await get("/webhook/nexus-categories", decoder: Self.financeDateDecoder)
+    }
+
+    func createCategory(_ request: CreateCategoryRequest) async throws -> SingleItemResponse<Category> {
+        return try await post("/webhook/nexus-categories", body: request, decoder: Self.financeDateDecoder)
+    }
+
+    func deleteCategory(id: Int) async throws -> DeleteResponse {
+        return try await delete("/webhook/nexus-categories?id=\(id)")
+    }
+
+    func fetchRecurringItems() async throws -> RecurringItemsResponse {
+        return try await get("/webhook/nexus-recurring", decoder: Self.financeDateDecoder)
+    }
+
+    func createRecurringItem(_ request: CreateRecurringItemRequest) async throws -> SingleItemResponse<RecurringItem> {
+        return try await post("/webhook/nexus-recurring", body: request, decoder: Self.financeDateDecoder)
+    }
+
+    func deleteRecurringItem(id: Int) async throws -> DeleteResponse {
+        return try await delete("/webhook/nexus-recurring?id=\(id)")
+    }
+
+    func fetchMatchingRules() async throws -> MatchingRulesResponse {
+        return try await get("/webhook/nexus-rules", decoder: Self.financeDateDecoder)
+    }
+
+    func createMatchingRule(_ request: CreateMatchingRuleRequest) async throws -> SingleItemResponse<MatchingRule> {
+        return try await post("/webhook/nexus-rules", body: request, decoder: Self.financeDateDecoder)
+    }
+
+    func deleteMatchingRule(id: Int) async throws -> DeleteResponse {
+        return try await delete("/webhook/nexus-rules?id=\(id)")
+    }
+
+    func createBudget(_ request: CreateBudgetRequest) async throws -> SingleItemResponse<Budget> {
+        return try await post("/webhook/nexus-budgets", body: request, decoder: Self.financeDateDecoder)
+    }
+
     // MARK: - Network Layer
 
     private let maxRetries = 3
@@ -334,6 +376,24 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let apiKey = apiKey {
+            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        }
+
+        let (data, _) = try await performRequest(request)
+        return try decoder.decode(T.self, from: data)
+    }
+
+    // MARK: - Generic DELETE Helper
+
+    func delete<T: Decodable>(_ endpoint: String, decoder: JSONDecoder = JSONDecoder()) async throws -> T {
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")

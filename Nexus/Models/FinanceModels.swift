@@ -540,3 +540,246 @@ enum ExpenseCategory: String, CaseIterable {
         }
     }
 }
+
+// MARK: - Finance Planning Models
+
+struct Category: Identifiable, Codable {
+    let id: Int
+    let name: String
+    let type: String  // "expense" or "income"
+    let icon: String?
+    let color: String?
+    let keywords: [String]?
+    let isActive: Bool
+    let displayOrder: Int
+    let createdAt: Date?
+    let updatedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, type, icon, color, keywords
+        case isActive = "is_active"
+        case displayOrder = "display_order"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+
+    var isExpense: Bool { type == "expense" }
+    var isIncome: Bool { type == "income" }
+
+    var displayIcon: String {
+        icon ?? (isExpense ? "minus.circle" : "plus.circle")
+    }
+}
+
+struct RecurringItem: Identifiable, Codable {
+    let id: Int
+    let name: String
+    let amount: Double
+    let currency: String
+    let type: String  // "expense" or "income"
+    let cadence: String  // daily, weekly, biweekly, monthly, quarterly, yearly
+    let dayOfMonth: Int?
+    let dayOfWeek: Int?
+    let nextDueDate: Date?
+    let lastOccurrence: Date?
+    let categoryId: Int?
+    let merchantPattern: String?
+    let isActive: Bool
+    let autoCreate: Bool
+    let notes: String?
+    let createdAt: Date?
+    let updatedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, amount, currency, type, cadence, notes
+        case dayOfMonth = "day_of_month"
+        case dayOfWeek = "day_of_week"
+        case nextDueDate = "next_due_date"
+        case lastOccurrence = "last_occurrence"
+        case categoryId = "category_id"
+        case merchantPattern = "merchant_pattern"
+        case isActive = "is_active"
+        case autoCreate = "auto_create"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+
+    var isExpense: Bool { type == "expense" }
+    var isIncome: Bool { type == "income" }
+
+    var cadenceDisplay: String {
+        switch cadence {
+        case "daily": return "Daily"
+        case "weekly": return "Weekly"
+        case "biweekly": return "Every 2 weeks"
+        case "monthly": return "Monthly"
+        case "quarterly": return "Quarterly"
+        case "yearly": return "Yearly"
+        default: return cadence.capitalized
+        }
+    }
+
+    var daysUntilDue: Int? {
+        guard let nextDue = nextDueDate else { return nil }
+        return Calendar.current.dateComponents([.day], from: Date(), to: nextDue).day
+    }
+
+    var isDueSoon: Bool {
+        guard let days = daysUntilDue else { return false }
+        return days >= 0 && days <= 7
+    }
+
+    var isOverdue: Bool {
+        guard let days = daysUntilDue else { return false }
+        return days < 0
+    }
+}
+
+struct MatchingRule: Identifiable, Codable {
+    let id: Int
+    let merchantPattern: String
+    let category: String?
+    let subcategory: String?
+    let storeName: String?
+    let isGrocery: Bool
+    let isRestaurant: Bool
+    let isFoodRelated: Bool
+    let priority: Int
+    let categoryId: Int?
+    let confidence: Int
+    let matchCount: Int
+    let lastMatchedAt: Date?
+    let isActive: Bool
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, category, subcategory, priority, confidence, notes
+        case merchantPattern = "merchant_pattern"
+        case storeName = "store_name"
+        case isGrocery = "is_grocery"
+        case isRestaurant = "is_restaurant"
+        case isFoodRelated = "is_food_related"
+        case categoryId = "category_id"
+        case matchCount = "match_count"
+        case lastMatchedAt = "last_matched_at"
+        case isActive = "is_active"
+    }
+
+    var confidenceDisplay: String {
+        "\(confidence)%"
+    }
+
+    var hasMatches: Bool {
+        matchCount > 0
+    }
+}
+
+// MARK: - Finance Planning Requests
+
+struct CreateCategoryRequest: Codable {
+    let name: String
+    let type: String
+    let icon: String?
+    let color: String?
+    let keywords: [String]?
+    let displayOrder: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case name, type, icon, color, keywords
+        case displayOrder = "display_order"
+    }
+}
+
+struct CreateRecurringItemRequest: Codable {
+    let name: String
+    let amount: Double
+    let currency: String?
+    let type: String
+    let cadence: String
+    let dayOfMonth: Int?
+    let dayOfWeek: Int?
+    let nextDueDate: String?
+    let categoryId: Int?
+    let merchantPattern: String?
+    let autoCreate: Bool?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name, amount, currency, type, cadence, notes
+        case dayOfMonth = "day_of_month"
+        case dayOfWeek = "day_of_week"
+        case nextDueDate = "next_due_date"
+        case categoryId = "category_id"
+        case merchantPattern = "merchant_pattern"
+        case autoCreate = "auto_create"
+    }
+}
+
+struct CreateMatchingRuleRequest: Codable {
+    let merchantPattern: String
+    let category: String?
+    let subcategory: String?
+    let storeName: String?
+    let isGrocery: Bool?
+    let isRestaurant: Bool?
+    let isFoodRelated: Bool?
+    let priority: Int?
+    let categoryId: Int?
+    let confidence: Int?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case category, subcategory, priority, confidence, notes
+        case merchantPattern = "merchant_pattern"
+        case storeName = "store_name"
+        case isGrocery = "is_grocery"
+        case isRestaurant = "is_restaurant"
+        case isFoodRelated = "is_food_related"
+        case categoryId = "category_id"
+    }
+}
+
+struct CreateBudgetRequest: Codable {
+    let month: String
+    let category: String
+    let budgetAmount: Double
+    let categoryId: Int?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case month, category, notes
+        case budgetAmount = "budget_amount"
+        case categoryId = "category_id"
+    }
+}
+
+// MARK: - Finance Planning Responses
+
+struct CategoriesResponse: Codable {
+    let success: Bool
+    let data: [Category]?
+    let message: String?
+}
+
+struct RecurringItemsResponse: Codable {
+    let success: Bool
+    let data: [RecurringItem]?
+    let message: String?
+}
+
+struct MatchingRulesResponse: Codable {
+    let success: Bool
+    let data: [MatchingRule]?
+    let message: String?
+}
+
+struct SingleItemResponse<T: Codable>: Codable {
+    let success: Bool
+    let data: T?
+    let message: String?
+}
+
+struct DeleteResponse: Codable {
+    let success: Bool
+    let message: String?
+}

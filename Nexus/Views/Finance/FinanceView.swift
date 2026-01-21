@@ -3,6 +3,7 @@ import SwiftUI
 struct FinanceView: View {
     @StateObject private var viewModel = FinanceViewModel()
     @State private var selectedTab = 0
+    @State private var showingSettings = false
 
     var body: some View {
         NavigationView {
@@ -59,6 +60,12 @@ struct FinanceView: View {
             .navigationTitle("Finance")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                            .foregroundColor(.nexusFinance)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         Task {
@@ -69,6 +76,9 @@ struct FinanceView: View {
                             .foregroundColor(.nexusFinance)
                     }
                 }
+            }
+            .sheet(isPresented: $showingSettings) {
+                FinancePlanningView()
             }
         }
     }
