@@ -9,6 +9,7 @@ Usage:
     ./receipt_ingestion.py --fetch           # Fetch new receipts from Gmail
     ./receipt_ingestion.py --parse           # Parse pending receipts
     ./receipt_ingestion.py --link            # Link receipts to transactions
+    ./receipt_ingestion.py --finalize-pending # Finalize receipts (compute totals, create txns)
     ./receipt_ingestion.py --all             # Do all of the above
 
 Environment variables:
@@ -882,11 +883,14 @@ def main():
                         help='Approve a template hash for drift detection')
     parser.add_argument('--report-drift', action='store_true',
                         help='Report receipts needing review (drift/reconciliation issues)')
+    parser.add_argument('--finalize-pending', action='store_true',
+                        help='Finalize pending receipts (compute totals, create transactions)')
 
     args = parser.parse_args()
 
     if not any([args.fetch, args.parse, args.link, args.create_transactions,
-                args.all, args.receipt_id, args.approve_template, args.report_drift]):
+                args.all, args.receipt_id, args.approve_template, args.report_drift,
+                args.finalize_pending]):
         parser.print_help()
         return
 
@@ -1018,6 +1022,27 @@ def main():
                 else:
                     print(f"Template not found: {args.approve_template}")
                 conn.commit()
+
+        if args.finalize_pending or args.all:
+            print("\n=== Finalizing pending receipts ===")
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT * FROM finance.finalize_pending_receipts()")
+                results = cur.fetchall()
+                conn.commit()
+                if results:
+                    for r in results:
+                        status = r['status']
+                        details = r['details']
+                        if status == 'finalized':
+                            print(f"  Receipt {r['receipt_id']}: finalized -> txn {details.get('transaction_id')} "
+                                  f"({details.get('total_amount')} {details.get('item_count')} items)")
+                        elif status == 'needs_review':
+                            print(f"  Receipt {r['receipt_id']}: needs_review - {details.get('reason')}")
+                        else:
+                            print(f"  Receipt {r['receipt_id']}: {status}")
+                    print(f"Processed {len(results)} receipts")
+                else:
+                    print("No pending receipts to finalize")
 
         if args.report_drift:
             print("\n=== Drift/Review Report ===")
