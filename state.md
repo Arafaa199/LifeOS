@@ -74,6 +74,58 @@ Ingestion contracts moved from Claude Coder state.md to standalone docs:
 
 ---
 
+## Database Migrations
+
+### Migration 013: Finance Defaults and Timestamp Clarity (2026-01-22)
+
+**Applied:** 2026-01-22
+
+**Changes:**
+1. **client_id unique index** - Already existed from migration 009, verified working
+2. **Currency default** - Changed from USD → AED (Dubai Dirham)
+3. **Timestamp documentation** - Clarified created_at vs transaction_at
+
+**Verification:**
+```sql
+-- ✅ 1. client_id unique index exists
+SELECT indexdef FROM pg_indexes
+WHERE schemaname = 'finance' AND tablename = 'transactions'
+  AND indexname LIKE '%client_id%';
+-- Result: CREATE UNIQUE INDEX idx_transactions_client_id ON finance.transactions
+--         USING btree (client_id) WHERE (client_id IS NOT NULL)
+
+-- ✅ 2. Currency default is AED
+SELECT column_default FROM information_schema.columns
+WHERE table_schema = 'finance' AND table_name = 'transactions'
+  AND column_name = 'currency';
+-- Result: 'AED'::character varying
+
+-- ✅ 3. No NULL currencies
+SELECT COUNT(*) FROM finance.transactions
+WHERE currency IS NULL OR currency = '';
+-- Result: 0
+
+-- ✅ 4. Currency distribution
+SELECT currency, COUNT(*) FROM finance.transactions
+GROUP BY currency ORDER BY COUNT(*) DESC;
+-- Result: SAR(365), AED(80), BHD(26), JOD(24), EGP(4), USD(3), GBP(1)
+
+-- ✅ 5. Column comments exist
+SELECT col_description('finance.transactions'::regclass, attnum) as comment, attname
+FROM pg_attribute
+WHERE attrelid = 'finance.transactions'::regclass
+  AND attname IN ('created_at', 'transaction_at');
+-- Result: Comments correctly document created_at (non-authoritative)
+--         vs transaction_at (authoritative)
+```
+
+**Timestamp Policy:**
+- `created_at` (timestamp without time zone) - Non-authoritative, record insertion time for debugging
+- `transaction_at` (timestamp with time zone) - **AUTHORITATIVE**, use for all business logic
+- Use `finance.to_business_date(transaction_at)` for date aggregations
+
+---
+
 ## Trigger Architecture
 
 | Component | Trigger | Location | Idempotency Key |
