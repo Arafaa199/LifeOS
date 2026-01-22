@@ -1,0 +1,270 @@
+{
+  "name": "Nexus - Add Income Webhook (Validated)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-income",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "nexus-income"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.client_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Validate client_id",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"client_id is required\",\n  \"message\": \"Server-side validation failed: client_id must be provided for idempotency\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "name": "Reject - Missing client_id",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Log raw event for audit trail\nINSERT INTO finance.raw_events (\n  event_type,\n  raw_payload,\n  client_id,\n  source_identifier,\n  validation_status\n)\nVALUES (\n  'income_webhook',\n  '{{ JSON.stringify($json.body) }}'::jsonb,\n  '{{ $json.body.client_id }}',\n  '{{ $json.headers[\"x-forwarded-for\"] || $json.headers[\"x-real-ip\"] || \"webhook\" }}',\n  'pending'\n)\nRETURNING id, raw_payload;",
+        "options": {}
+      },
+      "name": "Log Raw Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 100],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Server-side amount and currency parsing\nconst payload = $input.all()[0].json;\nconst rawEvent = payload[0];\nconst webhookData = $('Webhook').item.json.body;\n\n// Parse amount from raw_text if provided, otherwise use provided amount\nlet amount = webhookData.amount;\nlet currency = webhookData.currency || 'AED';\nlet parseErrors = [];\n\n// If raw_text is provided, parse it server-side (don't trust client parsing)\nif (webhookData.raw_text) {\n  const rawText = webhookData.raw_text.toLowerCase();\n  \n  // Extract amount (look for patterns like \"23500\" or \"23,500.00\")\n  const amountMatch = rawText.match(/\\b([\\d,]+\\.?\\d*)\\s*(aed|usd|sar|bhd|jod|egp|gbp)?/i);\n  if (amountMatch) {\n    const parsedAmount = parseFloat(amountMatch[1].replace(/,/g, ''));\n    if (!isNaN(parsedAmount)) {\n      amount = parsedAmount;\n      if (amountMatch[2]) {\n        currency = amountMatch[2].toUpperCase();\n      }\n    } else {\n      parseErrors.push('Could not parse amount from raw_text');\n    }\n  } else {\n    parseErrors.push('No amount found in raw_text');\n  }\n}\n\n// Validate amount\nif (!amount || amount <= 0) {\n  parseErrors.push('Amount must be positive');\n}\n\nreturn {\n  raw_event_id: rawEvent.id,\n  raw_payload: rawEvent.raw_payload,\n  client_id: webhookData.client_id,\n  transaction_at: webhookData.transaction_at || new Date().toISOString(),\n  source: webhookData.source || 'Unknown Source',\n  amount: amount,\n  currency: currency,\n  category: webhookData.category || 'Income',\n  notes: webhookData.notes || null,\n  is_recurring: webhookData.is_recurring || false,\n  parse_errors: parseErrors,\n  has_errors: parseErrors.length > 0\n};"
+      },
+      "name": "Parse Amount & Currency",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_errors }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "name": "Check Parse Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Update raw event with validation failure\nUPDATE finance.raw_events\nSET validation_status = 'invalid',\n    validation_errors = ARRAY[{{ $json.parse_errors.map(e => \"'\" + e + \"'\").join(',') }}]\nWHERE id = {{ $json.raw_event_id }};\n\nSELECT '{{ JSON.stringify($json.parse_errors) }}' as errors;",
+        "options": {}
+      },
+      "name": "Mark Event Invalid",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1250, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"validation_failed\",\n  \"message\": \"Server-side parsing failed\",\n  \"errors\": {{ JSON.stringify($('Parse Amount & Currency').item.json.parse_errors) }}\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "name": "Reject - Parse Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert transaction with server-parsed values\nINSERT INTO finance.transactions (\n  transaction_at,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  notes,\n  is_recurring,\n  client_id\n)\nVALUES (\n  '{{ $json.transaction_at }}'::timestamptz,\n  finance.to_business_date('{{ $json.transaction_at }}'::timestamptz),\n  '{{ $json.source }}',\n  {{ $json.amount }},\n  '{{ $json.currency }}',\n  '{{ $json.category }}',\n  {{ $json.notes ? \"'\" + $json.notes + \"'\" : \"NULL\" }},\n  {{ $json.is_recurring }},\n  '{{ $json.client_id }}'\n)\nON CONFLICT (client_id) DO NOTHING\nRETURNING id, merchant_name, amount, currency, date;",
+        "options": {}
+      },
+      "name": "Insert Transaction",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1250, 100],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Update raw event with result\nUPDATE finance.raw_events\nSET validation_status = {{ $('Insert Transaction').item.json.length > 0 ? \"'valid'\" : \"'duplicate'\" }},\n    parsed_amount = {{ $('Parse Amount & Currency').item.json.amount }},\n    parsed_currency = '{{ $('Parse Amount & Currency').item.json.currency }}',\n    related_transaction_id = {{ $('Insert Transaction').item.json.length > 0 ? $('Insert Transaction').item.json[0].id : 'NULL' }}\nWHERE id = {{ $('Parse Amount & Currency').item.json.raw_event_id }};\n\nSELECT 1;",
+        "options": {}
+      },
+      "name": "Update Raw Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1450, 100],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": {{ $('Insert Transaction').item.json.length > 0 ? \"'Income added: \" + $('Parse Amount & Currency').item.json.source + \" - \" + $('Parse Amount & Currency').item.json.currency + \" \" + $('Parse Amount & Currency').item.json.amount + \"'\" : \"'Income already exists (idempotent duplicate)'\" }},\n  \"idempotent\": {{ $('Insert Transaction').item.json.length === 0 }},\n  \"server_parsed\": {\n    \"amount\": {{ $('Parse Amount & Currency').item.json.amount }},\n    \"currency\": \"{{ $('Parse Amount & Currency').item.json.currency }}\"\n  },\n  \"raw_event_id\": {{ $('Parse Amount & Currency').item.json.raw_event_id }},\n  \"data\": {\n    \"transaction\": {{ $('Insert Transaction').item.json.length > 0 ? JSON.stringify($('Insert Transaction').item.json[0]) : 'null' }}\n  }\n}",
+        "options": {}
+      },
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 100]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate client_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate client_id": {
+      "main": [
+        [
+          {
+            "node": "Log Raw Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject - Missing client_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Raw Event": {
+      "main": [
+        [
+          {
+            "node": "Parse Amount & Currency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Amount & Currency": {
+      "main": [
+        [
+          {
+            "node": "Check Parse Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Parse Errors": {
+      "main": [
+        [
+          {
+            "node": "Insert Transaction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Event Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Event Invalid": {
+      "main": [
+        [
+          {
+            "node": "Reject - Parse Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Transaction": {
+      "main": [
+        [
+          {
+            "node": "Update Raw Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Raw Event": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

@@ -76,6 +76,61 @@ Ingestion contracts moved from Claude Coder state.md to standalone docs:
 
 ## Database Migrations
 
+### Migration 015: Raw Events Audit Table (2026-01-22)
+
+**Applied:** 2026-01-22
+
+**Purpose:** Audit trail for all incoming finance events (webhooks, SMS, etc.)
+
+**Table Created:**
+```sql
+CREATE TABLE finance.raw_events (
+    id SERIAL PRIMARY KEY,
+    event_type VARCHAR(50) NOT NULL,      -- 'income_webhook', 'sms_import', etc.
+    raw_payload JSONB NOT NULL,           -- Full raw payload from source
+    client_id VARCHAR(36),                 -- Client ID for correlation
+    source_identifier VARCHAR(200),        -- SMS sender, IP, etc.
+    parsed_amount NUMERIC(10,2),          -- Server-parsed amount
+    parsed_currency VARCHAR(3),            -- Server-parsed currency
+    validation_status VARCHAR(20),         -- 'valid', 'invalid', 'duplicate'
+    validation_errors TEXT[],              -- Array of validation errors
+    related_transaction_id INTEGER,        -- FK to transactions if created
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**Indexes:**
+- `event_type` - Query by event source
+- `client_id` (partial) - Correlation lookups
+- `created_at DESC` - Recent events first
+- `validation_status` - Filter by validation result
+
+**Usage:**
+```sql
+-- Today's income webhook events
+SELECT event_type, validation_status, COUNT(*)
+FROM finance.raw_events
+WHERE created_at >= CURRENT_DATE
+  AND event_type = 'income_webhook'
+GROUP BY event_type, validation_status;
+
+-- Failed validations with errors
+SELECT raw_payload, validation_errors
+FROM finance.raw_events
+WHERE validation_status = 'invalid'
+ORDER BY created_at DESC
+LIMIT 10;
+
+-- Duplicate detection rate
+SELECT
+  COUNT(*) FILTER (WHERE validation_status = 'duplicate') as duplicates,
+  COUNT(*) FILTER (WHERE validation_status = 'valid') as unique_inserts
+FROM finance.raw_events
+WHERE event_type = 'income_webhook';
+```
+
+---
+
 ### Migration 014: client_id Full Unique Index (2026-01-22)
 
 **Applied:** 2026-01-22
@@ -230,11 +285,64 @@ curl -X POST https://n8n.rfanw/webhook/nexus-income \
 - ✅ Tested: Migration 014 replay test proves idempotency at DB level
 - ✅ Authenticated: Requires `X-API-Key` header (same key as iOS app)
 
-**⚠️ Deployment Note:**
-- Updated workflow saved to `n8n-workflows/income-webhook.json`
-- **Manual step required:** Open n8n UI, import/update workflow to activate changes
-- Current production workflow may still use old schema (no client_id)
-- Verify after import: Test with duplicate `client_id` should be idempotent
+**⚠️ Deployment Instructions:**
+
+The validated income webhook with server-side parsing and audit logging is ready:
+
+**File:** `n8n-workflows/income-webhook-validated.json`
+
+**Manual Deployment Steps:**
+1. Open n8n UI: `https://n8n.rfanw`
+2. Import workflow: Settings → Import from File → Select `income-webhook-validated.json`
+3. **Deactivate old "Nexus - Add Income Webhook" workflows** (IDs: URXBr7WEztRMfqsN, jwgl7hAx0hOK3oC9, MH7FDoqFy1slCPXPJEJSf)
+4. Activate new "Nexus - Add Income Webhook (Validated)" workflow
+5. Test validation:
+   ```bash
+   # Test 1: Reject missing client_id
+   curl -X POST https://n8n.rfanw/webhook/nexus-income \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: 3f62259deac4aa96427ba0048c3addfe1924f872586d8371d6adfb3d2db3afd8" \
+     -d '{}'
+   # Expected: {"success":false,"error":"client_id is required",...}
+
+   # Test 2: Valid income entry
+   curl -X POST https://n8n.rfanw/webhook/nexus-income \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: 3f62259deac4aa96427ba0048c3addfe1924f872586d8371d6adfb3d2db3afd8" \
+     -d '{
+       "client_id": "test-deploy-verify-001",
+       "transaction_at": "2026-01-22T12:00:00+04:00",
+       "source": "Deployment Test",
+       "amount": 100.00,
+       "currency": "AED",
+       "category": "Income"
+     }'
+   # Expected: {"success":true,"idempotent":false,"raw_event_id":...}
+
+   # Test 3: Idempotency (replay same client_id)
+   curl ... -d '{"client_id": "test-deploy-verify-001", ...}'
+   # Expected: {"success":true,"idempotent":true,...}
+   ```
+6. Verify audit trail:
+   ```sql
+   SELECT id, event_type, validation_status, parsed_amount, parsed_currency
+   FROM finance.raw_events
+   WHERE event_type = 'income_webhook'
+   ORDER BY created_at DESC
+   LIMIT 5;
+   ```
+
+**Validation Features:**
+- ✅ **Rejects missing client_id** - Server-side validation before processing
+- ✅ **Audit logging** - All requests logged to `finance.raw_events`
+- ✅ **Server-side parsing** - If `raw_text` provided, parses amount/currency server-side
+- ✅ **Idempotency tracking** - Duplicates marked as `validation_status='duplicate'`
+- ✅ **Parse error handling** - Invalid amounts/currencies rejected with error details
+
+**Current Status:**
+- ✅ Migration 015 applied - `finance.raw_events` table created
+- ✅ Workflow created - `income-webhook-validated.json`
+- ⚠️ Manual activation required - Deploy via n8n UI (automated CLI activation failed)
 
 ---
 
