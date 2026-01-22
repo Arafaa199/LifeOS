@@ -40,9 +40,90 @@ Output format:
 """
 
 import re
+import hashlib
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from pathlib import Path
+
+# Parser version - increment when parsing logic changes
+PARSE_VERSION = 'carrefour_v1'
+
+
+def compute_template_hash(pdf_text: str) -> str:
+    """
+    Compute a hash of the PDF's structural elements (headers, labels, layout).
+
+    This hash identifies the PDF template format, NOT the data.
+    If Carrefour changes their receipt format, this hash will change,
+    triggering a 'needs_review' status for drift detection.
+
+    We extract:
+    - Header labels (Invoice No, Order No, etc.)
+    - Section headers (CUSTOMER INFORMATION, etc.)
+    - Table column headers
+    - Footer boilerplate patterns
+
+    Returns:
+        SHA256 hash of normalized structural text
+    """
+    structural_patterns = []
+
+    # Header labels - these define the receipt structure
+    header_labels = [
+        r'(Tax Invoice)',
+        r'(Invoice No\.?)',
+        r'(Order No\.?)',
+        r'(Invoice Date)',
+        r'(Order Date)',
+        r'(Exp\. Del\. Date)',
+        r'(CUSTOMER INFORMATION)',
+        r'(STORE INFORMATION)',
+        r'(TRN\s*:)',
+    ]
+
+    # Table column headers
+    column_headers = [
+        r'(Description)',
+        r'(Ordered)',
+        r'(Delivered)',
+        r'(Unit Price\s*(?:Incl|Excl)\.?\s*VAT)',
+        r'(Total\s*(?:Incl|Excl)\.?\s*VAT)',
+        r'(VAT\s*%)',
+        r'(VAT\s*Amount)',
+        r'(Discount)',
+        r'(Barcode:)',
+    ]
+
+    # Footer/summary labels
+    footer_labels = [
+        r'(Total Amount Incl\.?\s*VAT)',
+        r'(Total Amount Excl\.?\s*VAT)',
+        r'(Payment Type)',
+        r'(Promo savings)',
+        r'(Products? savings)',
+        r'(Total savings)',
+        r'(Your Savings)',
+        r'(Majid Al Futtaim)',
+        r'(Thank you for shopping)',
+    ]
+
+    all_patterns = header_labels + column_headers + footer_labels
+
+    for pattern in all_patterns:
+        match = re.search(pattern, pdf_text, re.IGNORECASE)
+        if match:
+            # Normalize: lowercase, strip whitespace
+            normalized = match.group(1).lower().strip()
+            structural_patterns.append(normalized)
+
+    # Sort for consistent ordering regardless of document order
+    structural_patterns.sort()
+
+    # Create fingerprint string
+    fingerprint = '|'.join(structural_patterns)
+
+    # Return SHA256 hash
+    return hashlib.sha256(fingerprint.encode('utf-8')).hexdigest()
 
 
 def detect_document_type(pdf_text: str) -> str:
@@ -85,8 +166,13 @@ def parse_carrefour_receipt(pdf_text: str) -> Dict[str, Any]:
     # Detect document type first
     doc_type = detect_document_type(pdf_text)
 
+    # Compute template hash for drift detection
+    template_hash = compute_template_hash(pdf_text)
+
     result = {
         "parser_version": "1.0.0",
+        "parse_version": PARSE_VERSION,
+        "template_hash": template_hash,
         "vendor": "carrefour_uae",
         "doc_type": doc_type,
         "parse_errors": [],

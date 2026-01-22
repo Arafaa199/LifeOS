@@ -19,22 +19,23 @@
 
 ---
 
-## 🔧 Receipt Ingestion: IN PROGRESS (2026-01-22)
+## ✅ Receipt Ingestion: DONE (2026-01-22)
 
-**Status:** Core functionality working, needs n8n UI debugging for Mark Valid node.
+**Status:** Full pipeline working - Gmail fetch → PDF parse → Template drift check → Transaction creation
 
 | Component | Status |
 |-----------|--------|
-| Migration 017 (raw_event_id FK) | ✅ Ready to apply |
-| Webhook receives payload | ✅ Working |
-| Log to raw_events | ✅ Working (event_type='receipt_pdf') |
-| Insert to receipts | ✅ Working (idempotent via pdf_hash) |
-| Duplicate detection | ✅ Working (status='duplicate') |
-| Mark Valid update | ⚠️ Needs n8n UI debug |
-| Success response | ⚠️ Returns empty (related to above) |
+| Gmail fetch (hourly timer) | ✅ Working |
+| PDF parsing (pdftotext) | ✅ Working |
+| Template drift detection | ✅ Working (migration 019) |
+| Reconciliation check | ✅ Working (items sum vs total) |
+| Transaction creation | ✅ Working (idempotent via client_id) |
+| parse_status='needs_review' | ✅ Working |
+| --report-drift command | ✅ Working |
+| --approve-template command | ✅ Working |
 
-**Active Workflow:** `OxZvWsf7HfxmM6jj`
-**File:** `n8n-workflows/receipt-raw-ingest.json`
+**Server Path:** `~/lifeos/receipt-ingest/`
+**Timer:** `receipt-ingest.timer` (hourly)
 
 ### Debug Steps (in n8n UI)
 1. Open the Receipt Raw Ingest workflow
@@ -139,6 +140,92 @@ Ingestion contracts moved from Claude Coder state.md to standalone docs:
 ---
 
 ## Database Migrations
+
+### Migration 019: Receipt Template Tracking (2026-01-22)
+
+**Applied:** 2026-01-22
+
+**Purpose:** Adds template drift detection to prevent silent parsing corruption when vendors change PDF formats.
+
+**Schema Changes:**
+```sql
+-- Add tracking columns to receipts
+ALTER TABLE finance.receipts
+ADD COLUMN template_hash TEXT,
+ADD COLUMN parse_version TEXT DEFAULT 'carrefour_v1';
+
+-- Index for template lookups
+CREATE INDEX idx_receipts_template_hash ON finance.receipts (template_hash)
+WHERE template_hash IS NOT NULL;
+
+-- Known templates table
+CREATE TABLE finance.receipt_templates (
+    id SERIAL PRIMARY KEY,
+    vendor TEXT NOT NULL,
+    template_hash TEXT NOT NULL UNIQUE,
+    parse_version TEXT NOT NULL,
+    sample_receipt_id INTEGER REFERENCES finance.receipts(id),
+    first_seen_at TIMESTAMPTZ DEFAULT NOW(),
+    status TEXT DEFAULT 'approved',  -- 'approved', 'needs_review', 'rejected'
+    notes TEXT
+);
+```
+
+**Constraint Added:**
+```sql
+-- Allow 'needs_review' status
+ALTER TABLE finance.receipts ADD CONSTRAINT receipts_parse_status_check
+CHECK (parse_status IN ('pending', 'success', 'failed', 'partial', 'skipped', 'needs_review'));
+```
+
+**How Drift Detection Works:**
+1. Parser computes `template_hash` from PDF structure (headers, labels, not data)
+2. If hash is new → insert to `receipt_templates` with status='needs_review'
+3. Receipt marked `parse_status='needs_review'`, items NOT inserted
+4. Admin runs `--approve-template <hash>` to approve
+5. Approved templates allow normal parsing
+
+**Test Verification (2026-01-22):**
+```
+# 1. Re-parse receipt with new template_hash column
+$ docker compose run --rm receipt-ingest --receipt-id 15 --reparse
+Parsing receipt 15 (vendor: carrefour_uae)
+  New template detected: 4fcea2dad614896a...
+  Needs review: unknown template, 14 items parsed but not inserted
+
+# 2. Approve the template
+$ docker compose run --rm receipt-ingest --approve-template 4fcea2dad614896a
+Approved template 4fcea2dad614896a... for vendor carrefour_uae
+Re-parsing 1 receipts with this template...
+Parsing receipt 15 (vendor: carrefour_uae)
+  Parsed: 14 items, total: 185.54 AED (verified)
+
+# 3. Create transactions for unlinked receipts
+$ docker compose run --rm receipt-ingest --create-transactions
+Found 7 unlinked receipts
+  Created transaction 7033 for receipt 15 (185.54 AED)
+  Created transaction 7034 for receipt 1 (161.00 AED)
+  ...
+Created 7 transactions
+
+# 4. Idempotency test - run again
+$ docker compose run --rm receipt-ingest --create-transactions
+Found 0 unlinked receipts
+Created 0 transactions  ✅ IDEMPOTENT
+
+# 5. Verify in DB
+$ psql: SELECT t.id, t.date, t.merchant_name, t.amount, t.client_id
+        FROM finance.transactions t
+        WHERE t.id = 7033
+id=7033 | date=2026-01-22 | merchant_name=Carrefour Ibn Batuta Mall | amount=-185.54 | client_id=rcpt:03f2ff7b3ba016634ad6889cdf20f19
+
+# 6. Drift report (all clear)
+$ docker compose run --rm receipt-ingest --report-drift
+No receipts needing review.
+All templates approved.
+```
+
+---
 
 ### Migration 017: Receipts raw_event_id FK (2026-01-22)
 
@@ -519,9 +606,17 @@ cd ~/lifeos/receipt-ingest
 docker compose run --rm receipt-ingest --all
 
 # Individual operations
-docker compose run --rm receipt-ingest --fetch   # Gmail ingestion
-docker compose run --rm receipt-ingest --parse   # PDF parsing
-docker compose run --rm receipt-ingest --link    # Transaction linking
+docker compose run --rm receipt-ingest --fetch              # Gmail ingestion
+docker compose run --rm receipt-ingest --parse              # PDF parsing
+docker compose run --rm receipt-ingest --link               # Transaction linking
+docker compose run --rm receipt-ingest --create-transactions # Create txns for unlinked receipts
+
+# Template drift management
+docker compose run --rm receipt-ingest --report-drift       # Show receipts/templates needing review
+docker compose run --rm receipt-ingest --approve-template 4fcea2  # Approve template (prefix match)
+
+# Single receipt operations
+docker compose run --rm receipt-ingest --receipt-id 15 --reparse  # Re-parse specific receipt
 
 # Check timer status
 systemctl --user list-timers | grep receipt

@@ -42,7 +42,7 @@ import io
 import subprocess
 
 # Local parsers
-from carrefour_parser import parse_carrefour_receipt, validate_parsed_receipt
+from carrefour_parser import parse_carrefour_receipt, validate_parsed_receipt, PARSE_VERSION
 
 
 # ============================================================================
@@ -433,6 +433,8 @@ def parse_carrefour_uae(conn, receipt_id: int, raw_text: str, pdf_path: str = No
         total_amount = parsed.get('total_incl_vat')
         vat_amount = parsed.get('vat_amount')
         subtotal = parsed.get('total_excl_vat')
+        template_hash = parsed.get('template_hash')
+        parse_version = parsed.get('parse_version', PARSE_VERSION)
 
         # Parse date from invoice_date (format: YYYY-MM-DD)
         receipt_date = None
@@ -441,6 +443,62 @@ def parse_carrefour_uae(conn, receipt_id: int, raw_text: str, pdf_path: str = No
                 receipt_date = datetime.strptime(parsed['invoice_date'], '%Y-%m-%d').date()
             except ValueError:
                 pass
+
+        # =====================================================================
+        # Template Drift Detection
+        # =====================================================================
+        # Check if this template_hash is known/approved
+        is_known_template = False
+        if template_hash:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, status FROM finance.receipt_templates
+                    WHERE template_hash = %s
+                """, (template_hash,))
+                template_row = cur.fetchone()
+
+                if template_row:
+                    # Template exists - check if approved
+                    is_known_template = (template_row[1] == 'approved')
+                else:
+                    # New template - register it as needs_review
+                    cur.execute("""
+                        INSERT INTO finance.receipt_templates
+                            (vendor, template_hash, parse_version, sample_receipt_id, status, notes)
+                        VALUES ('carrefour_uae', %s, %s, %s, 'needs_review', 'Auto-detected new template')
+                        ON CONFLICT (template_hash) DO NOTHING
+                    """, (template_hash, parse_version, receipt_id))
+                    print(f"  New template detected: {template_hash[:16]}...")
+
+        # If template is not approved, mark for review and skip item insertion
+        if template_hash and not is_known_template:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE finance.receipts SET
+                        invoice_number = %s,
+                        store_name = %s,
+                        receipt_date = %s,
+                        subtotal = %s,
+                        vat_amount = %s,
+                        total_amount = %s,
+                        template_hash = %s,
+                        parse_version = %s,
+                        parsed_json = %s,
+                        parse_status = 'needs_review',
+                        parse_error = 'Unknown template - awaiting approval',
+                        parsed_at = NOW(),
+                        updated_at = NOW()
+                    WHERE id = %s
+                """, (
+                    invoice_number, store_name, receipt_date,
+                    subtotal, vat_amount, total_amount,
+                    template_hash, parse_version,
+                    json.dumps(parsed, ensure_ascii=False),
+                    receipt_id
+                ))
+            conn.commit()
+            print(f"  Needs review: unknown template, {len(parsed.get('line_items', []))} items parsed but not inserted")
+            return True  # Not a failure, just needs review
 
         # Update receipt record with parsed data
         with conn.cursor() as cur:
@@ -452,6 +510,8 @@ def parse_carrefour_uae(conn, receipt_id: int, raw_text: str, pdf_path: str = No
                     subtotal = %s,
                     vat_amount = %s,
                     total_amount = %s,
+                    template_hash = %s,
+                    parse_version = %s,
                     parsed_json = %s,
                     parse_status = 'success',
                     parsed_at = NOW(),
@@ -460,6 +520,7 @@ def parse_carrefour_uae(conn, receipt_id: int, raw_text: str, pdf_path: str = No
             """, (
                 invoice_number, store_name, receipt_date,
                 subtotal, vat_amount, total_amount,
+                template_hash, parse_version,
                 json.dumps(parsed, ensure_ascii=False),
                 receipt_id
             ))
@@ -470,8 +531,11 @@ def parse_carrefour_uae(conn, receipt_id: int, raw_text: str, pdf_path: str = No
 
         # Insert parsed line items
         line_items = parsed.get('line_items', [])
+        items_sum = 0.0
         with conn.cursor() as cur:
             for idx, item in enumerate(line_items, 1):
+                line_total = item.get('total_incl_vat', 0) or 0
+                items_sum += line_total
                 cur.execute("""
                     INSERT INTO finance.receipt_items (
                         receipt_id, line_number, item_code, item_description,
@@ -486,13 +550,31 @@ def parse_carrefour_uae(conn, receipt_id: int, raw_text: str, pdf_path: str = No
                     clean_item_description(item.get('description', '')),
                     item.get('qty_delivered', 1),
                     item.get('unit_price_incl_vat'),
-                    item.get('total_incl_vat'),
+                    line_total,
                     item.get('discount', 0),
                     item.get('voucher_discount') is not None
                 ))
 
+        # Reconciliation check: verify items sum matches total
+        reconciliation_tolerance = 0.10  # 10 fils
+        if total_amount and abs(items_sum - total_amount) > reconciliation_tolerance:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE finance.receipts SET
+                        parse_status = 'needs_review',
+                        parse_error = %s,
+                        updated_at = NOW()
+                    WHERE id = %s
+                """, (
+                    f"Reconciliation failed: items sum {items_sum:.2f} != total {total_amount:.2f} (diff: {abs(items_sum - total_amount):.2f})",
+                    receipt_id
+                ))
+            conn.commit()
+            print(f"  Needs review: items sum {items_sum:.2f} != total {total_amount:.2f}")
+            return True  # Not a failure, just needs review
+
         conn.commit()
-        print(f"  Parsed: {len(line_items)} items, total: {total_amount} AED")
+        print(f"  Parsed: {len(line_items)} items, total: {total_amount} AED (verified)")
         return True
 
     except Exception as e:
@@ -602,6 +684,133 @@ def mark_parse_skipped(conn, receipt_id: int, doc_type: str, reason: str):
 
 
 # ============================================================================
+# Transaction Creation (for receipts without SMS)
+# ============================================================================
+
+def create_transaction_for_receipt(conn, receipt: Dict) -> Optional[int]:
+    """
+    Create a finance.transactions record for a receipt that has no linked SMS transaction.
+
+    Uses client_id = 'receipt:<pdf_hash>' for idempotency.
+
+    Returns: transaction_id if created, None if already exists or error
+    """
+    receipt_id = receipt['id']
+    pdf_hash = receipt['pdf_hash']
+    total_amount = receipt['total_amount']
+    receipt_date = receipt['receipt_date']
+    store_name = receipt.get('store_name', 'Carrefour')
+
+    # Generate idempotent client_id from PDF hash
+    # varchar(36) limit: "rcpt:" (5) + 31 hex chars = 36
+    client_id = f"rcpt:{pdf_hash[:31]}"
+
+    # Check if transaction already exists (idempotency)
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT id FROM finance.transactions
+            WHERE client_id = %s
+        """, (client_id,))
+        existing = cur.fetchone()
+        if existing:
+            print(f"  Transaction already exists for receipt {receipt_id}: txn {existing[0]}")
+            # Link the receipt if not already linked
+            cur.execute("""
+                UPDATE finance.receipts
+                SET linked_transaction_id = %s, updated_at = NOW()
+                WHERE id = %s AND linked_transaction_id IS NULL
+            """, (existing[0], receipt_id))
+            conn.commit()
+            return existing[0]
+
+    # Create transaction
+    # Schema: date, merchant_name, amount, currency, category, is_grocery, client_id, notes
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO finance.transactions (
+                date,
+                merchant_name,
+                amount,
+                currency,
+                category,
+                is_grocery,
+                client_id,
+                notes
+            ) VALUES (
+                %s,
+                %s,
+                %s,
+                'AED',
+                'Grocery',
+                true,
+                %s,
+                %s
+            )
+            RETURNING id
+        """, (
+            receipt_date,
+            f"Carrefour {store_name}" if store_name else 'Carrefour',
+            -abs(total_amount),  # Expenses are negative
+            client_id,
+            f"Auto-created from receipt #{receipt_id}"
+        ))
+        txn_id = cur.fetchone()[0]
+
+    # Link receipt to the new transaction
+    with conn.cursor() as cur:
+        cur.execute("""
+            UPDATE finance.receipts
+            SET linked_transaction_id = %s, updated_at = NOW()
+            WHERE id = %s
+        """, (txn_id, receipt_id))
+
+    conn.commit()
+    print(f"  Created transaction {txn_id} for receipt {receipt_id} ({total_amount} AED)")
+    return txn_id
+
+
+def create_transactions_for_unlinked_receipts(conn) -> int:
+    """Create transactions for all unlinked receipts that don't match SMS."""
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT r.id, r.pdf_hash, r.receipt_date, r.total_amount, r.store_name
+            FROM finance.receipts r
+            WHERE r.linked_transaction_id IS NULL
+              AND r.parse_status = 'success'
+              AND r.total_amount IS NOT NULL
+            ORDER BY r.receipt_date DESC
+        """)
+        unlinked = cur.fetchall()
+
+    print(f"Found {len(unlinked)} unlinked receipts")
+
+    created_count = 0
+    for receipt in unlinked:
+        # First try to link to existing transaction
+        receipt_id = receipt['id']
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT * FROM finance.find_matching_transaction(%s)", (receipt_id,))
+            matches = cur.fetchall()
+
+        if matches:
+            # Link to existing SMS transaction
+            match = matches[0]
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT finance.link_receipt_to_transaction(%s, %s, %s, %s)
+                """, (receipt_id, match['transaction_id'], match['match_type'], match['confidence']))
+            conn.commit()
+            print(f"  Linked receipt {receipt_id} to existing txn {match['transaction_id']}")
+        else:
+            # No SMS match - create new transaction from receipt
+            txn_id = create_transaction_for_receipt(conn, receipt)
+            if txn_id:
+                created_count += 1
+
+    return created_count
+
+
+# ============================================================================
 # Transaction Linkage
 # ============================================================================
 
@@ -663,14 +872,21 @@ def main():
     parser.add_argument('--fetch', action='store_true', help='Fetch receipts from Gmail')
     parser.add_argument('--parse', action='store_true', help='Parse pending receipts')
     parser.add_argument('--link', action='store_true', help='Link receipts to transactions')
+    parser.add_argument('--create-transactions', action='store_true',
+                        help='Create transactions for unlinked receipts')
     parser.add_argument('--all', action='store_true', help='Do all operations')
     parser.add_argument('--label', default=GMAIL_LABEL, help='Gmail label to monitor')
     parser.add_argument('--receipt-id', type=int, help='Parse specific receipt by ID')
     parser.add_argument('--reparse', action='store_true', help='Re-parse even if already parsed')
+    parser.add_argument('--approve-template', type=str, metavar='HASH',
+                        help='Approve a template hash for drift detection')
+    parser.add_argument('--report-drift', action='store_true',
+                        help='Report receipts needing review (drift/reconciliation issues)')
 
     args = parser.parse_args()
 
-    if not any([args.fetch, args.parse, args.link, args.all, args.receipt_id]):
+    if not any([args.fetch, args.parse, args.link, args.create_transactions,
+                args.all, args.receipt_id, args.approve_template, args.report_drift]):
         parser.print_help()
         return
 
@@ -766,6 +982,81 @@ def main():
             print("\n=== Linking receipts to transactions ===")
             linked = link_receipts_to_transactions(conn)
             print(f"Linked {linked} receipts")
+
+        if args.create_transactions or args.all:
+            print("\n=== Creating transactions for unlinked receipts ===")
+            created = create_transactions_for_unlinked_receipts(conn)
+            print(f"Created {created} transactions")
+
+        if args.approve_template:
+            print(f"\n=== Approving template: {args.approve_template} ===")
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE finance.receipt_templates
+                    SET status = 'approved', notes = COALESCE(notes, '') || ' - Manually approved'
+                    WHERE template_hash = %s OR template_hash LIKE %s
+                    RETURNING template_hash, vendor
+                """, (args.approve_template, args.approve_template + '%'))
+                result = cur.fetchone()
+                if result:
+                    print(f"Approved template {result[0][:16]}... for vendor {result[1]}")
+                    # Re-parse any receipts that were waiting on this template
+                    cur.execute("""
+                        SELECT id FROM finance.receipts
+                        WHERE template_hash = %s AND parse_status = 'needs_review'
+                    """, (result[0],))
+                    pending = cur.fetchall()
+                    if pending:
+                        print(f"Re-parsing {len(pending)} receipts with this template...")
+                        for (rid,) in pending:
+                            cur.execute("""
+                                UPDATE finance.receipts SET parse_status = 'pending'
+                                WHERE id = %s
+                            """, (rid,))
+                        conn.commit()
+                        parse_pending_receipts(conn)
+                else:
+                    print(f"Template not found: {args.approve_template}")
+                conn.commit()
+
+        if args.report_drift:
+            print("\n=== Drift/Review Report ===")
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # Report receipts needing review
+                cur.execute("""
+                    SELECT r.id, r.receipt_date, r.total_amount, r.store_name,
+                           r.parse_status, r.parse_error, r.template_hash
+                    FROM finance.receipts r
+                    WHERE r.parse_status = 'needs_review'
+                    ORDER BY r.created_at DESC
+                """)
+                needs_review = cur.fetchall()
+
+                if needs_review:
+                    print(f"\nReceipts needing review ({len(needs_review)}):")
+                    for r in needs_review:
+                        print(f"  ID {r['id']}: {r['receipt_date']} {r['store_name']} "
+                              f"${r['total_amount']:.2f} - {r['parse_error'][:60]}...")
+                else:
+                    print("\nNo receipts needing review.")
+
+                # Report unknown templates
+                cur.execute("""
+                    SELECT template_hash, vendor, status, first_seen_at,
+                           (SELECT COUNT(*) FROM finance.receipts WHERE template_hash = t.template_hash) as receipt_count
+                    FROM finance.receipt_templates t
+                    WHERE status != 'approved'
+                    ORDER BY first_seen_at DESC
+                """)
+                unknown_templates = cur.fetchall()
+
+                if unknown_templates:
+                    print(f"\nUnknown/unapproved templates ({len(unknown_templates)}):")
+                    for t in unknown_templates:
+                        print(f"  {t['template_hash'][:16]}... vendor={t['vendor']} "
+                              f"status={t['status']} receipts={t['receipt_count']}")
+                else:
+                    print("\nAll templates approved.")
 
     finally:
         conn.close()
