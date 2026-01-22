@@ -202,11 +202,39 @@ WHERE attrelid = 'finance.transactions'::regclass
 }
 ```
 
+**Authentication:**
+```bash
+# Required header
+X-API-Key: 3f62259deac4aa96427ba0048c3addfe1924f872586d8371d6adfb3d2db3afd8
+
+# Example curl
+curl -X POST https://n8n.rfanw/webhook/nexus-income \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: 3f62259deac4aa96427ba0048c3addfe1924f872586d8371d6adfb3d2db3afd8" \
+  -d '{
+    "client_id": "550e8400-e29b-41d4-a716-446655440000",
+    "transaction_at": "2026-01-22T09:00:00+04:00",
+    "source": "Emirates NBD Salary",
+    "amount": 23500.00,
+    "currency": "AED",
+    "category": "Income",
+    "notes": "January salary",
+    "is_recurring": true
+  }'
+```
+
 **Production Safety:**
-- ✅ Idempotent: Replay-safe via `client_id` unique constraint
+- ✅ Idempotent: Replay-safe via `client_id` unique constraint (migration 014)
 - ✅ Timezone-aware: Uses `transaction_at` (TIMESTAMPTZ)
 - ✅ Business date: Auto-derived via `finance.to_business_date(transaction_at)`
-- ✅ Tested: Migration 014 replay test proves idempotency
+- ✅ Tested: Migration 014 replay test proves idempotency at DB level
+- ✅ Authenticated: Requires `X-API-Key` header (same key as iOS app)
+
+**⚠️ Deployment Note:**
+- Updated workflow saved to `n8n-workflows/income-webhook.json`
+- **Manual step required:** Open n8n UI, import/update workflow to activate changes
+- Current production workflow may still use old schema (no client_id)
+- Verify after import: Test with duplicate `client_id` should be idempotent
 
 ---
 
