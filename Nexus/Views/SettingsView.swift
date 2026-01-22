@@ -73,6 +73,23 @@ struct SettingsView: View {
                     Text("Configuration")
                 }
 
+                // Features Section
+                Section {
+                    Toggle(isOn: $settings.useDashboardV2) {
+                        SettingsRow(
+                            icon: "square.grid.3x3",
+                            iconColor: .nexusPrimary,
+                            title: "Dashboard V2",
+                            subtitle: "Try the new card-based dashboard"
+                        )
+                    }
+                    .tint(.nexusPrimary)
+                } header: {
+                    Text("Features")
+                } footer: {
+                    Text("Dashboard V2 is a redesigned home screen with a cleaner card layout.")
+                }
+
                 // Integrations Section
                 Section {
                     NavigationLink(destination: WidgetSettingsView()) {

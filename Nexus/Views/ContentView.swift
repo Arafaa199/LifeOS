@@ -1,16 +1,23 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var settings: AppSettings
     @StateObject private var viewModel = DashboardViewModel()
     @State private var selectedTab = 0
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            DashboardView(viewModel: viewModel)
-                .tabItem {
-                    Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+            Group {
+                if settings.useDashboardV2 {
+                    DashboardV2View(viewModel: viewModel)
+                } else {
+                    DashboardView(viewModel: viewModel)
                 }
-                .tag(0)
+            }
+            .tabItem {
+                Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+            }
+            .tag(0)
 
             QuickLogView(viewModel: viewModel)
                 .tabItem {
@@ -43,4 +50,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(AppSettings())
 }
