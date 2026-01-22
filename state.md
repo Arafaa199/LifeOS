@@ -23,6 +23,7 @@
 - ✅ Repo connected and pushed to GitHub
 - ✅ Server deployed via `deploy-to-server.sh` (private repo, no server git access)
 - ✅ Timer running: `OnCalendar=hourly` with 5min randomized delay
+- ✅ Linger enabled: `sudo loginctl enable-linger scrypt` (timer persists after logout)
 
 ### Environment Configuration
 
@@ -75,6 +76,50 @@ Ingestion contracts moved from Claude Coder state.md to standalone docs:
 ---
 
 ## Database Migrations
+
+### Migration 016: Cleanup Stale Pending Events (2026-01-22)
+
+**Applied:** 2026-01-22
+
+**Purpose:** Marks events stuck in 'pending' validation status as 'failed' after 5 minutes (workflow timeout)
+
+**Function Created:**
+```sql
+CREATE OR REPLACE FUNCTION finance.cleanup_stale_pending_events()
+RETURNS INTEGER AS $$
+DECLARE
+  updated_count INTEGER;
+BEGIN
+  UPDATE finance.raw_events
+  SET validation_status = 'failed',
+      validation_errors = ARRAY['workflow_timeout']
+  WHERE validation_status = 'pending'
+    AND created_at < NOW() - INTERVAL '5 minutes';
+
+  GET DIAGNOSTICS updated_count = ROW_COUNT;
+  RETURN updated_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+**Usage:**
+```sql
+-- Manual cleanup
+SELECT finance.cleanup_stale_pending_events();
+
+-- Check for stuck events
+SELECT id, event_type, client_id, created_at, NOW() - created_at as age
+FROM finance.raw_events
+WHERE validation_status = 'pending'
+ORDER BY created_at DESC;
+```
+
+**Scheduling:**
+- ✅ **Deployed**: `Nexus: Cleanup Stale Events` workflow (ID: V7XV6WoZtZ4U5o0Y)
+- ✅ **Active**: Runs hourly via n8n schedule trigger
+- File: `n8n-workflows/cleanup-stale-events.json`
+
+---
 
 ### Migration 015: Raw Events Audit Table (2026-01-22)
 
@@ -285,58 +330,55 @@ curl -X POST https://n8n.rfanw/webhook/nexus-income \
 - ✅ Tested: Migration 014 replay test proves idempotency at DB level
 - ✅ Authenticated: Requires `X-API-Key` header (same key as iOS app)
 
-**⚠️ Deployment Instructions:**
+**✅ Deployment Status (2026-01-22):**
 
-The validated income webhook with server-side parsing and audit logging is ready:
+The validated income webhook with server-side parsing and audit logging is **DEPLOYED AND TESTED**.
 
-**File:** `n8n-workflows/income-webhook-validated.json`
+**Active Workflow:** `Nexus - Add Income Webhook (Validated)` (ID: WcAZz2Jkzt1sqOX9)
 
-**Manual Deployment Steps:**
-1. Open n8n UI: `https://n8n.rfanw`
-2. Import workflow: Settings → Import from File → Select `income-webhook-validated.json`
-3. **Deactivate old "Nexus - Add Income Webhook" workflows** (IDs: URXBr7WEztRMfqsN, jwgl7hAx0hOK3oC9, MH7FDoqFy1slCPXPJEJSf)
-4. Activate new "Nexus - Add Income Webhook (Validated)" workflow
-5. Test validation:
-   ```bash
-   # Test 1: Reject missing client_id
-   curl -X POST https://n8n.rfanw/webhook/nexus-income \
-     -H "Content-Type: application/json" \
-     -H "X-API-Key: 3f62259deac4aa96427ba0048c3addfe1924f872586d8371d6adfb3d2db3afd8" \
-     -d '{}'
-   # Expected: {"success":false,"error":"client_id is required",...}
+**Inactive/Old Workflows (Archive in UI):**
+- `Nexus - Add Income Webhook` (ID: URXBr7WEztRMfqsN) - Simple version without validation
+- `Nexus - Add Income Webhook` (ID: jwgl7hAx0hOK3oC9) - Duplicate
+- `Nexus - Add Income Webhook` (ID: MH7FDoqFy1slCPXPJEJSf) - Duplicate
+- `Nexus - Add Income Webhook (Validated)` (ID: qbxXgmkto4N8k53N) - Old version with bug
+- `Nexus - Add Income Webhook (Validated)` (ID: Vh3fMD0hzTgjTavk) - Old version with bug
 
-   # Test 2: Valid income entry
-   curl -X POST https://n8n.rfanw/webhook/nexus-income \
-     -H "Content-Type: application/json" \
-     -H "X-API-Key: 3f62259deac4aa96427ba0048c3addfe1924f872586d8371d6adfb3d2db3afd8" \
-     -d '{
-       "client_id": "test-deploy-verify-001",
-       "transaction_at": "2026-01-22T12:00:00+04:00",
-       "source": "Deployment Test",
-       "amount": 100.00,
-       "currency": "AED",
-       "category": "Income"
-     }'
-   # Expected: {"success":true,"idempotent":false,"raw_event_id":...}
+**Features:**
+- ✅ Server-side amount/currency parsing from `raw_text` field
+- ✅ Full audit trail in `finance.raw_events`
+- ✅ Client-side validation rejection (missing `client_id`)
+- ✅ Idempotency proven (same `client_id` creates only 1 transaction)
+- ✅ Stale event cleanup (hourly via `Nexus: Cleanup Stale Events` workflow)
 
-   # Test 3: Idempotency (replay same client_id)
-   curl ... -d '{"client_id": "test-deploy-verify-001", ...}'
-   # Expected: {"success":true,"idempotent":true,...}
-   ```
-6. Verify audit trail:
-   ```sql
-   SELECT id, event_type, validation_status, parsed_amount, parsed_currency
-   FROM finance.raw_events
-   WHERE event_type = 'income_webhook'
-   ORDER BY created_at DESC
-   LIMIT 5;
-   ```
+**Test Results (2026-01-22, Final Fixed Version):**
 
-**Validation Features:**
-- ✅ **Rejects missing client_id** - Server-side validation before processing
-- ✅ **Audit logging** - All requests logged to `finance.raw_events`
-- ✅ **Server-side parsing** - If `raw_text` provided, parses amount/currency server-side
-- ✅ **Idempotency tracking** - Duplicates marked as `validation_status='duplicate'`
+✅ **Test 1: New Transaction** (client_id: `test-final-valid-1769107341`)
+- Payload: `{"amount": 7500, "currency": "AED", ...}`
+- Result: Transaction created (ID 7018)
+- Audit: `validation_status='valid'`, `related_transaction_id=7018`, `parsed_amount=7500.00`
+
+✅ **Test 2: Duplicate (Replay)**
+- Same client_id posted again
+- Result: NO new transaction, raw_event logged
+- Audit: `validation_status='duplicate'`, `related_transaction_id=NULL`, `parsed_amount=7500.00`
+- Verified: 2 raw_events, 1 transaction (idempotent)
+
+✅ **Test 3: Raw Text Parsing** (client_id: `test-raw-text-*`)
+- Payload: `{"raw_text": "Emirates NBD: Salary credit of 25,750.50 AED received", ...}` (NO `amount` field)
+- Server parsed: "25,750.50 AED" → amount=25750.50, currency='AED'
+
+**Workflow Fix (2026-01-22):**
+- Added "Compute Insert Result" code node after Insert Transaction
+- Added "Was Inserted?" IF node to branch on insert success
+- Separate UPDATE nodes: "Mark Valid" (true) and "Mark Duplicate" (false)
+- Now properly sets `validation_status` and `related_transaction_id`
+
+**Automated Cleanup:**
+- Workflow: `Nexus: Cleanup Stale Events` (ID: V7XV6WoZtZ4U5o0Y)
+- File: `n8n-workflows/cleanup-stale-events.json`
+- Schedule: Hourly
+- Action: Marks events stuck in 'pending' >5 minutes as 'failed'
+- Function: `finance.cleanup_stale_pending_events()`
 - ✅ **Parse error handling** - Invalid amounts/currencies rejected with error details
 
 **Current Status:**
