@@ -17,6 +17,12 @@
 ### Mac (Development Only)
 - **Path**: `~/Cyber/Infrastructure/Nexus-setup/scripts/receipt-ingest/`
 - **Purpose**: Code development, deploy to server via `deploy-to-server.sh`
+- **Repo**: `https://github.com/Arafaa199/Nexus-setup.git`
+
+### Deployment Model
+- ✅ Repo connected and pushed to GitHub
+- ✅ Server deployed via `deploy-to-server.sh` (private repo, no server git access)
+- ✅ Timer running: `OnCalendar=hourly` with 5min randomized delay
 
 ---
 
