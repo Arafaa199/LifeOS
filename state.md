@@ -76,12 +76,51 @@ Ingestion contracts moved from Claude Coder state.md to standalone docs:
 
 ## Database Migrations
 
+### Migration 014: client_id Full Unique Index (2026-01-22)
+
+**Applied:** 2026-01-22
+
+**Issue:** Partial unique index `WHERE client_id IS NOT NULL` doesn't support `ON CONFLICT` in PostgreSQL
+
+**Solution:** Convert to full unique index (NULL values still allowed, only non-NULL must be unique)
+
+**Changes:**
+```sql
+DROP INDEX finance.idx_transactions_client_id;  -- Partial index
+CREATE UNIQUE INDEX idx_transactions_client_id
+  ON finance.transactions (client_id);          -- Full index
+```
+
+**Idempotency Test (Replay Proof):**
+```sql
+-- Test 1: Initial insert
+INSERT INTO finance.transactions (..., client_id)
+VALUES (..., 'test-salary-uuid-12345678901234')
+ON CONFLICT (client_id) DO NOTHING
+RETURNING id;
+-- Result: id=6768, INSERT 0 1
+
+-- Test 2: REPLAY same insert (idempotency test)
+INSERT INTO finance.transactions (..., client_id)
+VALUES (..., 'test-salary-uuid-12345678901234')
+ON CONFLICT (client_id) DO NOTHING
+RETURNING id;
+-- Result: (0 rows), INSERT 0 0  ✅ IDEMPOTENT - no duplicate created
+
+-- Verification
+SELECT COUNT(*) FROM finance.transactions
+WHERE client_id = 'test-salary-uuid-12345678901234';
+-- Result: 1 row (only the first insert exists)
+```
+
+---
+
 ### Migration 013: Finance Defaults and Timestamp Clarity (2026-01-22)
 
 **Applied:** 2026-01-22
 
 **Changes:**
-1. **client_id unique index** - Already existed from migration 009, verified working
+1. **client_id unique index** - Already existed from migration 009 (later fixed in 014)
 2. **Currency default** - Changed from USD → AED (Dubai Dirham)
 3. **Timestamp documentation** - Clarified created_at vs transaction_at
 
@@ -131,8 +170,43 @@ WHERE attrelid = 'finance.transactions'::regclass
 | Component | Trigger | Location | Idempotency Key |
 |-----------|---------|----------|-----------------|
 | SMS Transactions | Event-driven (fswatch) | Mac | `sms-{md5(sender\|date\|text)[:16]}` |
-| SMS Income/Salary | Event-driven (fswatch) | Mac | `sms-{md5(sender\|date\|text)[:16]}` |
+| SMS Income/Salary (PRIMARY) | Event-driven (fswatch) | Mac | `sms-{md5(sender\|date\|text)[:16]}` |
+| **Income Webhook (FALLBACK)** | **Manual POST** | **n8n** | **`client_id` (UUID from client)** |
 | Gmail Receipts | Hourly (systemd timer) | nexus server | `pdf_hash` (SHA256) |
+
+### Income Ingestion: Primary vs Fallback
+
+**Primary Source: SMS (PROD)**
+- Real-time: Seconds after bank SMS arrives
+- Auto-triggered: fswatch on `~/Library/Messages/chat.db`
+- Idempotency: MD5 hash of SMS content
+- Risk: Requires Mac powered on (mitigated by 15-min fallback cron)
+
+**Fallback Source: Webhook (PROD-SAFE)**
+- Manual: Requires explicit POST request
+- Use case: Manual salary entry if SMS fails, bonus payments, cash income
+- Idempotency: `client_id` UUID enforced by unique index + `ON CONFLICT DO NOTHING`
+- Endpoint: `POST https://n8n.rfanw/webhook/nexus-income`
+
+**Webhook Parameters:**
+```json
+{
+  "client_id": "uuid-v4-from-ios-app",
+  "transaction_at": "2026-01-22T09:00:00+04:00",
+  "source": "Emirates NBD Salary",
+  "amount": 23500.00,
+  "currency": "AED",
+  "category": "Income",
+  "notes": "January salary",
+  "is_recurring": true
+}
+```
+
+**Production Safety:**
+- ✅ Idempotent: Replay-safe via `client_id` unique constraint
+- ✅ Timezone-aware: Uses `transaction_at` (TIMESTAMPTZ)
+- ✅ Business date: Auto-derived via `finance.to_business_date(transaction_at)`
+- ✅ Tested: Migration 014 replay test proves idempotency
 
 ---
 

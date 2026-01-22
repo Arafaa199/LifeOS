@@ -17,7 +17,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO finance.transactions (\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  notes,\n  is_recurring\n)\nVALUES (\n  '{{ $json.body.date }}'::timestamp,\n  '{{ $json.body.source }}',\n  {{ $json.body.amount }},\n  'AED',\n  '{{ $json.body.category }}',\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : \"NULL\" }},\n  {{ $json.body.is_recurring ? 'true' : 'false' }}\n)\nRETURNING *;",
+        "query": "INSERT INTO finance.transactions (\n  transaction_at,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  notes,\n  is_recurring,\n  client_id\n)\nVALUES (\n  '{{ $json.body.transaction_at }}'::timestamptz,\n  finance.to_business_date('{{ $json.body.transaction_at }}'::timestamptz),\n  '{{ $json.body.source }}',\n  {{ $json.body.amount }},\n  COALESCE('{{ $json.body.currency }}', 'AED'),\n  '{{ $json.body.category }}',\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : \"NULL\" }},\n  {{ $json.body.is_recurring ? 'true' : 'false' }},\n  '{{ $json.body.client_id }}'\n)\nON CONFLICT (client_id) DO NOTHING\nRETURNING *;",
         "options": {}
       },
       "name": "Insert Income",
@@ -34,7 +34,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Income added: {{ $json.body.source }} - AED {{ $json.body.amount }}\",\n  \"data\": {\n    \"transaction\": {{ JSON.stringify($json) }}\n  }\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": {{ $json.length > 0 ? \"'Income added: \" + $('Webhook').item.json.body.source + \" - \" + ($('Webhook').item.json.body.currency || 'AED') + \" \" + $('Webhook').item.json.body.amount + \"'\" : \"'Income already exists (idempotent duplicate)'\" }},\n  \"idempotent\": {{ $json.length === 0 ? 'true' : 'false' }},\n  \"data\": {\n    \"transaction\": {{ $json.length > 0 ? JSON.stringify($json[0]) : 'null' }}\n  }\n}",
         "options": {}
       },
       "name": "Response",
