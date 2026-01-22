@@ -24,6 +24,33 @@
 - ✅ Server deployed via `deploy-to-server.sh` (private repo, no server git access)
 - ✅ Timer running: `OnCalendar=hourly` with 5min randomized delay
 
+### Environment Configuration
+
+| Location | File | Purpose |
+|----------|------|---------|
+| Mac | `.env.local` | Local dev credentials (gitignored) |
+| Server | `~/lifeos/secrets/nexus.env` | Production credentials (chmod 600) |
+
+**Variables:**
+```
+NEXUS_DB_HOST=100.90.189.16  # Mac uses Tailscale IP
+NEXUS_DB_HOST=127.0.0.1      # Server uses localhost
+NEXUS_DB_PORT=5432
+NEXUS_DB_NAME=nexus
+NEXUS_DB_USER=nexus
+NEXUS_PASSWORD=<in secrets>
+NEXUS_TZ=Asia/Dubai
+```
+
+**Systemd wiring:**
+```ini
+# ~/.config/systemd/user/receipt-ingest.service
+[Service]
+EnvironmentFile=%h/lifeos/secrets/nexus.env
+```
+
+**Rule:** Never commit passwords. `.env.local` stays local.
+
 ---
 
 ## Production Status
