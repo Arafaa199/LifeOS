@@ -1,0 +1,129 @@
+{
+  "name": "Nexus: Telegram Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"]
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "position": [240, 300],
+      "webhookId": "nexus-telegram",
+      "typeVersion": 1.1,
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL",
+          "name": "Nexus Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 1024,\n  \"system\": \"You are Nexus, a personal life assistant. Parse user messages and log data to their life database. Be concise and friendly. Always respond with what you logged.\\n\\nYou can log:\\n- Food (estimate macros)\\n- Water intake\\n- Weight\\n- Mood/energy (1-10)\\n- Habits\\n- Supplements\\n\\nFor queries, you can check today's stats, weekly trends, active batch meals, shopping list.\\n\\nReturn JSON: {\\\"action\\\": \\\"log|query|chat\\\", \\\"type\\\": \\\"food|water|weight|mood|habit|...\\\", \\\"data\\\": {...}, \\\"response\\\": \\\"message to user\\\"}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"{{ $json.message.text }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "claude-process",
+      "name": "Claude: Process Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_ANTHROPIC_CREDENTIAL",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst content = response.content[0].text;\n\ntry {\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    return { action: 'chat', response: content };\n  }\n  return JSON.parse(jsonMatch[0]);\n} catch (e) {\n  return { action: 'chat', response: content };\n}"
+      },
+      "id": "parse-response",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "value2": "log"
+            }
+          ]
+        }
+      },
+      "id": "is-log",
+      "name": "Is Log Action?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Dynamic insert based on type\n{{ $json.type === 'food' ? \n  `INSERT INTO nutrition.food_log (date, meal_time, description, calories, protein_g, source) VALUES (CURRENT_DATE, '${$json.data.meal_time || 'snack'}', '${$json.data.description}', ${$json.data.calories || 'NULL'}, ${$json.data.protein_g || 'NULL'}, 'telegram')` :\n$json.type === 'water' ?\n  `INSERT INTO nutrition.water_log (date, amount_ml, source) VALUES (CURRENT_DATE, ${$json.data.amount_ml || 250}, 'telegram')` :\n$json.type === 'weight' ?\n  `INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit) VALUES (NOW(), CURRENT_DATE, 'telegram', 'weight', ${$json.data.weight_kg}, 'kg')` :\n$json.type === 'mood' ?\n  `INSERT INTO core.daily_journal (date, mood_score, energy_score) VALUES (CURRENT_DATE, ${$json.data.mood || 'NULL'}, ${$json.data.energy || 'NULL'}) ON CONFLICT (date) DO UPDATE SET mood_score = EXCLUDED.mood_score, energy_score = EXCLUDED.energy_score` :\n'SELECT 1'\n}};",
+        "options": {}
+      },
+      "id": "insert-data",
+      "name": "Insert to Nexus",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_NEXUS_CREDENTIAL",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $('Parse Response').item.json.response }}",
+        "additionalFields": {}
+      },
+      "id": "send-response",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1340, 300],
+      "typeVersion": 1.2,
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_TELEGRAM_CREDENTIAL",
+          "name": "Nexus Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{ "node": "Claude: Process Message", "type": "main", "index": 0 }]]
+    },
+    "Claude: Process Message": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Is Log Action?", "type": "main", "index": 0 }]]
+    },
+    "Is Log Action?": {
+      "main": [
+        [{ "node": "Insert to Nexus", "type": "main", "index": 0 }],
+        [{ "node": "Send Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert to Nexus": {
+      "main": [[{ "node": "Send Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "nexus" }]
+}

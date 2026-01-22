@@ -1,0 +1,69 @@
+{
+  "name": "Nexus - Add Income Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-income",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "nexus-income"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO finance.transactions (\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  notes,\n  is_recurring\n)\nVALUES (\n  '{{ $json.body.date }}'::timestamp,\n  '{{ $json.body.source }}',\n  {{ $json.body.amount }},\n  'AED',\n  '{{ $json.body.category }}',\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : \"NULL\" }},\n  {{ $json.body.is_recurring ? 'true' : 'false' }}\n)\nRETURNING *;",
+        "options": {}
+      },
+      "name": "Insert Income",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Income added: {{ $json.body.source }} - AED {{ $json.body.amount }}\",\n  \"data\": {\n    \"transaction\": {{ JSON.stringify($json) }}\n  }\n}",
+        "options": {}
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error adding income: {{ $json.message }}\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Insert Income", "type": "main", "index": 0}]]
+    },
+    "Insert Income": {
+      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

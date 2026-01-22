@@ -1,0 +1,22 @@
+# Receipt Ingestion Timer
+# Location: /etc/systemd/system/lifeos-receipt-ingest.timer
+#
+# Runs receipt ingestion hourly
+
+[Unit]
+Description=LifeOS Receipt Ingestion Timer (hourly)
+After=network-online.target
+
+[Timer]
+# Run every hour, starting 5 minutes after boot
+OnBootSec=5min
+OnUnitActiveSec=1h
+
+# Add randomized delay to avoid thundering herd
+RandomizedDelaySec=5min
+
+# Persistent: catch up if system was off during scheduled time
+Persistent=true
+
+[Install]
+WantedBy=timers.target

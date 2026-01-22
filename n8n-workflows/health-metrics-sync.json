@@ -1,0 +1,167 @@
+{
+  "name": "Nexus: Health Metrics Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "url": "http://172.17.0.1:8123/api/states",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-ha-states",
+      "name": "Get HA States",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "i8GNdq9zaSY5GVVO",
+          "name": "HA Token New"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract health-related sensors from HA\nconst states = $input.first().json;\nconst now = new Date().toISOString();\nconst today = now.split('T')[0];\n\n// Define which sensors to track - WHOOP Ahmed sensors\nconst sensorMappings = {\n  // Core recovery metrics\n  'sensor.whoop_ahmed_recovery_score': { metric_type: 'recovery', unit: 'score', source: 'whoop' },\n  'sensor.whoop_ahmed_hrv': { metric_type: 'hrv', unit: 'ms', source: 'whoop' },\n  'sensor.whoop_ahmed_resting_heart_rate': { metric_type: 'rhr', unit: 'bpm', source: 'whoop' },\n  'sensor.whoop_ahmed_spo2': { metric_type: 'spo2', unit: '%', source: 'whoop' },\n  'sensor.whoop_ahmed_skin_temperature': { metric_type: 'skin_temp', unit: 'C', source: 'whoop' },\n  \n  // Strain and activity\n  'sensor.whoop_ahmed_day_strain': { metric_type: 'strain', unit: 'score', source: 'whoop' },\n  'sensor.whoop_ahmed_day_calories': { metric_type: 'calories', unit: 'kcal', source: 'whoop' },\n  'sensor.whoop_ahmed_day_average_heart_rate': { metric_type: 'avg_hr', unit: 'bpm', source: 'whoop' },\n  \n  // Sleep metrics\n  'sensor.whoop_ahmed_sleep_performance': { metric_type: 'sleep_performance', unit: 'score', source: 'whoop' },\n  'sensor.whoop_ahmed_sleep_efficiency': { metric_type: 'sleep_efficiency', unit: '%', source: 'whoop' },\n  'sensor.whoop_ahmed_sleep_time_in_bed': { metric_type: 'time_in_bed', unit: 'min', source: 'whoop' },\n  'sensor.whoop_ahmed_sleep_sws_time': { metric_type: 'deep_sleep', unit: 'min', source: 'whoop' },\n  'sensor.whoop_ahmed_sleep_rem_sleep_time': { metric_type: 'rem_sleep', unit: 'min', source: 'whoop' },\n  'sensor.whoop_ahmed_sleep_light_sleep_time': { metric_type: 'light_sleep', unit: 'min', source: 'whoop' },\n  'sensor.whoop_ahmed_sleep_time_awake': { metric_type: 'awake_time', unit: 'min', source: 'whoop' },\n  'sensor.whoop_ahmed_sleep_respiratory_rate': { metric_type: 'respiratory_rate', unit: 'brpm', source: 'whoop' }\n};\n\nconst metrics = [];\n\nfor (const state of states) {\n  const mapping = sensorMappings[state.entity_id];\n  if (mapping && state.state !== 'unavailable' && state.state !== 'unknown') {\n    const value = parseFloat(state.state);\n    if (!isNaN(value)) {\n      metrics.push({\n        recorded_at: state.last_updated || now,\n        date: today,\n        source: mapping.source,\n        metric_type: mapping.metric_type,\n        value: value,\n        unit: mapping.unit,\n        entity_id: state.entity_id\n      });\n    }\n  }\n}\n\nreturn metrics;"
+      },
+      "id": "extract-metrics",
+      "name": "Extract Health Metrics",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-metrics",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-metrics",
+      "name": "Has Metrics?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES \n{{ $input.all().map(item => \n  `('${item.json.recorded_at}', '${item.json.date}', '${item.json.source}', '${item.json.metric_type}', ${item.json.value}, '${item.json.unit}')`\n).join(',\\n') }}\nON CONFLICT (recorded_at, source, metric_type) DO UPDATE SET\n  value = EXCLUDED.value,\n  created_at = NOW()\nRETURNING id, metric_type, value;",
+        "options": {}
+      },
+      "id": "upsert-metrics",
+      "name": "Upsert to Nexus",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "no-metrics",
+      "name": "No Metrics",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1120, 400],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get HA States",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get HA States": {
+      "main": [
+        [
+          {
+            "node": "Extract Health Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Health Metrics": {
+      "main": [
+        [
+          {
+            "node": "Has Metrics?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Metrics?": {
+      "main": [
+        [
+          {
+            "node": "Upsert to Nexus",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

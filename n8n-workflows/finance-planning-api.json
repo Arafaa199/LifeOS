@@ -1,0 +1,443 @@
+{
+  "name": "Nexus: Finance Planning API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-categories",
+        "options": {}
+      },
+      "id": "get-categories",
+      "name": "GET Categories",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 100],
+      "webhookId": "nexus-categories-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, type, icon, color, keywords, is_active, display_order FROM finance.categories WHERE is_active = true ORDER BY type, display_order;",
+        "options": {}
+      },
+      "id": "fetch-categories",
+      "name": "Fetch Categories",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 100],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, data: { categories: $json } } }}"
+      },
+      "id": "respond-categories",
+      "name": "Respond Categories",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 100],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-budgets",
+        "options": {}
+      },
+      "id": "get-budgets",
+      "name": "GET Budgets",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-budgets-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM finance.budget_status ORDER BY month DESC, category;",
+        "options": {}
+      },
+      "id": "fetch-budgets",
+      "name": "Fetch Budget Status",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, data: { budgets: $json } } }}"
+      },
+      "id": "respond-budgets",
+      "name": "Respond Budgets",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-budget",
+        "options": {}
+      },
+      "id": "post-budget",
+      "name": "POST Budget",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 500],
+      "webhookId": "nexus-budget-post",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO finance.budgets (month, category, category_id, budget_amount, notes)\nSELECT \n  '{{ $json.body.month || (new Date().toISOString().slice(0,7) + '-01') }}'::date,\n  '{{ $json.body.category }}',\n  c.id,\n  {{ $json.body.amount || $json.body.budget_amount }},\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : 'NULL' }}\nFROM finance.categories c\nWHERE LOWER(c.name) = LOWER('{{ $json.body.category }}')\nON CONFLICT (month, category) DO UPDATE SET\n  budget_amount = EXCLUDED.budget_amount,\n  notes = EXCLUDED.notes,\n  updated_at = NOW()\nRETURNING id, month, category, budget_amount;",
+        "options": {}
+      },
+      "id": "upsert-budget",
+      "name": "Upsert Budget",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Budget saved', data: { budget: $json[0] } } }}"
+      },
+      "id": "respond-budget-saved",
+      "name": "Respond Budget Saved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 500],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-recurring",
+        "options": {}
+      },
+      "id": "get-recurring",
+      "name": "GET Recurring",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 700],
+      "webhookId": "nexus-recurring-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM finance.upcoming_recurring ORDER BY next_due_date;",
+        "options": {}
+      },
+      "id": "fetch-recurring",
+      "name": "Fetch Recurring",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 700],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, data: { recurring_items: $json } } }}"
+      },
+      "id": "respond-recurring",
+      "name": "Respond Recurring",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 700],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-recurring",
+        "options": {}
+      },
+      "id": "post-recurring",
+      "name": "POST Recurring",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 900],
+      "webhookId": "nexus-recurring-post",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO finance.recurring_items (name, amount, type, cadence, day_of_month, next_due_date, category_id, merchant_pattern, notes)\nSELECT\n  '{{ $json.body.name }}',\n  {{ $json.body.amount }},\n  '{{ $json.body.type || 'expense' }}',\n  '{{ $json.body.cadence || 'monthly' }}',\n  {{ $json.body.day_of_month || 'NULL' }},\n  {{ $json.body.next_due_date ? \"'\" + $json.body.next_due_date + \"'\" : 'NULL' }},\n  c.id,\n  {{ $json.body.merchant_pattern ? \"'\" + $json.body.merchant_pattern + \"'\" : 'NULL' }},\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : 'NULL' }}\nFROM finance.categories c\nWHERE LOWER(c.name) = LOWER('{{ $json.body.category || 'Other' }}')\nRETURNING id, name, amount, cadence, next_due_date;",
+        "options": {}
+      },
+      "id": "insert-recurring",
+      "name": "Insert Recurring",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 900],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Recurring item created', data: { recurring: $json[0] } } }}"
+      },
+      "id": "respond-recurring-created",
+      "name": "Respond Recurring Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 900],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-rules",
+        "options": {}
+      },
+      "id": "get-rules",
+      "name": "GET Rules",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 1100],
+      "webhookId": "nexus-rules-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.*, c.name as category_name, c.icon as category_icon\nFROM finance.merchant_rules r\nLEFT JOIN finance.categories c ON c.id = r.category_id\nWHERE r.is_active = true\nORDER BY r.priority DESC, r.match_count DESC;",
+        "options": {}
+      },
+      "id": "fetch-rules",
+      "name": "Fetch Rules",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 1100],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, data: { rules: $json } } }}"
+      },
+      "id": "respond-rules",
+      "name": "Respond Rules",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 1100],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-rule",
+        "options": {}
+      },
+      "id": "post-rule",
+      "name": "POST Rule",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 1300],
+      "webhookId": "nexus-rule-post",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO finance.merchant_rules (merchant_pattern, category, category_id, subcategory, is_grocery, is_restaurant, is_food_related, priority, confidence, notes)\nSELECT\n  '{{ $json.body.pattern || $json.body.merchant_pattern }}',\n  '{{ $json.body.category }}',\n  c.id,\n  {{ $json.body.subcategory ? \"'\" + $json.body.subcategory + \"'\" : 'NULL' }},\n  {{ $json.body.is_grocery || false }},\n  {{ $json.body.is_restaurant || false }},\n  {{ $json.body.is_food_related || false }},\n  {{ $json.body.priority || 10 }},\n  {{ $json.body.confidence || 100 }},\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : 'NULL' }}\nFROM finance.categories c\nWHERE LOWER(c.name) = LOWER('{{ $json.body.category }}')\nRETURNING id, merchant_pattern, category, priority;",
+        "options": {}
+      },
+      "id": "insert-rule",
+      "name": "Insert Rule",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 1300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Rule created', data: { rule: $json[0] } } }}"
+      },
+      "id": "respond-rule-created",
+      "name": "Respond Rule Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 1300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "nexus-recurring/:id",
+        "options": {}
+      },
+      "id": "delete-recurring",
+      "name": "DELETE Recurring",
+      "type": "n8n-nodes-base.webhook",
+      "position": [900, 900],
+      "webhookId": "nexus-recurring-delete",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE finance.recurring_items SET is_active = false WHERE id = {{ $json.params.id }} RETURNING id;",
+        "options": {}
+      },
+      "id": "soft-delete-recurring",
+      "name": "Soft Delete Recurring",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 900],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Recurring item deleted' } }}"
+      },
+      "id": "respond-recurring-deleted",
+      "name": "Respond Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1340, 900],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "nexus-rule/:id",
+        "options": {}
+      },
+      "id": "delete-rule",
+      "name": "DELETE Rule",
+      "type": "n8n-nodes-base.webhook",
+      "position": [900, 1300],
+      "webhookId": "nexus-rule-delete",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE finance.merchant_rules SET is_active = false WHERE id = {{ $json.params.id }} RETURNING id;",
+        "options": {}
+      },
+      "id": "soft-delete-rule",
+      "name": "Soft Delete Rule",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 1300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Rule deleted' } }}"
+      },
+      "id": "respond-rule-deleted",
+      "name": "Respond Rule Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1340, 1300],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "GET Categories": {
+      "main": [[{"node": "Fetch Categories", "type": "main", "index": 0}]]
+    },
+    "Fetch Categories": {
+      "main": [[{"node": "Respond Categories", "type": "main", "index": 0}]]
+    },
+    "GET Budgets": {
+      "main": [[{"node": "Fetch Budget Status", "type": "main", "index": 0}]]
+    },
+    "Fetch Budget Status": {
+      "main": [[{"node": "Respond Budgets", "type": "main", "index": 0}]]
+    },
+    "POST Budget": {
+      "main": [[{"node": "Upsert Budget", "type": "main", "index": 0}]]
+    },
+    "Upsert Budget": {
+      "main": [[{"node": "Respond Budget Saved", "type": "main", "index": 0}]]
+    },
+    "GET Recurring": {
+      "main": [[{"node": "Fetch Recurring", "type": "main", "index": 0}]]
+    },
+    "Fetch Recurring": {
+      "main": [[{"node": "Respond Recurring", "type": "main", "index": 0}]]
+    },
+    "POST Recurring": {
+      "main": [[{"node": "Insert Recurring", "type": "main", "index": 0}]]
+    },
+    "Insert Recurring": {
+      "main": [[{"node": "Respond Recurring Created", "type": "main", "index": 0}]]
+    },
+    "GET Rules": {
+      "main": [[{"node": "Fetch Rules", "type": "main", "index": 0}]]
+    },
+    "Fetch Rules": {
+      "main": [[{"node": "Respond Rules", "type": "main", "index": 0}]]
+    },
+    "POST Rule": {
+      "main": [[{"node": "Insert Rule", "type": "main", "index": 0}]]
+    },
+    "Insert Rule": {
+      "main": [[{"node": "Respond Rule Created", "type": "main", "index": 0}]]
+    },
+    "DELETE Recurring": {
+      "main": [[{"node": "Soft Delete Recurring", "type": "main", "index": 0}]]
+    },
+    "Soft Delete Recurring": {
+      "main": [[{"node": "Respond Deleted", "type": "main", "index": 0}]]
+    },
+    "DELETE Rule": {
+      "main": [[{"node": "Soft Delete Rule", "type": "main", "index": 0}]]
+    },
+    "Soft Delete Rule": {
+      "main": [[{"node": "Respond Rule Deleted", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{"name": "nexus"}, {"name": "finance"}]
+}

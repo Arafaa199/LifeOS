@@ -1,0 +1,282 @@
+{
+  "name": "Nexus - Finance Summary Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-finance-summary",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "nexus-finance-summary"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get today's spending totals\nSELECT \n  COALESCE(SUM(ABS(amount)), 0) as total_spent,\n  COALESCE(SUM(CASE WHEN is_grocery THEN ABS(amount) ELSE 0 END), 0) as grocery_spent,\n  COALESCE(SUM(CASE WHEN is_restaurant THEN ABS(amount) ELSE 0 END), 0) as eating_out_spent,\n  MAX(currency) as currency\nFROM finance.transactions\nWHERE date = CURRENT_DATE;",
+        "options": {}
+      },
+      "name": "Get Daily Totals",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        650,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get recent transactions (last 30 days)\nSELECT \n  id,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  subcategory,\n  is_grocery,\n  is_restaurant,\n  notes,\n  tags\nFROM finance.transactions\nWHERE date >= CURRENT_DATE - INTERVAL '30 days'\nORDER BY date DESC, id DESC\nLIMIT 100;",
+        "options": {}
+      },
+      "name": "Get Recent Transactions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get budgets for current month with spending\nSELECT \n  b.id,\n  b.month,\n  b.category,\n  b.budget_amount,\n  COALESCE(SUM(ABS(t.amount)), 0) as spent,\n  b.budget_amount - COALESCE(SUM(ABS(t.amount)), 0) as remaining\nFROM finance.budgets b\nLEFT JOIN finance.transactions t ON \n  t.category = b.category \n  AND DATE_TRUNC('month', t.date) = b.month\nWHERE b.month = DATE_TRUNC('month', CURRENT_DATE)\nGROUP BY b.id, b.month, b.category, b.budget_amount\nORDER BY b.category;",
+        "options": {}
+      },
+      "name": "Get Budgets",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        650,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get category breakdown for current month\nSELECT \n  category,\n  SUM(ABS(amount)) as total\nFROM finance.transactions\nWHERE TO_CHAR(date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')\n  AND category IS NOT NULL\nGROUP BY category\nORDER BY total DESC;",
+        "options": {}
+      },
+      "name": "Get Category Breakdown",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        650,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convert category breakdown array to object\nconst categoryData = $input.item.json;\nconst categoryBreakdown = {};\n\nfor (const item of categoryData) {\n  categoryBreakdown[item.category] = item.total;\n}\n\nreturn { categoryBreakdown };"
+      },
+      "name": "Format Category Breakdown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        850,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"data\": {\n    \"total_spent\": {{ $('Get Daily Totals').item.json.total_spent }},\n    \"grocery_spent\": {{ $('Get Daily Totals').item.json.grocery_spent }},\n    \"eating_out_spent\": {{ $('Get Daily Totals').item.json.eating_out_spent }},\n    \"currency\": \"{{ $('Get Daily Totals').item.json.currency || 'AED' }}\",\n    \"recent_transactions\": {{ JSON.stringify($('Get Recent Transactions').all()) }},\n    \"budgets\": {{ JSON.stringify($('Get Budgets').all()) }},\n    \"category_breakdown\": {{ JSON.stringify($('Format Category Breakdown').item.json.categoryBreakdown) }}\n  }\n}",
+        "options": {}
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error fetching finance summary: {{ $json.message }}\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        650,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily Totals": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Transactions": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Budgets": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Category Breakdown": {
+      "main": [
+        [
+          {
+            "node": "Format Category Breakdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Category Breakdown": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Get Daily Totals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Transactions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Budgets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Category Breakdown",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

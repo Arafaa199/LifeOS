@@ -1,0 +1,151 @@
+{
+  "name": "Nexus - Delete Transaction Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "nexus-delete-transaction/:id",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "nexus-delete-transaction"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM finance.transactions\nWHERE id = {{ $json.params.id }}\nRETURNING id, merchant_name;",
+        "options": {}
+      },
+      "name": "Delete Transaction",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Transaction deleted successfully\"\n}",
+        "options": {}
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error deleting transaction: {{ $json.message }}\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        850,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        650,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Transaction": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Delete Transaction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

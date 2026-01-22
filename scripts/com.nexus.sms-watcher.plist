@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.nexus.sms-watcher</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts/watch-messages.sh</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NEXUS_PASSWORD</key>
+        <string>REPLACE_WITH_YOUR_PASSWORD</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/nexus-sms-watcher.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/nexus-sms-watcher-error.log</string>
+</dict>
+</plist>

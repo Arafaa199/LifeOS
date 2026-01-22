@@ -1,0 +1,102 @@
+{
+  "name": "Nexus: Sleep History Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-sleep-history",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Sleep History Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-sleep-history",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  s.date::text,\n  json_build_object(\n    'time_in_bed_min', s.time_in_bed_min,\n    'awake_min', s.awake_min,\n    'light_sleep_min', s.light_sleep_min,\n    'deep_sleep_min', s.deep_sleep_min,\n    'rem_sleep_min', s.rem_sleep_min,\n    'sleep_efficiency', s.sleep_efficiency,\n    'sleep_consistency', s.sleep_consistency,\n    'sleep_performance', s.sleep_performance,\n    'sleep_needed_min', s.sleep_needed_min,\n    'sleep_debt_min', s.sleep_debt_min,\n    'cycles', s.cycles,\n    'disturbances', s.disturbances,\n    'respiratory_rate', s.respiratory_rate\n  ) as sleep,\n  json_build_object(\n    'recovery_score', r.recovery_score,\n    'hrv_rmssd', r.hrv_rmssd,\n    'rhr', r.rhr,\n    'spo2', r.spo2,\n    'skin_temp', r.skin_temp\n  ) as recovery\nFROM health.whoop_sleep s\nLEFT JOIN health.whoop_recovery r ON s.date = r.date\nWHERE s.date >= CURRENT_DATE - INTERVAL '{{ $json.query.days || 7 }} days'\nORDER BY s.date DESC;",
+        "options": {}
+      },
+      "id": "fetch-history",
+      "name": "Fetch Sleep History",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\n\nconst data = rows.map(row => ({\n  date: row.json.date,\n  sleep: row.json.sleep,\n  recovery: row.json.recovery\n}));\n\nreturn [{\n  json: {\n    success: true,\n    data: data\n  }\n}];"
+      },
+      "id": "format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Sleep History Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Sleep History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Sleep History": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

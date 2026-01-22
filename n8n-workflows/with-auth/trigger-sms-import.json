@@ -1,0 +1,213 @@
+{
+  "name": "Nexus - Trigger SMS Import via API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-trigger-import",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "nexus-trigger-import"
+    },
+    {
+      "parameters": {
+        "command": "ssh rafa@nexus-mac 'cd /Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts && export NEXUS_PASSWORD=\"${NEXUS_PASSWORD}\" && node import-sms-transactions.js 1'",
+        "options": {}
+      },
+      "name": "Execute Import on Mac",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.exitCode }}",
+              "operation": "equal",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(*) FILTER (WHERE date = CURRENT_DATE) as new_today,\n  SUM(amount) FILTER (WHERE date = CURRENT_DATE AND amount < 0) as spent_today,\n  MAX(created_at) as last_import\nFROM finance.transactions\nWHERE created_at > NOW() - INTERVAL '5 minutes'",
+        "options": {}
+      },
+      "name": "Get New Transactions",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        250
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Imported {{ $json.new_today }} new transactions\",\n  \"data\": {\n    \"new_count\": {{ $json.new_today }},\n    \"spent_today\": {{ Math.abs($json.spent_today || 0) }},\n    \"last_import\": \"{{ $json.last_import }}\"\n  }\n}",
+        "options": {}
+      },
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        250
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Import failed\",\n  \"error\": \"{{ $json.stderr }}\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        650,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Import on Mac": {
+      "main": [
+        [
+          {
+            "node": "Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success?": {
+      "main": [
+        [
+          {
+            "node": "Get New Transactions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get New Transactions": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Execute Import on Mac",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

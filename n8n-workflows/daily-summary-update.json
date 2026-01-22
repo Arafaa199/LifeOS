@@ -1,0 +1,167 @@
+{
+  "name": "Nexus: Daily Summary Update",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 0,
+              "triggerAtMinute": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every Day at Midnight",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT core.update_daily_summary(CURRENT_DATE - INTERVAL '1 day');\nSELECT core.update_daily_summary(CURRENT_DATE);",
+        "options": {}
+      },
+      "id": "update-summary",
+      "name": "Update Daily Summary",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  date,\n  weight_kg,\n  recovery_score,\n  calories_consumed,\n  protein_g,\n  total_spent\nFROM core.daily_summary\nWHERE date >= CURRENT_DATE - INTERVAL '7 days'\nORDER BY date DESC;",
+        "options": {}
+      },
+      "id": "get-recent",
+      "name": "Get Recent Summaries",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-data",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-results",
+      "name": "Has Data?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "=### Daily Summary Updated\n\n**Date**: {{ $now.format('yyyy-MM-dd HH:mm') }}\n\n**Last 7 Days:**\n{{ $json.map(d => `- ${d.date}: ${d.calories_consumed || 0} cal, ${d.protein_g || 0}g protein, recovery ${d.recovery_score || 'N/A'}`).join('\\n') }}",
+        "options": {}
+      },
+      "id": "format-output",
+      "name": "Format Summary",
+      "type": "n8n-nodes-base.markdown",
+      "position": [1120, 200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {},
+      "id": "no-op",
+      "name": "No Data Yet",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1120, 400],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Every Day at Midnight": {
+      "main": [
+        [
+          {
+            "node": "Update Daily Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Daily Summary": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Summaries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Summaries": {
+      "main": [
+        [
+          {
+            "node": "Has Data?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Data?": {
+      "main": [
+        [
+          {
+            "node": "Format Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Data Yet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

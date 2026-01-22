@@ -1,0 +1,151 @@
+{
+  "name": "Nexus - Update Transaction Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-update-transaction",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "nexus-update-transaction"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE finance.transactions SET\n  merchant_name = '{{ $json.body.merchant_name }}',\n  amount = -{{ $json.body.amount }},\n  category = '{{ $json.body.category }}',\n  notes = {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : \"NULL\" }},\n  date = '{{ $json.body.date }}'::timestamp\nWHERE id = {{ $json.body.id }}\nRETURNING *;",
+        "options": {}
+      },
+      "name": "Update Transaction",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Transaction updated successfully\",\n  \"data\": {\n    \"transaction\": {{ JSON.stringify($json) }}\n  }\n}",
+        "options": {}
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error updating transaction: {{ $json.message }}\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        850,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        650,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Transaction": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Update Transaction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

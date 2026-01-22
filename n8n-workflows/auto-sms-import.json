@@ -1,0 +1,106 @@
+{
+  "name": "Nexus - Auto SMS Import",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 * * * *"
+            }
+          ]
+        }
+      },
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts && ./auto-import-sms.sh 1",
+        "options": {}
+      },
+      "name": "Run SMS Import",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.exitCode }}",
+              "operation": "equal",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Get latest transactions count\nSELECT \n  COUNT(*) as total_transactions,\n  COUNT(*) FILTER (WHERE date = CURRENT_DATE) as today_count,\n  SUM(amount) FILTER (WHERE date = CURRENT_DATE AND amount < 0) as today_spent,\n  MAX(created_at) as last_import\nFROM finance.transactions",
+        "options": {}
+      },
+      "name": "Get Import Stats",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.rfanw/webhook/nexus-notification",
+        "options": {},
+        "bodyParametersJson": "={\n  \"message\": \"SMS import completed. {{ $json.today_count }} new transactions today.\",\n  \"level\": \"info\",\n  \"data\": {\n    \"total\": {{ $json.total_transactions }},\n    \"today\": {{ $json.today_count }},\n    \"spent_today\": {{ Math.abs($json.today_spent) }}\n  }\n}"
+      },
+      "name": "Send Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "message": "=SMS import failed: {{ $json.stderr }}",
+        "options": {}
+      },
+      "name": "Log Error",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [[{"node": "Run SMS Import", "type": "main", "index": 0}]]
+    },
+    "Run SMS Import": {
+      "main": [[{"node": "Success?", "type": "main", "index": 0}]]
+    },
+    "Success?": {
+      "main": [
+        [{"node": "Get Import Stats", "type": "main", "index": 0}],
+        [{"node": "Log Error", "type": "main", "index": 0}]
+      ]
+    },
+    "Get Import Stats": {
+      "main": [[{"node": "Send Notification", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

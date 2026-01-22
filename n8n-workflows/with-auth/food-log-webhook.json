@@ -1,0 +1,199 @@
+{
+  "name": "Nexus: Food Log Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-food-log",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Food Log Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "nexus-food-log",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate incoming food log\nconst input = $input.first().json.body || $input.first().json;\n\n// Set defaults\nconst foodLog = {\n  date: input.date || new Date().toISOString().split('T')[0],\n  meal_time: input.meal_time || 'snack',\n  description: input.description || '',\n  calories: parseInt(input.calories) || null,\n  protein_g: parseFloat(input.protein_g) || null,\n  carbs_g: parseFloat(input.carbs_g) || null,\n  fat_g: parseFloat(input.fat_g) || null,\n  fiber_g: parseFloat(input.fiber_g) || null,\n  source: input.source || 'webhook',\n  confidence: input.confidence || 'medium',\n  meal_id: input.meal_id || null,\n  portion_number: input.portion_number || null,\n  location: input.location || 'home'\n};\n\n// Validate required fields\nif (!foodLog.description && !foodLog.meal_id) {\n  throw new Error('Either description or meal_id is required');\n}\n\nreturn foodLog;"
+      },
+      "id": "parse-input",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        660,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO nutrition.food_log (\n  date, meal_time, description, calories, protein_g, carbs_g, fat_g, fiber_g,\n  source, confidence, meal_id, portion_number, location\n) VALUES (\n  '{{ $json.date }}',\n  '{{ $json.meal_time }}',\n  '{{ $json.description }}',\n  {{ $json.calories || 'NULL' }},\n  {{ $json.protein_g || 'NULL' }},\n  {{ $json.carbs_g || 'NULL' }},\n  {{ $json.fat_g || 'NULL' }},\n  {{ $json.fiber_g || 'NULL' }},\n  '{{ $json.source }}',\n  '{{ $json.confidence }}',\n  {{ $json.meal_id || 'NULL' }},\n  {{ $json.portion_number || 'NULL' }},\n  '{{ $json.location }}'\n)\nRETURNING id, date, meal_time, calories, protein_g;",
+        "options": {}
+      },
+      "id": "insert-log",
+      "name": "Insert Food Log",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        880,
+        300
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COALESCE(SUM(calories), 0) as total_calories,\n  COALESCE(SUM(protein_g), 0) as total_protein,\n  COUNT(*) as meals_today\nFROM nutrition.food_log\nWHERE date = CURRENT_DATE;",
+        "options": {}
+      },
+      "id": "get-daily-totals",
+      "name": "Get Daily Totals",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1100,
+        300
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"logged\": {\n    \"id\": {{ $('Insert Food Log').item.json.id }},\n    \"date\": \"{{ $('Insert Food Log').item.json.date }}\",\n    \"meal_time\": \"{{ $('Insert Food Log').item.json.meal_time }}\",\n    \"calories\": {{ $('Insert Food Log').item.json.calories || 0 }},\n    \"protein_g\": {{ $('Insert Food Log').item.json.protein_g || 0 }}\n  },\n  \"daily_totals\": {\n    \"calories\": {{ $json.total_calories }},\n    \"protein_g\": {{ $json.total_protein }},\n    \"meals_logged\": {{ $json.meals_today }}\n  }\n}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1320,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        640,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Food Log Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Insert Food Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Food Log": {
+      "main": [
+        [
+          {
+            "node": "Get Daily Totals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily Totals": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

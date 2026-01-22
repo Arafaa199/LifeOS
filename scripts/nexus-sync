@@ -1,0 +1,11 @@
+#!/bin/bash
+# Nexus Finance Sync - Run from Terminal (has Full Disk Access)
+# Usage: nexus-sync [days]
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DAYS="${1:-7}"
+
+export NEXUS_PASSWORD="XRtRxHAtSXCYK2OLK2C9Fu8Ak6PhuwiI"
+export NEXUS_HOST="100.90.189.16"
+
+node "$SCRIPT_DIR/import-sms-transactions.js" "$DAYS"
