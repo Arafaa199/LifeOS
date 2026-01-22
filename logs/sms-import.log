@@ -3408,3 +3408,949 @@ Error: connect ETIMEDOUT 100.90.189.16:5432
   port: 5432
 }
 [Thu Jan 22 10:58:29 +04 2026] SMS import completed successfully
+[Thu Jan 22 11:19:58 +04 2026] Starting automatic SMS import...
+[2026-01-22T07:19:58.695Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T07:19:59.110Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T07:19:59.115Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 11:19:59 +04 2026] SMS import completed successfully
+[Thu Jan 22 11:34:59 +04 2026] Starting automatic SMS import...
+[2026-01-22T07:34:59.660Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T07:35:00.045Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T07:35:00.050Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 11:35:00 +04 2026] SMS import completed successfully
+[Thu Jan 22 11:50:00 +04 2026] Starting automatic SMS import...
+[2026-01-22T07:50:00.725Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T07:50:01.196Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T07:50:01.210Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 11:50:01 +04 2026] SMS import completed successfully
+[Thu Jan 22 12:05:01 +04 2026] Starting automatic SMS import...
+[2026-01-22T08:05:01.794Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T08:05:02.449Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T08:05:02.455Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 12:05:02 +04 2026] SMS import completed successfully
+[Thu Jan 22 12:20:02 +04 2026] Starting automatic SMS import...
+[2026-01-22T08:20:02.988Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T08:20:04.323Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T08:20:04.329Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 12:20:05 +04 2026] SMS import completed successfully
+[Thu Jan 22 12:35:05 +04 2026] Starting automatic SMS import...
+[2026-01-22T08:35:05.515Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T08:35:06.020Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T08:35:06.024Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 12:35:06 +04 2026] SMS import completed successfully
+[Thu Jan 22 12:50:06 +04 2026] Starting automatic SMS import...
+[2026-01-22T08:50:07.406Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T08:50:07.768Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T08:50:07.773Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 12:50:07 +04 2026] SMS import completed successfully
+[Thu Jan 22 13:05:08 +04 2026] Starting automatic SMS import...
+[2026-01-22T09:05:08.371Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T09:05:08.994Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T09:05:09.010Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 13:05:09 +04 2026] SMS import completed successfully
+[Thu Jan 22 13:20:09 +04 2026] Starting automatic SMS import...
+[2026-01-22T09:20:09.537Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T09:20:09.966Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T09:20:09.982Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 13:20:10 +04 2026] SMS import completed successfully
+[Thu Jan 22 13:35:10 +04 2026] Starting automatic SMS import...
+[2026-01-22T09:35:10.554Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T09:35:10.972Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T09:35:10.977Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 13:35:11 +04 2026] SMS import completed successfully
+[Thu Jan 22 13:50:11 +04 2026] Starting automatic SMS import...
+[2026-01-22T09:50:11.535Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T09:50:11.688Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T09:50:11.692Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+[Thu Jan 22 13:50:11 +04 2026] SMS import completed successfully
+[Thu Jan 22 14:05:12 +04 2026] Starting automatic SMS import...
+[2026-01-22T10:05:12.294Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T10:05:12.954Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T10:05:12.960Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 14:05:13 +04 2026] SMS import completed successfully
+[Thu Jan 22 14:20:13 +04 2026] Starting automatic SMS import...
+[2026-01-22T10:20:13.514Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T10:20:13.943Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T10:20:13.949Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 14:20:14 +04 2026] SMS import completed successfully
+[Thu Jan 22 14:35:14 +04 2026] Starting automatic SMS import...
+[2026-01-22T10:35:14.462Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T10:35:15.055Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T10:35:15.061Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 14:35:15 +04 2026] SMS import completed successfully
+[Thu Jan 22 14:50:15 +04 2026] Starting automatic SMS import...
+[2026-01-22T10:50:15.605Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T10:50:16.066Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T10:50:16.073Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 14:50:16 +04 2026] SMS import completed successfully
+[Thu Jan 22 15:05:16 +04 2026] Starting automatic SMS import...
+[2026-01-22T11:05:16.613Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T11:05:17.035Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T11:05:17.038Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 15:05:17 +04 2026] SMS import completed successfully
+[Thu Jan 22 15:20:17 +04 2026] Starting automatic SMS import...
+[2026-01-22T11:20:17.538Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T11:20:17.947Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T11:20:17.953Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 15:20:18 +04 2026] SMS import completed successfully
+[Thu Jan 22 15:35:18 +04 2026] Starting automatic SMS import...
+[2026-01-22T11:35:18.517Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T11:35:18.942Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T11:35:18.949Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 15:35:19 +04 2026] SMS import completed successfully
+[Thu Jan 22 15:50:19 +04 2026] Starting automatic SMS import...
+[2026-01-22T11:50:19.527Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T11:50:20.089Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T11:50:20.094Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 15:50:20 +04 2026] SMS import completed successfully
+[Thu Jan 22 16:05:20 +04 2026] Starting automatic SMS import...
+[2026-01-22T12:05:20.778Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T12:05:21.087Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T12:05:21.091Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 16:05:21 +04 2026] SMS import completed successfully
+[Thu Jan 22 16:20:21 +04 2026] Starting automatic SMS import...
+[2026-01-22T12:20:21.978Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T12:20:22.196Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T12:20:22.199Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 16:20:22 +04 2026] SMS import completed successfully
+[Thu Jan 22 16:35:22 +04 2026] Starting automatic SMS import...
+[2026-01-22T12:35:22.775Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T12:35:23.099Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T12:35:23.102Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 16:35:23 +04 2026] SMS import completed successfully
+[Thu Jan 22 16:50:24 +04 2026] Starting automatic SMS import...
+[2026-01-22T12:50:24.190Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T12:50:24.478Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T12:50:24.480Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 16:50:24 +04 2026] SMS import completed successfully
+[Thu Jan 22 17:05:25 +04 2026] Starting automatic SMS import...
+[2026-01-22T13:05:25.100Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T13:05:25.487Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T13:05:25.494Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 17:05:25 +04 2026] SMS import completed successfully
+[Thu Jan 22 17:20:25 +04 2026] Starting automatic SMS import...
+[2026-01-22T13:20:26.085Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T13:20:26.416Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T13:20:26.421Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 17:20:26 +04 2026] SMS import completed successfully
+[Thu Jan 22 17:35:26 +04 2026] Starting automatic SMS import...
+[2026-01-22T13:35:27.040Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T13:35:27.335Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T13:35:27.342Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 17:35:27 +04 2026] SMS import completed successfully
+[Thu Jan 22 17:50:28 +04 2026] Starting automatic SMS import...
+[2026-01-22T13:50:28.134Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T13:50:28.462Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T13:50:28.468Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 17:50:28 +04 2026] SMS import completed successfully
+[Thu Jan 22 18:05:29 +04 2026] Starting automatic SMS import...
+[2026-01-22T14:05:29.153Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T14:05:29.551Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T14:05:29.563Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 18:05:29 +04 2026] SMS import completed successfully
+[Thu Jan 22 18:20:30 +04 2026] Starting automatic SMS import...
+[2026-01-22T14:20:30.236Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T14:20:30.552Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T14:20:30.559Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 18:20:30 +04 2026] SMS import completed successfully
+[Thu Jan 22 18:42:59 +04 2026] Starting automatic SMS import...
+[2026-01-22T14:43:00.001Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T14:43:00.547Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T14:43:00.551Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 18:43:01 +04 2026] SMS import completed successfully
+[Thu Jan 22 18:58:01 +04 2026] Starting automatic SMS import...
+[2026-01-22T14:58:01.453Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T14:58:01.757Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T14:58:01.762Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 18:58:01 +04 2026] SMS import completed successfully
+[Thu Jan 22 20:40:33 +04 2026] Starting automatic SMS import...
+[2026-01-22T16:40:33.409Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T16:43:12.966Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T16:43:13.016Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 20:43:13 +04 2026] SMS import completed successfully
+[Thu Jan 22 21:04:31 +04 2026] Starting automatic SMS import...
+[2026-01-22T17:04:31.702Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T17:04:31.967Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T17:04:31.970Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 21:04:32 +04 2026] SMS import completed successfully
+[Thu Jan 22 21:19:32 +04 2026] Starting automatic SMS import...
+[2026-01-22T17:19:32.305Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T17:19:32.511Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T17:19:32.513Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 21:19:32 +04 2026] SMS import completed successfully
+[Thu Jan 22 21:34:32 +04 2026] Starting automatic SMS import...
+[2026-01-22T17:34:32.904Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T17:34:33.079Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T17:34:33.083Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 21:34:33 +04 2026] SMS import completed successfully
+[Thu Jan 22 21:49:33 +04 2026] Starting automatic SMS import...
+[2026-01-22T17:49:33.433Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T17:49:33.585Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T17:49:33.586Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 21:49:33 +04 2026] SMS import completed successfully
+[Thu Jan 22 22:04:33 +04 2026] Starting automatic SMS import...
+[2026-01-22T18:04:33.898Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T18:04:34.065Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T18:04:34.067Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 22:04:34 +04 2026] SMS import completed successfully
+[Thu Jan 22 22:19:34 +04 2026] Starting automatic SMS import...
+[2026-01-22T18:19:34.451Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T18:19:34.821Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T18:19:34.828Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 22:19:34 +04 2026] SMS import completed successfully
+[Thu Jan 22 22:34:35 +04 2026] Starting automatic SMS import...
+[2026-01-22T18:34:35.257Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T18:34:35.465Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T18:34:35.468Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 22:34:35 +04 2026] SMS import completed successfully
+[Thu Jan 22 22:49:35 +04 2026] Starting automatic SMS import...
+[2026-01-22T18:49:35.878Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T18:49:36.138Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T18:49:36.148Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 22:49:36 +04 2026] SMS import completed successfully
+[Thu Jan 22 23:04:36 +04 2026] Starting automatic SMS import...
+[2026-01-22T19:04:36.676Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T19:04:36.873Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T19:04:36.876Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 23:04:36 +04 2026] SMS import completed successfully
+[Thu Jan 22 23:19:37 +04 2026] Starting automatic SMS import...
+[2026-01-22T19:19:37.272Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T19:19:37.383Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T19:19:37.384Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 23:19:37 +04 2026] SMS import completed successfully
+[Thu Jan 22 23:34:38 +04 2026] Starting automatic SMS import...
+[2026-01-22T19:34:38.679Z] Starting SMS import (last 1 days)...
+Found 0 bank messages
+
+Import complete in 0.2s:
+  New: 0
+  Duplicates: 0
+  Skipped: 0
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T19:34:38.917Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-22T19:34:38.920Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 23:34:39 +04 2026] SMS import completed successfully

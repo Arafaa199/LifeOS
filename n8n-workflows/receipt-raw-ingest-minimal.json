@@ -1,0 +1,47 @@
+{
+  "name": "Receipt Ingest Minimal",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-receipt-minimal",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "receipt-minimal"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO finance.raw_events (event_type, raw_payload, source_identifier, validation_status) VALUES ('receipt_pdf', '{{ JSON.stringify($json.body) }}'::jsonb, '{{ $json.body.pdf_hash }}', 'valid') RETURNING id;",
+        "options": {}
+      },
+      "name": "Log Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {"postgres": {"id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL"}}
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true}",
+        "options": {}
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "Log Event", "type": "main", "index": 0}]]},
+    "Log Event": {"main": [[{"node": "Respond", "type": "main", "index": 0}]]}
+  },
+  "settings": {},
+  "staticData": null
+}

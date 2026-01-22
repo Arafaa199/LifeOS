@@ -62,7 +62,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const webhookData = $input.item.json.body;\n\n// Get raw_event_id from the 'Log Raw Event' node output\nconst rawEventId = $items(\"Log Raw Event\")?.[0]?.json?.id\n  ?? $items(\"Log Raw Event\")?.[0]?.json?.rows?.[0]?.id;\n\nif (!rawEventId) {\n  throw new Error(\"Missing raw_event id from 'Log Raw Event' output. Ensure INSERT ... RETURNING id.\");\n}\n\nlet amount = webhookData.amount;\nlet currency = webhookData.currency || \"AED\";\nlet parseErrors = [];\n\n// If raw_text is provided, parse it server-side (don't trust client parsing)\nif (webhookData.raw_text) {\n  const rawText = String(webhookData.raw_text).toLowerCase();\n  const amountMatch = rawText.match(/\\b([\\d,]+\\.?\\d*)\\s*(aed|usd|sar|bhd|jod|egp|gbp)?/i);\n  if (amountMatch) {\n    const parsedAmount = parseFloat(amountMatch[1].replace(/,/g, \"\"));\n    if (!Number.isNaN(parsedAmount)) {\n      amount = parsedAmount;\n      if (amountMatch[2]) currency = amountMatch[2].toUpperCase();\n    } else {\n      parseErrors.push(\"Could not parse amount from raw_text\");\n    }\n  } else {\n    parseErrors.push(\"No amount found in raw_text\");\n  }\n}\n\nif (!amount || amount <= 0) parseErrors.push(\"Amount must be positive\");\n\nreturn [{\n  json: {\n    raw_event_id: rawEventId,\n    client_id: webhookData.client_id,\n    transaction_at: webhookData.transaction_at || new Date().toISOString(),\n    source: webhookData.source || \"Unknown Source\",\n    amount,\n    currency,\n    category: webhookData.category || \"Income\",\n    notes: webhookData.notes || null,\n    is_recurring: !!webhookData.is_recurring,\n    parse_errors: parseErrors,\n    has_errors: parseErrors.length > 0,\n    raw_payload: webhookData\n  }\n}];"
+        "jsCode": "const webhookData = $('Webhook').item.json.body;\n\n// Get raw_event_id from the 'Log Raw Event' node output\nconst rawEventId = $items(\"Log Raw Event\")?.[0]?.json?.id\n  ?? $items(\"Log Raw Event\")?.[0]?.json?.rows?.[0]?.id;\n\nif (!rawEventId) {\n  throw new Error(\"Missing raw_event id from 'Log Raw Event' output. Ensure INSERT ... RETURNING id.\");\n}\n\nlet amount = webhookData.amount;\nlet currency = webhookData.currency || \"AED\";\nlet parseErrors = [];\n\n// Server-side parse from raw_text if provided\nif (webhookData.raw_text) {\n  const rawText = String(webhookData.raw_text);\n  const amountMatch = rawText.match(/\\b([\\d,]+(?:\\.\\d+)?)\\s*(aed|usd|sar|bhd|jod|egp|gbp)?\\b/i);\n  if (amountMatch) {\n    const parsedAmount = Number(amountMatch[1].replace(/,/g, \"\"));\n    if (Number.isFinite(parsedAmount)) {\n      amount = parsedAmount;\n      if (amountMatch[2]) currency = amountMatch[2].toUpperCase();\n    } else {\n      parseErrors.push(\"Could not parse amount from raw_text\");\n    }\n  } else {\n    parseErrors.push(\"No amount found in raw_text\");\n  }\n}\n\n// Normalize + validate amount\nconst amountNum = Number(\n  typeof amount === \"string\" ? amount.replace(/,/g, \"\").trim() : amount\n);\n\nif (!Number.isFinite(amountNum) || amountNum <= 0) {\n  parseErrors.push(\"Amount must be positive\");\n} else {\n  amount = amountNum;\n}\n\nreturn [{\n  json: {\n    raw_event_id: rawEventId,\n    client_id: webhookData.client_id,\n    transaction_at: webhookData.transaction_at || new Date().toISOString(),\n    source: webhookData.source || \"Unknown Source\",\n    amount,\n    currency,\n    category: webhookData.category || \"Income\",\n    notes: webhookData.notes || null,\n    is_recurring: !!webhookData.is_recurring,\n    parse_errors: parseErrors,\n    has_errors: parseErrors.length > 0,\n    raw_payload: webhookData\n  }\n}];"
       },
       "name": "Parse Amount & Currency",
       "type": "n8n-nodes-base.code",
@@ -134,14 +134,56 @@
     },
     {
       "parameters": {
+        "jsCode": "// Get the parsed data from Parse Amount & Currency node\nconst parsed = $('Parse Amount & Currency').item.json;\n\n// Get Insert Transaction result (current input)\nconst insertResult = $input.item.json;\nconst insertedId = insertResult?.id ?? null;\n\nreturn [{\n  json: {\n    raw_event_id: parsed.raw_event_id,\n    client_id: parsed.client_id,\n    source: parsed.source,\n    amount: parsed.amount,\n    currency: parsed.currency,\n    category: parsed.category,\n    notes: parsed.notes,\n    is_recurring: parsed.is_recurring,\n    inserted_transaction_id: insertedId,\n    was_inserted: insertedId !== null,\n  }\n}];"
+      },
+      "name": "Compute Insert Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.was_inserted }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Was Inserted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 100]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "-- Update raw event with result\nUPDATE finance.raw_events\nSET validation_status = {{ $('Insert Transaction').item.json.length > 0 ? \"'valid'\" : \"'duplicate'\" }},\n    parsed_amount = {{ $('Parse Amount & Currency').item.json.amount }},\n    parsed_currency = '{{ $('Parse Amount & Currency').item.json.currency }}',\n    related_transaction_id = {{ $('Insert Transaction').item.json.length > 0 ? $('Insert Transaction').item.json[0].id : 'NULL' }}\nWHERE id = {{ $('Parse Amount & Currency').item.json.raw_event_id }};\n\nSELECT 1;",
+        "query": "UPDATE finance.raw_events\nSET validation_status = 'valid',\n    parsed_amount = {{ $json.amount }},\n    parsed_currency = '{{ $json.currency }}',\n    related_transaction_id = {{ $json.inserted_transaction_id }},\n    validation_errors = NULL\nWHERE id = {{ $json.raw_event_id }};",
         "options": {}
       },
-      "name": "Update Raw Event",
+      "name": "Mark Valid",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1450, 100],
+      "position": [1850, 0],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE finance.raw_events\nSET validation_status = 'duplicate',\n    parsed_amount = {{ $json.amount }},\n    parsed_currency = '{{ $json.currency }}',\n    related_transaction_id = NULL,\n    validation_errors = NULL\nWHERE id = {{ $json.raw_event_id }};",
+        "options": {}
+      },
+      "name": "Mark Duplicate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1850, 200],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -152,13 +194,24 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": {{ $('Insert Transaction').item.json.length > 0 ? \"'Income added: \" + $('Parse Amount & Currency').item.json.source + \" - \" + $('Parse Amount & Currency').item.json.currency + \" \" + $('Parse Amount & Currency').item.json.amount + \"'\" : \"'Income already exists (idempotent duplicate)'\" }},\n  \"idempotent\": {{ $('Insert Transaction').item.json.length === 0 }},\n  \"server_parsed\": {\n    \"amount\": {{ $('Parse Amount & Currency').item.json.amount }},\n    \"currency\": \"{{ $('Parse Amount & Currency').item.json.currency }}\"\n  },\n  \"raw_event_id\": {{ $('Parse Amount & Currency').item.json.raw_event_id }},\n  \"data\": {\n    \"transaction\": {{ $('Insert Transaction').item.json.length > 0 ? JSON.stringify($('Insert Transaction').item.json[0]) : 'null' }}\n  }\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Income added: {{ $json.source }} - {{ $json.currency }} {{ $json.amount }}\",\n  \"idempotent\": false,\n  \"server_parsed\": {\n    \"amount\": {{ $json.amount }},\n    \"currency\": \"{{ $json.currency }}\"\n  },\n  \"raw_event_id\": {{ $json.raw_event_id }},\n  \"data\": {\n    \"transaction_id\": {{ $json.inserted_transaction_id }}\n  }\n}",
         "options": {}
       },
-      "name": "Success Response",
+      "name": "Success Response (New)",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1650, 100]
+      "position": [2050, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Income already exists (idempotent duplicate)\",\n  \"idempotent\": true,\n  \"server_parsed\": {\n    \"amount\": {{ $json.amount }},\n    \"currency\": \"{{ $json.currency }}\"\n  },\n  \"raw_event_id\": {{ $json.raw_event_id }},\n  \"data\": {\n    \"transaction_id\": null\n  }\n}",
+        "options": {}
+      },
+      "name": "Success Response (Duplicate)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 200]
     }
   ],
   "connections": {
@@ -246,18 +299,58 @@
       "main": [
         [
           {
-            "node": "Update Raw Event",
+            "node": "Compute Insert Result",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update Raw Event": {
+    "Compute Insert Result": {
       "main": [
         [
           {
-            "node": "Success Response",
+            "node": "Was Inserted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Was Inserted?": {
+      "main": [
+        [
+          {
+            "node": "Mark Valid",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Valid": {
+      "main": [
+        [
+          {
+            "node": "Success Response (New)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Success Response (Duplicate)",
             "type": "main",
             "index": 0
           }

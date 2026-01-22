@@ -57,12 +57,14 @@ def detect_document_type(pdf_text: str) -> str:
     """
     text_lower = pdf_text.lower()
 
+    # Check tax_invoice FIRST - takes priority since PDFs may contain
+    # generic "Refund Note" policy sections in the footer
+    if 'tax invoice' in text_lower:
+        return 'tax_invoice'
     if 'tips receipt' in text_lower or 'driver tip' in text_lower:
         return 'tips_receipt'
     if 'refund note' in text_lower or 'credit note' in text_lower:
         return 'refund_note'
-    if 'tax invoice' in text_lower:
-        return 'tax_invoice'
 
     return 'unknown'
 

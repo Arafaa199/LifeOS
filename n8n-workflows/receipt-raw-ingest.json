@@ -1,0 +1,288 @@
+{
+  "name": "Nexus - Receipt Raw Ingest",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-receipt-ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "nexus-receipt-ingest"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.pdf_hash }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Validate pdf_hash",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"pdf_hash is required\",\n  \"message\": \"pdf_hash (SHA256) must be provided for idempotency\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "name": "Reject - Missing pdf_hash",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Log raw event for audit trail\nINSERT INTO finance.raw_events (\n  event_type,\n  raw_payload,\n  source_identifier,\n  validation_status\n)\nVALUES (\n  'receipt_pdf',\n  '{{ JSON.stringify($json.body) }}'::jsonb,\n  '{{ $json.body.pdf_hash }}',\n  'pending'\n)\nRETURNING id;",
+        "options": {}
+      },
+      "name": "Log Raw Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 100],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook').item.json.body;\nconst rawEventId = $input.item.json?.id ?? null;\n\nif (!rawEventId) {\n  throw new Error(\"Missing raw_event id from Log Raw Event\");\n}\n\nreturn [{\n  json: {\n    raw_event_id: rawEventId,\n    pdf_hash: body.pdf_hash,\n    vendor: body.vendor || null,\n    gmail_message_id: body.gmail_message_id || null,\n    gmail_thread_id: body.gmail_thread_id || null,\n    email_from: body.email_from || null,\n    email_subject: body.email_subject || null,\n    email_received_at: body.email_received_at || null,\n    pdf_filename: body.pdf_filename || null,\n    pdf_size_bytes: body.pdf_size_bytes || null,\n    pdf_storage_path: body.pdf_storage_path || null,\n  }\n}];"
+      },
+      "name": "Prepare Receipt Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert receipt (idempotent via pdf_hash)\nINSERT INTO finance.receipts (\n  pdf_hash,\n  vendor,\n  gmail_message_id,\n  gmail_thread_id,\n  email_from,\n  email_subject,\n  email_received_at,\n  pdf_filename,\n  pdf_size_bytes,\n  pdf_storage_path,\n  parse_status,\n  raw_event_id,\n  currency\n)\nVALUES (\n  '{{ $json.pdf_hash }}',\n  {{ $json.vendor ? \"'\" + $json.vendor + \"'\" : \"NULL\" }},\n  {{ $json.gmail_message_id ? \"'\" + $json.gmail_message_id + \"'\" : \"NULL\" }},\n  {{ $json.gmail_thread_id ? \"'\" + $json.gmail_thread_id + \"'\" : \"NULL\" }},\n  {{ $json.email_from ? \"'\" + $json.email_from + \"'\" : \"NULL\" }},\n  {{ $json.email_subject ? \"'\" + $json.email_subject.replace(/'/g, \"''\") + \"'\" : \"NULL\" }},\n  {{ $json.email_received_at ? \"'\" + $json.email_received_at + \"'::timestamptz\" : \"NULL\" }},\n  {{ $json.pdf_filename ? \"'\" + $json.pdf_filename + \"'\" : \"NULL\" }},\n  {{ $json.pdf_size_bytes ? $json.pdf_size_bytes : \"NULL\" }},\n  {{ $json.pdf_storage_path ? \"'\" + $json.pdf_storage_path + \"'\" : \"NULL\" }},\n  'pending',\n  {{ $json.raw_event_id }},\n  'AED'\n)\nON CONFLICT (pdf_hash) DO NOTHING\nRETURNING id;",
+        "options": {}
+      },
+      "name": "Insert Receipt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 100],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepData = $('Prepare Receipt Data').item.json;\nconst insertResult = $input.item.json;\nconst insertedId = insertResult?.id ?? null;\n\nreturn [{\n  json: {\n    raw_event_id: prepData.raw_event_id,\n    pdf_hash: prepData.pdf_hash,\n    vendor: prepData.vendor,\n    inserted_receipt_id: insertedId,\n    was_inserted: insertedId !== null,\n  }\n}];"
+      },
+      "name": "Compute Insert Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.was_inserted }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Was Inserted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE finance.raw_events\nSET validation_status = 'valid'\nWHERE id = {{ $json.raw_event_id }};",
+        "options": {}
+      },
+      "name": "Mark Valid",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1650, 0],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE finance.raw_events\nSET validation_status = 'duplicate'\nWHERE id = {{ $json.raw_event_id }};",
+        "options": {}
+      },
+      "name": "Mark Duplicate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1650, 200],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true, \"message\": \"Receipt ingested successfully\", \"idempotent\": false}",
+        "options": {}
+      },
+      "name": "Success Response (New)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true, \"message\": \"Receipt already exists (idempotent duplicate)\", \"idempotent\": true}",
+        "options": {}
+      },
+      "name": "Success Response (Duplicate)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 200]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate pdf_hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate pdf_hash": {
+      "main": [
+        [
+          {
+            "node": "Log Raw Event",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject - Missing pdf_hash",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Raw Event": {
+      "main": [
+        [
+          {
+            "node": "Prepare Receipt Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Receipt Data": {
+      "main": [
+        [
+          {
+            "node": "Insert Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Receipt": {
+      "main": [
+        [
+          {
+            "node": "Compute Insert Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Insert Result": {
+      "main": [
+        [
+          {
+            "node": "Was Inserted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Was Inserted?": {
+      "main": [
+        [
+          {
+            "node": "Mark Valid",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Valid": {
+      "main": [
+        [
+          {
+            "node": "Success Response (New)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Success Response (Duplicate)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

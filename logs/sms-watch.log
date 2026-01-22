@@ -324,3 +324,71 @@ BNPL import: 0 new, 1 duplicates
 [2026-01-21T23:35:18.861Z] Matching Tabby payments...
 Found 4 unlinked Tabby transactions
 [Thu Jan 22 03:35:19 +04 2026] Import complete
+[Thu Jan 22 13:50:09 +04 2026] New message detected, importing...
+[2026-01-22T09:50:09.318Z] Starting SMS import (last 365 days)...
+Found 324 bank messages
+
+Import complete in 5.7s:
+  New: 0
+  Duplicates: 237
+  Skipped: 87
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T09:50:15.046Z] Processing BNPL messages...
+Found 1 BNPL messages
+  Created: BodyMasters - SAR 1554 (4x 388.50)
+BNPL import: 1 new, 0 duplicates
+
+[2026-01-22T09:50:15.101Z] Matching Tabby payments...
+Found 5 unlinked Tabby transactions
+  Matched tx 1991 to "BodyMasters" (2/4)
+[Thu Jan 22 13:50:15 +04 2026] Import complete
+[Thu Jan 22 14:10:59 +04 2026] New message detected, importing...
+[2026-01-22T10:10:59.184Z] Starting SMS import (last 365 days)...
+Found 324 bank messages
+
+Import complete in 5.6s:
+  New: 0
+  Duplicates: 237
+  Skipped: 87
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T10:11:04.790Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-22T10:11:04.817Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 14:11:05 +04 2026] Import complete
+[Thu Jan 22 16:20:20 +04 2026] New message detected, importing...
+[2026-01-22T12:20:20.496Z] Starting SMS import (last 365 days)...
+Found 323 bank messages
+
+Import complete in 6.1s:
+  New: 0
+  Duplicates: 236
+  Skipped: 87
+  Errors: 0
+
+Account Summary:
+  AlRajhi Bank: 164 tx, spent 97635.82, received 2256.28
+  Emirates NBD: 81 tx, spent 9846.76, received 47000.00
+  Jordan Kuwait Bank: 258 tx, spent 64196.46, received 19218.09
+
+[2026-01-22T12:20:26.600Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-22T12:20:26.628Z] Matching Tabby payments...
+Found 4 unlinked Tabby transactions
+[Thu Jan 22 16:20:27 +04 2026] Import complete

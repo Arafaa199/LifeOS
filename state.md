@@ -1,5 +1,68 @@
 # Nexus Finance Ingestion - Project State
 
+---
+
+## 🔒 Income Ingestion: LOCKED (2026-01-22)
+
+**Status:** Verified and production-ready. DO NOT MODIFY unless schema changes.
+
+| Component | Status |
+|-----------|--------|
+| Raw → Parse → Insert → Status | ✅ Verified |
+| Idempotent via `client_id` | ✅ Unique index + ON CONFLICT |
+| Timezone-safe | ✅ TIMESTAMPTZ + `to_business_date()` |
+| Audit trail | ✅ `finance.raw_events` |
+| Stale cleanup | ✅ Every 5 min guardrail |
+
+**Active Workflow:** `WcAZz2Jkzt1sqOX9`
+**Cleanup Workflow:** `FsaMknt5IHRICEBC` (every 5 min)
+
+---
+
+## 🔧 Receipt Ingestion: IN PROGRESS (2026-01-22)
+
+**Status:** Core functionality working, needs n8n UI debugging for Mark Valid node.
+
+| Component | Status |
+|-----------|--------|
+| Migration 017 (raw_event_id FK) | ✅ Ready to apply |
+| Webhook receives payload | ✅ Working |
+| Log to raw_events | ✅ Working (event_type='receipt_pdf') |
+| Insert to receipts | ✅ Working (idempotent via pdf_hash) |
+| Duplicate detection | ✅ Working (status='duplicate') |
+| Mark Valid update | ⚠️ Needs n8n UI debug |
+| Success response | ⚠️ Returns empty (related to above) |
+
+**Active Workflow:** `OxZvWsf7HfxmM6jj`
+**File:** `n8n-workflows/receipt-raw-ingest.json`
+
+### Debug Steps (in n8n UI)
+1. Open the Receipt Raw Ingest workflow
+2. Execute a test request manually
+3. Check execution logs for where it stops after "Insert Receipt"
+4. The "Compute Insert Result" → "Was Inserted?" → "Mark Valid" chain needs verification
+5. Fix and verify responses return properly
+
+### Test Commands
+```bash
+# New receipt (should mark 'valid')
+curl -X POST http://pivpn:5678/webhook/nexus-receipt-ingest \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "pdf_hash": "<unique-64-char-sha256>",
+    "vendor": "carrefour_uae",
+    "gmail_message_id": "test-123",
+    "email_received_at": "2026-01-22T10:00:00Z"
+  }'
+
+# Check status
+SELECT r.id, e.validation_status FROM finance.receipts r
+JOIN finance.raw_events e ON r.raw_event_id = e.id
+ORDER BY r.id DESC LIMIT 5;
+```
+
+---
+
 ## Deployment Summary
 
 ### Server Runtime (Production)
@@ -76,6 +139,35 @@ Ingestion contracts moved from Claude Coder state.md to standalone docs:
 ---
 
 ## Database Migrations
+
+### Migration 017: Receipts raw_event_id FK (2026-01-22)
+
+**Status:** Ready to apply
+
+**Purpose:** Links receipts to raw_events audit trail for traceability
+
+**Up Migration:**
+```sql
+ALTER TABLE finance.receipts
+ADD COLUMN IF NOT EXISTS raw_event_id INTEGER REFERENCES finance.raw_events(id);
+
+CREATE INDEX IF NOT EXISTS idx_receipts_raw_event_id ON finance.receipts(raw_event_id);
+
+COMMENT ON COLUMN finance.receipts.raw_event_id IS 'FK to raw_events audit trail for traceability';
+```
+
+**Down Migration:**
+```sql
+DROP INDEX IF EXISTS finance.idx_receipts_raw_event_id;
+ALTER TABLE finance.receipts DROP COLUMN IF EXISTS raw_event_id;
+```
+
+**Apply:**
+```bash
+ssh nexus "docker exec nexus-db psql -U nexus -d nexus -f /migrations/017_receipts_raw_event_fk.up.sql"
+```
+
+---
 
 ### Migration 016: Cleanup Stale Pending Events (2026-01-22)
 
@@ -374,9 +466,9 @@ The validated income webhook with server-side parsing and audit logging is **DEP
 - Now properly sets `validation_status` and `related_transaction_id`
 
 **Automated Cleanup:**
-- Workflow: `Nexus: Cleanup Stale Events` (ID: V7XV6WoZtZ4U5o0Y)
+- Workflow: `Nexus: Cleanup Stale Events` (ID: FsaMknt5IHRICEBC)
 - File: `n8n-workflows/cleanup-stale-events.json`
-- Schedule: Hourly
+- Schedule: **Every 5 minutes** (guardrail)
 - Action: Marks events stuck in 'pending' >5 minutes as 'failed'
 - Function: `finance.cleanup_stale_pending_events()`
 - ✅ **Parse error handling** - Invalid amounts/currencies rejected with error details
