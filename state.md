@@ -51,6 +51,17 @@ EnvironmentFile=%h/lifeos/secrets/nexus.env
 
 **Rule:** Never commit passwords. `.env.local` stays local.
 
+### Contracts (Externalized)
+
+Ingestion contracts moved from Claude Coder state.md to standalone docs:
+
+| Contract | File | Purpose |
+|----------|------|---------|
+| SMS Transactions | `docs/contracts/sms-transactions.md` | Bank SMS → PostgreSQL |
+| Receipts | `docs/contracts/receipts.md` | Gmail → PDF storage + parsing |
+| Ledger | `docs/contracts/ledger.md` | Unified financial view |
+| Vendors | `docs/contracts/vendors.md` | Adding new receipt vendors |
+
 ---
 
 ## Production Status
@@ -238,9 +249,12 @@ Reference tables: accounts(3), merchant_rules(120), categories(16)
 
 | Metric | Count |
 |--------|-------|
-| Restaurant transactions | 23 |
+| Restaurant transactions | 25 |
+| Food-related transactions | 46 |
 | Grocery transactions | 21 |
-| Card-only (no receipt) | 503 |
+| Restaurant merchant rules | 44 |
+
+**Rules added (2026-01-22):** VESUVIO, SOCIAL CLUB, BUTCHER, GRILL, STEAKHOUSE, POPEYES, HARDEES, WENDYS, TACO BELL, DUNKIN, CARIBOU, INSTASHOP, CAREEM NOW
 
 **How it works:**
 - `merchant_rules` table stores patterns with `is_restaurant`, `is_food_related` flags
