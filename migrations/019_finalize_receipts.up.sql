@@ -21,7 +21,7 @@ DECLARE
     v_items_total NUMERIC(10,2);
     v_item_count INTEGER;
     v_txn_id INTEGER;
-    v_client_id VARCHAR(36);
+    v_client_id VARCHAR(70);  -- Full SHA256: 'rcpt:' + 64 hex chars
     v_final_total NUMERIC(10,2);
     v_final_date DATE;
     v_result JSONB;
@@ -94,8 +94,8 @@ BEGIN
         v_receipt.created_at::DATE
     );
 
-    -- Generate idempotent client_id: "rcpt:" + first 31 chars of pdf_hash (36 total for varchar(36))
-    v_client_id := 'rcpt:' || LEFT(v_receipt.pdf_hash, 31);
+    -- Generate idempotent client_id with full SHA256 hash
+    v_client_id := 'rcpt:' || v_receipt.pdf_hash;
 
     -- Try to find existing transaction with this client_id
     SELECT id INTO v_txn_id

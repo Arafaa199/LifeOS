@@ -995,14 +995,30 @@ def main():
         if args.approve_template:
             print(f"\n=== Approving template: {args.approve_template} ===")
             with conn.cursor() as cur:
+                # First check if exact match or unique prefix
                 cur.execute("""
-                    UPDATE finance.receipt_templates
-                    SET status = 'approved', notes = COALESCE(notes, '') || ' - Manually approved'
+                    SELECT template_hash, vendor FROM finance.receipt_templates
                     WHERE template_hash = %s OR template_hash LIKE %s
-                    RETURNING template_hash, vendor
                 """, (args.approve_template, args.approve_template + '%'))
-                result = cur.fetchone()
-                if result:
+                matches = cur.fetchall()
+
+                if len(matches) == 0:
+                    print(f"Template not found: {args.approve_template}")
+                elif len(matches) > 1:
+                    print(f"Error: Ambiguous prefix '{args.approve_template}' matches {len(matches)} templates:")
+                    for m in matches:
+                        print(f"  - {m[0]} (vendor: {m[1]})")
+                    print("Use a longer prefix or the full hash.")
+                else:
+                    # Exactly one match - approve it
+                    full_hash, vendor = matches[0]
+                    cur.execute("""
+                        UPDATE finance.receipt_templates
+                        SET status = 'approved', notes = COALESCE(notes, '') || ' - Manually approved'
+                        WHERE template_hash = %s
+                        RETURNING template_hash, vendor
+                    """, (full_hash,))
+                    result = cur.fetchone()
                     print(f"Approved template {result[0][:16]}... for vendor {result[1]}")
                     # Re-parse any receipts that were waiting on this template
                     cur.execute("""
@@ -1019,8 +1035,6 @@ def main():
                             """, (rid,))
                         conn.commit()
                         parse_pending_receipts(conn)
-                else:
-                    print(f"Template not found: {args.approve_template}")
                 conn.commit()
 
         if args.finalize_pending or args.all:
