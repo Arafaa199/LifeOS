@@ -130,7 +130,7 @@
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_NEXUS_CREDENTIAL",
+          "id": "p5cyLWCZ9Db6GiiQ",
           "name": "Nexus DB"
         }
       }
@@ -151,7 +151,7 @@
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_NEXUS_CREDENTIAL",
+          "id": "p5cyLWCZ9Db6GiiQ",
           "name": "Nexus DB"
         }
       }
@@ -172,7 +172,7 @@
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_NEXUS_CREDENTIAL",
+          "id": "p5cyLWCZ9Db6GiiQ",
           "name": "Nexus DB"
         }
       }
@@ -193,7 +193,7 @@
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_NEXUS_CREDENTIAL",
+          "id": "p5cyLWCZ9Db6GiiQ",
           "name": "Nexus DB"
         }
       }
@@ -214,7 +214,7 @@
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
-          "id": "REPLACE_WITH_NEXUS_CREDENTIAL",
+          "id": "p5cyLWCZ9Db6GiiQ",
           "name": "Nexus DB"
         }
       }

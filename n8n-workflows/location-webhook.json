@@ -1,0 +1,99 @@
+{
+  "name": "Nexus Location Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-location",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "nexus-location"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT life.ingest_location(\n  {{ $json.latitude }}::numeric,\n  {{ $json.longitude }}::numeric,\n  {{ $json.location_name ? \"'\" + $json.location_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.event_type || \"poll\" }}',\n  {{ $json.activity ? \"'\" + $json.activity.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  'home_assistant'\n) AS location_id;",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Insert Location",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, location_id: $json.location_id } }}"
+      },
+      "id": "3",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.message || 'Unknown error' } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "4",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Insert Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Location": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "lifeos"
+    },
+    {
+      "name": "location"
+    }
+  ]
+}

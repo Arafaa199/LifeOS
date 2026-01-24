@@ -12,6 +12,7 @@
   "type": "module",
   "dependencies": {
     "better-sqlite3": "^12.6.2",
-    "pg": "^8.17.1"
+    "pg": "^8.17.1",
+    "yaml": "^2.8.2"
   }
 }

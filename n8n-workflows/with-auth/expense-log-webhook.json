@@ -53,8 +53,10 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO finance.transactions (\n  date,\n  merchant_name,\n  amount,\n  category,\n  is_grocery,\n  is_restaurant,\n  notes,\n  client_id\n)\nVALUES (\n  CURRENT_DATE,\n  '{{ $json.merchant_name }}',\n  {{ $json.amount }},\n  '{{ $json.category }}',\n  {{ $json.is_grocery }},\n  {{ $json.is_restaurant }},\n  {{ $json.notes ? \"'\" + $json.notes.replace(/'/g, \"''\") + \"'\" : \"NULL\" }},\n  {{ $('Webhook').item.json.body.client_id ? \"'\" + $('Webhook').item.json.body.client_id + \"'\" : \"NULL\" }}\n)\nON CONFLICT (client_id) WHERE client_id IS NOT NULL DO NOTHING\nRETURNING *;",
+        "operation": "insert",
+        "schema": "finance",
+        "table": "transactions",
+        "columns": "date,merchant_name,amount,category,is_grocery,is_restaurant,notes",
         "options": {}
       },
       "name": "Insert Transaction",

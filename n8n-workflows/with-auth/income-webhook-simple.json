@@ -1,5 +1,5 @@
 {
-  "name": "Nexus - Add Income Webhook",
+  "name": "Nexus - Add Income Webhook (Simple)",
   "nodes": [
     {
       "parameters": {
@@ -19,6 +19,41 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.client_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Validate client_id",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"client_id is required\",\n  \"message\": \"Server-side validation: client_id must be provided for idempotency\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "name": "Reject - Missing client_id",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        850,
+        500
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO finance.transactions (\n  transaction_at,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  notes,\n  is_recurring,\n  client_id\n)\nVALUES (\n  '{{ $json.body.transaction_at }}'::timestamptz,\n  finance.to_business_date('{{ $json.body.transaction_at }}'::timestamptz),\n  '{{ $json.body.source }}',\n  {{ $json.body.amount }},\n  COALESCE('{{ $json.body.currency }}', 'AED'),\n  '{{ $json.body.category }}',\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : \"NULL\" }},\n  {{ $json.body.is_recurring ? 'true' : 'false' }},\n  '{{ $json.body.client_id }}'\n)\nON CONFLICT (client_id) DO NOTHING\nRETURNING *;",
         "options": {}
@@ -27,8 +62,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
-        650,
-        300
+        850,
+        100
       ],
       "credentials": {
         "postgres": {
@@ -43,28 +78,12 @@
         "responseBody": "={\n  \"success\": true,\n  \"message\": {{ $json.length > 0 ? \"'Income added: \" + $('Webhook').item.json.body.source + \" - \" + ($('Webhook').item.json.body.currency || 'AED') + \" \" + $('Webhook').item.json.body.amount + \"'\" : \"'Income already exists (idempotent duplicate)'\" }},\n  \"idempotent\": {{ $json.length === 0 ? 'true' : 'false' }},\n  \"data\": {\n    \"transaction\": {{ $json.length > 0 ? JSON.stringify($json[0]) : 'null' }}\n  }\n}",
         "options": {}
       },
-      "name": "Response",
+      "name": "Success Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        850,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error adding income: {{ $json.message }}\"\n}",
-        "options": {
-          "responseCode": 500
-        }
-      },
-      "name": "Error Response",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        850,
-        500
+        1050,
+        100
       ]
     },
     {
@@ -116,11 +135,29 @@
         ]
       ]
     },
+    "Validate client_id": {
+      "main": [
+        [
+          {
+            "node": "Insert Income",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject - Missing client_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Insert Income": {
       "main": [
         [
           {
-            "node": "Response",
+            "node": "Success Response",
             "type": "main",
             "index": 0
           }
@@ -131,7 +168,7 @@
       "main": [
         [
           {
-            "node": "Insert Income",
+            "node": "Validate client_id",
             "type": "main",
             "index": 0
           }

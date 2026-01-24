@@ -1,0 +1,238 @@
+{
+  "name": "Nexus: Whoop Sync Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-whoop-sync",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Whoop Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "nexus-whoop-sync",
+      "typeVersion": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cMJrpYgbhak2WYOB",
+          "name": "Nexus API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body;\nconst today = new Date().toISOString().split('T')[0];\n\n// Convert hours to minutes where needed\nconst toMinutes = (hours) => hours ? Math.round(hours * 60) : null;\n\nconst sleep = {\n  date: today,\n  time_in_bed_min: toMinutes(data.time_in_bed),\n  awake_min: toMinutes(data.time_awake),\n  light_sleep_min: toMinutes(data.light_sleep),\n  deep_sleep_min: toMinutes(data.deep_sleep),\n  rem_sleep_min: toMinutes(data.rem_sleep),\n  sleep_efficiency: data.sleep_efficiency || null,\n  sleep_consistency: data.sleep_consistency ? Math.round(data.sleep_consistency) : null,\n  sleep_performance: data.sleep_performance ? Math.round(data.sleep_performance) : null,\n  sleep_needed_min: toMinutes(data.sleep_baseline_need),\n  sleep_debt_min: toMinutes(data.sleep_debt_need),\n  cycles: data.sleep_cycles || null,\n  disturbances: data.disturbances || null,\n  respiratory_rate: data.respiratory_rate || null,\n  raw_data: JSON.stringify(data)\n};\n\nconst recovery = {\n  date: today,\n  recovery_score: data.recovery_score ? Math.round(data.recovery_score) : null,\n  hrv_rmssd: data.hrv || null,\n  rhr: data.resting_heart_rate ? Math.round(data.resting_heart_rate) : null,\n  spo2: data.spo2 || null,\n  skin_temp: data.skin_temperature || null,\n  sleep_performance: data.sleep_performance ? Math.round(data.sleep_performance) : null,\n  raw_data: JSON.stringify(data)\n};\n\nreturn [{ json: { sleep, recovery } }];"
+      },
+      "id": "transform",
+      "name": "Transform Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        660,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO health.whoop_sleep (\n  date, time_in_bed_min, awake_min, light_sleep_min, deep_sleep_min, rem_sleep_min,\n  sleep_efficiency, sleep_consistency, sleep_performance, sleep_needed_min, sleep_debt_min,\n  cycles, disturbances, respiratory_rate, raw_data\n) VALUES (\n  '{{ $json.sleep.date }}',\n  {{ $json.sleep.time_in_bed_min ?? 'NULL' }},\n  {{ $json.sleep.awake_min ?? 'NULL' }},\n  {{ $json.sleep.light_sleep_min ?? 'NULL' }},\n  {{ $json.sleep.deep_sleep_min ?? 'NULL' }},\n  {{ $json.sleep.rem_sleep_min ?? 'NULL' }},\n  {{ $json.sleep.sleep_efficiency ?? 'NULL' }},\n  {{ $json.sleep.sleep_consistency ?? 'NULL' }},\n  {{ $json.sleep.sleep_performance ?? 'NULL' }},\n  {{ $json.sleep.sleep_needed_min ?? 'NULL' }},\n  {{ $json.sleep.sleep_debt_min ?? 'NULL' }},\n  {{ $json.sleep.cycles ?? 'NULL' }},\n  {{ $json.sleep.disturbances ?? 'NULL' }},\n  {{ $json.sleep.respiratory_rate ?? 'NULL' }},\n  '{{ $json.sleep.raw_data }}'::jsonb\n)\nON CONFLICT (date) DO UPDATE SET\n  time_in_bed_min = COALESCE(EXCLUDED.time_in_bed_min, health.whoop_sleep.time_in_bed_min),\n  awake_min = COALESCE(EXCLUDED.awake_min, health.whoop_sleep.awake_min),\n  light_sleep_min = COALESCE(EXCLUDED.light_sleep_min, health.whoop_sleep.light_sleep_min),\n  deep_sleep_min = COALESCE(EXCLUDED.deep_sleep_min, health.whoop_sleep.deep_sleep_min),\n  rem_sleep_min = COALESCE(EXCLUDED.rem_sleep_min, health.whoop_sleep.rem_sleep_min),\n  sleep_efficiency = COALESCE(EXCLUDED.sleep_efficiency, health.whoop_sleep.sleep_efficiency),\n  sleep_consistency = COALESCE(EXCLUDED.sleep_consistency, health.whoop_sleep.sleep_consistency),\n  sleep_performance = COALESCE(EXCLUDED.sleep_performance, health.whoop_sleep.sleep_performance),\n  sleep_needed_min = COALESCE(EXCLUDED.sleep_needed_min, health.whoop_sleep.sleep_needed_min),\n  sleep_debt_min = COALESCE(EXCLUDED.sleep_debt_min, health.whoop_sleep.sleep_debt_min),\n  cycles = COALESCE(EXCLUDED.cycles, health.whoop_sleep.cycles),\n  disturbances = COALESCE(EXCLUDED.disturbances, health.whoop_sleep.disturbances),\n  respiratory_rate = COALESCE(EXCLUDED.respiratory_rate, health.whoop_sleep.respiratory_rate),\n  raw_data = EXCLUDED.raw_data\nRETURNING id, date, sleep_performance;",
+        "options": {}
+      },
+      "id": "upsert-sleep",
+      "name": "Upsert Sleep",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        880,
+        200
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO health.whoop_recovery (\n  date, recovery_score, hrv_rmssd, rhr, spo2, skin_temp, sleep_performance, raw_data\n) VALUES (\n  '{{ $('Transform Data').item.json.recovery.date }}',\n  {{ $('Transform Data').item.json.recovery.recovery_score ?? 'NULL' }},\n  {{ $('Transform Data').item.json.recovery.hrv_rmssd ?? 'NULL' }},\n  {{ $('Transform Data').item.json.recovery.rhr ?? 'NULL' }},\n  {{ $('Transform Data').item.json.recovery.spo2 ?? 'NULL' }},\n  {{ $('Transform Data').item.json.recovery.skin_temp ?? 'NULL' }},\n  {{ $('Transform Data').item.json.recovery.sleep_performance ?? 'NULL' }},\n  '{{ $('Transform Data').item.json.recovery.raw_data }}'::jsonb\n)\nON CONFLICT (date) DO UPDATE SET\n  recovery_score = COALESCE(EXCLUDED.recovery_score, health.whoop_recovery.recovery_score),\n  hrv_rmssd = COALESCE(EXCLUDED.hrv_rmssd, health.whoop_recovery.hrv_rmssd),\n  rhr = COALESCE(EXCLUDED.rhr, health.whoop_recovery.rhr),\n  spo2 = COALESCE(EXCLUDED.spo2, health.whoop_recovery.spo2),\n  skin_temp = COALESCE(EXCLUDED.skin_temp, health.whoop_recovery.skin_temp),\n  sleep_performance = COALESCE(EXCLUDED.sleep_performance, health.whoop_recovery.sleep_performance),\n  raw_data = EXCLUDED.raw_data\nRETURNING id, date, recovery_score;",
+        "options": {}
+      },
+      "id": "upsert-recovery",
+      "name": "Upsert Recovery",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        880,
+        400
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const sleepResult = $('Upsert Sleep').item.json;\nconst recoveryResult = $('Upsert Recovery').item.json;\n\nreturn [{\n  json: {\n    success: true,\n    message: `Synced Whoop data for ${sleepResult.date || recoveryResult.date}`,\n    sleep: sleepResult,\n    recovery: recoveryResult\n  }\n}];"
+      },
+      "id": "response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1100,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1320,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        640,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Whoop Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Data": {
+      "main": [
+        [
+          {
+            "node": "Upsert Sleep",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upsert Recovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Sleep": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Recovery": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Transform Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    },
+    {
+      "name": "whoop"
+    }
+  ]
+}

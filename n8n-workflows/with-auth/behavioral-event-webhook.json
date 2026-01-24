@@ -1,0 +1,59 @@
+{
+  "name": "Nexus Behavioral Event Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-behavioral-event",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "nexus-behavioral-event"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT life.ingest_behavioral_event(\n  '{{ $json.body.event_type || $json.event_type }}',\n  'home_assistant',\n  '{{ JSON.stringify($json.body.metadata || $json.metadata || {}).replace(/'/g, \"''\") }}'::jsonb\n) AS event_id;",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Insert Behavioral Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, event_id: $json.event_id, event_type: $input.first().json.body?.event_type || $input.first().json.event_type } }}"
+      },
+      "id": "3",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Insert Behavioral Event", "type": "main", "index": 0}]]
+    },
+    "Insert Behavioral Event": {
+      "main": [[{"node": "Success Response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "tags": [{"name": "lifeos"}, {"name": "behavioral"}]
+}

@@ -1,10 +1,10 @@
 {
-  "name": "Nexus - Add Income Webhook",
+  "name": "Receipt Ingest Minimal",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "nexus-income",
+        "path": "nexus-receipt-minimal",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -15,15 +15,15 @@
         250,
         300
       ],
-      "webhookId": "nexus-income"
+      "webhookId": "receipt-minimal"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO finance.transactions (\n  transaction_at,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  notes,\n  is_recurring,\n  client_id\n)\nVALUES (\n  '{{ $json.body.transaction_at }}'::timestamptz,\n  finance.to_business_date('{{ $json.body.transaction_at }}'::timestamptz),\n  '{{ $json.body.source }}',\n  {{ $json.body.amount }},\n  COALESCE('{{ $json.body.currency }}', 'AED'),\n  '{{ $json.body.category }}',\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : \"NULL\" }},\n  {{ $json.body.is_recurring ? 'true' : 'false' }},\n  '{{ $json.body.client_id }}'\n)\nON CONFLICT (client_id) DO NOTHING\nRETURNING *;",
+        "query": "INSERT INTO finance.raw_events (event_type, raw_payload, source_identifier, validation_status) VALUES ('receipt_pdf', '{{ JSON.stringify($json.body) }}'::jsonb, '{{ $json.body.pdf_hash }}', 'valid') RETURNING id;",
         "options": {}
       },
-      "name": "Insert Income",
+      "name": "Log Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [
@@ -40,31 +40,15 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": {{ $json.length > 0 ? \"'Income added: \" + $('Webhook').item.json.body.source + \" - \" + ($('Webhook').item.json.body.currency || 'AED') + \" \" + $('Webhook').item.json.body.amount + \"'\" : \"'Income already exists (idempotent duplicate)'\" }},\n  \"idempotent\": {{ $json.length === 0 ? 'true' : 'false' }},\n  \"data\": {\n    \"transaction\": {{ $json.length > 0 ? JSON.stringify($json[0]) : 'null' }}\n  }\n}",
+        "responseBody": "{\"success\": true}",
         "options": {}
       },
-      "name": "Response",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
         850,
         300
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error adding income: {{ $json.message }}\"\n}",
-        "options": {
-          "responseCode": 500
-        }
-      },
-      "name": "Error Response",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [
-        850,
-        500
       ]
     },
     {
@@ -116,11 +100,11 @@
         ]
       ]
     },
-    "Insert Income": {
+    "Log Event": {
       "main": [
         [
           {
-            "node": "Response",
+            "node": "Respond",
             "type": "main",
             "index": 0
           }
@@ -131,7 +115,7 @@
       "main": [
         [
           {
-            "node": "Insert Income",
+            "node": "Log Event",
             "type": "main",
             "index": 0
           }
