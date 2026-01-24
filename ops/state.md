@@ -1,7 +1,7 @@
 # LifeOS — Canonical State
 
-Last updated: 2026-01-24T19:21:20+04:00
-Last coder run: 2026-01-24T19:21:20+04:00
+Last updated: 2026-01-25T17:55:00+04:00
+Last coder run: 2026-01-25T17:55:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -2467,3 +2467,128 @@ All O-phase tasks completed:
   3. Prioritize deferred tasks (B2: Recurring Detection, B3: Spend Score)
 
 ---
+
+### Coder Run (2026-01-25T17:35+04)
+- **Status**: NO ACTION — No READY task in Coder scope
+- **Topmost READY task**: TASK-M6.4 (iOS Read-Only Reality Check)
+- **Reason**: Task marked "Owner: human (iOS work)" — outside Coder scope per system rules
+- **Queue Scan**:
+  - All milestones (M0, M1, M2, M3): COMPLETE ✓
+  - M6.1-M6.7: COMPLETE ✓
+  - Output Phase (O1-O4): COMPLETE ✓
+  - Track A (Reliability): COMPLETE ✓
+  - Track B: B1 DONE ✓, B2-B3 DEFERRED
+  - Track C (Correlations): COMPLETE ✓
+  - Track D: DUPLICATES of O1/O2 (no work needed)
+  - O5 (SMS Coverage): COMPLETE ✓
+  - TASK-068-071: COMPLETE ✓
+  - **M6.4**: READY but requires iOS code
+- **Coder Scope**:
+  - ALLOWED: Nexus-setup/**, LifeOS-Ops/**, SSH to nexus
+  - FORBIDDEN: iOS app code (unless task explicitly specifies)
+- **Backend Status Summary**:
+  | Component | Status |
+  |-----------|--------|
+  | System Trust (M0) | COMPLETE ✓ |
+  | Financial Truth (M1) | COMPLETE ✓ |
+  | SMS Coverage (O5) | COMPLETE ✓ |
+  | Behavioral Signals (M2) | COMPLETE ✓ |
+  | Health × Life Join (M3) | COMPLETE ✓ |
+  | Productivity (M4) | GitHub DONE, Calendar deferred |
+  | System Confidence (M6.1-M6.7) | COMPLETE ✓ |
+  | Daily Summaries (O1) | COMPLETE ✓ |
+  | Weekly Reports (O2) | COMPLETE ✓ |
+  | Anomaly Explanations (O3) | COMPLETE ✓ |
+  | End-to-End Proof (O4) | COMPLETE ✓ |
+  | Ingestion Health (A1-A3) | COMPLETE ✓ |
+  | Budget Engine (B1) | COMPLETE ✓ |
+  | Correlations (C1-C3) | COMPLETE ✓ |
+  | E2E Testing (068-071) | COMPLETE ✓ |
+- **Conclusion**: ALL BACKEND WORK COMPLETE. Coder is idle. Queue contains only iOS tasks (M5.2, M5.3, M6.4) and deferred work (B2, B3).
+- **Next Action Required**: Human must either:
+  1. Add new backend tasks to queue.md, OR
+  2. Execute iOS work (M5.2, M5.3, M6.4), OR
+  3. Prioritize deferred tasks (B2: Recurring Detection, B3: Spend Score)
+
+---
+
+### Coder Run (2026-01-25T17:50+04)
+- **Status**: NO ACTION — No READY task in Coder scope
+- **Topmost READY tasks**: TASK-M5.2 (Today screen polish), TASK-M6.4 (iOS Reality Check)
+- **Reason**: Both tasks require iOS app code modification (outside Coder scope per system rules)
+- **Queue Scan**:
+  - All milestones (M0, M1, M2, M3): COMPLETE ✓
+  - M6.1-M6.7: COMPLETE ✓
+  - Output Phase (O1-O4): COMPLETE ✓
+  - SMS Coverage (O5): COMPLETE ✓
+  - Track A (Reliability): COMPLETE ✓
+  - Track B: B1 DONE ✓, B2-B3 DEFERRED
+  - Track C (Correlations): COMPLETE ✓
+  - Track D: DUPLICATES of O1/O2 (no work needed)
+  - TASK-068-071: COMPLETE ✓
+  - **M5.2, M6.4**: READY but require iOS code
+- **Coder Scope**:
+  - ALLOWED: Nexus-setup/**, LifeOS-Ops/**, SSH to nexus
+  - FORBIDDEN: iOS app code (unless task explicitly specifies)
+- **Backend Status Summary**:
+  | Component | Status |
+  |-----------|--------|
+  | System Trust (M0) | COMPLETE ✓ |
+  | Financial Truth (M1) | COMPLETE ✓ |
+  | SMS Coverage (O5) | COMPLETE ✓ |
+  | Behavioral Signals (M2) | COMPLETE ✓ |
+  | Health × Life Join (M3) | COMPLETE ✓ |
+  | Productivity (M4) | GitHub DONE, Calendar deferred |
+  | System Confidence (M6.1-M6.7) | COMPLETE ✓ |
+  | Daily Summaries (O1) | COMPLETE ✓ |
+  | Weekly Reports (O2) | COMPLETE ✓ |
+  | Anomaly Explanations (O3) | COMPLETE ✓ |
+  | End-to-End Proof (O4) | COMPLETE ✓ |
+  | Ingestion Health (A1-A3) | COMPLETE ✓ |
+  | Budget Engine (B1) | COMPLETE ✓ |
+  | Correlations (C1-C3) | COMPLETE ✓ |
+  | E2E Testing (068-071) | COMPLETE ✓ |
+- **Conclusion**: ALL BACKEND WORK COMPLETE. Coder is idle. Queue contains only iOS tasks (M5.2, M5.3, M6.4) and deferred work (B2, B3).
+- **Next Action Required**: Human must either:
+  1. Add new backend tasks to queue.md, OR
+  2. Execute iOS work (M5.2, M5.3, M6.4), OR
+  3. Prioritize deferred tasks (B2: Recurring Detection, B3: Spend Score)
+
+---
+
+### TASK-VIS.1: Read-Only Finance Timeline View (2026-01-25)
+- **Status**: DONE ✓
+- **Changed**:
+  - `migrations/063_finance_timeline_view.up.sql`
+  - `migrations/063_finance_timeline_view.down.sql`
+  - `migrations/063_verification.sql` (proof queries)
+- **View Created**: `finance.v_timeline`
+  - Columns: event_time, date, time, event_type, amount, currency, merchant, category, source, is_actionable, transaction_id
+  - Event types: bank_tx (143), refund (3), wallet_event (6), info (58)
+- **Evidence**:
+  ```sql
+  -- Event type distribution verified
+  SELECT event_type, COUNT(*) as count, BOOL_AND(is_actionable) as all_actionable
+  FROM finance.v_timeline GROUP BY event_type;
+  
+   event_type   | count | all_actionable
+  --------------+-------+----------------
+   bank_tx      |   143 | t              -- Real bank transactions ✓
+   refund       |     3 | t              -- Refunds (actionable) ✓
+   wallet_event |     6 | f              -- CAREEM/Amazon (non-actionable) ✓
+   info         |    58 | f              -- Transfers/info (non-actionable) ✓
+  
+  -- Classification correctness verified
+  -- Bank TX: 123 expenses + 20 income = 143 ✓
+  -- Refunds: All positive amounts, all actionable ✓
+  -- Wallet events: All SMS-sourced, all non-actionable ✓
+  -- Info: Transfers + CC payments, all non-actionable ✓
+  ```
+- **Notes**:
+  - View is read-only (no ingestion changes) ✓
+  - Clear visual distinction via event_type column ✓
+  - is_actionable flag correctly separates bank movements from info ✓
+  - All 6 wallet refunds correctly marked as non-actionable (expected behavior) ✓
+
+---
+
