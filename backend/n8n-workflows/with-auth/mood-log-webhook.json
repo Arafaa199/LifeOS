@@ -1,0 +1,248 @@
+{
+  "name": "Nexus: Mood Log Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-mood",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Mood Log Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "nexus-mood",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate incoming mood log\nconst input = $input.first().json.body || $input.first().json;\n\n// Validate mood score (1-10)\nconst mood = parseInt(input.mood);\nif (!mood || mood < 1 || mood > 10) {\n  throw new Error('Mood must be a number between 1 and 10');\n}\n\n// Validate energy score (1-10) if provided\nconst energy = input.energy ? parseInt(input.energy) : null;\nif (energy && (energy < 1 || energy > 10)) {\n  throw new Error('Energy must be a number between 1 and 10');\n}\n\nconst moodLog = {\n  date: input.date || new Date().toISOString().split('T')[0],\n  mood: mood,\n  energy: energy,\n  notes: input.notes || null,\n  source: input.source || 'webhook',\n  timestamp: new Date().toISOString()\n};\n\nreturn moodLog;"
+      },
+      "id": "parse-input",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        660,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, metadata)\nVALUES (\n  NOW(),\n  '{{ $json.date }}',\n  '{{ $json.source }}',\n  'mood',\n  {{ $json.mood }},\n  '{{ JSON.stringify({notes: $json.notes, energy: $json.energy}) }}'\n)\nON CONFLICT (recorded_at, source, metric_type) DO UPDATE SET value = EXCLUDED.value, metadata = EXCLUDED.metadata\nRETURNING id, date, value as mood;",
+        "options": {}
+      },
+      "id": "insert-mood",
+      "name": "Insert Mood Metric",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        880,
+        300
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Parse & Validate').item.json.energy }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-energy",
+      "name": "Has Energy?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        1100,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, metadata)\nVALUES (\n  NOW(),\n  '{{ $('Parse & Validate').item.json.date }}',\n  '{{ $('Parse & Validate').item.json.source }}',\n  'energy',\n  {{ $('Parse & Validate').item.json.energy }},\n  NULL\n)\nON CONFLICT (recorded_at, source, metric_type) DO UPDATE SET value = EXCLUDED.value\nRETURNING id, date, value as energy;",
+        "options": {}
+      },
+      "id": "insert-energy",
+      "name": "Insert Energy Metric",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1320,
+        200
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Mood logged successfully\",\n  \"data\": {\n    \"date\": \"{{ $('Parse & Validate').item.json.date }}\",\n    \"mood\": {{ $('Parse & Validate').item.json.mood }},\n    \"energy\": {{ $('Parse & Validate').item.json.energy || 'null' }},\n    \"notes\": {{ $('Parse & Validate').item.json.notes ? '\"' + $('Parse & Validate').item.json.notes + '\"' : 'null' }}\n  }\n}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1540,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        640,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Mood Log Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Insert Mood Metric",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Mood Metric": {
+      "main": [
+        [
+          {
+            "node": "Has Energy?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Energy?": {
+      "main": [
+        [
+          {
+            "node": "Insert Energy Metric",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Energy Metric": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

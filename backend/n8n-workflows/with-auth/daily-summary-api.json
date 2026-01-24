@@ -1,0 +1,188 @@
+{
+  "id": "0ZxSHWmoLnPvEpFJ",
+  "name": "Nexus: Daily Summary API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-summary",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "nexus-summary-api-v4",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const queryDate = $input.first().json.query?.date;\nconst targetDate = queryDate || new Date().toISOString().split('T')[0];\nreturn { targetDate };"
+      },
+      "id": "parse-date",
+      "name": "Parse Date",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        620,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT\n  COALESCE(ds.date::text, '{{ $json.targetDate }}') as date,\n  COALESCE(ds.calories_consumed, 0) as calories,\n  COALESCE(ds.protein_g, 0) as protein,\n  COALESCE(ds.water_ml, 0) as water,\n  COALESCE(ds.weight_kg, cm.value) as weight,\n  ds.recovery_score as mood,\n  ds.steps as energy\nFROM (SELECT 1) dummy\nLEFT JOIN core.daily_summary ds ON ds.date = '{{ $json.targetDate }}'::date\nLEFT JOIN core.current_metrics cm ON cm.key = 'weight';",
+        "options": {}
+      },
+      "id": "get-summary",
+      "name": "Get Summary",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        800,
+        300
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nreturn {\n  json: {\n    success: true,\n    data: {\n      date: data.date,\n      calories: parseInt(data.calories) || 0,\n      protein: parseFloat(data.protein) || 0,\n      water: parseInt(data.water) || 0,\n      weight: data.weight ? parseFloat(data.weight) : null,\n      mood: data.mood ? parseInt(data.mood) : null,\n      energy: data.energy ? parseInt(data.energy) : null,\n      logs: []\n    }\n  }\n};"
+      },
+      "id": "format",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1000,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1200,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        640,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Date": {
+      "main": [
+        [
+          {
+            "node": "Get Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Summary": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Parse Date",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

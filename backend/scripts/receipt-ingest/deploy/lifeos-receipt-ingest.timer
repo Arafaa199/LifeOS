@@ -1,0 +1,20 @@
+# Receipt Ingestion Timer
+# Location: ~/.config/systemd/user/receipt-ingest.timer
+#
+# Runs receipt ingestion hourly
+
+[Unit]
+Description=LifeOS Receipt Ingestion Timer (hourly)
+
+[Timer]
+# Run at the top of every hour
+OnCalendar=hourly
+
+# Add randomized delay to avoid thundering herd
+RandomizedDelaySec=5min
+
+# Persistent: catch up if system was off during scheduled time
+Persistent=true
+
+[Install]
+WantedBy=timers.target

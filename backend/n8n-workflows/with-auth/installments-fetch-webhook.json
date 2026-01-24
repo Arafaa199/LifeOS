@@ -1,0 +1,168 @@
+{
+  "name": "Nexus: Fetch Installments Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-installments",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "webhook",
+      "name": "Fetch Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "nexus-installments",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id,\n  source,\n  merchant,\n  total_amount,\n  installments_total,\n  installments_paid,\n  installment_amount,\n  currency,\n  purchase_date,\n  next_due_date,\n  final_due_date,\n  status,\n  (installments_total - installments_paid) as remaining_payments,\n  ((installments_total - installments_paid) * installment_amount) as remaining_amount\nFROM finance.scheduled_payments\nWHERE status = 'active'\nORDER BY next_due_date ASC NULLS LAST;",
+        "options": {}
+      },
+      "id": "get-active",
+      "name": "Get Active Plans",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        660,
+        300
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const plans = $input.all().map(i => i.json);\n\n// Calculate totals\nconst totalRemaining = plans.reduce((sum, p) => sum + parseFloat(p.remaining_amount || 0), 0);\nconst upcomingThisWeek = plans.filter(p => {\n  if (!p.next_due_date) return false;\n  const due = new Date(p.next_due_date);\n  const now = new Date();\n  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);\n  return due <= weekFromNow;\n});\n\nreturn {\n  plans: plans,\n  summary: {\n    active_plans: plans.length,\n    total_remaining: totalRemaining.toFixed(2),\n    due_this_week: upcomingThisWeek.length,\n    due_this_week_amount: upcomingThisWeek.reduce((sum, p) => sum + parseFloat(p.installment_amount), 0).toFixed(2)\n  }\n};"
+      },
+      "id": "format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        880,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1100,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        640,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Fetch Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Plans": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Get Active Plans",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

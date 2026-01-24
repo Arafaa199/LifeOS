@@ -1,0 +1,109 @@
+{
+  "name": "Nexus: Cleanup Stale Events",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT finance.cleanup_stale_pending_events() as cleaned_count;",
+        "options": {}
+      },
+      "name": "Cleanup Stale Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.cleaned_count }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Any Events Cleaned?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, event_type, client_id, validation_errors, created_at\nFROM finance.raw_events\nWHERE validation_status = 'failed'\n  AND validation_errors @> ARRAY['workflow_timeout']\nORDER BY created_at DESC\nLIMIT 10;",
+        "options": {}
+      },
+      "name": "Get Failed Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Cleanup Stale Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cleanup Stale Events": {
+      "main": [
+        [
+          {
+            "node": "Any Events Cleaned?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Events Cleaned?": {
+      "main": [
+        [
+          {
+            "node": "Get Failed Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

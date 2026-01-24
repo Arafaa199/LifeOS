@@ -1,0 +1,162 @@
+{
+  "id": "cza7DDu3jXmQexAS",
+  "name": "LifeOS Summaries API",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-daily-summary",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "daily-webhook",
+      "name": "Daily Summary Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "webhookId": "nexus-daily-summary"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-weekly-report",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "weekly-webhook",
+      "name": "Weekly Report Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 520],
+      "webhookId": "nexus-weekly-report"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-system-health",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "health-webhook",
+      "name": "System Health Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 740],
+      "webhookId": "nexus-system-health"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id,\n  summary_date,\n  yesterday_spent,\n  yesterday_txn_count,\n  yesterday_top_merchant,\n  yesterday_top_category,\n  mtd_spent,\n  mtd_income,\n  mtd_txn_count,\n  mtd_daily_avg,\n  projected_month_end,\n  top_categories,\n  anomaly_count,\n  anomalies,\n  markdown_summary,\n  generated_at\nFROM insights.daily_finance_summary\nORDER BY summary_date DESC\nLIMIT 1",
+        "options": {}
+      },
+      "id": "fetch-daily",
+      "name": "Fetch Daily Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  id,\n  week_start,\n  week_end,\n  avg_recovery,\n  avg_hrv,\n  recovery_trend,\n  total_spent,\n  total_income,\n  top_category,\n  budget_alerts,\n  spending_trend,\n  total_commits,\n  active_days,\n  anomaly_count,\n  critical_alerts,\n  markdown_report,\n  highlights,\n  generated_at\nFROM insights.weekly_reports\nORDER BY week_start DESC\nLIMIT 1",
+        "options": {}
+      },
+      "id": "fetch-weekly",
+      "name": "Fetch Weekly Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 520],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  (SELECT json_agg(row_to_json(h)) FROM ops.v_pipeline_health h) AS feeds,\n  (SELECT row_to_json(s) FROM ops.v_dashboard_health_summary s) AS summary,\n  (SELECT json_agg(row_to_json(a)) FROM ops.v_active_alerts a) AS alerts,\n  (SELECT row_to_json(b) FROM finance.v_budget_summary b) AS budgets"
+      },
+      "id": "fetch-health",
+      "name": "Fetch System Health",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 740],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "respond-daily",
+      "name": "Respond Daily",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "respond-weekly",
+      "name": "Respond Weekly",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [700, 520]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "respond-health",
+      "name": "Respond Health",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [700, 740]
+    }
+  ],
+  "connections": {
+    "Daily Summary Webhook": {
+      "main": [[{"node": "Fetch Daily Summary", "type": "main", "index": 0}]]
+    },
+    "Weekly Report Webhook": {
+      "main": [[{"node": "Fetch Weekly Report", "type": "main", "index": 0}]]
+    },
+    "System Health Webhook": {
+      "main": [[{"node": "Fetch System Health", "type": "main", "index": 0}]]
+    },
+    "Fetch Daily Summary": {
+      "main": [[{"node": "Respond Daily", "type": "main", "index": 0}]]
+    },
+    "Fetch Weekly Report": {
+      "main": [[{"node": "Respond Weekly", "type": "main", "index": 0}]]
+    },
+    "Fetch System Health": {
+      "main": [[{"node": "Respond Health", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "pinData": {}
+}

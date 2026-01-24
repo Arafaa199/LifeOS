@@ -1,0 +1,82 @@
+{
+  "name": "Nexus: Nightly Refresh Facts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 4,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Daily 4 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM life.refresh_all(1, 'n8n_nightly');",
+        "options": {}
+      },
+      "id": "refresh",
+      "name": "Refresh Facts",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all();\nconst summary = results.map(r => `${r.json.day}: ${r.json.status} (${r.json.rows_affected} rows, ${r.json.duration_ms}ms)`).join('\\n');\n\nreturn [{\n  json: {\n    success: true,\n    refreshed_days: results.length,\n    summary: summary\n  }\n}];"
+      },
+      "id": "format",
+      "name": "Format Result",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Daily 4 AM": {
+      "main": [
+        [
+          {
+            "node": "Refresh Facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Facts": {
+      "main": [
+        [
+          {
+            "node": "Format Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

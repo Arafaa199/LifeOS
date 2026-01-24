@@ -1,0 +1,435 @@
+{
+  "name": "Carrefour Gmail Receipt Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 50,
+        "filters": {
+          "labelIds": ["Label_6803766619543473155"],
+          "includeSpamTrash": false,
+          "q": "has:attachment filename:pdf newer_than:7d"
+        },
+        "options": {}
+      },
+      "name": "Gmail: List Labeled Messages",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [400, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_OAUTH_CREDENTIAL_ID",
+          "name": "Gmail Carrefour"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Over Messages",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "options": {}
+      },
+      "name": "Gmail: Get Message Details",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [800, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_OAUTH_CREDENTIAL_ID",
+          "name": "Gmail Carrefour"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract PDF attachments from message\nconst message = $input.item.json;\nconst attachments = [];\n\n// Gmail returns attachments in payload.parts\nconst parts = message.payload?.parts || [];\n\nfor (const part of parts) {\n  if (part.mimeType === 'application/pdf' || \n      (part.filename && part.filename.toLowerCase().endsWith('.pdf'))) {\n    attachments.push({\n      messageId: message.id,\n      threadId: message.threadId,\n      attachmentId: part.body?.attachmentId,\n      filename: part.filename,\n      mimeType: part.mimeType,\n      size: part.body?.size || 0,\n      from: message.payload?.headers?.find(h => h.name === 'From')?.value || '',\n      subject: message.payload?.headers?.find(h => h.name === 'Subject')?.value || '',\n      date: message.payload?.headers?.find(h => h.name === 'Date')?.value || '',\n      internalDate: message.internalDate,\n    });\n  }\n  \n  // Check nested parts (multipart messages)\n  if (part.parts) {\n    for (const subpart of part.parts) {\n      if (subpart.mimeType === 'application/pdf' ||\n          (subpart.filename && subpart.filename.toLowerCase().endsWith('.pdf'))) {\n        attachments.push({\n          messageId: message.id,\n          threadId: message.threadId,\n          attachmentId: subpart.body?.attachmentId,\n          filename: subpart.filename,\n          mimeType: subpart.mimeType,\n          size: subpart.body?.size || 0,\n          from: message.payload?.headers?.find(h => h.name === 'From')?.value || '',\n          subject: message.payload?.headers?.find(h => h.name === 'Subject')?.value || '',\n          date: message.payload?.headers?.find(h => h.name === 'Date')?.value || '',\n          internalDate: message.internalDate,\n        });\n      }\n    }\n  }\n}\n\nif (attachments.length === 0) {\n  return []; // Skip messages without PDF attachments\n}\n\nreturn attachments.map(a => ({ json: a }));"
+      },
+      "name": "Extract PDF Attachments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.attachmentId }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Has Attachment ID?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "resource": "messageAttachment",
+        "operation": "get",
+        "messageId": "={{ $json.messageId }}",
+        "attachmentId": "={{ $json.attachmentId }}",
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment"
+        }
+      },
+      "name": "Gmail: Download Attachment",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1400, 200],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_OAUTH_CREDENTIAL_ID",
+          "name": "Gmail Carrefour"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Get attachment data and metadata\nconst attachmentInfo = $('Extract PDF Attachments').item.json;\nconst attachmentData = $input.item.binary?.attachment;\n\nif (!attachmentData?.data) {\n  throw new Error('No attachment data found');\n}\n\n// Decode base64 and compute SHA256\nconst pdfBuffer = Buffer.from(attachmentData.data, 'base64');\nconst pdfHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');\n\n// Parse email date\nlet emailReceivedAt = null;\nif (attachmentInfo.internalDate) {\n  emailReceivedAt = new Date(parseInt(attachmentInfo.internalDate)).toISOString();\n} else if (attachmentInfo.date) {\n  emailReceivedAt = new Date(attachmentInfo.date).toISOString();\n}\n\nreturn [{\n  json: {\n    pdf_hash: pdfHash,\n    pdf_filename: attachmentInfo.filename,\n    pdf_size_bytes: pdfBuffer.length,\n    gmail_message_id: attachmentInfo.messageId,\n    gmail_thread_id: attachmentInfo.threadId,\n    email_from: attachmentInfo.from,\n    email_subject: attachmentInfo.subject,\n    email_received_at: emailReceivedAt,\n    vendor: 'carrefour_uae',\n  },\n  binary: {\n    pdf: attachmentData\n  }\n}];"
+      },
+      "name": "Compute SHA256",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO finance.raw_events (\n  event_type,\n  raw_payload,\n  source_identifier,\n  validation_status\n)\nVALUES (\n  'receipt_pdf',\n  $1::jsonb,\n  $2,\n  'pending'\n)\nON CONFLICT DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryParams": "={{ JSON.stringify({ pdf_hash: $json.pdf_hash, gmail_message_id: $json.gmail_message_id, filename: $json.pdf_filename }) }}::={{ $json.pdf_hash }}"
+        }
+      },
+      "name": "Log Raw Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1800, 200],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO finance.receipts (\n  pdf_hash,\n  vendor,\n  gmail_message_id,\n  gmail_thread_id,\n  email_from,\n  email_subject,\n  email_received_at,\n  pdf_filename,\n  pdf_size_bytes,\n  parse_status,\n  currency\n)\nVALUES (\n  '{{ $json.pdf_hash }}',\n  '{{ $json.vendor }}',\n  '{{ $json.gmail_message_id }}',\n  '{{ $json.gmail_thread_id }}',\n  '{{ $json.email_from.replace(/'/g, \"''\") }}',\n  '{{ $json.email_subject.replace(/'/g, \"''\") }}',\n  '{{ $json.email_received_at }}'::timestamptz,\n  '{{ $json.pdf_filename }}',\n  {{ $json.pdf_size_bytes }},\n  'pending',\n  'AED'\n)\nON CONFLICT (pdf_hash) DO NOTHING\nRETURNING id;",
+        "options": {}
+      },
+      "name": "Insert Receipt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [2000, 200],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const receiptResult = $input.item.json;\nconst pdfData = $('Compute SHA256').item.json;\n\nreturn [{\n  json: {\n    receipt_id: receiptResult?.id || null,\n    was_inserted: receiptResult?.id != null,\n    pdf_hash: pdfData.pdf_hash,\n    gmail_message_id: pdfData.gmail_message_id,\n  }\n}];"
+      },
+      "name": "Check Insert Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2200, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.was_inserted }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Was Inserted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2400, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Finalize the receipt (parse, create items, link transaction)\n-- Note: This calls the SQL function which handles everything atomically\n-- The actual parsing would need to happen via Python script or external call\n-- For now, just mark as pending for Python parser to pick up\nSELECT 'pending_parse' as status, {{ $json.receipt_id }} as receipt_id;",
+        "options": {}
+      },
+      "name": "Mark for Parsing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [2600, 100],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log duplicate detection\nconsole.log(`Duplicate receipt: ${$json.pdf_hash}`);\nreturn [{ json: { status: 'duplicate', pdf_hash: $json.pdf_hash } }];"
+      },
+      "name": "Log Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2600, 300]
+    },
+    {
+      "parameters": {},
+      "name": "Continue Loop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2800, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No attachment ID - skip\nreturn [];"
+      },
+      "name": "Skip No Attachment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 400]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Gmail: List Labeled Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: List Labeled Messages": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Messages": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Get Message Details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Get Message Details": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Attachments": {
+      "main": [
+        [
+          {
+            "node": "Has Attachment ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Attachment ID?": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Download Attachment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip No Attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Download Attachment": {
+      "main": [
+        [
+          {
+            "node": "Compute SHA256",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute SHA256": {
+      "main": [
+        [
+          {
+            "node": "Log Raw Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Raw Event": {
+      "main": [
+        [
+          {
+            "node": "Insert Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Receipt": {
+      "main": [
+        [
+          {
+            "node": "Check Insert Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Insert Result": {
+      "main": [
+        [
+          {
+            "node": "Was Inserted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Was Inserted?": {
+      "main": [
+        [
+          {
+            "node": "Mark for Parsing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark for Parsing": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip No Attachment": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "notes": "Gmail automation for Carrefour receipts.\n\nRequires:\n1. Gmail OAuth credential configured\n2. Label ID for 'LifeOS/Receipts/Carrefour'\n3. Python parser to run separately (--parse --finalize-pending)\n\nFlow: Cron → List messages → Download PDFs → SHA256 → Insert receipt → Python parses"
+  }
+}

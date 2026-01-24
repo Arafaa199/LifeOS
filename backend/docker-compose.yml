@@ -1,0 +1,140 @@
+# =============================================================================
+# Nexus - Personal Life Data Hub
+# =============================================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - Core Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-nexus}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./init-extended.sql:/docker-entrypoint-initdb.d/02-init-extended.sql:ro
+      - ./backups:/backups
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexus} -d ${POSTGRES_DB:-nexus}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging: *default-logging
+    networks:
+      - nexus-net
+
+  # ---------------------------------------------------------------------------
+  # NocoDB - Spreadsheet UI for Database
+  # ---------------------------------------------------------------------------
+  nocodb:
+    image: nocodb/nocodb:latest
+    container_name: nexus-ui
+    restart: unless-stopped
+    environment:
+      NC_DB: "pg://postgres:5432?u=${POSTGRES_USER:-nexus}&p=${POSTGRES_PASSWORD}&d=${POSTGRES_DB:-nexus}"
+      NC_AUTH_JWT_SECRET: ${NC_JWT_SECRET:-change-this-to-random-string}
+      NC_PUBLIC_URL: ${NC_PUBLIC_URL:-http://localhost:8080}
+      NC_DISABLE_TELE: "true"
+    ports:
+      - "${NOCODB_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging: *default-logging
+    volumes:
+      - nocodb_data:/usr/app/data
+    networks:
+      - nexus-net
+
+  # ---------------------------------------------------------------------------
+  # pgAdmin - Database Administration (optional)
+  # Start with: docker compose --profile admin up -d
+  # ---------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: nexus-pgadmin
+    restart: unless-stopped
+    profiles:
+      - admin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@nexus.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    logging: *default-logging
+    networks:
+      - nexus-net
+
+  # ---------------------------------------------------------------------------
+  # Automated Backup Scheduler (optional)
+  # Start with: docker compose --profile backup up -d
+  # Runs daily at 3 AM, keeps last 7 backups
+  # ---------------------------------------------------------------------------
+  backup-scheduler:
+    image: mcuadros/ofelia:latest
+    container_name: nexus-backup-scheduler
+    restart: unless-stopped
+    profiles:
+      - backup
+    command: daemon --docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      ofelia.job-exec.backup.schedule: "0 0 3 * * *"
+      ofelia.job-exec.backup.container: "nexus-db"
+      ofelia.job-exec.backup.command: "sh -c 'pg_dump -U nexus nexus | gzip > /backups/nexus_auto_$(date +%Y%m%d_%H%M%S).sql.gz && ls -t /backups/nexus_auto_*.sql.gz | tail -n +8 | xargs -r rm'"
+    logging: *default-logging
+    networks:
+      - nexus-net
+
+networks:
+  nexus-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  nocodb_data:
+    driver: local
+  pgadmin_data:
+    driver: local

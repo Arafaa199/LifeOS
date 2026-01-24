@@ -1,0 +1,192 @@
+{
+  "id": "Vjpo7twDnY0HYaqd",
+  "name": "GitHub Activity Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "1",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {},
+      "id": "7",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "url": "https://api.github.com/users/Arafaa199/events",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2",
+      "name": "Fetch GitHub Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300],
+      "credentials": {
+        "githubApi": {
+          "id": "FQdKjiefafdzWUAL",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Transform GitHub event for ingestion\nconst event = $input.item.json;\n\nreturn {\n  github_event_id: event.id,\n  event_type: event.type,\n  repo_name: event.repo?.name || 'unknown',\n  created_at: event.created_at,\n  payload: {\n    size: event.payload?.size || 0,\n    distinct_size: event.payload?.distinct_size || 0,\n    ref: event.payload?.ref || null,\n    action: event.payload?.action || null\n  }\n};"
+      },
+      "id": "3",
+      "name": "Transform Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT raw.ingest_github_event(\n  '{{ $json.github_event_id }}',\n  '{{ $json.event_type }}',\n  '{{ $json.repo_name.replace(/'/g, \"''\") }}',\n  '{{ $json.created_at }}'::timestamptz,\n  '{{ JSON.stringify($json.payload).replace(/'/g, \"''\") }}'::jsonb\n) AS event_id;",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Insert Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [850, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Summary of sync\nconst items = $input.item.json.data || [];\nconst inserted = items.filter(i => i.event_id !== null).length;\n\nreturn {\n  success: true,\n  total_events: items.length,\n  inserted_events: inserted,\n  sync_time: new Date().toISOString()\n};"
+      },
+      "id": "6",
+      "name": "Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch GitHub Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch GitHub Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch GitHub Events": {
+      "main": [
+        [
+          {
+            "node": "Transform Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Events": {
+      "main": [
+        [
+          {
+            "node": "Insert Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Events": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "lifeos"
+    },
+    {
+      "name": "github"
+    },
+    {
+      "name": "productivity"
+    }
+  ]
+}

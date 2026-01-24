@@ -1,0 +1,507 @@
+#!/usr/bin/env node
+
+/**
+ * SMS Transaction Importer for Nexus (v2)
+ *
+ * Uses YAML-based regex classifier for deterministic pattern matching.
+ * Routes messages by intent: expense/income/transfer/refund → finance.transactions
+ *
+ * Idempotency: sms:<message_rowid>
+ */
+
+import Database from 'better-sqlite3';
+import pg from 'pg';
+import { homedir } from 'os';
+import { existsSync } from 'fs';
+import { SMSClassifier } from './sms-classifier.js';
+
+const { Pool } = pg;
+
+// Database paths
+const MESSAGES_DB = process.env.MESSAGES_DB || `${homedir()}/Library/Messages/chat.db`;
+
+// Nexus database connection
+const nexusPool = new Pool({
+  host: process.env.NEXUS_HOST || '100.90.189.16',
+  port: parseInt(process.env.NEXUS_PORT || '5432'),
+  database: process.env.NEXUS_DB || 'nexus',
+  user: process.env.NEXUS_USER || 'nexus',
+  password: process.env.NEXUS_PASSWORD,
+});
+
+// Account mapping by sender
+const ACCOUNT_MAP = {
+  'alrajhibank': { account_id: 1, default_currency: 'SAR' },
+  'emiratesnbd': { account_id: 2, default_currency: 'AED' },
+  'jkb': { account_id: 3, default_currency: 'JOD' },
+  'careem': { account_id: null, default_currency: 'AED' }, // Wallet refund, no bank account
+  'amazon': { account_id: null, default_currency: 'SAR' }, // Refund notification only
+};
+
+// BNPL providers (separate handling)
+const BNPL_PROVIDERS = {
+  'tabby': { installments: 4, interval_days: 14 },
+  'tabby-ad': { installments: 4, interval_days: 14 },
+};
+
+/**
+ * Clean merchant name for storage
+ */
+function cleanMerchantName(name) {
+  if (!name) return null;
+  return name
+    .replace(/\s+/g, ' ')
+    .replace(/[,.]$/, '')
+    .trim()
+    .substring(0, 100);
+}
+
+/**
+ * Generate external_id for idempotency
+ */
+function generateExternalId(messageRowId) {
+  return `sms:${messageRowId}`;
+}
+
+/**
+ * Map intent to transaction type string
+ */
+function intentToType(intent, patternName) {
+  switch (intent) {
+    case 'income':
+      if (patternName?.includes('salary')) return 'Salary';
+      if (patternName?.includes('transfer')) return 'Transfer In';
+      if (patternName?.includes('deposit')) return 'Deposit';
+      if (patternName?.includes('credit')) return 'Credit';
+      return 'Income';
+    case 'expense':
+      if (patternName?.includes('atm')) return 'ATM';
+      if (patternName?.includes('fee')) return 'Fee';
+      if (patternName?.includes('credit_card_payment')) return 'CC Payment';
+      if (patternName?.includes('ecommerce')) return 'E-commerce';
+      if (patternName?.includes('pos')) return 'Purchase';
+      return 'Purchase';
+    case 'transfer':
+      return 'Transfer';
+    case 'refund':
+      return 'Refund';
+    default:
+      return 'Unknown';
+  }
+}
+
+/**
+ * Import transactions from SMS
+ */
+async function importTransactions(daysBack = 365, verbose = false) {
+  const startTime = Date.now();
+  console.log(`[${new Date().toISOString()}] Starting SMS import (last ${daysBack} days)...`);
+
+  if (!existsSync(MESSAGES_DB)) {
+    console.error('Messages database not found:', MESSAGES_DB);
+    process.exit(1);
+  }
+
+  // Initialize classifier
+  const classifier = new SMSClassifier();
+  const supportedSenders = classifier.getSupportedSenders();
+  const bnplSenders = Object.keys(BNPL_PROVIDERS);
+
+  // Build sender list for SQL query
+  const allSenders = [...new Set([...supportedSenders, ...bnplSenders])];
+  const senderList = allSenders.map(s => `'${s}'`).join(',');
+  // Also include capitalized versions
+  const capitalizedSenders = allSenders.map(s => `'${s.charAt(0).toUpperCase() + s.slice(1)}'`).join(',');
+  const fullSenderList = `${senderList},${capitalizedSenders}`;
+
+  const messagesDb = new Database(MESSAGES_DB, { readonly: true });
+
+  const messages = messagesDb.prepare(`
+    SELECT
+      m.ROWID as rowid,
+      h.id as sender,
+      m.text,
+      datetime(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_datetime,
+      date(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_date
+    FROM message m
+    JOIN handle h ON m.handle_id = h.ROWID
+    WHERE LOWER(h.id) IN (${senderList})
+      AND m.text IS NOT NULL
+      AND length(m.text) > 20
+      AND m.date/1000000000 + 978307200 > unixepoch('now', '-${daysBack} days')
+    ORDER BY m.date DESC
+  `).all();
+
+  console.log(`Found ${messages.length} messages from tracked senders`);
+
+  // Stats
+  const stats = {
+    total: messages.length,
+    imported: 0,
+    duplicates: 0,
+    excluded: 0,
+    declined: 0,
+    no_match: 0,
+    no_account: 0,
+    errors: 0,
+    by_intent: { income: 0, expense: 0, transfer: 0, refund: 0 },
+  };
+
+  for (const msg of messages) {
+    try {
+      const senderLower = msg.sender.toLowerCase();
+
+      // Skip BNPL for now (handled separately)
+      if (bnplSenders.includes(senderLower)) {
+        continue;
+      }
+
+      // Classify message
+      const result = classifier.classify(msg.sender, msg.text, msg.msg_date);
+
+      if (!result.matched) {
+        if (result.excluded) {
+          stats.excluded++;
+          if (verbose) console.log(`  Excluded: ${result.exclusion_reason}`);
+        } else {
+          stats.no_match++;
+          if (verbose) console.log(`  No match: ${msg.text.substring(0, 50)}...`);
+        }
+        continue;
+      }
+
+      // Skip declined transactions (no financial impact)
+      if (result.intent === 'declined' || result.never_create_transaction) {
+        stats.declined++;
+        if (verbose) console.log(`  Declined: ${result.pattern_name}`);
+        continue;
+      }
+
+      // Get account info
+      const account = ACCOUNT_MAP[senderLower];
+      if (!account || !account.account_id) {
+        // Some senders (like Amazon refund notifications) don't map to accounts
+        stats.no_account++;
+        if (verbose) console.log(`  No account for sender: ${msg.sender}`);
+        continue;
+      }
+
+      const externalId = generateExternalId(msg.rowid);
+      const currency = result.currency || account.default_currency;
+      const txType = intentToType(result.intent, result.pattern_name);
+
+      // Insert transaction
+      // Use msg_datetime for transaction_at (actual SMS timestamp)
+      // date column is derived from transaction_at via finance.to_business_date()
+      const insertResult = await nexusPool.query(`
+        INSERT INTO finance.transactions
+          (external_id, account_id, transaction_at, date, merchant_name, merchant_name_clean,
+           amount, currency, category, raw_data)
+        VALUES ($1, $2, $3::timestamptz, finance.to_business_date($3::timestamptz), $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (external_id) DO NOTHING
+        RETURNING id
+      `, [
+        externalId,
+        account.account_id,
+        msg.msg_datetime,  // Use full datetime, not just date
+        result.merchant,
+        cleanMerchantName(result.merchant),
+        result.amount,
+        currency,
+        result.category || txType,
+        JSON.stringify({
+          sender: msg.sender,
+          pattern: result.pattern_name,
+          intent: result.intent,
+          entities: result.entities,
+          confidence: result.confidence,
+          original_text: msg.text,
+        }),
+      ]);
+
+      if (insertResult.rowCount > 0) {
+        const txId = insertResult.rows[0].id;
+
+        // Apply merchant rules for categorization
+        await nexusPool.query(`
+          UPDATE finance.transactions t
+          SET
+            category = COALESCE(r.category, t.category),
+            subcategory = COALESCE(r.subcategory, t.subcategory),
+            is_grocery = COALESCE(r.is_grocery, t.is_grocery),
+            is_restaurant = COALESCE(r.is_restaurant, t.is_restaurant),
+            is_food_related = COALESCE(r.is_food_related, t.is_food_related),
+            store_name = COALESCE(r.store_name, t.store_name),
+            match_rule_id = r.id
+          FROM (
+            SELECT * FROM finance.merchant_rules
+            WHERE UPPER($2) LIKE UPPER(merchant_pattern)
+            ORDER BY priority DESC
+            LIMIT 1
+          ) r
+          WHERE t.id = $1
+        `, [txId, result.merchant || '']);
+
+        stats.imported++;
+        stats.by_intent[result.intent]++;
+
+        if (verbose) {
+          console.log(`  ✓ ${result.pattern_name}: ${currency} ${result.amount} at ${result.merchant || 'N/A'}`);
+        }
+      } else {
+        stats.duplicates++;
+      }
+    } catch (err) {
+      stats.errors++;
+      console.error(`Error processing message ${msg.rowid}: ${err.message}`);
+    }
+  }
+
+  messagesDb.close();
+
+  // Summary
+  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  console.log(`\nImport complete in ${duration}s:`);
+  console.log(`  New: ${stats.imported}`);
+  console.log(`  Duplicates: ${stats.duplicates}`);
+  console.log(`  Excluded (OTP/promo): ${stats.excluded}`);
+  console.log(`  Declined: ${stats.declined}`);
+  console.log(`  No match: ${stats.no_match}`);
+  console.log(`  No account: ${stats.no_account}`);
+  console.log(`  Errors: ${stats.errors}`);
+  console.log(`\nBy intent:`);
+  for (const [intent, count] of Object.entries(stats.by_intent)) {
+    if (count > 0) console.log(`  ${intent}: ${count}`);
+  }
+
+  return stats;
+}
+
+/**
+ * Import BNPL purchases (Tabby, Tamara, etc.)
+ */
+async function importBNPLPurchases(daysBack = 365) {
+  console.log(`\n[${new Date().toISOString()}] Processing BNPL messages...`);
+
+  if (!existsSync(MESSAGES_DB)) return;
+
+  const messagesDb = new Database(MESSAGES_DB, { readonly: true });
+  const bnplSenders = Object.keys(BNPL_PROVIDERS).map(s => `'${s}'`).join(',');
+  const capitalizedBnpl = Object.keys(BNPL_PROVIDERS).map(s => `'${s.charAt(0).toUpperCase() + s.slice(1)}'`).join(',');
+
+  if (bnplSenders === "''") {
+    messagesDb.close();
+    return;
+  }
+
+  const messages = messagesDb.prepare(`
+    SELECT
+      m.ROWID as rowid,
+      h.id as sender,
+      m.text,
+      date(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_date
+    FROM message m
+    JOIN handle h ON m.handle_id = h.ROWID
+    WHERE LOWER(h.id) IN (${bnplSenders})
+      AND m.text IS NOT NULL
+      AND (m.text LIKE '%purchase%confirmed%' OR m.text LIKE '%Order of%confirmed%')
+      AND m.date/1000000000 + 978307200 > unixepoch('now', '-${daysBack} days')
+    ORDER BY m.date DESC
+  `).all();
+
+  console.log(`Found ${messages.length} BNPL messages`);
+
+  let created = 0;
+  let duplicates = 0;
+
+  for (const msg of messages) {
+    const senderLower = msg.sender.toLowerCase();
+    const provider = BNPL_PROVIDERS[senderLower];
+    if (!provider) continue;
+
+    // Parse Tabby format
+    let bnpl = null;
+
+    // Format 1: "Your CURRENCY AMOUNT purchase at MERCHANT is confirmed"
+    let match = msg.text.match(/Your\s+([A-Z]{3})\s+([\d,.]+)\s+purchase\s+at\s+(.+?)\s+is\s+confirmed/i);
+    if (match) {
+      bnpl = {
+        currency: match[1],
+        total_amount: parseFloat(match[2].replace(/,/g, '')),
+        merchant: match[3].trim(),
+        purchase_date: msg.msg_date,
+      };
+    }
+
+    // Format 2: "Order of AMOUNT CURRENCY from MERCHANT is confirmed"
+    if (!bnpl) {
+      match = msg.text.match(/Order\s+of\s+([\d,.]+)\s+([A-Z]{3})\s+from\s+(.+?)\s+is\s+confirmed/i);
+      if (match) {
+        bnpl = {
+          currency: match[2],
+          total_amount: parseFloat(match[1].replace(/,/g, '')),
+          merchant: match[3].trim(),
+          purchase_date: msg.msg_date,
+        };
+      }
+    }
+
+    if (!bnpl) continue;
+
+    // Calculate installment schedule
+    const installmentAmount = (bnpl.total_amount / provider.installments).toFixed(2);
+    const purchaseDate = new Date(bnpl.purchase_date);
+    const nextDueDate = new Date(purchaseDate);
+    nextDueDate.setDate(nextDueDate.getDate() + provider.interval_days);
+    const finalDueDate = new Date(purchaseDate);
+    finalDueDate.setDate(finalDueDate.getDate() + (provider.interval_days * (provider.installments - 1)));
+
+    // Check for duplicate
+    const existsCheck = await nexusPool.query(`
+      SELECT id FROM finance.scheduled_payments
+      WHERE merchant = $1 AND total_amount = $2 AND purchase_date = $3
+      LIMIT 1
+    `, [bnpl.merchant, bnpl.total_amount, bnpl.purchase_date]);
+
+    if (existsCheck.rows.length > 0) {
+      duplicates++;
+      continue;
+    }
+
+    // Insert scheduled payment
+    await nexusPool.query(`
+      INSERT INTO finance.scheduled_payments
+        (source, merchant, total_amount, installments_total, installments_paid,
+         installment_amount, currency, purchase_date, next_due_date, final_due_date, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `, [
+      senderLower,
+      bnpl.merchant,
+      bnpl.total_amount,
+      provider.installments,
+      1, // First payment is immediate
+      installmentAmount,
+      bnpl.currency,
+      bnpl.purchase_date,
+      nextDueDate.toISOString().split('T')[0],
+      finalDueDate.toISOString().split('T')[0],
+      'active',
+    ]);
+
+    created++;
+    console.log(`  Created: ${bnpl.merchant} - ${bnpl.currency} ${bnpl.total_amount} (${provider.installments}x ${installmentAmount})`);
+  }
+
+  messagesDb.close();
+  console.log(`BNPL import: ${created} new, ${duplicates} duplicates`);
+}
+
+/**
+ * Match Tabby payments to scheduled payments
+ */
+async function matchTabbyPayments() {
+  console.log(`\n[${new Date().toISOString()}] Matching Tabby payments...`);
+
+  // Find unlinked TABBY FZ LLC transactions
+  const tabbyTx = await nexusPool.query(`
+    SELECT id, date, ABS(amount) as amount, currency
+    FROM finance.transactions
+    WHERE merchant_name_clean ILIKE '%tabby%'
+      AND amount < 0
+      AND id NOT IN (
+        SELECT UNNEST(linked_transaction_ids)
+        FROM finance.scheduled_payments
+        WHERE linked_transaction_ids IS NOT NULL
+      )
+    ORDER BY date DESC
+  `);
+
+  if (tabbyTx.rows.length === 0) {
+    console.log('No unlinked Tabby transactions found');
+    return;
+  }
+
+  console.log(`Found ${tabbyTx.rows.length} unlinked Tabby transactions`);
+
+  for (const tx of tabbyTx.rows) {
+    // Find matching scheduled payment by installment amount (with 1% tolerance)
+    const match = await nexusPool.query(`
+      SELECT id, merchant, installments_paid, installments_total, installment_amount
+      FROM finance.scheduled_payments
+      WHERE source = 'tabby'
+        AND status = 'active'
+        AND currency = $1
+        AND ABS(installment_amount - $2) < (installment_amount * 0.01)
+        AND installments_paid < installments_total
+      ORDER BY next_due_date ASC
+      LIMIT 1
+    `, [tx.currency, tx.amount]);
+
+    if (match.rows.length > 0) {
+      const sp = match.rows[0];
+      const newPaidCount = sp.installments_paid + 1;
+      const newStatus = newPaidCount >= sp.installments_total ? 'completed' : 'active';
+
+      // Calculate next due date
+      let nextDue = null;
+      if (newStatus === 'active') {
+        const nextDate = new Date(tx.date);
+        nextDate.setDate(nextDate.getDate() + 14);
+        nextDue = nextDate.toISOString().split('T')[0];
+      }
+
+      await nexusPool.query(`
+        UPDATE finance.scheduled_payments
+        SET installments_paid = $1,
+            status = $2,
+            next_due_date = $3,
+            linked_transaction_ids = array_append(COALESCE(linked_transaction_ids, '{}'), $4),
+            updated_at = NOW()
+        WHERE id = $5
+      `, [newPaidCount, newStatus, nextDue, tx.id, sp.id]);
+
+      console.log(`  Matched tx ${tx.id} to "${sp.merchant}" (${newPaidCount}/${sp.installments_total})`);
+    }
+  }
+}
+
+/**
+ * Print account summary
+ */
+async function printAccountSummary() {
+  const summary = await nexusPool.query(`
+    SELECT
+      a.name,
+      a.institution,
+      COUNT(*) as tx_count,
+      SUM(CASE WHEN t.amount < 0 THEN t.amount ELSE 0 END) as spent,
+      SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0 END) as received
+    FROM finance.transactions t
+    JOIN finance.accounts a ON t.account_id = a.id
+    WHERE t.external_id LIKE 'sms:%'
+    GROUP BY a.id, a.name, a.institution
+    ORDER BY a.name
+  `);
+
+  console.log('\nAccount Summary (SMS transactions):');
+  for (const row of summary.rows) {
+    console.log(`  ${row.institution}: ${row.tx_count} tx, spent ${Math.abs(row.spent || 0).toFixed(2)}, received ${parseFloat(row.received || 0).toFixed(2)}`);
+  }
+}
+
+// Main execution
+const daysBack = parseInt(process.argv[2]) || 365;
+const verbose = process.argv.includes('-v') || process.argv.includes('--verbose');
+
+async function runAll() {
+  try {
+    await importTransactions(daysBack, verbose);
+    await importBNPLPurchases(daysBack);
+    await matchTabbyPayments();
+    await printAccountSummary();
+  } finally {
+    await nexusPool.end();
+  }
+}
+
+runAll().catch(console.error);

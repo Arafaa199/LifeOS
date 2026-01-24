@@ -1,0 +1,229 @@
+{
+  "name": "Weekly Insights Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 4 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Sunday 8am Dubai",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Weekly summary metrics\nSELECT\n  'weekly_summary' AS section,\n  ROUND(AVG(recovery_score)::numeric, 1) AS avg_recovery,\n  ROUND(AVG(sleep_hours)::numeric, 2) AS avg_sleep,\n  ROUND(AVG(hrv)::numeric, 0) AS avg_hrv,\n  ROUND(SUM(spend_total)::numeric, 2) AS total_spend,\n  COUNT(*) FILTER (WHERE recovery_score IS NOT NULL OR sleep_hours IS NOT NULL OR spend_total > 0) AS days_with_data\nFROM life.daily_facts\nWHERE day >= NOW() - INTERVAL '7 days';",
+        "options": {}
+      },
+      "id": "fetch-summary",
+      "name": "Fetch Weekly Summary",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [500, 200],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Top anomalies and alerts this week\nSELECT\n  day::text,\n  alert_type,\n  description,\n  severity\nFROM insights.cross_domain_alerts\nWHERE day >= NOW() - INTERVAL '7 days'\nORDER BY day DESC, severity\nLIMIT 10;",
+        "options": {}
+      },
+      "id": "fetch-alerts",
+      "name": "Fetch Alerts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [500, 400],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Calorie balance summary\nSELECT\n  COUNT(*) FILTER (WHERE status = 'deficit') AS deficit_days,\n  COUNT(*) FILTER (WHERE status = 'surplus') AS surplus_days,\n  COUNT(*) FILTER (WHERE status = 'balanced') AS balanced_days,\n  ROUND(AVG(net)::numeric, 0) AS avg_net_calories\nFROM facts.daily_calorie_balance\nWHERE date >= NOW() - INTERVAL '7 days';",
+        "options": {}
+      },
+      "id": "fetch-calories",
+      "name": "Fetch Calorie Balance",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [500, 600],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Productivity summary\nSELECT\n  COALESCE(SUM(commits), 0) AS total_commits,\n  COALESCE(SUM(push_events), 0) AS total_pushes,\n  COALESCE(SUM(pr_events), 0) AS total_prs,\n  ROUND(AVG(NULLIF(productivity_score, 0))::numeric, 0) AS avg_productivity,\n  COUNT(*) FILTER (WHERE productivity_score > 0) AS active_days\nFROM life.daily_productivity\nWHERE day >= NOW() - INTERVAL '7 days';",
+        "options": {}
+      },
+      "id": "fetch-productivity",
+      "name": "Fetch Productivity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [500, 800],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Sleep-recovery correlation patterns this week\nSELECT\n  pattern,\n  COUNT(*) AS occurrences\nFROM insights.sleep_recovery_correlation\nWHERE day >= NOW() - INTERVAL '7 days'\nGROUP BY pattern\nORDER BY occurrences DESC;",
+        "options": {}
+      },
+      "id": "fetch-patterns",
+      "name": "Fetch Patterns",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [500, 1000],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all inputs into single report data\nconst items = $input.all();\n\n// Find each data section\nlet summary = {};\nlet alerts = [];\nlet calories = {};\nlet productivity = {};\nlet patterns = [];\n\nfor (const item of items) {\n  const json = item.json;\n  if (json.section === 'weekly_summary') {\n    summary = json;\n  } else if (json.alert_type) {\n    alerts.push(json);\n  } else if (json.deficit_days !== undefined) {\n    calories = json;\n  } else if (json.total_commits !== undefined) {\n    productivity = json;\n  } else if (json.pattern && json.occurrences !== undefined) {\n    patterns.push(json);\n  }\n}\n\n// Build date range\nconst now = new Date();\nconst weekStart = new Date(now);\nweekStart.setDate(now.getDate() - 7);\n\nconst formatDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });\nconst formatDateFull = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });\n\n// Pattern analysis\nconst patternText = patterns.length > 0\n  ? patterns.map(p => `- ${p.pattern.replace(/_/g, ' ')}: ${p.occurrences} day(s)`).join('\\n')\n  : 'Not enough sleep/recovery data this week';\n\n// Alerts text\nconst alertsText = alerts.length > 0\n  ? alerts.map(a => `- **${a.day}**: ${a.description} (${a.severity})`).join('\\n')\n  : 'No significant anomalies detected this week.';\n\n// Build markdown report\nconst report = `# Weekly LifeOS Insights Report\n\n**Week of ${formatDate(weekStart)} - ${formatDateFull(now)}**\n\n---\n\n## Health Summary\n\n| Metric | Value |\n|--------|-------|\n| Avg Recovery | ${summary.avg_recovery || 'N/A'}% |\n| Avg Sleep | ${summary.avg_sleep || 'N/A'}h |\n| Avg HRV | ${summary.avg_hrv || 'N/A'} ms |\n\n## Energy Balance\n\n| Metric | Value |\n|--------|-------|\n| Deficit Days | ${calories.deficit_days || 0} |\n| Surplus Days | ${calories.surplus_days || 0} |\n| Balanced Days | ${calories.balanced_days || 0} |\n| Avg Net | ${calories.avg_net_calories || 'N/A'} kcal |\n\n## Finance\n\n| Metric | Value |\n|--------|-------|\n| Total Spend | ${summary.total_spend || 0} AED |\n\n## Productivity (GitHub)\n\n| Metric | Value |\n|--------|-------|\n| Commits | ${productivity.total_commits || 0} |\n| Pushes | ${productivity.total_pushes || 0} |\n| PRs | ${productivity.total_prs || 0} |\n| Active Days | ${productivity.active_days || 0}/7 |\n| Avg Score | ${productivity.avg_productivity || 'N/A'} |\n\n## Sleep-Recovery Patterns\n\n${patternText}\n\n## Alerts & Anomalies\n\n${alertsText}\n\n---\n\n*Generated by LifeOS on ${now.toISOString()}*\n`;\n\nreturn [{\n  json: {\n    report: report,\n    has_data: (summary.days_with_data || 0) > 0,\n    summary: summary,\n    alerts: alerts,\n    calories: calories,\n    productivity: productivity,\n    patterns: patterns\n  }\n}];"
+      },
+      "id": "build-report",
+      "name": "Build Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-data",
+              "leftValue": "={{ $json.has_data }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "has-data-check",
+      "name": "Has Data?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://172.17.0.1:8025/send-email",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"arafa.uwl19@gmail.com\",\n  \"subject\": \"Weekly LifeOS Insights Report - {{ new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}\",\n  \"text\": {{ JSON.stringify($json.report) }}\n}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {},
+      "id": "no-data-noop",
+      "name": "No Data - Skip",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1300, 600]
+    }
+  ],
+  "connections": {
+    "Sunday 8am Dubai": {
+      "main": [
+        [
+          {"node": "Fetch Weekly Summary", "type": "main", "index": 0},
+          {"node": "Fetch Alerts", "type": "main", "index": 0},
+          {"node": "Fetch Calorie Balance", "type": "main", "index": 0},
+          {"node": "Fetch Productivity", "type": "main", "index": 0},
+          {"node": "Fetch Patterns", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Fetch Weekly Summary": {
+      "main": [
+        [{"node": "Build Report", "type": "main", "index": 0}]
+      ]
+    },
+    "Fetch Alerts": {
+      "main": [
+        [{"node": "Build Report", "type": "main", "index": 0}]
+      ]
+    },
+    "Fetch Calorie Balance": {
+      "main": [
+        [{"node": "Build Report", "type": "main", "index": 0}]
+      ]
+    },
+    "Fetch Productivity": {
+      "main": [
+        [{"node": "Build Report", "type": "main", "index": 0}]
+      ]
+    },
+    "Fetch Patterns": {
+      "main": [
+        [{"node": "Build Report", "type": "main", "index": 0}]
+      ]
+    },
+    "Build Report": {
+      "main": [
+        [{"node": "Has Data?", "type": "main", "index": 0}]
+      ]
+    },
+    "Has Data?": {
+      "main": [
+        [{"node": "Send Email", "type": "main", "index": 0}],
+        [{"node": "No Data - Skip", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {"name": "lifeos"},
+    {"name": "insights"},
+    {"name": "weekly"}
+  ]
+}

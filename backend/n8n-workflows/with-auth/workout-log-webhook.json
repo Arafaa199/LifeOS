@@ -1,0 +1,199 @@
+{
+  "name": "Nexus: Workout Log Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-workout",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Workout Log Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "nexus-workout",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate incoming workout log\nconst input = $input.first().json.body || $input.first().json;\n\n// Validate workout type\nconst validTypes = ['strength', 'running', 'cycling', 'hiit', 'yoga', 'swimming', 'walking', 'other'];\nconst workoutType = (input.workout_type || input.type || 'other').toLowerCase();\n\nif (!validTypes.includes(workoutType)) {\n  // Allow custom types, just normalize\n}\n\nconst workout = {\n  date: input.date || new Date().toISOString().split('T')[0],\n  workout_type: workoutType,\n  name: input.name || null,\n  duration_min: parseInt(input.duration_min) || null,\n  calories_burned: parseInt(input.calories_burned) || parseInt(input.calories) || null,\n  avg_hr: parseInt(input.avg_hr) || null,\n  max_hr: parseInt(input.max_hr) || null,\n  strain: parseFloat(input.strain) || null,\n  exercises: input.exercises ? JSON.stringify(input.exercises) : null,\n  distance_km: parseFloat(input.distance_km) || null,\n  pace_min_per_km: parseFloat(input.pace_min_per_km) || null,\n  notes: input.notes || null,\n  source: input.source || 'webhook',\n  started_at: input.started_at || null,\n  ended_at: input.ended_at || null\n};\n\n// Validate required fields\nif (!workout.duration_min && !workout.exercises) {\n  // Allow logging without duration if exercises provided\n}\n\nreturn workout;"
+      },
+      "id": "parse-input",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        660,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO health.workouts (\n  date, workout_type, name, duration_min, calories_burned,\n  avg_hr, max_hr, strain, exercises, distance_km, pace_min_per_km,\n  notes, source, started_at, ended_at\n) VALUES (\n  '{{ $json.date }}',\n  '{{ $json.workout_type }}',\n  {{ $json.name ? \"'\" + $json.name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.duration_min || 'NULL' }},\n  {{ $json.calories_burned || 'NULL' }},\n  {{ $json.avg_hr || 'NULL' }},\n  {{ $json.max_hr || 'NULL' }},\n  {{ $json.strain || 'NULL' }},\n  {{ $json.exercises ? \"'\" + $json.exercises.replace(/'/g, \"''\") + \"'::jsonb\" : 'NULL' }},\n  {{ $json.distance_km || 'NULL' }},\n  {{ $json.pace_min_per_km || 'NULL' }},\n  {{ $json.notes ? \"'\" + $json.notes.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.source }}',\n  {{ $json.started_at ? \"'\" + $json.started_at + \"'\" : 'NULL' }},\n  {{ $json.ended_at ? \"'\" + $json.ended_at + \"'\" : 'NULL' }}\n)\nRETURNING id, date, workout_type, name, duration_min, calories_burned;",
+        "options": {}
+      },
+      "id": "insert-workout",
+      "name": "Insert Workout",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        880,
+        300
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(*) as workouts_this_week,\n  COALESCE(SUM(duration_min), 0) as total_duration_min,\n  COALESCE(SUM(calories_burned), 0) as total_calories_burned\nFROM health.workouts\nWHERE date >= CURRENT_DATE - INTERVAL '7 days';",
+        "options": {}
+      },
+      "id": "get-weekly-stats",
+      "name": "Get Weekly Stats",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1100,
+        300
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Workout logged successfully\",\n  \"data\": {\n    \"workout\": {\n      \"id\": {{ $('Insert Workout').item.json.id }},\n      \"date\": \"{{ $('Insert Workout').item.json.date }}\",\n      \"workout_type\": \"{{ $('Insert Workout').item.json.workout_type }}\",\n      \"name\": {{ $('Insert Workout').item.json.name ? '\"' + $('Insert Workout').item.json.name + '\"' : 'null' }},\n      \"duration_min\": {{ $('Insert Workout').item.json.duration_min || 'null' }},\n      \"calories_burned\": {{ $('Insert Workout').item.json.calories_burned || 'null' }}\n    },\n    \"weekly_stats\": {\n      \"workouts_count\": {{ $json.workouts_this_week }},\n      \"total_duration_min\": {{ $json.total_duration_min }},\n      \"total_calories_burned\": {{ $json.total_calories_burned }}\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1320,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        640,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Workout Log Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Insert Workout",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Workout": {
+      "main": [
+        [
+          {
+            "node": "Get Weekly Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Weekly Stats": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

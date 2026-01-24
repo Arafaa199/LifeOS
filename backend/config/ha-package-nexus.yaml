@@ -1,0 +1,159 @@
+# =============================================================================
+# Home Assistant Package: Nexus Monitoring
+# Add to ~/HomeAssistant/packages/nexus.yaml
+# =============================================================================
+
+# Command line sensors for database health
+command_line:
+  - sensor:
+      name: "Nexus Database Size"
+      unique_id: nexus_db_size
+      command: >
+        docker exec nexus-db psql -U nexus -d nexus -t -c
+        "SELECT pg_size_pretty(pg_database_size('nexus'));" 2>/dev/null | xargs || echo "unavailable"
+      scan_interval: 3600  # Every hour
+      icon: mdi:database
+
+  - sensor:
+      name: "Nexus Table Count"
+      unique_id: nexus_table_count
+      command: >
+        docker exec nexus-db psql -U nexus -d nexus -t -c
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema IN ('core', 'health', 'nutrition', 'finance', 'notes', 'home');" 2>/dev/null | xargs || echo "0"
+      scan_interval: 3600
+      icon: mdi:table
+
+  - sensor:
+      name: "Nexus Food Logs Today"
+      unique_id: nexus_food_logs_today
+      command: >
+        docker exec nexus-db psql -U nexus -d nexus -t -c
+        "SELECT COUNT(*) FROM nutrition.food_log WHERE date = CURRENT_DATE;" 2>/dev/null | xargs || echo "0"
+      scan_interval: 300  # Every 5 min
+      icon: mdi:food-apple
+
+  - sensor:
+      name: "Nexus Calories Today"
+      unique_id: nexus_calories_today
+      command: >
+        docker exec nexus-db psql -U nexus -d nexus -t -c
+        "SELECT COALESCE(SUM(calories), 0) FROM nutrition.food_log WHERE date = CURRENT_DATE;" 2>/dev/null | xargs || echo "0"
+      scan_interval: 300
+      unit_of_measurement: "kcal"
+      icon: mdi:fire
+
+  - sensor:
+      name: "Nexus Protein Today"
+      unique_id: nexus_protein_today
+      command: >
+        docker exec nexus-db psql -U nexus -d nexus -t -c
+        "SELECT COALESCE(ROUND(SUM(protein_g)::numeric, 1), 0) FROM nutrition.food_log WHERE date = CURRENT_DATE;" 2>/dev/null | xargs || echo "0"
+      scan_interval: 300
+      unit_of_measurement: "g"
+      icon: mdi:food-steak
+
+  - binary_sensor:
+      name: "Nexus Database Online"
+      unique_id: nexus_db_online
+      command: >
+        docker exec nexus-db pg_isready -U nexus -d nexus &>/dev/null && echo "ON" || echo "OFF"
+      payload_on: "ON"
+      payload_off: "OFF"
+      device_class: connectivity
+      scan_interval: 60
+
+  - sensor:
+      name: "Nexus Last Backup Age"
+      unique_id: nexus_last_backup_age
+      command: >
+        LATEST=$(ls -t /var/www/nexus/backups/nexus_backup_*.sql.gz 2>/dev/null | head -1);
+        if [ -n "$LATEST" ]; then
+          echo $(( ($(date +%s) - $(stat -c %Y "$LATEST" 2>/dev/null || stat -f %m "$LATEST" 2>/dev/null)) / 3600 ));
+        else
+          echo "999";
+        fi
+      scan_interval: 3600
+      unit_of_measurement: "hours"
+      icon: mdi:backup-restore
+
+# Template sensors for calculated values
+template:
+  - sensor:
+      - name: "Nexus Calories Remaining"
+        unique_id: nexus_calories_remaining
+        state: >
+          {% set consumed = states('sensor.nexus_calories_today') | int(0) %}
+          {% set goal = 2000 %}
+          {{ goal - consumed }}
+        unit_of_measurement: "kcal"
+        icon: mdi:target
+
+      - name: "Nexus Protein Remaining"
+        unique_id: nexus_protein_remaining
+        state: >
+          {% set consumed = states('sensor.nexus_protein_today') | float(0) %}
+          {% set goal = 150 %}
+          {{ (goal - consumed) | round(1) }}
+        unit_of_measurement: "g"
+        icon: mdi:target
+
+# Automations
+automation:
+  - id: nexus_backup_reminder
+    alias: "Nexus: Backup Reminder"
+    description: "Notify if no backup in 48 hours"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.nexus_last_backup_age
+        above: 48
+    action:
+      - service: notify.notify
+        data:
+          title: "Nexus Backup Overdue"
+          message: "Last backup was {{ states('sensor.nexus_last_backup_age') }} hours ago"
+
+  - id: nexus_db_offline_alert
+    alias: "Nexus: Database Offline Alert"
+    description: "Alert if database goes offline"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.nexus_database_online
+        to: "off"
+        for:
+          minutes: 5
+    action:
+      - service: notify.notify
+        data:
+          title: "Nexus Database Offline"
+          message: "Nexus database has been offline for 5 minutes"
+
+  - id: nexus_calorie_goal_reached
+    alias: "Nexus: Calorie Goal Reached"
+    description: "Notify when daily calorie goal is reached"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.nexus_calories_today
+        above: 1900  # 95% of 2000 goal
+    condition:
+      - condition: template
+        value_template: "{{ now().hour < 22 }}"  # Only before 10 PM
+    action:
+      - service: notify.notify
+        data:
+          title: "Calorie Goal Almost Reached"
+          message: "You've consumed {{ states('sensor.nexus_calories_today') }} calories today"
+
+# Lovelace card example (add to dashboard)
+# Copy this to your dashboard YAML:
+#
+# type: entities
+# title: Nexus - Today's Nutrition
+# entities:
+#   - entity: binary_sensor.nexus_database_online
+#   - entity: sensor.nexus_food_logs_today
+#   - entity: sensor.nexus_calories_today
+#   - entity: sensor.nexus_calories_remaining
+#   - entity: sensor.nexus_protein_today
+#   - entity: sensor.nexus_protein_remaining
+#   - entity: sensor.nexus_database_size
+#   - entity: sensor.nexus_last_backup_age

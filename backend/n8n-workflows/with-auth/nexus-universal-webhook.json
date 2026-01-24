@@ -1,0 +1,467 @@
+{
+  "name": "Nexus: Universal Input (Claude Interpreter)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-universal",
+        "options": {
+          "responseMode": "responseNode"
+        }
+      },
+      "id": "webhook",
+      "name": "Universal Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "nexus-universal",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-20250514\",\n  \"max_tokens\": 1024,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a personal life data assistant. Parse this user input and determine what they want to log.\\n\\nUser said: \\\"{{ $json.body.text }}\\\"\\nSource: {{ $json.body.source || 'unknown' }}\\nTime: {{ $now.format('HH:mm') }}\\n\\nDetermine the type and extract structured data:\\n\\n1. FOOD: Extract description, meal_time (breakfast/lunch/dinner/snack based on time), estimate calories and protein if possible\\n2. WATER: Extract amount_ml (assume 250ml per glass)\\n3. WEIGHT: Extract weight_kg\\n4. MOOD: Extract mood_score, energy_score (1-10), any notes\\n5. HABIT: Extract habit_name to mark complete\\n6. SUPPLEMENT: Extract supplement name\\n7. NOTE: General note to save\\n\\nReturn ONLY valid JSON in this exact format:\\n{\\n  \\\"type\\\": \\\"food|water|weight|mood|habit|supplement|note\\\",\\n  \\\"data\\\": { ... relevant fields ... },\\n  \\\"response\\\": \\\"Short confirmation message for the user\\\"\\n}\\n\\nFor food, estimate macros based on common values. Be concise.\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "claude-parse",
+      "name": "Claude: Parse Input",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        660,
+        300
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_ANTHROPIC_CREDENTIAL",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Claude's JSON response\nconst response = $input.first().json;\nconst content = response.content[0].text;\n\n// Parse the JSON from Claude's response\ntry {\n  // Find JSON in the response (Claude might add explanation)\n  const jsonMatch = content.match(/\\{[\\s\\S]*\\}/);\n  if (!jsonMatch) {\n    throw new Error('No JSON found in response');\n  }\n  \n  const parsed = JSON.parse(jsonMatch[0]);\n  return {\n    type: parsed.type,\n    data: parsed.data,\n    response: parsed.response || 'Logged successfully'\n  };\n} catch (e) {\n  return {\n    type: 'error',\n    data: { error: e.message, raw: content },\n    response: 'Sorry, I could not understand that. Try again?'\n  };\n}"
+      },
+      "id": "parse-claude",
+      "name": "Parse Claude Response",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        880,
+        300
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "outputKey": "food",
+              "value1": "={{ $json.type }}",
+              "value2": "food"
+            },
+            {
+              "outputKey": "water",
+              "value1": "={{ $json.type }}",
+              "value2": "water"
+            },
+            {
+              "outputKey": "weight",
+              "value1": "={{ $json.type }}",
+              "value2": "weight"
+            },
+            {
+              "outputKey": "mood",
+              "value1": "={{ $json.type }}",
+              "value2": "mood"
+            },
+            {
+              "outputKey": "habit",
+              "value1": "={{ $json.type }}",
+              "value2": "habit"
+            },
+            {
+              "outputKey": "supplement",
+              "value1": "={{ $json.type }}",
+              "value2": "supplement"
+            },
+            {
+              "outputKey": "note",
+              "value1": "={{ $json.type }}",
+              "value2": "note"
+            },
+            {
+              "outputKey": "error",
+              "value1": "={{ $json.type }}",
+              "value2": "error"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-by-type",
+      "name": "Route by Type",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        1100,
+        300
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO nutrition.food_log (date, meal_time, description, calories, protein_g, carbs_g, fat_g, source, confidence)\nVALUES (CURRENT_DATE, '{{ $json.data.meal_time || 'snack' }}', '{{ $json.data.description }}', {{ $json.data.calories || 'NULL' }}, {{ $json.data.protein_g || 'NULL' }}, {{ $json.data.carbs_g || 'NULL' }}, {{ $json.data.fat_g || 'NULL' }}, 'siri', '{{ $json.data.confidence || 'medium' }}')\nRETURNING id;",
+        "options": {}
+      },
+      "id": "insert-food",
+      "name": "Insert Food",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1320,
+        100
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO nutrition.water_log (date, amount_ml, source)\nVALUES (CURRENT_DATE, {{ $json.data.amount_ml || 250 }}, 'siri');",
+        "options": {}
+      },
+      "id": "insert-water",
+      "name": "Insert Water",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1320,
+        200
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES (NOW(), CURRENT_DATE, 'siri', 'weight', {{ $json.data.weight_kg }}, 'kg');",
+        "options": {}
+      },
+      "id": "insert-weight",
+      "name": "Insert Weight",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1320,
+        300
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO core.daily_journal (date, mood_score, energy_score, stress_score, evening_note)\nVALUES (CURRENT_DATE, {{ $json.data.mood_score || 'NULL' }}, {{ $json.data.energy_score || 'NULL' }}, {{ $json.data.stress_score || 'NULL' }}, '{{ $json.data.notes || '' }}')\nON CONFLICT (date) DO UPDATE SET\n  mood_score = COALESCE(EXCLUDED.mood_score, core.daily_journal.mood_score),\n  energy_score = COALESCE(EXCLUDED.energy_score, core.daily_journal.energy_score),\n  stress_score = COALESCE(EXCLUDED.stress_score, core.daily_journal.stress_score),\n  evening_note = COALESCE(EXCLUDED.evening_note, core.daily_journal.evening_note);",
+        "options": {}
+      },
+      "id": "insert-mood",
+      "name": "Insert Mood",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1320,
+        400
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO activity.habit_log (habit_id, date, completed)\nSELECT id, CURRENT_DATE, TRUE\nFROM activity.habits\nWHERE LOWER(name) LIKE LOWER('%{{ $json.data.habit_name }}%')\n  AND is_active = TRUE\nLIMIT 1\nON CONFLICT (habit_id, date) DO UPDATE SET completed = TRUE;",
+        "options": {}
+      },
+      "id": "insert-habit",
+      "name": "Insert Habit",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        1320,
+        500
+      ],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"type\": \"{{ $('Parse Claude Response').item.json.type }}\",\n  \"response\": \"{{ $('Parse Claude Response').item.json.response }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1540,
+        300
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"response\": \"{{ $json.response }}\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        1320,
+        700
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.NEXUS_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"Unauthorized - Invalid API Key\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        640,
+        450
+      ]
+    }
+  ],
+  "connections": {
+    "Universal Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Parse Input": {
+      "main": [
+        [
+          {
+            "node": "Parse Claude Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claude Response": {
+      "main": [
+        [
+          {
+            "node": "Route by Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Type": {
+      "main": [
+        [
+          {
+            "node": "Insert Food",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Water",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Weight",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Mood",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Habit",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Food": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Water": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Weight": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Mood": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Habit": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Claude: Parse Input",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

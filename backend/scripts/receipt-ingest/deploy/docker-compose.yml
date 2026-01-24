@@ -1,0 +1,47 @@
+# Receipt Ingestion Service - Server Deployment
+# Location: /opt/lifeos/receipt-ingest/docker-compose.yml
+
+version: '3.8'
+
+services:
+  receipt-ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lifeos/receipt-ingest:latest
+    container_name: receipt-ingest
+
+    # Not a long-running service - runs via systemd timer
+    restart: "no"
+
+    environment:
+      - NEXUS_HOST=host.docker.internal
+      - NEXUS_PORT=5432
+      - NEXUS_DB=nexus
+      - NEXUS_USER=nexus
+      - NEXUS_PASSWORD=${NEXUS_PASSWORD}
+      - GMAIL_LABEL=LifeOS/Receipts/Carrefour
+      - SECRETS_DIR=/secrets
+      - PDF_STORAGE_PATH=/data/receipts
+      - DATA_DIR=/data
+      - LOG_DIR=/logs
+
+    volumes:
+      # Secrets (Gmail OAuth credentials)
+      - /opt/lifeos/secrets:/secrets:ro
+      # Data storage (PDF receipts)
+      - /opt/lifeos/data/receipts:/data/receipts
+      # Logs
+      - /opt/lifeos/logs:/logs
+
+    extra_hosts:
+      # Access host's PostgreSQL (nexus-db container)
+      - "host.docker.internal:host-gateway"
+
+    # Default: run all operations
+    command: ["--all"]
+
+# For one-off runs with different operations:
+# docker compose run --rm receipt-ingest --fetch
+# docker compose run --rm receipt-ingest --parse
+# docker compose run --rm receipt-ingest --link

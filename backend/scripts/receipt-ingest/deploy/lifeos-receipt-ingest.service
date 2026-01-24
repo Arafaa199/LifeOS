@@ -1,0 +1,34 @@
+# Receipt Ingestion Service (user-level)
+# Location: ~/.config/systemd/user/receipt-ingest.service
+#
+# Runs the receipt ingestion pipeline:
+# 1. Fetch new receipts from Gmail
+# 2. Parse pending receipts
+# 3. Link receipts to transactions
+#
+# Triggered by receipt-ingest.timer
+
+[Unit]
+Description=LifeOS Receipt Ingestion (Gmail → Parse → Link)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/lifeos/receipt-ingest
+
+# Load database credentials from environment file
+EnvironmentFile=%h/lifeos/secrets/nexus.env
+
+# Run docker compose with all operations
+ExecStart=/usr/bin/docker compose run --rm receipt-ingest --all
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=receipt-ingest
+
+# Timeout for the entire operation (10 minutes max)
+TimeoutStartSec=600
+
+[Install]
+WantedBy=default.target
