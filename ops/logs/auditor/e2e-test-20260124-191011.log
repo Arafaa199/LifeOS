@@ -1,0 +1,10 @@
+
+=== E2E TEST HARNESS - LifeOS Finance ===
+[19:10:11] Test prefix: e2e-test-20260124-191011
+[19:10:11] Log file: /Users/rafa/Cyber/Dev/LifeOS-Ops/logs/auditor/e2e-test-20260124-191011.log
+
+=== PHASE 1: Baseline Counts ===
+[19:10:12] Initial transactions: 147
+[19:10:12] Initial raw_events: 0
+
+=== TEST 1: Valid Income (explicit amount) ===

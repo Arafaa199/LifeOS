@@ -1,0 +1,57 @@
+
+=== E2E TEST HARNESS - LifeOS Finance ===
+[19:12:25] Test prefix: e2e-test-20260124-191225
+[19:12:25] Log file: /Users/rafa/Cyber/Dev/LifeOS-Ops/logs/auditor/e2e-test-20260124-191225.log
+
+=== PHASE 1: Baseline Counts ===
+[19:12:26] Initial transactions: 147
+[19:12:26] Initial raw_events: 0
+
+=== TEST 1: Valid Income (explicit amount) ===
+[19:12:27] Response: 
+[19:12:27] ✗ TEST 1 FAILED: Expected success=true, idempotent=false
+[19:12:27]   Got success=, idempotent=
+
+=== TEST 2: Idempotency Check (duplicate) ===
+[19:12:27] Response: 
+[19:12:27] ✗ TEST 2 FAILED: Expected success=true, idempotent=true
+[19:12:27]   Got success=, idempotent=
+
+=== TEST 3: Raw Text Parsing ===
+[19:12:27] Response: 
+[19:12:27] ✗ TEST 3 FAILED: Expected success=true, parsed_amount=5000
+[19:12:27]   Got success=, parsed_amount=
+
+=== TEST 4: Validation (missing client_id) ===
+[19:12:28] Response: {"success":false,"error":"client_id is required","message":"Server-side validation failed: client_id must be provided for idempotency"}
+[19:12:28] ✗ TEST 4 FAILED: Should have rejected missing client_id
+
+=== TEST 5: Validation (invalid amount) ===
+[19:12:28] Response: 
+[19:12:28] ✗ TEST 5 FAILED: Should have rejected negative amount
+
+=== PHASE 2: Database Verification ===
+[19:12:28] Checking raw_events statuses...
+[19:12:29] Raw events:
+             client_id              | validation_status | parsed_amount 
+------------------------------------+-------------------+---------------
+ e2e-test-20260124-191225-income-1  | pending           |              
+ e2e-test-20260124-191225-income-1  | pending           |              
+ e2e-test-20260124-191225-income-3  | pending           |              
+ e2e-test-20260124-191225-invalid-5 | invalid           |              
+(4 rows)
+[19:12:30] Status counts: valid=0, duplicate=0, invalid=1
+[19:12:31] New transactions created: 0
+[19:12:31] New raw_events logged: 4
+
+=== TEST SUMMARY ===
+[19:12:31] Tests passed: 0 / 5
+[19:12:31] 
+[19:12:31] Database changes:
+[19:12:31]   - Transactions: 147 → 147 (+0)
+[19:12:31]   - Raw events:   0 → 4 (+4)
+[19:12:31]   - Valid:        0
+[19:12:31]   - Duplicate:    0
+[19:12:31]   - Invalid:      1
+[19:12:31] 
+[19:12:31] ✗ SOME TESTS FAILED

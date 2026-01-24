@@ -1,0 +1,292 @@
+# Finance Configuration - Generated from Financial_Tracker_2025.xlsx
+# Last updated: 2026-01-23
+# This file is the source of truth for budget/bill/event imports
+
+---
+# Monthly income
+income:
+  salary: 23500
+  pay_day: 5  # 5th of month
+
+# Monthly budget categories (AED)
+budgets:
+  - category: Groceries
+    amount: 3700
+    notes: "Worst: 4,700"
+  - category: Health/Supplements
+    amount: 400
+    notes: "Rogaine/Collagen/Vits"
+  - category: DEWA
+    amount: 850
+    notes: "Summer buffer"
+  - category: Phone
+    amount: 419
+    notes: "Du - 18th"
+  - category: Internet
+    amount: 188
+    notes: "e& - 22nd"
+  - category: Subscriptions
+    amount: 400
+    notes: "Claude Pro - 12th"
+  - category: Petrol
+    amount: 500
+    notes: ""
+  - category: Haircut
+    amount: 350
+    notes: ""
+  - category: Car Wash
+    amount: 150
+    notes: ""
+  - category: Loan Payment
+    amount: 4583
+    notes: "5th (worst case 10%)"
+  - category: Rent
+    amount: 9000
+    notes: "27k quarterly amortized"
+
+# Recurring bills with due dates
+recurring_bills:
+  # Monthly
+  - name: Du Mobile
+    amount: 419
+    frequency: monthly
+    due_day: 18
+    category: Phone
+  - name: e& Internet
+    amount: 188
+    frequency: monthly
+    due_day: 22
+    category: Internet
+  - name: Claude Pro
+    amount: 400
+    frequency: monthly
+    due_day: 12
+    category: Subscriptions
+  - name: Bank Loan
+    amount: 4583
+    frequency: monthly
+    due_day: 5
+    category: Loan Payment
+    start_date: "2025-03-05"
+    end_date: "2026-02-05"
+    notes: "12 payments, 50k principal + 5k interest"
+
+  # Annual
+  - name: HTB Academy
+    amount: 1800
+    frequency: annual
+    due_date: "2025-03-04"
+    category: Subscriptions
+    notes: "Annual renewal"
+  - name: HTB Lab
+    amount: 770
+    frequency: annual
+    due_date: "2025-07-03"
+    category: Subscriptions
+    notes: "Annual renewal"
+
+  # Quarterly
+  - name: Rent Q1 2025
+    amount: 27000
+    frequency: quarterly
+    due_date: "2025-02-22"
+    category: Rent
+  - name: Rent Q2 2025
+    amount: 27000
+    frequency: quarterly
+    due_date: "2025-05-22"
+    category: Rent
+  - name: Rent Q3 2025
+    amount: 27000
+    frequency: quarterly
+    due_date: "2025-08-22"
+    category: Rent
+  - name: Rent Q4 2025
+    amount: 27000
+    frequency: quarterly
+    due_date: "2025-11-22"
+    category: Rent
+  - name: Rent Q1 2026
+    amount: 27000
+    frequency: quarterly
+    due_date: "2026-02-22"
+    category: Rent
+
+# One-time cashflow events (critical dates)
+cashflow_events:
+  # Income events
+  - date: "2025-02-06"
+    event: "Bank Loan Arrives"
+    amount: 50000
+    type: income
+    priority: critical
+    notes: "CRITICAL - loan disbursement"
+
+  # Expense events
+  - date: "2025-02-01"
+    event: "BNPL Payoff"
+    amount: -1500
+    type: expense
+    priority: high
+    notes: "Tabby+Baseeta"
+  - date: "2025-02-15"
+    event: "Tabby Payment 1/4"
+    amount: -1575
+    type: expense
+    priority: high
+    notes: "Monitor+SSD+Smart"
+  - date: "2025-03-15"
+    event: "Tabby Payment 2/4"
+    amount: -1575
+    type: expense
+    priority: medium
+  - date: "2025-03-15"
+    event: "US Passport"
+    amount: -700
+    type: expense
+    priority: high
+    notes: "DEADLINE"
+  - date: "2025-03-15"
+    event: "MRI + Physio"
+    amount: -2500
+    type: expense
+    priority: critical
+    notes: "Health"
+  - date: "2025-04-15"
+    event: "Tabby Payment 3/4"
+    amount: -1575
+    type: expense
+    priority: medium
+  - date: "2025-05-15"
+    event: "Car Customs"
+    amount: -5000
+    type: expense
+    priority: high
+    notes: "Family helping 5k"
+  - date: "2025-05-15"
+    event: "Tabby Payment 4/4"
+    amount: -1575
+    type: expense
+    priority: medium
+    notes: "TABBY DONE"
+
+# Wishlist items with priorities
+wishlist:
+  # Health (Critical)
+  - item: "MRI Shoulder"
+    estimated_cost: 1500
+    priority: critical
+    target_date: "2025-03-01"
+    category: health
+    notes: "Injury diagnosis"
+  - item: "Physiotherapy"
+    estimated_cost: 1000
+    priority: critical
+    target_date: "2025-04-01"
+    category: health
+    notes: "Post-MRI"
+  - item: "Lab Tests"
+    estimated_cost: 1750
+    priority: high
+    target_date: "2025-06-01"
+    category: health
+    notes: "Full health panel"
+  - item: "BJJ Gi"
+    estimated_cost: 800
+    priority: medium
+    target_date: "2025-04-01"
+    category: health
+    notes: "Training gear"
+
+  # Tech (High)
+  - item: "Samsung 49\" Monitor"
+    estimated_cost: 4000
+    priority: high
+    target_date: "2025-02-01"
+    category: tech
+    notes: "4 months Tabby"
+  - item: "4TB SSD"
+    estimated_cost: 800
+    priority: high
+    target_date: "2025-02-01"
+    category: tech
+    notes: "Fast storage"
+  - item: "Smart Door Knob"
+    estimated_cost: 500
+    priority: medium
+    target_date: "2025-02-01"
+    category: tech
+    notes: "Home automation"
+  - item: "Smart Thermostat"
+    estimated_cost: 1000
+    priority: medium
+    target_date: "2025-02-01"
+    category: tech
+    notes: "FCU control"
+  - item: "10-20TB HDD"
+    estimated_cost: 1500
+    priority: low
+    target_date: "2025-09-01"
+    category: tech
+    notes: "NAS storage"
+
+  # Security
+  - item: "Mini Cameras"
+    estimated_cost: 500
+    priority: low
+    target_date: "2025-11-01"
+    category: security
+    notes: "Projects"
+  - item: "Security Cameras"
+    estimated_cost: 1500
+    priority: low
+    target_date: "2025-11-01"
+    category: security
+    notes: "Home"
+
+  # Future
+  - item: "Mous AMG Bag"
+    estimated_cost: 1500
+    priority: low
+    target_date: "2025-12-01"
+    category: other
+  - item: "Rope Dart"
+    estimated_cost: 200
+    priority: low
+    target_date: "2025-12-01"
+    category: other
+    notes: "Fun"
+  - item: "Ibanez TOD10N"
+    estimated_cost: 3000
+    priority: low
+    target_date: "2026-06-01"
+    category: other
+    notes: "Guitar"
+  - item: "Voron 3D Printer"
+    estimated_cost: 5000
+    priority: low
+    target_date: "2026-06-01"
+    category: other
+    notes: "After loan done"
+
+# Debt overview
+debt:
+  - name: "Bank Loan"
+    principal: 50000
+    total_with_interest: 55000
+    monthly_payment: 4583
+    start_date: "2025-02-06"
+    end_date: "2026-02-05"
+    status: active
+  - name: "Family"
+    principal: 30000
+    monthly_payment: 0
+    end_date: null
+    status: active
+    notes: "TBD repayment"
+
+# Key metrics
+metrics:
+  monthly_surplus: 2960
+  worst_case_surplus: 1960
+  savings_rate_range: "8-13%"

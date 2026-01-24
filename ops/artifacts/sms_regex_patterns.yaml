@@ -1,0 +1,463 @@
+# SMS Financial Message Regex Patterns
+# Generated from analysis of ~/tmp/lifeos_sms/chat.db
+# Last updated: 2026-01-23
+# Test file: test_sms_patterns.py (validates against real data)
+# Coverage: 1558 matched, 0 unmatched from tracked senders
+
+# =============================================================================
+# PATTERN PRIORITY ORDER (higher = process first)
+# =============================================================================
+# 1. EXCLUDE patterns (OTP, security, promo)
+# 2. DECLINED patterns (never create transactions)
+# 3. SALARY/INCOME patterns
+# 4. REFUND patterns
+# 5. TRANSFER patterns
+# 6. PURCHASE patterns (most common)
+# 7. ATM/WITHDRAWAL patterns
+# 8. CREDIT CARD STATEMENT/PAYMENT patterns
+
+# =============================================================================
+# EXCLUDE PATTERNS (never process as financial)
+# =============================================================================
+exclude_patterns:
+  - name: otp_verification
+    regex: '(OTP|verification code|رمز التحقق|رمز التوثيق|code is|One-Time Password)'
+    reason: "Authentication codes"
+
+  - name: apple_pay_setup
+    regex: '(add.*to.*wallet|Apple Pay|card.*ready for contactless)'
+    reason: "Card setup notifications"
+
+  - name: card_authorization_request
+    regex: '(يوجد لديك دفعة.*تتطلب موافقتك)'
+    reason: "Pre-authorization requests (not actual transactions)"
+
+  - name: credit_card_statement
+    regex: '(كشف حساب مصغّر|statement.*due)'
+    reason: "Credit card statements (informational)"
+
+  - name: promo_marketing
+    regex: '(offer|discount|عرض.*خصم|خصم\s*\d+|extr\.ly)'
+    reason: "Marketing messages (note: exclude خصم+number, not بطاقة خصم)"
+
+  - name: card_settings_change
+    regex: '(تم.*تحديث إعدادات الحماية)'
+    reason: "Security settings notifications"
+
+  - name: credit_card_approval
+    regex: '(has been approved with a credit limit)'
+    reason: "Credit card approval notifications"
+
+  - name: amazon_order_placed
+    regex: '(Order for .+ is (successfully placed|shipped))'
+    reason: "Order confirmations, not financial transactions"
+
+  - name: account_login_notification
+    regex: '(تم توثيق عملية تسجيل دخول|new login|logged in from)'
+    reason: "Login notifications (informational)"
+
+  - name: language_preference_update
+    regex: '(تم تحديث.*تفضيلات اللغة|language preference.*updated)'
+    reason: "Language preference changes (informational)"
+
+  - name: address_update_notification
+    regex: '(تم تحديث عنوانك|address.*updated successfully)'
+    reason: "Address update notifications (informational)"
+
+  - name: payment_failed_notification
+    regex: '(payment.*didn.*go through|Your payment.*didn)'
+    reason: "Failed payment notifications (no transaction created)"
+
+# =============================================================================
+# EMIRATESNBD PATTERNS (Arabic - Primary UAE Bank)
+# =============================================================================
+emiratesnbd:
+  sender: "EmiratesNBD"
+
+  patterns:
+    # ----- SALARY -----
+    - name: salary_deposit
+      intent: income
+      confidence: 0.99
+      regex: 'تم ايداع الراتب\s+(?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)\s+في\s+حسابك'
+      entities: [currency, amount]
+      sample: "تم ايداع الراتب AED 23,500.00 في  حسابك .101XXX79XXX04 الرصيد المتوفر هو AED 23,514.47"
+
+    # ----- DEBIT CARD PURCHASE -----
+    - name: debit_purchase
+      intent: expense
+      confidence: 0.95
+      regex: 'تمت عملية شراء بقيمة\s+(?P<currency>AED|SAR|JOD|USD|EUR|GBP)\s+(?P<amount>[\d,]+\.?\d*)\s+لدى\s+(?P<merchant>[^,]+)\s*,\s*(?P<city>.+?)\s+باستخدام بطاقة خصم'
+      entities: [currency, amount, merchant, city]
+      sample: "تمت عملية شراء بقيمة AED 165.00 لدى B 27 BARBERSHOP LLC ,Dubai باستخدام بطاقة خصم"
+
+    # ----- CREDIT CARD PURCHASE -----
+    - name: credit_purchase
+      intent: expense
+      confidence: 0.95
+      regex: 'تمت عملية شراء في\s+(?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)\s+(?P<merchant>[^,]+),\s*(?P<city>.+?)\s+على البطاقة'
+      entities: [currency, amount, merchant, city]
+      sample: "تمت عملية شراء في AED 1,326.28 LOGIC UTILITIES DIST C,DUBAI على البطاقة 4695"
+
+    # ----- ATM WITHDRAWAL -----
+    - name: atm_withdrawal
+      intent: expense
+      confidence: 0.95
+      regex: 'لقد قمت بسحب مبلغ\s+(?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)\s+مستخدما بطاقة الصراف الآلي'
+      entities: [currency, amount]
+      category: "ATM"
+      sample: "لقد قمت بسحب مبلغ AED 100.00 مستخدما بطاقة الصراف الآلي من DUBAI"
+
+    # ----- BANK TRANSFER (OUTGOING) -----
+    - name: transfer_outgoing
+      intent: transfer
+      confidence: 0.95
+      regex: 'تم خصم\s+(?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)\s+من حسابك.*لتحويل الأموال'
+      entities: [currency, amount]
+      category: "Transfer"
+      sample: "تم خصم AED 15,000.00 من حسابك 3304 لتحويل الأموال"
+
+    # ----- CREDIT CARD PAYMENT (from account) -----
+    - name: credit_card_payment
+      intent: expense
+      confidence: 0.95
+      regex: 'تم خصم مبلغ\s+(?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)\s+من حسابك.*لتسديد مستحقات بطاقتك'
+      entities: [currency, amount]
+      category: "Credit Card Payment"
+      sample: "تم خصم مبلغ AED 4,800.99 من حسابك 101XXX79XXX04 لتسديد مستحقات بطاقتك الائتمانية"
+
+    # ----- REFUND -----
+    - name: refund
+      intent: refund
+      confidence: 0.95
+      regex: 'لقد تم إعادة مبلغ عملية شراء بقيمة\s+(?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)'
+      entities: [currency, amount]
+      sample: "لقد تم إعادة مبلغ عملية شراء بقيمة AED 1.00"
+
+    # ----- DECLINED -----
+    - name: declined
+      intent: declined
+      confidence: 0.99
+      regex: 'تم رفض معاملة بقيمة\s+(?P<amount>[\d,]+\.?\d*)(?P<currency>AED|SAR|JOD|USD)'
+      entities: [amount, currency]
+      never_create_transaction: true
+      sample: "تم رفض معاملة بقيمة 250.00AED على بطاقتك"
+
+    # ----- FUND HOLD (for instant transfer) -----
+    - name: fund_hold
+      intent: transfer
+      confidence: 0.90
+      regex: 'تمّ تقييد مبلغ\s+(?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)\s+في حسابك'
+      entities: [currency, amount]
+      category: "Transfer"
+      sample: "تمّ تقييد مبلغ AED 30,000.00 في حسابك مقابل عملية تحويل فورية"
+
+# =============================================================================
+# ALRAJHIBANK PATTERNS (English - Saudi Bank)
+# =============================================================================
+alrajhibank:
+  sender: "AlRajhiBank"
+
+  patterns:
+    # ----- POS PURCHASE (LOCAL) -----
+    - name: pos_purchase
+      intent: expense
+      confidence: 0.95
+      regex: 'PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [card, method, currency, amount]
+      sample: |
+        PoS
+        By:8308;mada-Apple Pay
+        Amount:SAR 48
+        At:KAKAT CO
+
+    # ----- POS PURCHASE (INTERNATIONAL) -----
+    - name: pos_international
+      intent: expense
+      confidence: 0.95
+      regex: 'PoS International\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [card, method, currency, amount]
+      sample: |
+        PoS International
+        By:8308;mada
+        Amount:SAR 30.91
+        Country:Netherlands
+        At:UBR* PENDING.UBER.COM
+
+    # ----- ONLINE PURCHASE -----
+    - name: online_purchase
+      intent: expense
+      confidence: 0.95
+      regex: 'Online Purchase\nBy:(?P<card>\d+);(?P<method>[^\n]+)\n(?:From:(?P<from>\d+)\n)?Amount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [card, method, from, currency, amount]
+      sample: |
+        Online Purchase
+        By:8308;mada
+        From:4281
+        Amount:SAR 988.60
+        At:Amazon SA
+
+    # ----- ATM WITHDRAWAL -----
+    - name: atm_withdrawal
+      intent: expense
+      confidence: 0.95
+      regex: 'Withdrawal:ATM\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [card, method, currency, amount]
+      category: "ATM"
+      sample: |
+        Withdrawal:ATM
+        By:8308;mada
+        Amount:SAR 50
+        Place:MARAHEL ROOM
+
+    # ----- REFUND POS -----
+    - name: refund_pos
+      intent: refund
+      confidence: 0.95
+      regex: 'Refund PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [card, method, currency, amount]
+      sample: |
+        Refund PoS
+        By:8308;mada
+        Amount:SAR 38.94
+        At:Amazon SA
+
+    # ----- INTERNAL TRANSFER (OUTGOING) -----
+    - name: internal_transfer_out
+      intent: transfer
+      confidence: 0.95
+      regex: 'Internal Transfer\nFrom:(?P<from>\d+)\nAmount:(?P<currency>SAR|USD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>[^\n]+)'
+      entities: [from, currency, amount, to]
+      category: "Transfer"
+      sample: |
+        Internal Transfer
+        From:4281
+        Amount:SAR 4000
+        To:MOSTAFA AHMED
+
+    # ----- INTERNAL TRANSFER (INCOMING) -----
+    - name: internal_transfer_in
+      intent: income
+      confidence: 0.95
+      regex: 'Internal Transfer\nAmount:(?P<currency>SAR|USD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>\d+)\nFrom:(?P<from>[^\n]+)'
+      entities: [currency, amount, to, from]
+      category: "Income"
+      sample: |
+        Internal Transfer
+        Amount:SAR 3000
+        To:4281
+        From:MOSTAFA AHMED
+
+    # ----- LOCAL TRANSFER (INCOMING) -----
+    - name: local_transfer_in
+      intent: income
+      confidence: 0.95
+      regex: 'Local Transfer\nVia:(?P<via>\w+)\nAmount:(?P<currency>SAR|USD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>\d+)\nFrom:(?P<from>[^\n]+)'
+      entities: [via, currency, amount, to, from]
+      category: "Income"
+      sample: |
+        Local Transfer
+        Via:BSFR
+        Amount:SAR 21100
+        To:4281
+        From:FADI WALID M ASSAF
+
+# =============================================================================
+# JKB PATTERNS (English/Arabic - Jordan Kuwait Bank)
+# =============================================================================
+jkb:
+  senders: ["JKB", "jkb"]
+
+  patterns:
+    # ----- POS PURCHASE -----
+    - name: pos_purchase
+      intent: expense
+      confidence: 0.95
+      regex: 'You have an approved purchase trx on POS for (?P<currency>SAR|JOD|AED|BHD|EGP|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)\s+on your card'
+      entities: [currency, amount]
+      sample: "You have an approved purchase trx on POS for SAR 20.00 on your card #5513***3612, at Boufia Majid Ahmed Ibr, JEDDAH"
+
+    # ----- E-COMMERCE PURCHASE -----
+    - name: ecommerce_purchase
+      intent: expense
+      confidence: 0.95
+      regex: 'You have an approved Ecommerce trx\s+for\s+(?P<currency>SAR|JOD|AED|BHD|EGP|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)\s+on your card'
+      entities: [currency, amount]
+      sample: "You have an approved Ecommerce trx  for SAR 33.84 on your card #5361***9793, at UBER * PENDING, Vorden"
+
+    # ----- ATM WITHDRAWAL -----
+    - name: atm_withdrawal
+      intent: expense
+      confidence: 0.95
+      regex: 'You have an approved withdrawal trx for (?P<currency>SAR|JOD|AED|BHD|EGP|USD)\s*(?P<amount>[\d,]+\.?\d*)\s+on your card'
+      entities: [currency, amount]
+      category: "ATM"
+      sample: "You have an approved withdrawal trx for SAR 1100.00 on your card#5513***3612, at INMA BANK, RIYADH"
+
+    # ----- REVERSAL (REFUND) -----
+    - name: reversal
+      intent: refund
+      confidence: 0.95
+      regex: 'You have an approved reversal trx for (?P<currency>SAR|JOD|AED|BHD|EGP|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)\s+on your card'
+      entities: [currency, amount]
+      sample: "You have an approved reversal trx for SAR 500.00 on your card # 5513***3612"
+
+    # ----- DECLINED -----
+    - name: declined
+      intent: declined
+      confidence: 0.99
+      regex: 'You have a declined trx on your card.*for\s+(?P<currency>SAR|JOD|AED|BHD|EGP|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)\s+due to insufficient'
+      entities: [currency, amount]
+      never_create_transaction: true
+      sample: "You have a declined trx on your card # 5361***9793 from Hungerstation, Riyadh,  for SAR 136.00 due to insufficient funds"
+
+    # ----- ACCOUNT FEE (Arabic - code currency) -----
+    - name: account_fee
+      intent: expense
+      confidence: 0.90
+      regex: 'تم قيد مبلغ\s+(?P<amount>[\d,]+\.?\d*)\s+(?P<currency>JOD|SAR|USD)\s+على حسابكم.*عمولة تدني'
+      entities: [amount, currency]
+      category: "Bank Fees"
+      sample: "تم قيد مبلغ 1  JOD  على حسابكم  التوفير  0266XXXXXXX0013020000  عمولة تدني رصيد الحساب"
+
+    # ----- ACCOUNT FEE (Arabic - spelled currency) -----
+    - name: account_fee_arabic
+      intent: expense
+      confidence: 0.90
+      regex: 'تم قيد مبلغ\s+(?P<amount>[\d,]+\.?\d*)\s+(?P<currency>دينار أردني|ريال سعودي|درهم إماراتي)\s+على حسابكم.*عمولة تدني'
+      entities: [amount, currency]
+      category: "Bank Fees"
+      sample: "تم قيد مبلغ 1  دينار أردني على حسابكم التوفير  026607308360013020000  عمولة تدني رصيد الحساب"
+
+    # ----- DEPOSIT (Arabic) -----
+    - name: deposit
+      intent: income
+      confidence: 0.90
+      regex: 'تم ايداع\s+مبلغ\s+(?P<amount>[\d,]+\.?\d*)\s+في\s+حسابك'
+      entities: [amount]
+      sample: "تم ايداع  مبلغ 4 في   حسابك التوفير رقم 0266XXXXXXX0013020000"
+
+    # ----- CREDIT (Arabic) -----
+    - name: credit
+      intent: income
+      confidence: 0.90
+      regex: 'تم قيد\s+مبلغ\s+(?P<amount>[\d,]+\.?\d*)\s+على\s+حسابك'
+      entities: [amount]
+      sample: "تم قيد  مبلغ 237.869 على   حسابك التوفير رقم 0266XXXXXXX0013020000"
+
+# =============================================================================
+# CAREEM PATTERNS (English - Ride/Food Delivery)
+# =============================================================================
+careem:
+  sender: "CAREEM"
+
+  patterns:
+    # ----- ORDER REFUND TO WALLET -----
+    - name: order_refund
+      intent: refund
+      confidence: 0.95
+      regex: 'your order (?P<order>\d+) has been cancelled and (?P<currency>AED|SAR|JOD|USD)\s*(?P<amount>[\d,]+\.?\d*)\s+has been refunded'
+      entities: [order, currency, amount]
+      note: "Refund to Careem Wallet, not bank account"
+      sample: "Hi Arafa, your order 145001255 has been cancelled and AED 255.95 has been refunded to your Wallet."
+
+# =============================================================================
+# AMAZON PATTERNS (English - E-commerce)
+# =============================================================================
+amazon:
+  senders: ["Amazon", "amazon"]
+
+  patterns:
+    # ----- REFUND NOTIFICATION -----
+    - name: refund_notification
+      intent: refund
+      confidence: 0.90
+      regex: 'Refund Issued: Amount (?P<currency>SAR|AED|USD|EUR)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [currency, amount]
+      note: "Amazon refund - may take 5-7 business days"
+      sample: "Refund Issued: Amount SAR 195.05 (EYSOO Protein Shaker Bottle 20...)."
+
+# =============================================================================
+# SUPPORTED CURRENCIES
+# =============================================================================
+currencies:
+  codes: [AED, SAR, JOD, BHD, EGP, USD, EUR, GBP]
+  arabic_names:
+    "دينار أردني": JOD
+    "ريال سعودي": SAR
+    "درهم إماراتي": AED
+    "درهم": AED
+
+# =============================================================================
+# INTENT CATEGORIES
+# =============================================================================
+intent_categories:
+  income:
+    - salary_deposit
+    - local_transfer_in
+    - internal_transfer_in
+    - deposit
+    - credit
+
+  expense:
+    - debit_purchase
+    - credit_purchase
+    - pos_purchase
+    - pos_international
+    - ecommerce_purchase
+    - online_purchase
+    - atm_withdrawal
+    - credit_card_payment
+    - account_fee
+    - account_fee_arabic
+
+  transfer:
+    - transfer_outgoing
+    - internal_transfer_out
+    - fund_hold
+
+  refund:
+    - refund
+    - refund_pos
+    - reversal
+    - order_refund
+    - refund_notification
+
+  declined:
+    - declined
+
+# =============================================================================
+# CATEGORY MAPPING (merchant -> category)
+# =============================================================================
+merchant_category_hints:
+  # Groceries
+  - pattern: '(CAREEM QUIK|CAREEM FOOD|Tamimi|LULU|grocery|supermarket|سوبرماركت)'
+    category: Grocery
+
+  # Restaurants
+  - pattern: '(restaurant|SUSHI|PAK DARBAR|Hungerstation|food|delivery|طعام)'
+    category: Restaurant
+
+  # Transport
+  - pattern: '(ENOC|ADNOC|petrol|fuel|بنزين|UBER|Careem|TAXI)'
+    category: Transport
+
+  # Utilities
+  - pattern: '(DEWA|ELECTRICITY|e&|Du|etisalat|utilities|كهرباء)'
+    category: Utilities
+
+  # Health
+  - pattern: '(PHARMACY|LIFE PHARMACY|medical|health|صيدلية|مستشفى)'
+    category: Health
+
+  # Shopping
+  - pattern: '(Amazon|IKEA|noon|Tabby|online|متجر|DUTY FREE)'
+    category: Shopping
+
+  # Subscriptions
+  - pattern: '(Claude|HACKTHEBOX|HTB|subscription|اشتراك)'
+    category: Subscription
+
+  # Personal Care
+  - pattern: '(BARBERSHOP|HAIR|barber|salon|حلاق)'
+    category: Personal Care

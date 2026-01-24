@@ -1,0 +1,48 @@
+
+=== E2E TEST HARNESS - LifeOS Finance ===
+[19:46:30] Test prefix: e2e-test-20260124-194630
+[19:46:30] Log file: /Users/rafa/Cyber/Dev/LifeOS-Ops/logs/auditor/e2e-test-20260124-194630.log
+
+=== PHASE 1: Baseline Counts ===
+[19:46:31] Initial transactions: 162
+[19:46:31] Initial raw_events: 17
+
+=== TEST 1: Valid Income (explicit amount) ===
+[19:46:32] Response: {"success":true,"idempotent":false,"transaction_id":169,"raw_event_id":30,"amount":1000,"currency":"AED","server_parsed":null}
+[19:46:32] ✓ TEST 1 PASSED: New income created
+
+=== TEST 2: Idempotency Check (duplicate) ===
+[19:46:33] Response: {"success":true,"idempotent":true,"transaction_id":null,"raw_event_id":31,"amount":1000,"currency":"AED","server_parsed":null}
+[19:46:33] ✓ TEST 2 PASSED: Duplicate detected correctly
+
+=== TEST 3: Raw Text Parsing ===
+[19:46:33] Response: {"success":true,"idempotent":false,"transaction_id":171,"raw_event_id":32,"amount":5000,"currency":"AED","server_parsed":{"amount":5000,"source":"raw_text_parse"}}
+[19:46:33] ✓ TEST 3 PASSED: Raw text parsed correctly (amount=5000)
+
+=== TEST 4: Validation (missing client_id) ===
+[19:46:34] Response: {"success":false,"error":"client_id is required"}
+[19:46:34] ✓ TEST 4 PASSED: Rejected missing client_id
+
+=== TEST 5: Validation (invalid amount) ===
+[19:46:34] Response: {"success":false,"error":"Invalid amount"}
+[19:46:34] ✓ TEST 5 PASSED: Rejected negative amount
+
+=== PHASE 2: Database Verification ===
+[19:46:34] Checking raw_events statuses...
+[19:46:35] Raw events:
+             client_id             | validation_status | parsed_amount 
+-----------------------------------+-------------------+---------------
+ e2e-test-20260124-194630-income-1 | valid             |       1000.00
+ e2e-test-20260124-194630-income-1 | duplicate         |       1000.00
+ e2e-test-20260124-194630-income-3 | valid             |       5000.00
+(3 rows)
+[19:46:36] Status counts: valid=2, duplicate=1, invalid=0
+[19:46:36] New transactions created: 2
+[19:46:37] New raw_events logged: 3
+
+=== INTEGRITY CHECKS ===
+[19:46:37] ✓ No orphan valid events
+[19:46:38] ✓ No stuck pending events
+[19:46:38] ✓ All invalid events have error messages
+
+=== TEST SUMMARY ===
