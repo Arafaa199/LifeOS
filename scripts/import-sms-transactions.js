@@ -191,17 +191,19 @@ async function importTransactions(daysBack = 365, verbose = false) {
       const txType = intentToType(result.intent, result.pattern_name);
 
       // Insert transaction
+      // Use msg_datetime for transaction_at (actual SMS timestamp)
+      // date column is derived from transaction_at via finance.to_business_date()
       const insertResult = await nexusPool.query(`
         INSERT INTO finance.transactions
-          (external_id, account_id, date, merchant_name, merchant_name_clean,
+          (external_id, account_id, transaction_at, date, merchant_name, merchant_name_clean,
            amount, currency, category, raw_data)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3::timestamptz, finance.to_business_date($3::timestamptz), $4, $5, $6, $7, $8, $9)
         ON CONFLICT (external_id) DO NOTHING
         RETURNING id
       `, [
         externalId,
         account.account_id,
-        msg.msg_date,
+        msg.msg_datetime,  // Use full datetime, not just date
         result.merchant,
         cleanMerchantName(result.merchant),
         result.amount,
