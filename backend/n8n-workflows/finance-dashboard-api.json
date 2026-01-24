@@ -1,0 +1,84 @@
+{
+  "name": "Nexus: Finance Dashboard API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-finance-dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Finance Dashboard Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-finance-dashboard",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT finance.get_dashboard_payload() AS payload;",
+        "options": {}
+      },
+      "id": "get-payload",
+      "name": "Get Dashboard Payload",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.payload }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Finance Dashboard Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Dashboard Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Dashboard Payload": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    },
+    {
+      "name": "finance"
+    }
+  ]
+}

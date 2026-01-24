@@ -7,13 +7,7 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Group {
-                if settings.useDashboardV2 {
-                    DashboardV2View(viewModel: viewModel)
-                } else {
-                    DashboardView(viewModel: viewModel)
-                }
-            }
+            TodayView(viewModel: viewModel)
             .tabItem {
                 Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
             }

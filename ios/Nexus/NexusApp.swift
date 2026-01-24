@@ -38,14 +38,7 @@ class AppSettings: ObservableObject {
         }
     }
 
-    @Published var useDashboardV2: Bool {
-        didSet {
-            UserDefaults.standard.set(useDashboardV2, forKey: "useDashboardV2")
-        }
-    }
-
     init() {
         self.webhookBaseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
-        self.useDashboardV2 = UserDefaults.standard.bool(forKey: "useDashboardV2")
     }
 }

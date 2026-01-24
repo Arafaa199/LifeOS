@@ -1,0 +1,166 @@
+{
+  "name": "LifeOS: Weekly Insight Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Every Sunday 8am Dubai",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2,
+      "notes": "Runs every Sunday at 8:00 AM Dubai time (04:00 UTC)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM insights.store_weekly_report();",
+        "options": {}
+      },
+      "id": "generate-report",
+      "name": "Generate & Store Report",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT markdown_report FROM insights.weekly_reports WHERE week_start = (SELECT MAX(week_start) FROM insights.weekly_reports);",
+        "options": {}
+      },
+      "id": "fetch-report",
+      "name": "Fetch Report Markdown",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8025/send-email",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"to\": \"arafa@rfanw.com\", \"subject\": \"LifeOS Weekly Insight Report - \" + $json.out_week_start + \" to \" + $json.out_week_end, \"body\": $('Fetch Report Markdown').item.json.markdown_report, \"format\": \"markdown\" }) }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Weekly insight report generated and emailed"
+            },
+            {
+              "name": "report_id",
+              "value": "={{ $('Generate & Store Report').item.json.report_id }}"
+            },
+            {
+              "name": "week_start",
+              "value": "={{ $('Generate & Store Report').item.json.out_week_start }}"
+            },
+            {
+              "name": "week_end",
+              "value": "={{ $('Generate & Store Report').item.json.out_week_end }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.set",
+      "position": [1120, 300],
+      "typeVersion": 3.4
+    }
+  ],
+  "connections": {
+    "Every Sunday 8am Dubai": {
+      "main": [
+        [
+          {
+            "node": "Generate & Store Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate & Store Report": {
+      "main": [
+        [
+          {
+            "node": "Fetch Report Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Report Markdown": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Dubai"
+  },
+  "active": true,
+  "tags": [
+    {
+      "name": "nexus"
+    },
+    {
+      "name": "lifeos"
+    },
+    {
+      "name": "weekly"
+    }
+  ]
+}

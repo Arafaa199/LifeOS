@@ -1,0 +1,140 @@
+{
+  "name": "Nexus - Income Webhook (Canonical)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-income",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "income-v5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body || {};\nconst clientId = body.client_id;\n\nif (!clientId) {\n  return [{ json: { valid: false, error: 'client_id is required' } }];\n}\n\n// Parse amount from explicit field or raw_text\nlet amount = null;\nlet serverParsed = null;\n\nif (body.amount !== undefined && body.amount !== null) {\n  amount = Number(body.amount);\n} else if (body.raw_text) {\n  // Parse patterns like \"Salary deposit 5000 AED\" or \"5000 AED\"\n  const match = body.raw_text.match(/(\\d+(?:\\.\\d+)?)\\s*(?:AED|USD|EUR)?/i);\n  if (match) {\n    amount = parseFloat(match[1]);\n    serverParsed = { amount: amount, source: 'raw_text_parse' };\n  }\n}\n\nif (!Number.isFinite(amount) || amount <= 0) {\n  return [{ json: { valid: false, error: 'Invalid amount' } }];\n}\n\n// Build the INSERT SQL with proper escaping\nconst source = (body.source || 'Unknown').replace(/'/g, \"''\");\nconst category = (body.category || 'Income').replace(/'/g, \"''\");\nconst notes = body.notes ? \"'\" + body.notes.replace(/'/g, \"''\") + \"'\" : 'NULL';\nconst txAt = body.transaction_at || new Date().toISOString();\n\nconst insertSQL = `INSERT INTO finance.transactions (transaction_at, date, merchant_name, amount, currency, category, notes, is_recurring, client_id)\nVALUES (\n  '${txAt}'::timestamptz,\n  finance.to_business_date('${txAt}'::timestamptz),\n  '${source}',\n  ${amount},\n  '${body.currency || 'AED'}',\n  '${category}',\n  ${notes},\n  ${body.is_recurring ? 'TRUE' : 'FALSE'},\n  '${clientId}'\n)\nON CONFLICT (client_id) DO NOTHING\nRETURNING id;`;\n\nconst rawEventSQL = `INSERT INTO finance.raw_events (event_type, client_id, parsed_amount, parsed_currency, validation_status, raw_payload)\nVALUES ('income_v5', '${clientId}', ${amount}, '${body.currency || 'AED'}', 'processing', '{}'::jsonb)\nRETURNING id;`;\n\nreturn [{\n  json: {\n    valid: true,\n    client_id: clientId,\n    amount: amount,\n    currency: body.currency || 'AED',\n    source: source,\n    server_parsed: serverParsed,\n    insertSQL: insertSQL,\n    rawEventSQL: rawEventSQL\n  }\n}];"
+      },
+      "name": "Build SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "v", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error }) }}",
+        "options": { "responseCode": 400 }
+      },
+      "name": "Reject",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [800, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.rawEventSQL }}",
+        "options": {}
+      },
+      "name": "Log Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [800, 100],
+      "credentials": { "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Build SQL').item.json;\nconst pgResult = $input.item.json;\nlet rawEventId = 0;\nif (pgResult && pgResult.id) rawEventId = pgResult.id;\nelse if (pgResult && pgResult.rows && pgResult.rows[0]) rawEventId = pgResult.rows[0].id;\n\nreturn [{ json: { ...data, raw_event_id: rawEventId } }];"
+      },
+      "name": "Get Raw ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.insertSQL }}",
+        "options": {}
+      },
+      "name": "Insert TX",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1200, 100],
+      "credentials": { "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Get Raw ID').item.json;\nconst pgResult = $input.item.json;\nlet txId = null;\nif (pgResult && pgResult.id) txId = pgResult.id;\nelse if (pgResult && pgResult.rows && pgResult.rows[0]) txId = pgResult.rows[0].id;\n\nconst isDup = txId === null;\n\n// Update raw event status\nconst updateSQL = isDup\n  ? `UPDATE finance.raw_events SET validation_status = 'duplicate' WHERE id = ${data.raw_event_id};`\n  : `UPDATE finance.raw_events SET validation_status = 'valid', related_transaction_id = ${txId} WHERE id = ${data.raw_event_id};`;\n\nreturn [{ json: { ...data, tx_id: txId, is_dup: isDup, updateSQL: updateSQL } }];"
+      },
+      "name": "Check TX",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.updateSQL }}",
+        "options": {}
+      },
+      "name": "Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1600, 100],
+      "credentials": { "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Check TX').item.json;\nconst buildSql = $('Build SQL').item.json;\nreturn [{ json: {\n  success: true,\n  idempotent: data.is_dup,\n  transaction_id: data.tx_id,\n  raw_event_id: data.raw_event_id,\n  amount: data.amount,\n  currency: data.currency,\n  server_parsed: buildSql.server_parsed || null\n} }];"
+      },
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2000, 100]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Build SQL", "type": "main", "index": 0 }]] },
+    "Build SQL": { "main": [[{ "node": "Valid?", "type": "main", "index": 0 }]] },
+    "Valid?": { "main": [[{ "node": "Log Event", "type": "main", "index": 0 }], [{ "node": "Reject", "type": "main", "index": 0 }]] },
+    "Log Event": { "main": [[{ "node": "Get Raw ID", "type": "main", "index": 0 }]] },
+    "Get Raw ID": { "main": [[{ "node": "Insert TX", "type": "main", "index": 0 }]] },
+    "Insert TX": { "main": [[{ "node": "Check TX", "type": "main", "index": 0 }]] },
+    "Check TX": { "main": [[{ "node": "Update Status", "type": "main", "index": 0 }]] },
+    "Update Status": { "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]] },
+    "Build Response": { "main": [[{ "node": "Response", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "active": true
+}

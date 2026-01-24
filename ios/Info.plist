@@ -30,6 +30,10 @@
 	</array>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Nexus reads weight, activity, and recovery data from Apple Health to track your health metrics.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Nexus uses speech recognition to transcribe voice input for quick food and expense logging.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Nexus uses the microphone for voice input when logging food or expenses.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

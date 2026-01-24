@@ -1,7 +1,7 @@
 # LifeOS — Canonical State
 
-Last updated: 2026-01-24T23:58:00+04:00
-Last coder run: 2026-01-24T23:58:00+04:00
+Last updated: 2026-01-24T19:21:20+04:00
+Last coder run: 2026-01-24T19:21:20+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -2290,5 +2290,180 @@ All O-phase tasks completed:
 - **Files Modified**:
   - `Nexus-setup/scripts/import-sms-transactions.js` (line 194-218)
   - `LifeOS-Ops/artifacts/sql/052_backfill_transaction_timestamps.sql` (new)
+
+---
+
+### Coder Run (2026-01-25T05:25+04)
+- **Status**: NO ACTION — No READY task in Coder scope
+- **Topmost READY tasks**: TASK-M5.2 (Today screen polish), TASK-M6.4 (iOS Reality Check)
+- **Reason**: Both tasks require iOS app code modification (outside Coder scope per system rules)
+- **Queue Scan**:
+  - All milestones (M0, M1, M2, M3): COMPLETE ✓
+  - M6.1-M6.7: COMPLETE ✓
+  - Output Phase (O1-O4): COMPLETE ✓
+  - SMS Coverage (O5): COMPLETE ✓
+  - Track A (Reliability): COMPLETE ✓
+  - Track B: B1 DONE ✓, B2-B3 DEFERRED
+  - Track C (Correlations): COMPLETE ✓
+  - Track D: DUPLICATES of O1/O2 (no work needed)
+  - TASK-068-071: COMPLETE ✓
+  - **M5.2, M6.4**: READY but require iOS code
+- **Coder Scope**:
+  - ALLOWED: Nexus-setup/**, LifeOS-Ops/**, SSH to nexus
+  - FORBIDDEN: iOS app code (unless task explicitly specifies)
+- **Backend Status Summary**:
+  | Component | Status |
+  |-----------|--------|
+  | System Trust (M0) | COMPLETE ✓ |
+  | Financial Truth (M1) | COMPLETE ✓ |
+  | SMS Coverage (O5) | COMPLETE ✓ |
+  | Behavioral Signals (M2) | COMPLETE ✓ |
+  | Health × Life Join (M3) | COMPLETE ✓ |
+  | Productivity (M4) | GitHub DONE, Calendar deferred |
+  | System Confidence (M6.1-M6.7) | COMPLETE ✓ |
+  | Daily Summaries (O1) | COMPLETE ✓ |
+  | Weekly Reports (O2) | COMPLETE ✓ |
+  | Anomaly Explanations (O3) | COMPLETE ✓ |
+  | End-to-End Proof (O4) | COMPLETE ✓ |
+  | Ingestion Health (A1-A3) | COMPLETE ✓ |
+  | Budget Engine (B1) | COMPLETE ✓ |
+  | Correlations (C1-C3) | COMPLETE ✓ |
+  | E2E Testing (068-071) | COMPLETE ✓ |
+- **Conclusion**: ALL BACKEND WORK COMPLETE. Coder is idle. Queue contains only iOS tasks (M5.2, M5.3, M6.4) and deferred work (B2, B3).
+- **Next Action Required**: Human must either:
+  1. Add new backend tasks to queue.md, OR
+  2. Execute iOS work (M5.2, M5.3, M6.4), OR
+  3. Prioritize deferred tasks (B2: Recurring Detection, B3: Spend Score)
+
+---
+
+### Coder Run (2026-01-25T04:25+04)
+- **Status**: NO ACTION — No READY task in Coder scope
+- **Topmost READY tasks**: TASK-M5.2 (Today screen polish), TASK-M6.4 (iOS Reality Check)
+- **Reason**: Both tasks require iOS app code modification (outside Coder scope per system rules)
+- **Queue Scan**:
+  - All milestones (M0, M1, M2, M3): COMPLETE ✓
+  - M6.1-M6.7: COMPLETE ✓
+  - Output Phase (O1-O4): COMPLETE ✓
+  - SMS Coverage (O5): COMPLETE ✓
+  - Track A (Reliability): COMPLETE ✓
+  - Track B: B1 DONE ✓, B2-B3 DEFERRED
+  - Track C (Correlations): COMPLETE ✓
+  - Track D: DUPLICATES of O1/O2 (no work needed)
+  - TASK-068-071: COMPLETE ✓
+  - **M5.2, M6.4**: READY but require iOS code
+- **Coder Scope**:
+  - ALLOWED: Nexus-setup/**, LifeOS-Ops/**, SSH to nexus
+  - FORBIDDEN: iOS app code (unless task explicitly specifies)
+- **Backend Status Summary**:
+  | Component | Status |
+  |-----------|--------|
+  | System Trust (M0) | COMPLETE ✓ |
+  | Financial Truth (M1) | COMPLETE ✓ |
+  | SMS Coverage (O5) | COMPLETE ✓ |
+  | Behavioral Signals (M2) | COMPLETE ✓ |
+  | Health × Life Join (M3) | COMPLETE ✓ |
+  | Productivity (M4) | GitHub DONE, Calendar deferred |
+  | System Confidence (M6.1-M6.7) | COMPLETE ✓ |
+  | Daily Summaries (O1) | COMPLETE ✓ |
+  | Weekly Reports (O2) | COMPLETE ✓ |
+  | Anomaly Explanations (O3) | COMPLETE ✓ |
+  | End-to-End Proof (O4) | COMPLETE ✓ |
+  | Ingestion Health (A1-A3) | COMPLETE ✓ |
+  | Budget Engine (B1) | COMPLETE ✓ |
+  | Correlations (C1-C3) | COMPLETE ✓ |
+  | E2E Testing (068-071) | COMPLETE ✓ |
+- **Conclusion**: ALL BACKEND WORK COMPLETE. Coder is idle. Queue contains only iOS tasks (M5.2, M5.3, M6.4) and deferred work (B2, B3).
+- **Next Action Required**: Human must either:
+  1. Add new backend tasks to queue.md, OR
+  2. Execute iOS work (M5.2, M5.3, M6.4), OR
+  3. Prioritize deferred tasks (B2: Recurring Detection, B3: Spend Score)
+
+---
+### Coder Run (2026-01-24T22:57+04)
+- **Status**: NO ACTION — No READY task in Coder scope
+- **Topmost READY tasks**: TASK-M5.2 (Today screen polish), TASK-M6.4 (iOS Reality Check)
+- **Reason**: Both tasks require iOS app code modification (outside Coder scope per system rules)
+- **Queue Scan**:
+  - All milestones (M0, M1, M2, M3): COMPLETE ✓
+  - M6.1-M6.7: COMPLETE ✓
+  - Output Phase (O1-O4): COMPLETE ✓
+  - SMS Coverage (O5): COMPLETE ✓
+  - Track A (Reliability): COMPLETE ✓
+  - Track B: B1 DONE ✓, B2-B3 DEFERRED
+  - Track C (Correlations): COMPLETE ✓
+  - Track D: DUPLICATES of O1/O2 (no work needed)
+  - TASK-068-071: COMPLETE ✓
+  - **M5.2, M6.4**: READY but require iOS code
+- **Coder Scope**:
+  - ALLOWED: Nexus-setup/**, LifeOS-Ops/**, SSH to nexus
+  - FORBIDDEN: iOS app code (unless task explicitly specifies)
+- **Backend Status Summary**:
+  | Component | Status |
+  |-----------|--------|
+  | System Trust (M0) | COMPLETE ✓ |
+  | Financial Truth (M1) | COMPLETE ✓ |
+  | SMS Coverage (O5) | COMPLETE ✓ |
+  | Behavioral Signals (M2) | COMPLETE ✓ |
+  | Health × Life Join (M3) | COMPLETE ✓ |
+  | Productivity (M4) | GitHub DONE, Calendar deferred |
+  | System Confidence (M6.1-M6.7) | COMPLETE ✓ |
+  | Daily Summaries (O1) | COMPLETE ✓ |
+  | Weekly Reports (O2) | COMPLETE ✓ |
+  | Anomaly Explanations (O3) | COMPLETE ✓ |
+  | End-to-End Proof (O4) | COMPLETE ✓ |
+  | Ingestion Health (A1-A3) | COMPLETE ✓ |
+  | Budget Engine (B1) | COMPLETE ✓ |
+  | Correlations (C1-C3) | COMPLETE ✓ |
+  | E2E Testing (068-071) | COMPLETE ✓ |
+- **Conclusion**: ALL BACKEND WORK COMPLETE. Coder is idle. Queue contains only iOS tasks (M5.2, M5.3, M6.4) and deferred work (B2, B3).
+- **Next Action Required**: Human must either:
+  1. Add new backend tasks to queue.md, OR
+  2. Execute iOS work (M5.2, M5.3, M6.4), OR
+  3. Prioritize deferred tasks (B2: Recurring Detection, B3: Spend Score)
+
+---
+
+### Coder Run (2026-01-25T08:05+04)
+- **Status**: NO ACTION — No READY task in Coder scope
+- **Topmost READY tasks**: TASK-M5.2 (Today screen polish), TASK-M6.4 (iOS Reality Check)
+- **Reason**: Both tasks require iOS app code modification (outside Coder scope per system rules)
+- **Queue Scan**:
+  - All milestones (M0, M1, M2, M3): COMPLETE ✓
+  - M6.1-M6.7: COMPLETE ✓
+  - Output Phase (O1-O4): COMPLETE ✓
+  - SMS Coverage (O5): COMPLETE ✓
+  - Track A (Reliability): COMPLETE ✓
+  - Track B: B1 DONE ✓, B2-B3 DEFERRED
+  - Track C (Correlations): COMPLETE ✓
+  - Track D: DUPLICATES of O1/O2 (no work needed)
+  - TASK-068-071: COMPLETE ✓
+  - **M5.2, M6.4**: READY but require iOS code
+- **Coder Scope**:
+  - ALLOWED: Nexus-setup/**, LifeOS-Ops/**, SSH to nexus
+  - FORBIDDEN: iOS app code (unless task explicitly specifies)
+- **Backend Status Summary**:
+  | Component | Status |
+  |-----------|--------|
+  | System Trust (M0) | COMPLETE ✓ |
+  | Financial Truth (M1) | COMPLETE ✓ |
+  | SMS Coverage (O5) | COMPLETE ✓ |
+  | Behavioral Signals (M2) | COMPLETE ✓ |
+  | Health × Life Join (M3) | COMPLETE ✓ |
+  | Productivity (M4) | GitHub DONE, Calendar deferred |
+  | System Confidence (M6.1-M6.7) | COMPLETE ✓ |
+  | Daily Summaries (O1) | COMPLETE ✓ |
+  | Weekly Reports (O2) | COMPLETE ✓ |
+  | Anomaly Explanations (O3) | COMPLETE ✓ |
+  | End-to-End Proof (O4) | COMPLETE ✓ |
+  | Ingestion Health (A1-A3) | COMPLETE ✓ |
+  | Budget Engine (B1) | COMPLETE ✓ |
+  | Correlations (C1-C3) | COMPLETE ✓ |
+  | E2E Testing (068-071) | COMPLETE ✓ |
+- **Conclusion**: ALL BACKEND WORK COMPLETE. Coder is idle. Queue contains only iOS tasks (M5.2, M5.3, M6.4) and deferred work (B2, B3).
+- **Next Action Required**: Human must either:
+  1. Add new backend tasks to queue.md, OR
+  2. Execute iOS work (M5.2, M5.3, M6.4), OR
+  3. Prioritize deferred tasks (B2: Recurring Detection, B3: Spend Score)
 
 ---

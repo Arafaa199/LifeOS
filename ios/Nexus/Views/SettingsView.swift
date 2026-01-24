@@ -5,6 +5,8 @@ struct SettingsView: View {
     @State private var webhookURL: String = ""
     @State private var apiKey: String = ""
     @State private var showingSaveConfirmation = false
+    @State private var isRefreshing = false
+    @State private var refreshMessage: String?
 
     var body: some View {
         NavigationView {
@@ -73,23 +75,6 @@ struct SettingsView: View {
                     Text("Configuration")
                 }
 
-                // Features Section
-                Section {
-                    Toggle(isOn: $settings.useDashboardV2) {
-                        SettingsRow(
-                            icon: "square.grid.3x3",
-                            iconColor: .nexusPrimary,
-                            title: "Dashboard V2",
-                            subtitle: "Try the new card-based dashboard"
-                        )
-                    }
-                    .tint(.nexusPrimary)
-                } header: {
-                    Text("Features")
-                } footer: {
-                    Text("Dashboard V2 is a redesigned home screen with a cleaner card layout.")
-                }
-
                 // Integrations Section
                 Section {
                     NavigationLink(destination: WidgetSettingsView()) {
@@ -115,6 +100,17 @@ struct SettingsView: View {
 
                 // Data Section
                 Section {
+                    Button {
+                        Task { await refreshServerData() }
+                    } label: {
+                        SettingsRow(
+                            icon: "arrow.triangle.2.circlepath",
+                            iconColor: .nexusPrimary,
+                            title: "Refresh Server Data",
+                            subtitle: "Regenerate summaries from database"
+                        )
+                    }
+
                     Button(role: .destructive) {
                         clearLocalData()
                     } label: {
@@ -219,6 +215,28 @@ struct SettingsView: View {
 
         let haptics = UINotificationFeedbackGenerator()
         haptics.notificationOccurred(.success)
+    }
+
+    private func refreshServerData() async {
+        isRefreshing = true
+        refreshMessage = nil
+
+        do {
+            let response = try await NexusAPI.shared.refreshSummaries()
+            await MainActor.run {
+                isRefreshing = false
+                refreshMessage = response.success ? "Data refreshed successfully" : (response.message ?? "Refresh failed")
+                let haptics = UINotificationFeedbackGenerator()
+                haptics.notificationOccurred(response.success ? .success : .error)
+            }
+        } catch {
+            await MainActor.run {
+                isRefreshing = false
+                refreshMessage = "Failed to refresh: \(error.localizedDescription)"
+                let haptics = UINotificationFeedbackGenerator()
+                haptics.notificationOccurred(.error)
+            }
+        }
     }
 }
 

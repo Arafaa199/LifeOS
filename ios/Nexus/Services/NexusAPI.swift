@@ -216,6 +216,48 @@ class NexusAPI: ObservableObject {
         return try await get("/webhook/nexus-monthly-trends?months=\(months)")
     }
 
+    // MARK: - LifeOS Summary Methods
+
+    func fetchFinanceDailySummary(date: Date? = nil) async throws -> FinanceDailySummaryResponse {
+        var endpoint = "/webhook/nexus-daily-summary"
+        if let date = date {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withFullDate]
+            endpoint += "?date=\(formatter.string(from: date))"
+        }
+        return try await get(endpoint, decoder: Self.financeDateDecoder)
+    }
+
+    func fetchWeeklyReport(weekStart: Date? = nil) async throws -> WeeklyReportResponse {
+        var endpoint = "/webhook/nexus-weekly-report"
+        if let weekStart = weekStart {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withFullDate]
+            endpoint += "?week_start=\(formatter.string(from: weekStart))"
+        }
+        return try await get(endpoint, decoder: Self.financeDateDecoder)
+    }
+
+    func fetchSystemHealth() async throws -> SystemHealthResponse {
+        return try await get("/webhook/nexus-system-health", decoder: Self.financeDateDecoder)
+    }
+
+    func refreshSummaries() async throws -> NexusResponse {
+        guard let url = URL(string: "\(baseURL)/webhook/nexus-refresh-summary") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let apiKey = apiKey {
+            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        }
+
+        let (data, _) = try await performRequest(request)
+        return try JSONDecoder().decode(NexusResponse.self, from: data)
+    }
+
     // MARK: - Finance Planning Methods
 
     func fetchCategories() async throws -> CategoriesResponse {
