@@ -83,9 +83,20 @@ Status: DONE ✓
 
 ### TASK-VIS.2: Unified Daily View
 Priority: P1
-Status: READY
+Status: DONE ✓
 
-Enhance `life.get_daily_summary()` to include finance timeline.
+**Objective:** Enhance `life.get_daily_summary()` to include finance timeline.
+
+**Definition of Done:**
+- [x] Add `timeline` array to `finance` section in daily summary
+- [x] Timeline includes: time, type, amount, currency, merchant, category, source, actionable
+- [x] Timeline sorted by event_time DESC (most recent first)
+- [x] Backward compatible (all original finance keys preserved)
+- [x] Empty array `[]` for days with no transactions
+- [x] Performance < 50ms (achieved 8.95ms)
+
+**Completed:** 2026-01-25
+**Evidence:** See state.md
 
 ### TASK-HEALTH.1: Apple Watch Integration
 Priority: P1
