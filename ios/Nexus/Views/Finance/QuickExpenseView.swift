@@ -1,0 +1,270 @@
+import SwiftUI
+
+struct QuickExpenseView: View {
+    @ObservedObject var viewModel: FinanceViewModel
+    @State private var expenseText = ""
+    @FocusState private var isTextFieldFocused: Bool
+    @State private var showingAddExpense = false
+    @State private var showingAddIncome = false
+    @State private var isSubmitting = false
+
+    private var overBudgetCategories: [Budget] {
+        viewModel.summary.budgets.filter { budget in
+            guard let spent = budget.spent else { return false }
+            return spent > budget.budgetAmount
+        }
+    }
+
+    private var nearBudgetCategories: [Budget] {
+        viewModel.summary.budgets.filter { budget in
+            guard let spent = budget.spent else { return false }
+            let percentage = spent / budget.budgetAmount
+            return percentage >= 0.8 && percentage <= 1.0
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Budget Alerts
+                if !overBudgetCategories.isEmpty {
+                    budgetAlertBanner(categories: overBudgetCategories, isOverBudget: true)
+                } else if !nearBudgetCategories.isEmpty {
+                    budgetAlertBanner(categories: nearBudgetCategories, isOverBudget: false)
+                }
+
+                // Today's Spending Summary
+                summaryCard
+
+                // Quick Log Input
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Quick Expense")
+                        .font(.headline)
+
+                    VStack(spacing: 12) {
+                        TextField("e.g., $45 at Whole Foods", text: $expenseText)
+                            .textFieldStyle(.roundedBorder)
+                            .focused($isTextFieldFocused)
+                            .submitLabel(.done)
+                            .onSubmit {
+                                submitExpense()
+                            }
+
+                        Text("Try: \"$45 groceries at Whole Foods\" or \"spent $12 on coffee\"")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Button(action: submitExpense) {
+                            if isSubmitting || viewModel.isLoading {
+                                HStack {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                    Text("Saving...")
+                                        .padding(.leading, 4)
+                                }
+                                .frame(maxWidth: .infinity)
+                            } else {
+                                Text("Log Expense")
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(expenseText.isEmpty || isSubmitting || viewModel.isLoading)
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .shadow(radius: 2)
+
+                // Category Quick Actions
+                categoryQuickActions
+
+                // Manual Entry Buttons
+                HStack(spacing: 12) {
+                    Button(action: {
+                        showingAddExpense = true
+                    }) {
+                        HStack {
+                            Image(systemName: "minus.circle.fill")
+                            Text("Add Expense")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.nexusError)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.nexusError.opacity(0.3), radius: 6, x: 0, y: 3)
+                    }
+
+                    Button(action: {
+                        showingAddIncome = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add Income")
+                                .fontWeight(.semibold)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.nexusSuccess)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.nexusSuccess.opacity(0.3), radius: 6, x: 0, y: 3)
+                    }
+                }
+
+                // Recent Transactions
+                if !viewModel.recentTransactions.isEmpty {
+                    recentTransactionsSection
+                }
+
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .padding()
+                }
+            }
+            .padding()
+        }
+        .sheet(isPresented: $showingAddExpense) {
+            AddExpenseView(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingAddIncome) {
+            IncomeView(viewModel: viewModel)
+        }
+        .onAppear {
+            viewModel.loadFinanceSummary()
+        }
+    }
+
+    private var summaryCard: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Today's Spending")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text(viewModel.summary.formatAmount(viewModel.summary.totalSpent))
+                        .font(.system(size: 32, weight: .bold))
+                }
+                Spacer()
+            }
+
+            HStack(spacing: 20) {
+                StatItem(
+                    icon: "cart.fill",
+                    label: "Grocery",
+                    value: viewModel.summary.formatAmount(viewModel.summary.grocerySpent),
+                    color: .green
+                )
+
+                StatItem(
+                    icon: "fork.knife",
+                    label: "Eating Out",
+                    value: viewModel.summary.formatAmount(viewModel.summary.eatingOutSpent),
+                    color: .orange
+                )
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+
+    private var categoryQuickActions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Quick Categories")
+                .font(.headline)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(ExpenseCategory.allCases, id: \.self) { category in
+                    Button(action: {
+                        expenseText = category.rawValue
+                        isTextFieldFocused = true
+                    }) {
+                        HStack {
+                            Image(systemName: category.icon)
+                            Text(category.rawValue)
+                                .font(.subheadline)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color(.tertiarySystemBackground))
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var recentTransactionsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Recent")
+                .font(.headline)
+
+            ForEach(viewModel.recentTransactions.prefix(5)) { transaction in
+                TransactionRow(transaction: transaction)
+            }
+        }
+    }
+
+    private func submitExpense() {
+        // Prevent double-submit
+        guard !isSubmitting else { return }
+
+        isSubmitting = true
+
+        Task {
+            let success = await viewModel.logExpense(expenseText)
+
+            // Always clear on success
+            if success {
+                expenseText = ""
+            }
+
+            isSubmitting = false
+            isTextFieldFocused = false
+        }
+    }
+
+    @ViewBuilder
+    private func budgetAlertBanner(categories: [Budget], isOverBudget: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: isOverBudget ? "exclamationmark.triangle.fill" : "info.circle.fill")
+                    .foregroundColor(isOverBudget ? .red : .orange)
+                Text(isOverBudget ? "Over Budget" : "Budget Warning")
+                    .font(.headline)
+                    .foregroundColor(isOverBudget ? .red : .orange)
+                Spacer()
+            }
+
+            ForEach(categories) { budget in
+                HStack {
+                    Text(budget.category.capitalized)
+                        .font(.subheadline)
+                    Spacer()
+                    if let spent = budget.spent {
+                        if isOverBudget {
+                            Text(String(format: "AED %.0f over", spent - budget.budgetAmount))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        } else {
+                            let percentage = (spent / budget.budgetAmount) * 100
+                            Text(String(format: "%.0f%% used", percentage))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
+                .foregroundColor(isOverBudget ? .red : .orange)
+            }
+        }
+        .padding()
+        .background(isOverBudget ? Color.red.opacity(0.1) : Color.orange.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
