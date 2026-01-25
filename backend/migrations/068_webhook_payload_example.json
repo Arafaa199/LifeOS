@@ -1,0 +1,81 @@
+{
+  "webhook_endpoint": "POST /webhook/nexus-calendar-sync",
+  "description": "Calendar events batch sync from iOS EventKit",
+  "auth": {
+    "type": "X-API-Key",
+    "header": "X-API-Key: <n8n_api_key>"
+  },
+  "request_payload": {
+    "client_id": "550e8400-e29b-41d4-a716-446655440000",
+    "device": "iPhone 17 Pro",
+    "source": "ios_eventkit",
+    "captured_at": "2026-01-25T18:30:00+04:00",
+    "events": [
+      {
+        "event_id": "EK-EVENT-12345-ABCDE",
+        "title": "Team Standup",
+        "start_at": "2026-01-26T09:00:00+04:00",
+        "end_at": "2026-01-26T09:30:00+04:00",
+        "is_all_day": false,
+        "calendar_name": "Work",
+        "location": "Conference Room A",
+        "notes": "Daily standup meeting",
+        "recurrence_rule": null
+      },
+      {
+        "event_id": "EK-EVENT-67890-FGHIJ",
+        "title": "Client Demo",
+        "start_at": "2026-01-26T14:00:00+04:00",
+        "end_at": "2026-01-26T15:00:00+04:00",
+        "is_all_day": false,
+        "calendar_name": "Work",
+        "location": "Zoom",
+        "notes": "Product demo for client XYZ",
+        "recurrence_rule": null
+      },
+      {
+        "event_id": "EK-EVENT-ABCDE-12345",
+        "title": "Project Deadline",
+        "start_at": "2026-01-28T00:00:00+04:00",
+        "end_at": "2026-01-28T23:59:59+04:00",
+        "is_all_day": true,
+        "calendar_name": "Work",
+        "location": null,
+        "notes": "Final delivery date",
+        "recurrence_rule": null
+      },
+      {
+        "event_id": "EK-EVENT-WEEKLY-MEETING",
+        "title": "Weekly Team Sync",
+        "start_at": "2026-01-27T10:00:00+04:00",
+        "end_at": "2026-01-27T11:00:00+04:00",
+        "is_all_day": false,
+        "calendar_name": "Work",
+        "location": "Office",
+        "notes": "Recurring weekly meeting",
+        "recurrence_rule": "FREQ=WEEKLY;BYDAY=MO"
+      }
+    ]
+  },
+  "response_success": {
+    "success": true,
+    "inserted": {
+      "events": 4,
+      "duplicates": 0
+    },
+    "timestamp": "2026-01-25T18:30:01+04:00"
+  },
+  "response_error": {
+    "success": false,
+    "error": "Validation failed: event_id is required",
+    "timestamp": "2026-01-25T18:30:01+04:00"
+  },
+  "notes": [
+    "event_id must be unique per source (idempotency via UNIQUE constraint)",
+    "Timestamps must be in ISO 8601 format with timezone",
+    "client_id is optional but recommended for tracking iOS app versions",
+    "All-day events have is_all_day=true and span midnight-to-midnight",
+    "recurrence_rule follows iCalendar RRULE format (RFC 5545)",
+    "n8n workflow NOT created yet - iOS integration deferred"
+  ]
+}
