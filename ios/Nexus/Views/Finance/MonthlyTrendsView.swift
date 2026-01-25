@@ -238,7 +238,9 @@ struct MonthlyTrendsView: View {
                 monthlyData = data.monthlySpending
             }
         } catch {
+            #if DEBUG
             print("Failed to load monthly trends: \(error)")
+            #endif
         }
 
         isLoading = false

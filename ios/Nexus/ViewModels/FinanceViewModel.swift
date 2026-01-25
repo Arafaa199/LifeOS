@@ -10,6 +10,7 @@ class FinanceViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isOffline = false
     @Published var queuedCount = 0
+    @Published var lastUpdated: Date?
 
     private let api = NexusAPI.shared
     private let cache = CacheManager.shared
@@ -92,6 +93,7 @@ class FinanceViewModel: ObservableObject {
                         cache.saveBudgets(summary.budgets)
                     }
 
+                    lastUpdated = Date()
                     errorMessage = nil
                 }
                 isLoading = false
@@ -100,7 +102,9 @@ class FinanceViewModel: ObservableObject {
                 isOffline = true
                 isLoading = false
                 errorMessage = "Could not fetch latest data. Showing cached data."
+                #if DEBUG
                 print("Finance summary fetch failed: \(error)")
+                #endif
             }
         }
     }
@@ -386,6 +390,74 @@ class FinanceViewModel: ObservableObject {
         }
 
         return patterns.sorted { $0.amount > $1.amount }
+    }
+
+    // MARK: - Transaction Corrections
+
+    func createCorrection(
+        transactionId: Int,
+        amount: Double?,
+        category: String?,
+        merchantName: String?,
+        date: Date?,
+        reason: CorrectionReason,
+        notes: String?
+    ) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        let request = CreateCorrectionRequest(
+            transactionId: transactionId,
+            amount: amount,
+            currency: nil,
+            category: category,
+            merchantName: merchantName,
+            date: date.map { ISO8601DateFormatter().string(from: $0) },
+            reason: reason.rawValue,
+            notes: notes,
+            createdBy: "ios"
+        )
+
+        do {
+            let response = try await api.createCorrection(request)
+
+            if response.success {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                await refresh()
+                isLoading = false
+                return true
+            } else {
+                errorMessage = response.message ?? "Failed to create correction"
+                isLoading = false
+                return false
+            }
+        } catch {
+            errorMessage = "Error: \(error.localizedDescription)"
+            isLoading = false
+            return false
+        }
+    }
+
+    func deactivateCorrection(correctionId: Int) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await api.deactivateCorrection(correctionId: correctionId)
+
+            if response.success {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                await refresh()
+            } else {
+                errorMessage = response.message ?? "Failed to revert correction"
+            }
+        } catch {
+            errorMessage = "Error: \(error.localizedDescription)"
+        }
+
+        isLoading = false
     }
 
     // MARK: - Duplicate Detection

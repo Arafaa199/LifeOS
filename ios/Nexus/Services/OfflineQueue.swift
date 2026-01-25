@@ -136,7 +136,9 @@ class OfflineQueue {
                 if entry.retryCount >= maxRetries {
                     // Max retries reached - remove from queue
                     processed.append(entry.id)
+                    #if DEBUG
                     print("❌ Offline queue: Max retries reached for \(entry.type)")
+                    #endif
                 } else {
                     // Keep in queue for retry
                     failed.append(entry)

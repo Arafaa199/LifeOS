@@ -40,8 +40,40 @@ class HealthKitManager: ObservableObject {
             return
         }
 
-        let status = healthStore.authorizationStatus(for: weightType)
-        isAuthorized = status == .sharingAuthorized
+        // Note: authorizationStatus(for:) only works for WRITE permissions.
+        // For READ-only permissions (our case), Apple doesn't expose the status
+        // for privacy reasons. We use a heuristic approach:
+        // 1. Check if we've previously completed authorization flow
+        // 2. If not, try to verify by requesting authorization (no UI if already granted)
+
+        let hasCompletedAuth = UserDefaults.standard.bool(forKey: "healthKitAuthorizationRequested")
+        if hasCompletedAuth {
+            isAuthorized = true
+        } else {
+            // User may have authorized in a previous app version before this flag existed.
+            // Try requesting auth - if already granted, this won't show UI.
+            Task {
+                await verifyAndRequestAuthorizationIfNeeded()
+            }
+        }
+    }
+
+    private func verifyAndRequestAuthorizationIfNeeded() async {
+        // Try to fetch any data as a verification method
+        do {
+            // Request authorization - if already granted, this returns immediately without UI
+            let typesToRead: Set<HKObjectType> = [weightType, stepsType]
+            try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+            markAuthorizationCompleted()
+        } catch {
+            // Authorization not granted
+            isAuthorized = false
+        }
+    }
+
+    func markAuthorizationCompleted() {
+        UserDefaults.standard.set(true, forKey: "healthKitAuthorizationRequested")
+        isAuthorized = true
     }
 
     func requestAuthorization() async throws {
@@ -72,7 +104,7 @@ class HealthKitManager: ObservableObject {
         ]
 
         try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
-        checkAuthorization()
+        markAuthorizationCompleted()
     }
 
     func fetchLatestWeight() async throws -> (weight: Double, date: Date)? {
@@ -440,8 +472,6 @@ class HealthKitManager: ObservableObject {
             let response = try? await NexusAPI.shared.logWeight(kg: weight)
             results["weight"] = response?.success ?? false
         }
-
-        // TODO: Add sync for other metrics when webhooks are ready
 
         return results
     }

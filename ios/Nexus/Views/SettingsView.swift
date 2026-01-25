@@ -218,7 +218,7 @@ struct SettingsView: View {
                         value: "1.0.0 (1)"
                     )
 
-                    Link(destination: URL(string: "https://github.com/yourusername/nexus")!) {
+                    Link(destination: URL(string: "https://github.com/Arafaa199/LifeOS")!) {
                         SettingsRow(
                             icon: "book",
                             iconColor: .nexusPrimary,
@@ -228,7 +228,7 @@ struct SettingsView: View {
                         )
                     }
 
-                    Link(destination: URL(string: "https://github.com/yourusername/nexus/issues")!) {
+                    Link(destination: URL(string: "https://github.com/Arafaa199/LifeOS/issues")!) {
                         SettingsRow(
                             icon: "exclamationmark.bubble",
                             iconColor: .nexusWarning,
@@ -525,5 +525,5 @@ struct SiriShortcutsView: View {
 
 #Preview {
     SettingsView()
-        .environmentObject(AppSettings())
+        .environmentObject(AppSettings.shared)
 }

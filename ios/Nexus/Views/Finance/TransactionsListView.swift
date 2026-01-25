@@ -150,7 +150,9 @@ struct TransactionsListView: View {
             csvURL = tempURL
             showingShareSheet = true
         } catch {
+            #if DEBUG
             print("Failed to write CSV: \(error)")
+            #endif
         }
     }
 

@@ -27,6 +27,14 @@ class HealthKitSyncService: ObservableObject {
         isSyncing = true
         defer { isSyncing = false }
 
+        var syncedCount = 0
+
+        // IMPORTANT: Sync weight directly via the working /nexus-weight endpoint
+        // The batch endpoint has issues, but weight sync works via individual endpoint
+        if let weightResult = try? await syncLatestWeight() {
+            if weightResult { syncedCount += 1 }
+        }
+
         // Fetch samples from the last sync date or last 7 days
         let startDate = lastSyncDate ?? Calendar.current.date(byAdding: .day, value: -7, to: Date())!
 
@@ -36,28 +44,61 @@ class HealthKitSyncService: ObservableObject {
 
         let (quantitySamples, sleepSamples, workoutSamples) = try await (samples, sleep, workouts)
 
-        // Only sync if we have data
         let totalCount = quantitySamples.count + sleepSamples.count + workoutSamples.count
-        guard totalCount > 0 else { return }
 
-        // Build and send payload
-        let payload = HealthKitBatchPayload(
-            client_id: UUID().uuidString,
-            device: await UIDevice.current.name,
-            source_bundle_id: Bundle.main.bundleIdentifier ?? "com.rfanw.nexus",
-            captured_at: ISO8601DateFormatter().string(from: Date()),
-            samples: quantitySamples,
-            workouts: workoutSamples,
-            sleep: sleepSamples
-        )
+        // Try batch sync if we have non-weight samples
+        if totalCount > 0 {
+            let payload = HealthKitBatchPayload(
+                client_id: UUID().uuidString,
+                device: await UIDevice.current.name,
+                source_bundle_id: Bundle.main.bundleIdentifier ?? "com.rfanw.nexus",
+                captured_at: ISO8601DateFormatter().string(from: Date()),
+                samples: quantitySamples,
+                workouts: workoutSamples,
+                sleep: sleepSamples
+            )
 
-        let response = try await sendToWebhook(payload)
+            // Try batch sync but don't fail if it errors - weight sync is more important
+            if let response = try? await sendToWebhook(payload), response.success {
+                syncedCount += totalCount
+            }
+        }
 
-        if response.success {
+        // Mark sync as successful if we synced anything
+        if syncedCount > 0 {
             lastSyncDate = Date()
-            lastSyncSampleCount = totalCount
+            lastSyncSampleCount = syncedCount
             userDefaults.set(lastSyncDate, forKey: lastSyncKey)
         }
+    }
+
+    // MARK: - Direct Weight Sync (uses working /nexus-weight endpoint)
+
+    private func syncLatestWeight() async throws -> Bool {
+        let weightType = HKQuantityType(.bodyMass)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+
+        let sample: HKQuantitySample? = try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: weightType,
+                predicate: nil,
+                limit: 1,
+                sortDescriptors: [sortDescriptor]
+            ) { _, samples, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: samples?.first as? HKQuantitySample)
+            }
+            healthStore.execute(query)
+        }
+
+        guard let weightSample = sample else { return false }
+
+        let weightKg = weightSample.quantity.doubleValue(for: .gramUnit(with: .kilo))
+        let response = try await NexusAPI.shared.logWeight(kg: weightKg)
+        return response.success
     }
 
     // MARK: - Fetch Methods

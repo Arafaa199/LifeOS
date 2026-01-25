@@ -23,9 +23,13 @@ class BackgroundTaskManager {
 
         do {
             try BGTaskScheduler.shared.submit(request)
+            #if DEBUG
             print("[BackgroundTask] Health refresh scheduled")
+            #endif
         } catch {
+            #if DEBUG
             print("[BackgroundTask] Failed to schedule health refresh: \(error)")
+            #endif
         }
     }
 
@@ -52,14 +56,18 @@ class BackgroundTaskManager {
         let storage = SharedStorage.shared
 
         guard healthKit.isHealthDataAvailable else {
+            #if DEBUG
             print("[BackgroundTask] HealthKit not available")
+            #endif
             return
         }
 
         do {
             // Sync weight to Nexus backend
             _ = try await healthKit.syncLatestWeightToNexus()
+            #if DEBUG
             print("[BackgroundTask] Weight sync completed")
+            #endif
 
             // Update widget with latest weight
             if let (weight, _) = try? await healthKit.fetchLatestWeight() {
@@ -80,10 +88,14 @@ class BackgroundTaskManager {
                     hrv: recovery.hrv,
                     rhr: recovery.rhr
                 )
+                #if DEBUG
                 print("[BackgroundTask] Recovery data updated: \(score)%")
+                #endif
             }
         } catch {
+            #if DEBUG
             print("[BackgroundTask] Health sync failed: \(error)")
+            #endif
         }
     }
 }
