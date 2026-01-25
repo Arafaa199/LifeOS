@@ -34,6 +34,10 @@
 	<string>Nexus uses speech recognition to transcribe voice input for quick food and expense logging.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Nexus uses the microphone for voice input when logging food or expenses.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Nexus reads your calendar events to track meeting hours and help you understand your time allocation.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Nexus reads your calendar events to track meeting hours and help you understand your time allocation.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

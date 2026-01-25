@@ -5,7 +5,7 @@ import UIKit
 @main
 struct NexusApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var settings = AppSettings()
+    @ObservedObject private var settings = AppSettings.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -17,9 +17,10 @@ struct NexusApp: App {
             if newPhase == .background {
                 BackgroundTaskManager.shared.scheduleHealthRefresh()
             } else if newPhase == .active {
-                // Sync HealthKit data when app comes to foreground
+                // Sync HealthKit and Calendar data when app comes to foreground
                 Task {
                     try? await HealthKitSyncService.shared.syncAllData()
+                    try? await CalendarSyncService.shared.syncAllData()
                 }
             }
         }
@@ -33,17 +34,5 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         BackgroundTaskManager.shared.registerBackgroundTasks()
         return true
-    }
-}
-
-class AppSettings: ObservableObject {
-    @Published var webhookBaseURL: String {
-        didSet {
-            UserDefaults.standard.set(webhookBaseURL, forKey: "webhookBaseURL")
-        }
-    }
-
-    init() {
-        self.webhookBaseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
     }
 }

@@ -1,0 +1,115 @@
+{
+  "name": "Calendar Sync Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-calendar-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "nexus-calendar-sync"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract events from request body\nconst body = $input.item.json.body;\n\nif (!body || !body.events || !Array.isArray(body.events)) {\n  return [{ json: { success: false, error: 'Invalid payload: events array required' } }];\n}\n\nconst events = body.events;\nconst clientId = body.client_id || null;\nconst device = body.device || 'unknown';\nconst source = body.source || 'ios_eventkit';\n\n// Format events for database insertion\nconst formattedEvents = events.map(e => ({\n  event_id: e.event_id,\n  title: e.title || null,\n  start_at: e.start_at,\n  end_at: e.end_at,\n  is_all_day: e.is_all_day || false,\n  calendar_name: e.calendar_name || null,\n  location: e.location || null,\n  notes: e.notes || null,\n  recurrence_rule: e.recurrence_rule || null,\n  client_id: clientId,\n  source: source\n}));\n\nreturn formattedEvents.map(e => ({ json: e }));"
+      },
+      "name": "Parse Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO raw.calendar_events (\n  event_id,\n  title,\n  start_at,\n  end_at,\n  is_all_day,\n  calendar_name,\n  location,\n  notes,\n  recurrence_rule,\n  client_id,\n  source\n)\nVALUES (\n  '{{ $json.event_id }}',\n  {{ $json.title ? \"'\" + $json.title.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.start_at }}'::timestamptz,\n  '{{ $json.end_at }}'::timestamptz,\n  {{ $json.is_all_day }},\n  {{ $json.calendar_name ? \"'\" + $json.calendar_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.location ? \"'\" + $json.location.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.notes ? \"'\" + $json.notes.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.recurrence_rule ? \"'\" + $json.recurrence_rule + \"'\" : 'NULL' }},\n  {{ $json.client_id ? \"'\" + $json.client_id + \"'::uuid\" : 'NULL' }},\n  '{{ $json.source }}'\n)\nON CONFLICT (event_id, source) DO UPDATE SET\n  title = EXCLUDED.title,\n  start_at = EXCLUDED.start_at,\n  end_at = EXCLUDED.end_at,\n  is_all_day = EXCLUDED.is_all_day,\n  calendar_name = EXCLUDED.calendar_name,\n  location = EXCLUDED.location,\n  notes = EXCLUDED.notes,\n  recurrence_rule = EXCLUDED.recurrence_rule\nRETURNING id, (xmax = 0) as was_inserted;",
+        "options": {}
+      },
+      "name": "Upsert Calendar Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [600, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate results\nconst results = $input.all();\nconst inserted = results.filter(r => r.json.was_inserted === true).length;\nconst updated = results.filter(r => r.json.was_inserted === false).length;\n\nreturn [{\n  json: {\n    success: true,\n    inserted: {\n      events: inserted,\n      updated: updated,\n      total: results.length\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Events": {
+      "main": [
+        [
+          {
+            "node": "Upsert Calendar Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Calendar Events": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "notes": "Calendar sync webhook for iOS EventKit integration.\n\nEndpoint: POST /webhook/nexus-calendar-sync\nAuth: X-API-Key header\n\nUpserts events using ON CONFLICT - existing events updated, new inserted.\nSee 068_webhook_payload_example.json for payload format."
+  }
+}

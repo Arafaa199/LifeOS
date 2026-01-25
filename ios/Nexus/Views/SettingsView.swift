@@ -1,8 +1,10 @@
 import SwiftUI
+import EventKit
 
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @StateObject private var healthKitSync = HealthKitSyncService.shared
+    @StateObject private var calendarSync = CalendarSyncService.shared
     @State private var webhookURL: String = ""
     @State private var apiKey: String = ""
     @State private var showingSaveConfirmation = false
@@ -143,6 +145,79 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, 4)
 
+                    // Calendar Sync Status
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "calendar")
+                                .foregroundColor(.blue)
+                            Text("Calendar Sync")
+                                .fontWeight(.medium)
+                            Spacer()
+                            if calendarSync.isSyncing {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+
+                        if calendarSync.authorizationStatus == .denied || calendarSync.authorizationStatus == .restricted {
+                            Text("Calendar access denied. Enable in Settings.")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        } else if let lastSync = calendarSync.lastSyncDate {
+                            HStack {
+                                Text("Last sync:")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(lastSync, style: .relative)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("ago")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            if calendarSync.lastSyncEventCount > 0 {
+                                Text("\(calendarSync.lastSyncEventCount) events synced")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else {
+                            Text("Never synced")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Button {
+                            Task {
+                                if calendarSync.authorizationStatus == .notDetermined {
+                                    let granted = await calendarSync.requestAccess()
+                                    if !granted { return }
+                                }
+                                do {
+                                    try await calendarSync.syncAllData()
+                                    let haptics = UINotificationFeedbackGenerator()
+                                    haptics.notificationOccurred(.success)
+                                } catch {
+                                    let haptics = UINotificationFeedbackGenerator()
+                                    haptics.notificationOccurred(.error)
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Text("Sync Now")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .foregroundColor(.white)
+                        .background(calendarSync.isSyncing ? Color.gray : Color.blue.opacity(0.8))
+                        .cornerRadius(8)
+                        .disabled(calendarSync.isSyncing)
+                    }
+                    .padding(.vertical, 4)
+
                     NavigationLink(destination: WidgetSettingsView()) {
                         SettingsRow(
                             icon: "square.grid.2x2",
@@ -163,7 +238,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Integrations")
                 } footer: {
-                    Text("HealthKit data syncs sleep, HRV, heart rate, steps, and active calories to your Nexus backend.")
+                    Text("HealthKit syncs health data, Calendar syncs meeting hours to help you understand your time allocation.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
