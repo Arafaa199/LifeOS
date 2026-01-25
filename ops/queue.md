@@ -18,7 +18,7 @@ Overall coverage: 96.1% (6 missing are wallet refunds, not bank TX)
 
 ---
 
-## ACTIVE TASK: HealthKit Schema Prep
+## ACTIVE TASK: All Backend Tasks Complete
 
 ---
 
@@ -56,7 +56,7 @@ Status: DONE ✓
 ### TASK-HEALTH.2: HealthKit Schema + Webhook (Backend Only)
 Priority: P1
 Owner: coder
-Status: READY (after DATA.3)
+Status: DONE ✓
 
 **Context:**
 - iOS will batch-POST HealthKit samples, workouts, sleep
@@ -66,25 +66,37 @@ Status: READY (after DATA.3)
 **Objective:** Create complete HealthKit ingestion backend.
 
 **Definition of Done:**
-- [ ] Review/update migrations:
+- [x] Review/update migrations:
   - `raw.healthkit_samples` (sample_id, type, value, unit, start_date, end_date, source_bundle_id, device, client_id, created_at)
   - `raw.healthkit_workouts` (workout_id, type, duration_min, calories, distance_m, start_date, end_date, source, client_id, created_at)
   - `raw.healthkit_sleep` (sleep_id, stage, start_date, end_date, source, client_id, created_at)
   - Unique constraints for idempotency (sample_id, workout_id, sleep_id + source)
-- [ ] Create `facts.v_health_daily` view aggregating:
+- [x] Create `facts.v_health_daily` view aggregating:
   - Steps, active calories, resting calories (sum)
   - Heart rate (avg, min, max)
   - Sleep hours by stage
   - Workout count, total duration
-- [ ] Create n8n workflow: `POST /webhook/healthkit/batch`
+- [x] Create n8n workflow: `POST /webhook/healthkit/batch`
   - Auth: X-API-Key
   - Accepts: `{ client_id, device, source_bundle_id, captured_at, samples:[], workouts:[], sleep:[] }`
   - UPSERT with ON CONFLICT DO NOTHING
   - Returns: `{ success: true, inserted: { samples: N, workouts: N, sleep: N } }`
-- [ ] Verification queries:
+- [x] Verification queries:
   - `SELECT type, COUNT(*) FROM raw.healthkit_samples GROUP BY type ORDER BY count DESC LIMIT 20`
   - `SELECT * FROM facts.v_health_daily WHERE day >= CURRENT_DATE - 7`
-- [ ] Example payload JSON for iOS developer reference
+- [x] Example payload JSON for iOS developer reference
+
+**Completed:** 2026-01-25T19:30+04
+**Evidence:** See state.md
+**Result:**
+- Migration 069 created and applied successfully
+- Updated raw.healthkit_samples with sample_id, source_bundle_id, client_id columns
+- Created raw.healthkit_workouts table (14 columns, unique constraint, 4 indexes, immutability trigger)
+- Created raw.healthkit_sleep table (11 columns, unique constraint, 4 indexes, immutability trigger)
+- Created facts.v_health_daily view aggregating steps, heart rate, workouts, sleep
+- Created n8n workflow: healthkit-batch-webhook.json
+- Verified idempotency: ON CONFLICT DO NOTHING working correctly
+- Example payload JSON documented with 4 sample types, 2 workouts, 6 sleep stages
 
 ---
 

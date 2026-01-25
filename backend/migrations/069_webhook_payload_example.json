@@ -1,0 +1,124 @@
+{
+  "description": "Example HealthKit batch webhook payload for iOS integration",
+  "endpoint": "POST /webhook/healthkit/batch",
+  "headers": {
+    "Content-Type": "application/json",
+    "X-API-Key": "{{ N8N_API_KEY }}"
+  },
+  "payload": {
+    "client_id": "550e8400-e29b-41d4-a716-446655440000",
+    "device": "iPhone 17 Pro",
+    "source_bundle_id": "com.rfanw.nexus",
+    "captured_at": "2026-01-25T15:30:00Z",
+    "samples": [
+      {
+        "sample_id": "ABC123-STEP-001",
+        "type": "HKQuantityTypeIdentifierStepCount",
+        "value": 8543,
+        "unit": "count",
+        "start_date": "2026-01-25T00:00:00Z",
+        "end_date": "2026-01-25T23:59:59Z"
+      },
+      {
+        "sample_id": "ABC123-HR-001",
+        "type": "HKQuantityTypeIdentifierHeartRate",
+        "value": 68,
+        "unit": "count/min",
+        "start_date": "2026-01-25T14:30:00Z",
+        "end_date": "2026-01-25T14:30:01Z"
+      },
+      {
+        "sample_id": "ABC123-CAL-001",
+        "type": "HKQuantityTypeIdentifierActiveEnergyBurned",
+        "value": 450,
+        "unit": "kcal",
+        "start_date": "2026-01-25T00:00:00Z",
+        "end_date": "2026-01-25T23:59:59Z"
+      },
+      {
+        "sample_id": "ABC123-BCAL-001",
+        "type": "HKQuantityTypeIdentifierBasalEnergyBurned",
+        "value": 1650,
+        "unit": "kcal",
+        "start_date": "2026-01-25T00:00:00Z",
+        "end_date": "2026-01-25T23:59:59Z"
+      }
+    ],
+    "workouts": [
+      {
+        "workout_id": "ABC123-WORKOUT-001",
+        "type": "HKWorkoutActivityTypeRunning",
+        "duration_min": 35.5,
+        "calories": 320,
+        "distance_m": 5200,
+        "start_date": "2026-01-25T06:00:00Z",
+        "end_date": "2026-01-25T06:35:30Z"
+      },
+      {
+        "workout_id": "ABC123-WORKOUT-002",
+        "type": "HKWorkoutActivityTypeTraditionalStrengthTraining",
+        "duration_min": 45,
+        "calories": 280,
+        "distance_m": null,
+        "start_date": "2026-01-25T17:00:00Z",
+        "end_date": "2026-01-25T17:45:00Z"
+      }
+    ],
+    "sleep": [
+      {
+        "sleep_id": "ABC123-SLEEP-001",
+        "stage": "inBed",
+        "start_date": "2026-01-24T22:30:00Z",
+        "end_date": "2026-01-25T06:15:00Z"
+      },
+      {
+        "sleep_id": "ABC123-SLEEP-002",
+        "stage": "asleep",
+        "start_date": "2026-01-24T22:45:00Z",
+        "end_date": "2026-01-25T06:00:00Z"
+      },
+      {
+        "sleep_id": "ABC123-SLEEP-003",
+        "stage": "core",
+        "start_date": "2026-01-24T23:00:00Z",
+        "end_date": "2026-01-25T02:30:00Z"
+      },
+      {
+        "sleep_id": "ABC123-SLEEP-004",
+        "stage": "deep",
+        "start_date": "2026-01-25T02:30:00Z",
+        "end_date": "2026-01-25T04:00:00Z"
+      },
+      {
+        "sleep_id": "ABC123-SLEEP-005",
+        "stage": "rem",
+        "start_date": "2026-01-25T04:00:00Z",
+        "end_date": "2026-01-25T05:30:00Z"
+      },
+      {
+        "sleep_id": "ABC123-SLEEP-006",
+        "stage": "awake",
+        "start_date": "2026-01-25T05:30:00Z",
+        "end_date": "2026-01-25T06:00:00Z"
+      }
+    ]
+  },
+  "expected_response": {
+    "success": true,
+    "inserted": {
+      "samples": 4,
+      "workouts": 2,
+      "sleep": 6
+    },
+    "timestamp": "2026-01-25T15:30:05.123Z"
+  },
+  "notes": [
+    "All *_id fields must be unique and stable (use iOS HealthKit UUIDs)",
+    "client_id is used for request tracking and idempotency",
+    "ON CONFLICT DO NOTHING ensures duplicates are silently ignored",
+    "Timestamps must be ISO 8601 format with timezone",
+    "Sleep stages: inBed, asleep, awake, core, deep, rem",
+    "Workout types follow Apple HealthKit naming (HKWorkoutActivityType*)",
+    "Sample types follow Apple HealthKit naming (HKQuantityTypeIdentifier*)"
+  ]
+}

@@ -1,10 +1,54 @@
 # LifeOS — Canonical State
-Last updated: 2026-01-25T18:45:00+04:00
-Last coder run: 2026-01-25T18:45:00+04:00
+Last updated: 2026-01-25T19:30:00+04:00
+Last coder run: 2026-01-25T19:30:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
 ---
+
+### TASK-HEALTH.2: HealthKit Schema + Webhook (2026-01-25T19:30+04)
+- **Status**: DONE ✓
+- **Changed**:
+  - `migrations/069_healthkit_complete_schema.up.sql`
+  - `migrations/069_healthkit_complete_schema.down.sql`
+  - `migrations/069_verification.sql`
+  - `migrations/069_webhook_payload_example.json`
+  - `n8n-workflows/healthkit-batch-webhook.json`
+- **Tables Created**:
+  - `raw.healthkit_workouts` (14 columns, unique on workout_id+source)
+  - `raw.healthkit_sleep` (11 columns, unique on sleep_id+source)
+- **Tables Updated**:
+  - `raw.healthkit_samples` - Added sample_id, source_bundle_id, client_id columns
+  - Added UNIQUE constraint on (sample_id, source) for idempotency
+  - Set default for run_id column
+- **Views Created**:
+  - `facts.v_health_daily` - Daily aggregates of steps, calories, heart rate, workouts, sleep
+- **n8n Workflow**:
+  - POST /webhook/healthkit/batch
+  - Auth: X-API-Key header
+  - Batch inserts samples, workouts, sleep with ON CONFLICT DO NOTHING
+  - Returns: { success: true, inserted: { samples: N, workouts: N, sleep: N } }
+- **Evidence**:
+  ```sql
+  -- Tables verified
+  SELECT table_name FROM information_schema.tables WHERE table_schema = 'raw' AND table_name LIKE '%healthkit%';
+  -- healthkit_samples, healthkit_workouts, healthkit_sleep ✓
+  
+  -- Idempotency verified
+  INSERT ... ON CONFLICT (sample_id, source) DO NOTHING;
+  -- First insert: 1 row, second insert: 0 rows ✓
+  
+  -- View working
+  SELECT * FROM facts.v_health_daily WHERE day >= CURRENT_DATE - 7;
+  -- Returns 2 rows with steps, workouts, sleep aggregated ✓
+  ```
+- **Notes**:
+  - All three tables have immutability triggers (INSERT only, no UPDATE/DELETE)
+  - Unique constraints properly support ON CONFLICT for idempotency
+  - View aggregates by Dubai timezone
+  - Example payload includes 4 sample types, 2 workouts, 6 sleep stages
+  - Ready for iOS HealthKit integration
+
 
 ## Current Focus: Data Quality & Extraction Phase
 

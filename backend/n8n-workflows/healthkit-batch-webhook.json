@@ -1,0 +1,243 @@
+{
+  "name": "HealthKit: Batch Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "healthkit/batch",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-healthkit-batch",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "healthkit-batch"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-api-key'] }}",
+              "operation": "equals",
+              "value2": "={{ $env.N8N_API_KEY }}"
+            }
+          ]
+        }
+      },
+      "id": "auth-check",
+      "name": "Check API Key",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"Unauthorized\", \"message\": \"Invalid or missing X-API-Key header\" } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "unauthorized-response",
+      "name": "Unauthorized Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst clientId = body.client_id;\nconst device = body.device || 'unknown';\nconst sourceBundleId = body.source_bundle_id || 'unknown';\nconst capturedAt = body.captured_at || new Date().toISOString();\n\nconst samples = body.samples || [];\nconst workouts = body.workouts || [];\nconst sleep = body.sleep || [];\n\nconst results = {\n  samples: [],\n  workouts: [],\n  sleep: []\n};\n\n// Process samples\nfor (const sample of samples) {\n  results.samples.push({\n    sample_id: sample.sample_id,\n    type: sample.type,\n    value: sample.value,\n    unit: sample.unit,\n    start_date: sample.start_date,\n    end_date: sample.end_date,\n    source_bundle_id: sourceBundleId,\n    device: device,\n    client_id: clientId\n  });\n}\n\n// Process workouts\nfor (const workout of workouts) {\n  results.workouts.push({\n    workout_id: workout.workout_id,\n    type: workout.type,\n    duration_min: workout.duration_min,\n    calories: workout.calories,\n    distance_m: workout.distance_m,\n    start_date: workout.start_date,\n    end_date: workout.end_date,\n    source_bundle_id: sourceBundleId,\n    device: device,\n    client_id: clientId\n  });\n}\n\n// Process sleep\nfor (const sleepEntry of sleep) {\n  results.sleep.push({\n    sleep_id: sleepEntry.sleep_id,\n    stage: sleepEntry.stage,\n    start_date: sleepEntry.start_date,\n    end_date: sleepEntry.end_date,\n    source_bundle_id: sourceBundleId,\n    device: device,\n    client_id: clientId\n  });\n}\n\nreturn { json: results };"
+      },
+      "id": "parse-payload",
+      "name": "Parse Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO raw.healthkit_samples (sample_id, sample_type, value, unit, start_date, end_date, source_bundle_id, device_name, client_id, source)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ios_healthkit')\nON CONFLICT (sample_id, source) DO NOTHING",
+        "additionalFields": {}
+      },
+      "id": "insert-samples",
+      "name": "Insert Samples",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO raw.healthkit_workouts (workout_id, type, duration_min, calories, distance_m, start_date, end_date, source_bundle_id, device_name, client_id, source)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ios_healthkit')\nON CONFLICT (workout_id, source) DO NOTHING",
+        "additionalFields": {}
+      },
+      "id": "insert-workouts",
+      "name": "Insert Workouts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 450],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO raw.healthkit_sleep (sleep_id, stage, start_date, end_date, source_bundle_id, device_name, client_id, source)\nVALUES ($1, $2, $3, $4, $5, $6, $7, 'ios_healthkit')\nON CONFLICT (sleep_id, source) DO NOTHING",
+        "additionalFields": {}
+      },
+      "id": "insert-sleep",
+      "name": "Insert Sleep",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [850, 600],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Count inserted rows from all three branches\nconst samplesResult = $input.all()[0].json;\nconst workoutsResult = $input.all()[1].json;\nconst sleepResult = $input.all()[2].json;\n\nreturn {\n  json: {\n    success: true,\n    inserted: {\n      samples: samplesResult?.rowCount || 0,\n      workouts: workoutsResult?.rowCount || 0,\n      sleep: sleepResult?.rowCount || 0\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check API Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check API Key": {
+      "main": [
+        [
+          {
+            "node": "Parse Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unauthorized Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Payload": {
+      "main": [
+        [
+          {
+            "node": "Insert Samples",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert Workouts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert Sleep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Samples": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Workouts": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Sleep": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-01-25T15:00:00.000Z",
+  "versionId": "1"
+}
