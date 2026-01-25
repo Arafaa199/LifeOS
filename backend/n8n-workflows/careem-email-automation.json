@@ -1,0 +1,322 @@
+{
+  "name": "Careem Email Receipt Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 50,
+        "filters": {
+          "labelIds": ["CAREEM_RECEIPTS_LABEL_ID"],
+          "includeSpamTrash": false,
+          "q": "from:go@careem.com subject:\"Delivery From Careem\" newer_than:7d"
+        },
+        "options": {}
+      },
+      "name": "Gmail: List Careem Emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [400, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_OAUTH_CREDENTIAL_ID",
+          "name": "Gmail OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Loop Over Messages",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "options": {
+          "format": "full"
+        }
+      },
+      "name": "Gmail: Get Full Message",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [800, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_OAUTH_CREDENTIAL_ID",
+          "name": "Gmail OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// Get message data\nconst msg = $input.item.json;\n\n// Extract headers\nconst headers = msg.payload?.headers || [];\nconst getHeader = (name) => headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';\n\nconst emailFrom = getHeader('From');\nconst emailSubject = getHeader('Subject');\nconst emailDate = getHeader('Date');\n\n// Parse email date to ISO\nlet emailReceivedAt = null;\nif (msg.internalDate) {\n  emailReceivedAt = new Date(parseInt(msg.internalDate)).toISOString();\n} else if (emailDate) {\n  emailReceivedAt = new Date(emailDate).toISOString();\n}\n\n// Extract HTML body\nlet htmlBody = '';\n\nfunction findHtmlPart(part) {\n  if (part.mimeType === 'text/html') {\n    return part.body?.data || '';\n  }\n  if (part.parts) {\n    for (const subpart of part.parts) {\n      const found = findHtmlPart(subpart);\n      if (found) return found;\n    }\n  }\n  return '';\n}\n\nif (msg.payload) {\n  const htmlData = findHtmlPart(msg.payload);\n  if (htmlData) {\n    // Decode base64url\n    htmlBody = Buffer.from(htmlData.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');\n  }\n}\n\nif (!htmlBody) {\n  throw new Error('No HTML body found in email');\n}\n\n// Compute content hash for deduplication\nconst contentHash = crypto.createHash('sha256').update(htmlBody).digest('hex');\n\nreturn [{\n  json: {\n    gmail_message_id: msg.id,\n    gmail_thread_id: msg.threadId,\n    email_from: emailFrom,\n    email_subject: emailSubject,\n    email_received_at: emailReceivedAt,\n    content_hash: contentHash,\n    html_body: htmlBody,\n    vendor: 'careem_quik'\n  }\n}];"
+      },
+      "name": "Extract HTML Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Careem Quik email HTML\n// Extracts line items, totals, discounts from the email body\n\nconst emailData = $input.item.json;\nconst html = emailData.html_body;\n\nconst result = {\n  ...emailData,\n  parse_version: 'careem_v1',\n  line_items: [],\n  savings: {},\n  delivery: {},\n  parse_errors: []\n};\n\n// Helper: find AED amount after a label\nfunction findAmountAfterLabel(label, isNegative = false) {\n  const idx = html.toLowerCase().indexOf(label.toLowerCase());\n  if (idx < 0) return null;\n  const section = html.substring(idx, idx + 3000);\n  const pattern = isNegative ? /-\\s*AED\\s*([\\d,]+\\.?\\d*)/ : /AED\\s*([\\d,]+\\.?\\d*)/;\n  const match = section.match(pattern);\n  if (match) return parseFloat(match[1].replace(',', ''));\n  return null;\n}\n\n// Extract line items: <span style=\"color: #18AB33\">QTY ×</span> Item Name\nconst itemPattern = /<span[^>]*color:\\s*#18AB33[^>]*>(\\d+)\\s*(?:×|&times;|x)\\s*<\\/span>\\s*([^<]+)/gi;\nlet match;\nconst pricePattern = /AED\\s*([\\d,]+\\.?\\d*)/;\nconst strikePattern = /<s>AED\\s*([\\d,]+\\.?\\d*)<\\/s>/;\n\nwhile ((match = itemPattern.exec(html)) !== null) {\n  const qty = parseInt(match[1]);\n  let description = match[2].trim().replace(/\\s+/g, ' ');\n  \n  // Look for price in next ~1500 chars\n  const searchStart = match.index + match[0].length;\n  const priceSection = html.substring(searchStart, searchStart + 1500);\n  \n  let price = 0;\n  let originalPrice = null;\n  \n  const strikeMatch = priceSection.match(strikePattern);\n  if (strikeMatch) {\n    originalPrice = parseFloat(strikeMatch[1].replace(',', ''));\n    const afterStrike = priceSection.substring(priceSection.indexOf(strikeMatch[0]) + strikeMatch[0].length);\n    const saleMatch = afterStrike.match(pricePattern);\n    if (saleMatch) price = parseFloat(saleMatch[1].replace(',', ''));\n  } else {\n    const priceMatch = priceSection.match(pricePattern);\n    if (priceMatch) price = parseFloat(priceMatch[1].replace(',', ''));\n  }\n  \n  const item = {\n    description,\n    qty,\n    unit_price: qty > 0 ? Math.round((price / qty) * 100) / 100 : price,\n    total: price\n  };\n  if (originalPrice && originalPrice !== price) {\n    item.original_price = originalPrice;\n    item.discount = Math.round((originalPrice - price) * 100) / 100;\n  }\n  result.line_items.push(item);\n}\n\n// Extract totals\nconst totalMatch = html.match(/Your total bill:\\s*AED\\s*([\\d,]+\\.?\\d*)/);\nif (totalMatch) result.total_incl_vat = parseFloat(totalMatch[1].replace(',', ''));\n\nresult.original_basket = findAmountAfterLabel('Original basket');\nresult.subtotal_after_discount = findAmountAfterLabel('Basket total');\nresult.vat_amount = findAmountAfterLabel('5% VAT');\nif (result.vat_amount) result.vat_rate = 5.0;\n\n// Savings\nconst discountIdx = html.indexOf('Discount');\nif (discountIdx > 0) {\n  const discSection = html.substring(discountIdx, discountIdx + 1500);\n  const discMatch = discSection.match(/-\\s*AED\\s*([\\d,]+\\.?\\d*)/);\n  if (discMatch) result.savings.discount = parseFloat(discMatch[1].replace(',', ''));\n}\n\nconst plusDiscount = findAmountAfterLabel('Careem Plus Discount', true);\nif (plusDiscount) result.savings.careem_plus_discount = plusDiscount;\n\n// Delivery\nresult.delivery.delivery_charge = findAmountAfterLabel('Delivery charge');\nresult.delivery.delivery_fee = findAmountAfterLabel('Delivery fee');\n\n// Calculate total savings\nconst totalSavings = (result.savings.discount || 0) + (result.savings.careem_plus_discount || 0);\nif (totalSavings > 0) result.savings.total_savings = Math.round(totalSavings * 100) / 100;\n\n// Remove html_body from result to save space\ndelete result.html_body;\n\nreturn [{ json: result }];"
+      },
+      "name": "Parse Email Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO finance.receipts (\n  pdf_hash,\n  vendor,\n  gmail_message_id,\n  gmail_thread_id,\n  email_from,\n  email_subject,\n  email_received_at,\n  parse_status,\n  currency,\n  total_incl_vat,\n  total_excl_vat,\n  vat_amount,\n  vat_rate,\n  parsed_data,\n  parsed_at\n)\nVALUES (\n  '{{ $json.content_hash }}',\n  '{{ $json.vendor }}',\n  '{{ $json.gmail_message_id }}',\n  '{{ $json.gmail_thread_id }}',\n  '{{ $json.email_from.replace(/'/g, \"''\") }}',\n  '{{ $json.email_subject.replace(/'/g, \"''\") }}',\n  '{{ $json.email_received_at }}'::timestamptz,\n  'parsed',\n  'AED',\n  {{ $json.total_incl_vat || 'NULL' }},\n  {{ $json.subtotal_after_discount || 'NULL' }},\n  {{ $json.vat_amount || 'NULL' }},\n  {{ $json.vat_rate || 'NULL' }},\n  '{{ JSON.stringify($json).replace(/'/g, \"''\") }}'::jsonb,\n  NOW()\n)\nON CONFLICT (pdf_hash) DO NOTHING\nRETURNING id;",
+        "options": {}
+      },
+      "name": "Insert Receipt",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1400, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const receiptResult = $input.item.json;\nconst parsedData = $('Parse Email Content').item.json;\n\nconst wasInserted = receiptResult?.id != null;\nconst receiptId = receiptResult?.id;\n\nreturn [{\n  json: {\n    receipt_id: receiptId,\n    was_inserted: wasInserted,\n    content_hash: parsedData.content_hash,\n    gmail_message_id: parsedData.gmail_message_id,\n    item_count: parsedData.line_items?.length || 0\n  }\n}];"
+      },
+      "name": "Check Insert Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.was_inserted }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Was Inserted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Insert line items for the receipt\nWITH items AS (\n  SELECT \n    {{ $('Check Insert Result').item.json.receipt_id }} as receipt_id,\n    item->>'description' as description,\n    (item->>'qty')::integer as quantity,\n    (item->>'unit_price')::numeric as unit_price,\n    (item->>'total')::numeric as line_total,\n    (item->>'original_price')::numeric as original_price,\n    (item->>'discount')::numeric as discount_amount\n  FROM jsonb_array_elements('{{ JSON.stringify($('Parse Email Content').item.json.line_items).replace(/'/g, \"''\") }}'::jsonb) as item\n)\nINSERT INTO finance.receipt_items (\n  receipt_id,\n  description,\n  quantity,\n  unit_price,\n  line_total,\n  discount_amount\n)\nSELECT \n  receipt_id,\n  description,\n  quantity,\n  unit_price,\n  line_total,\n  COALESCE(discount_amount, 0)\nFROM items\nRETURNING id;",
+        "options": {}
+      },
+      "name": "Insert Line Items",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [2000, 200],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log duplicate detection\nconst data = $input.item.json;\nconsole.log(`Duplicate Careem receipt: ${data.content_hash}`);\nreturn [{ json: { status: 'duplicate', content_hash: data.content_hash } }];"
+      },
+      "name": "Log Duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {},
+      "name": "Continue Loop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2200, 300]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "Gmail: List Careem Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: List Careem Emails": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Messages": {
+      "main": [
+        [
+          {
+            "node": "Gmail: Get Full Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail: Get Full Message": {
+      "main": [
+        [
+          {
+            "node": "Extract HTML Body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract HTML Body": {
+      "main": [
+        [
+          {
+            "node": "Parse Email Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Email Content": {
+      "main": [
+        [
+          {
+            "node": "Insert Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Receipt": {
+      "main": [
+        [
+          {
+            "node": "Check Insert Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Insert Result": {
+      "main": [
+        [
+          {
+            "node": "Was Inserted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Was Inserted?": {
+      "main": [
+        [
+          {
+            "node": "Insert Line Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Line Items": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-25T00:00:00.000Z",
+  "versionId": "1"
+}
