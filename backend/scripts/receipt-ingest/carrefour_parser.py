@@ -46,7 +46,76 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 # Parser version - increment when parsing logic changes
-PARSE_VERSION = 'carrefour_v1'
+PARSE_VERSION = 'carrefour_v2'
+
+# Known brands for high-confidence matching (synced with finance.known_brands)
+KNOWN_BRANDS = {
+    # Cereals & Breakfast
+    'nestle', 'nestlé', 'kelloggs', "kellogg's", 'quaker',
+    # Chocolate & Snacks
+    'kinder', 'galaxy', 'cadbury', 'cadburys', 'lindt', 'toblerone', 'kitkat', 'snickers', 'mars',
+    # Spreads & Jams
+    'bonne maman', 'nutella', 'skippy',
+    # Rice & Grains
+    'tilda', 'uncle bens', "uncle ben's",
+    # Spices & Seasonings
+    'bayara', 'maggi',
+    # Dairy
+    'almarai', 'al marai', 'lurpak', 'philadelphia', 'kiri', 'puck', 'nadec', 'anchor',
+    # Beverages
+    'vimto', 'tang', 'nescafe', 'nescafé', 'lipton', 'red bull', 'coca cola', 'pepsi',
+    # Bakery
+    'modern bakery', 'americana',
+    # Health & Organic
+    'earth goods', 'goody',
+    # Personal Care
+    'dettol', 'fairy',
+}
+
+# Words to skip when doing position-based extraction
+SKIP_WORDS = {
+    'the', 'fresh', 'organic', 'natural', 'premium', 'classic', 'original',
+    'mini', 'large', 'small', 'medium', 'extra', 'super', 'new', 'special',
+    'carrot', 'tomato', 'potato', 'onion', 'apple', 'banana', 'orange', 'lemon',
+    'chicken', 'beef', 'lamb', 'fish', 'salmon', 'tuna', 'shrimp',
+}
+
+
+def extract_brand(description: str) -> Dict[str, Any]:
+    """
+    Extract brand from item description.
+    Returns dict with brand, confidence, source.
+    """
+    if not description:
+        return {"brand": None, "brand_confidence": None, "brand_source": None}
+
+    desc_lower = description.lower()
+
+    # Try known brands first (high confidence)
+    for brand in KNOWN_BRANDS:
+        if desc_lower.startswith(brand + ' ') or f' {brand} ' in desc_lower or desc_lower.startswith(brand + ','):
+            # Return properly capitalized brand name
+            return {
+                "brand": brand.title(),
+                "brand_confidence": 0.95,
+                "brand_source": "known_list"
+            }
+
+    # Fallback: first word if capitalized and not in skip list
+    words = description.replace(',', ' ').split()
+    if words:
+        first_word = words[0]
+        if (len(first_word) > 2
+            and first_word[0].isupper()
+            and not first_word[0].isdigit()
+            and first_word.lower() not in SKIP_WORDS):
+            return {
+                "brand": first_word,
+                "brand_confidence": 0.60,
+                "brand_source": "position"
+            }
+
+    return {"brand": None, "brand_confidence": None, "brand_source": None}
 
 
 def compute_template_hash(pdf_text: str) -> str:
@@ -395,6 +464,10 @@ def parse_line_items(pdf_text: str) -> List[Dict[str, Any]]:
             # Check for "(Free)" marker
             if current_item["total_incl_vat"] == 0:
                 current_item["is_free"] = True
+
+            # Extract brand
+            brand_info = extract_brand(description)
+            current_item.update(brand_info)
 
             extra_description = []
             continue
