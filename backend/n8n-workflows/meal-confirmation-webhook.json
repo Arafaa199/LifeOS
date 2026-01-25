@@ -5,7 +5,9 @@
       "parameters": {
         "path": "nexus-meal-confirmation",
         "responseMode": "responseNode",
-        "options": {}
+        "options": {
+          "httpMethod": "POST"
+        }
       },
       "id": "webhook-node",
       "name": "Webhook",
@@ -17,7 +19,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO life.meal_confirmations (meal_date, meal_time, meal_type, user_action, confirmed_at)\nVALUES (\n  '{{ $json.body.meal_date }}'::DATE,\n  '{{ $json.body.meal_time }}'::TIME,\n  '{{ $json.body.meal_type }}',\n  '{{ $json.body.action }}',\n  NOW()\n)\nON CONFLICT (meal_date, meal_time) DO UPDATE\nSET user_action = EXCLUDED.user_action,\n    confirmed_at = EXCLUDED.confirmed_at\nRETURNING id, meal_date, meal_time, meal_type, user_action;",
+        "query": "=INSERT INTO life.meal_confirmations (inferred_meal_date, inferred_meal_time, meal_type, user_action, signals_used, confidence)\nSELECT \n  '{{ $json.body.meal_date }}'::DATE,\n  '{{ $json.body.meal_time }}'::TIME,\n  '{{ $json.body.meal_type }}',\n  '{{ $json.body.action }}',\n  COALESCE('{{ $json.body.signals_used }}'::JSONB, '{}'::JSONB),\n  COALESCE('{{ $json.body.confidence }}'::NUMERIC, 0.0)\nON CONFLICT (inferred_meal_date, inferred_meal_time) DO UPDATE\nSET user_action = EXCLUDED.user_action,\n    confirmed_at = NOW()\nRETURNING id, inferred_meal_date, inferred_meal_time, meal_type, user_action;",
         "options": {}
       },
       "id": "postgres-insert",
@@ -35,7 +37,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": true, \"meal_date\": $json.meal_date, \"meal_time\": $json.meal_time, \"action\": $json.user_action } }}"
+        "responseBody": "={{ { \"success\": true, \"meal_date\": $json.inferred_meal_date, \"meal_time\": $json.inferred_meal_time, \"action\": $json.user_action } }}"
       },
       "id": "response-node",
       "name": "Response",
