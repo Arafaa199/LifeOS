@@ -209,6 +209,11 @@ def parse_careem_html(html_content: str) -> Dict[str, Any]:
     if total_match:
         result["total_incl_vat"] = float(total_match.group(1).replace(',', ''))
 
+    # Order ID
+    order_id_match = re.search(r'Order ID[:\s]*(\d+)', html_content)
+    if order_id_match:
+        result["order_id"] = order_id_match.group(1)
+
     # Original basket
     basket_val = find_amount_after_label('Original basket')
     if basket_val:
@@ -261,14 +266,34 @@ def parse_careem_html(html_content: str) -> Dict[str, Any]:
     if free_del_val:
         result["delivery"]["free_delivery_discount"] = free_del_val
 
+    # Service fee
+    service_fee_val = find_amount_after_label('Service fee')
+    if service_fee_val:
+        result["delivery"]["service_fee"] = service_fee_val
+
+    # Captain reward
+    captain_val = find_amount_after_label('Captain reward')
+    if captain_val:
+        result["delivery"]["captain_reward"] = captain_val
+
     # VAT
     vat_val = find_amount_after_label('5% VAT')
     if vat_val:
         result["vat_amount"] = vat_val
         result["vat_rate"] = 5.0
 
-    # Payment total (should match total bill)
-    payment_total_match = re.search(r'Payment method.*?AED\s*([\d,]+\.?\d*)', html_content, re.IGNORECASE | re.DOTALL)
+    # Payment method (Apple Pay, Card, etc.) - search near end of email
+    payment_methods = ['Apple Pay', 'Google Pay', 'Visa', 'Mastercard', 'Cash', 'Card']
+    for pm in payment_methods:
+        if pm.lower() in html_content.lower():
+            result["payment_method"] = pm
+            break
+
+    # Total savings message ("You have saved AED X.XX on this order")
+    # The AED amount may be in a span element, so search more broadly
+    saved_match = re.search(r'You have saved.*?AED\s*([\d,]+\.?\d*)', html_content, re.IGNORECASE | re.DOTALL)
+    if saved_match:
+        result["savings"]["advertised_savings"] = float(saved_match.group(1).replace(',', ''))
 
     # Compute total savings
     total_savings = (
