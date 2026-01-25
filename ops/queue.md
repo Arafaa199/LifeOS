@@ -16,12 +16,107 @@ SMS ingestion is FROZEN (no changes).
 Bank SMS coverage: 100% (143/143)
 Overall coverage: 96.1% (6 missing are wallet refunds, not bank TX)
 
-**Current Milestone:** Reality Verification (P0)
-**Goal:** Prove data is correct, replayable, and explainable before building more features.
+**Current Milestone:** Assisted Capture (P0)
+**Goal:** Passive health signals + inferred meal detection, zero manual input.
+
+**Previous Milestone:** Reality Verification — COMPLETE ✅
 
 ---
 
-## ACTIVE TASK: Data Coverage Audit
+## ACTIVE TASK: HealthKit iOS Integration
+
+### TASK-CAPTURE.1: HealthKit iOS Integration
+Priority: P0
+Owner: coder
+Status: PENDING
+
+**Context:**
+- Backend schema ready (migration 069: raw.healthkit_samples, normalized.body_metrics)
+- Webhook ready: POST /webhook/nexus-healthkit
+- Need iOS app to read HealthKit and sync to backend
+
+**Objective:** Implement HealthKit read-only sync in iOS app.
+
+**Definition of Done:**
+- [ ] Create `HealthKitSyncService.swift` to read:
+  - Sleep analysis (HKCategoryTypeIdentifierSleepAnalysis)
+  - Heart rate variability (HKQuantityTypeIdentifierHeartRateVariabilitySDNN)
+  - Resting heart rate (HKQuantityTypeIdentifierRestingHeartRate)
+  - Active energy burned (HKQuantityTypeIdentifierActiveEnergyBurned)
+  - Weight (HKQuantityTypeIdentifierBodyMass) — already exists, verify
+- [ ] Sync on app foreground (background refresh optional)
+- [ ] Send batched samples to /webhook/nexus-healthkit
+- [ ] Deduplicate using sample UUID (idempotent)
+- [ ] Show sync status in Settings (last sync time, sample count)
+- [ ] Verification: HealthKit data appears in raw.healthkit_samples
+
+**Notes:**
+- Read-only (no writes to HealthKit)
+- Respect existing HealthKitManager.swift patterns
+- Weight sync may already work — verify before duplicating
+
+---
+
+### TASK-CAPTURE.2: Meal Inference Engine
+Priority: P0
+Owner: coder
+Status: PENDING
+**Blocked by:** TASK-CAPTURE.1
+
+**Context:**
+- Signals available: transaction time, merchant category (Restaurant/Grocery), location (home/away), TV off periods, motion gaps
+- Goal: Infer likely meal times without user input
+
+**Objective:** Create SQL-based meal inference using existing signals.
+
+**Definition of Done:**
+- [ ] Create `life.v_inferred_meals` view detecting meal candidates:
+  - Restaurant transaction → high confidence meal
+  - Home + cooking time window (11-14h, 18-21h) + no TV → medium confidence
+  - Grocery purchase same day + home evening → low confidence (cooked)
+- [ ] Each inference has: inferred_at, meal_type (breakfast/lunch/dinner/snack), confidence (0-1), signals_used (JSONB)
+- [ ] Create `life.meal_confirmations` table for user feedback (confirmed/skipped)
+- [ ] Function `life.get_pending_meal_confirmations(date)` returns unconfirmed inferences
+- [ ] Verification: query shows inferred meals for last 7 days with confidence scores
+
+**Signals to use:**
+- `finance.transactions` (restaurant, grocery timing)
+- `life.locations` (home arrival/departure)
+- `life.behavioral_events` (TV sessions, motion gaps)
+- Time windows for meal types
+
+---
+
+### TASK-CAPTURE.3: Meal Confirmation UX
+Priority: P0
+Owner: coder
+Status: PENDING
+**Blocked by:** TASK-CAPTURE.2
+
+**Context:**
+- Inferred meals need human confirmation
+- UX must be frictionless: yes/skip only, no data entry
+
+**Objective:** iOS UI for confirming inferred meals.
+
+**Definition of Done:**
+- [ ] Create `MealConfirmationView.swift` showing:
+  - Inferred meal card (time, type, confidence, signals summary)
+  - Two buttons: ✓ Confirm / ✗ Skip
+  - Swipe gestures (right=confirm, left=skip)
+- [ ] Integrate into TodayView (card appears when pending confirmations exist)
+- [ ] POST confirmation to /webhook/nexus-meal-confirmation
+- [ ] Dismissed meals don't reappear (stored in meal_confirmations)
+- [ ] Verification: confirm/skip flows work, data persists
+
+**UX Requirements:**
+- No text input
+- No meal details editing
+- Just binary: "Did you eat around this time?" → Yes/No
+
+---
+
+## COMPLETED: Reality Verification
 
 ### TASK-VERIFY.1: Data Coverage Audit
 Priority: P0
