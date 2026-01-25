@@ -16,6 +16,11 @@ struct NexusApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
                 BackgroundTaskManager.shared.scheduleHealthRefresh()
+            } else if newPhase == .active {
+                // Sync HealthKit data when app comes to foreground
+                Task {
+                    try? await HealthKitSyncService.shared.syncAllData()
+                }
             }
         }
     }

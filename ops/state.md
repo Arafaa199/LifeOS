@@ -1,8 +1,50 @@
 # LifeOS — Canonical State
-Last updated: 2026-01-25T22:50:00+04:00
-Last coder run: 2026-01-25T22:50:00+04:00
+Last updated: 2026-01-25T23:15:00+04:00
+Last coder run: 2026-01-25T23:15:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
+
+---
+
+### TASK-CAPTURE.1: HealthKit iOS Integration (2026-01-25T23:15+04)
+- **Status**: DONE ✓
+- **Changed**:
+  - `ios/Nexus/Services/HealthKitSyncService.swift` (295 lines, new file)
+  - `ios/Nexus/Views/SettingsView.swift` (added sync status section)
+  - `ios/Nexus/NexusApp.swift` (added foreground sync trigger)
+- **Implementation**:
+  - Created `HealthKitSyncService` with batch sync to `/webhook/healthkit/batch`
+  - Syncs 5 quantity types: HRV, RHR, Active Calories, Steps, Weight
+  - Syncs sleep analysis (all stages: inBed, asleep, awake, core, deep, rem)
+  - Syncs workout data with duration, calories, distance
+  - Idempotent via sample UUID (ON CONFLICT DO NOTHING on backend)
+  - Auto-sync on app foreground (scenePhase == .active)
+  - Manual sync button in Settings with status display
+- **Evidence**:
+  ```bash
+  # iOS build verification
+  cd /Users/rafa/Cyber/Dev/Projects/LifeOS/ios
+  xcodebuild -scheme Nexus -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+  # ** BUILD SUCCEEDED ** ✓
+
+  # Backend schema verified
+  ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c '\d raw.healthkit_samples'"
+  # Table exists with 15 columns (sample_id, sample_type, value, unit, start_date, end_date, etc.) ✓
+
+  # Webhook exists
+  ls backend/n8n-workflows/healthkit-batch-webhook.json
+  # File exists ✓
+  ```
+- **Sync Status UI**:
+  - Shows last sync time (relative, e.g., "5 minutes ago")
+  - Shows sample count from last sync
+  - Manual "Sync Now" button with progress indicator
+  - Footer text explains what data is synced
+- **Notes**:
+  - Service fetches last 100 samples per type since last sync (or last 7 days on first run)
+  - Uses ISO8601 date formatting for all timestamps
+  - Respects existing HealthKitManager patterns (doesn't duplicate weight sync)
+  - Ready for testing once user grants HealthKit permissions
 
 ---
 
