@@ -17,8 +17,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Pattern file location - LifeOS-Ops is in Dev, not Infrastructure
-const PATTERNS_FILE = join(__dirname, '../../../Dev/LifeOS-Ops/artifacts/sms_regex_patterns.yaml');
+// Pattern file location - ops is sibling to backend in the monorepo
+const PATTERNS_FILE = join(__dirname, '../../ops/artifacts/sms_regex_patterns.yaml');
 
 /**
  * Convert Python-style named groups (?P<name>...) to JavaScript (?<name>...)

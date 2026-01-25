@@ -4,7 +4,8 @@
   "description": "",
   "main": "import-sms-transactions.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test-sms-classifier.js",
+    "test:sms": "node test-sms-classifier.js"
   },
   "keywords": [],
   "author": "",
