@@ -1,0 +1,80 @@
+{
+  "name": "Nexus: Meal Confirmation Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "nexus-meal-confirmation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "meal-confirmation-webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO life.meal_confirmations (meal_date, meal_time, meal_type, user_action, confirmed_at)\nVALUES (\n  '{{ $json.body.meal_date }}'::DATE,\n  '{{ $json.body.meal_time }}'::TIME,\n  '{{ $json.body.meal_type }}',\n  '{{ $json.body.action }}',\n  NOW()\n)\nON CONFLICT (meal_date, meal_time) DO UPDATE\nSET user_action = EXCLUDED.user_action,\n    confirmed_at = EXCLUDED.confirmed_at\nRETURNING id, meal_date, meal_time, meal_type, user_action;",
+        "options": {}
+      },
+      "id": "postgres-insert",
+      "name": "Insert Confirmation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"meal_date\": $json.meal_date, \"meal_time\": $json.meal_time, \"action\": $json.user_action } }}"
+      },
+      "id": "response-node",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Insert Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-25T19:55:00.000Z",
+  "versionId": "1"
+}

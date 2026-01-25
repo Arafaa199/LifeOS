@@ -1,8 +1,84 @@
 # LifeOS — Canonical State
-Last updated: 2026-01-25T23:50:00+04:00
-Last coder run: 2026-01-25T23:50:00+04:00
+Last updated: 2026-01-26T00:30:00+04:00
+Last coder run: 2026-01-26T00:30:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
+
+---
+
+### TASK-CAPTURE.3: Meal Confirmation UX (2026-01-26T00:30+04)
+- **Status**: DONE ✓
+- **Changed**:
+  - `ios/Nexus/Views/Nutrition/MealConfirmationView.swift` (312 lines, new file)
+  - `ios/Nexus/Services/NexusAPI.swift` (added fetchPendingMealConfirmations, confirmMeal)
+  - `ios/Nexus/ViewModels/DashboardViewModel.swift` (added pendingMeals state, loadPendingMeals, confirmMeal)
+  - `ios/Nexus/Views/Dashboard/TodayView.swift` (added mealConfirmationSection)
+  - `backend/n8n-workflows/meal-confirmation-webhook.json` (new file)
+  - `backend/n8n-workflows/pending-meals-webhook.json` (new file)
+- **Implementation**:
+  - Created `MealConfirmationView` with:
+    - Meal card showing time, type, confidence bar, signals summary
+    - Icon with color coding (breakfast=orange, lunch=yellow, dinner=indigo)
+    - Two tap buttons: ✓ Confirm (green) / ✗ Skip (red)
+    - Swipe gestures: right=confirm, left=skip
+    - Progress indicator during submission
+  - Added `InferredMeal` data model with AnyCodable for flexible signals_used decoding
+  - Added API methods in NexusAPI:
+    - `fetchPendingMealConfirmations(date:)` → calls /webhook/nexus-pending-meals
+    - `confirmMeal(mealDate:mealTime:mealType:action:)` → calls /webhook/nexus-meal-confirmation
+  - Updated DashboardViewModel:
+    - Added `@Published var pendingMeals: [InferredMeal]`
+    - Added `loadPendingMeals()` called during refresh
+    - Added `confirmMeal()` to submit action and remove from list
+  - Integrated into TodayView:
+    - Shows first pending meal card after offline banner, before state card
+    - Card only appears when `viewModel.pendingMeals.first` exists
+    - Calls `viewModel.confirmMeal()` on confirm/skip
+  - Created n8n webhooks:
+    - `pending-meals-webhook.json`: GET /webhook/nexus-pending-meals → calls life.get_pending_meal_confirmations()
+    - `meal-confirmation-webhook.json`: POST /webhook/nexus-meal-confirmation → inserts into life.meal_confirmations
+- **Evidence**:
+  ```bash
+  # iOS build verification
+  cd /Users/rafa/Cyber/Dev/Projects/LifeOS/ios
+  xcodebuild -scheme Nexus -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+  # ** BUILD SUCCEEDED ** ✓
+
+  # Files created
+  ls ios/Nexus/Views/Nutrition/MealConfirmationView.swift
+  ls backend/n8n-workflows/meal-confirmation-webhook.json
+  ls backend/n8n-workflows/pending-meals-webhook.json
+  # All exist ✓
+
+  # View structure verified
+  grep "struct MealConfirmationView" ios/Nexus/Views/Nutrition/MealConfirmationView.swift
+  # struct MealConfirmationView: View {
+
+  # DashboardViewModel integration verified
+  grep "pendingMeals" ios/Nexus/ViewModels/DashboardViewModel.swift
+  # @Published var pendingMeals: [InferredMeal] = []
+  # await loadPendingMeals()
+  # func loadPendingMeals() async {
+  # func confirmMeal(_ meal: InferredMeal, action: String) async {
+
+  # TodayView integration verified
+  grep "mealConfirmationSection" ios/Nexus/Views/Dashboard/TodayView.swift
+  # if let pendingMeal = viewModel.pendingMeals.first {
+  #     mealConfirmationSection(meal: pendingMeal)
+  # }
+  # private func mealConfirmationSection(meal: InferredMeal) -> some View {
+  ```
+- **UX Features**:
+  - Confidence bar: green (≥0.7), orange (0.4-0.7), red (<0.4)
+  - Meal icons: breakfast=sunrise, lunch=sun, dinner=moon, snack=fork.knife
+  - Signals summary: Shows source, merchant, hours at home, TV status
+  - Swipe animations: Card slides off screen on confirm/skip
+  - Idempotent: Confirmed/skipped meals don't reappear (stored in life.meal_confirmations)
+- **Notes**:
+  - Backend webhook endpoints created but NOT yet imported to n8n (manual step required)
+  - View automatically hides once all pending meals are confirmed/skipped
+  - Only shows first pending meal at a time (one-by-one confirmation)
+  - Confirmation action values: "confirmed" or "skipped"
 
 ---
 

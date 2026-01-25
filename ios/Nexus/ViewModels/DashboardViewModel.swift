@@ -18,6 +18,9 @@ class DashboardViewModel: ObservableObject {
     @Published var isDataStale = false
     @Published var lastUpdatedFormatted: String?
 
+    // Meal confirmations
+    @Published var pendingMeals: [InferredMeal] = []
+
     private let dashboardService = DashboardService.shared
 
     // MARK: - Computed Properties for Legacy View Compatibility
@@ -246,12 +249,41 @@ class DashboardViewModel: ObservableObject {
             if result.source == .cache {
                 errorMessage = "Using cached data"
             }
+
+            // Load pending meal confirmations
+            await loadPendingMeals()
         } catch {
             // Keep existing data, show error
             errorMessage = "Refresh failed - using cached data"
         }
 
         isRefreshing = false
+    }
+
+    func loadPendingMeals() async {
+        do {
+            pendingMeals = try await NexusAPI.shared.fetchPendingMealConfirmations()
+        } catch {
+            // Silently fail - meal confirmations are optional
+            pendingMeals = []
+        }
+    }
+
+    func confirmMeal(_ meal: InferredMeal, action: String) async {
+        do {
+            _ = try await NexusAPI.shared.confirmMeal(
+                mealDate: meal.mealDate,
+                mealTime: meal.mealTime,
+                mealType: meal.mealType,
+                action: action
+            )
+
+            // Remove from pending list
+            pendingMeals.removeAll { $0.id == meal.id }
+        } catch {
+            // Show error
+            errorMessage = "Failed to save meal confirmation"
+        }
     }
 
     // MARK: - Update After Logging

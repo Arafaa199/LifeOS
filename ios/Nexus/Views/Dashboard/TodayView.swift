@@ -15,6 +15,11 @@ struct TodayView: View {
                         offlineBanner
                     }
 
+                    // Pending meal confirmations
+                    if let pendingMeal = viewModel.pendingMeals.first {
+                        mealConfirmationSection(meal: pendingMeal)
+                    }
+
                     // Top state: Recovery + Budget
                     stateCard
 
@@ -41,6 +46,30 @@ struct TodayView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Meal Confirmation Section
+
+    private func mealConfirmationSection(meal: InferredMeal) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Confirm Meal")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            MealConfirmationView(
+                meal: meal,
+                onConfirm: {
+                    Task {
+                        await viewModel.confirmMeal(meal, action: "confirmed")
+                    }
+                },
+                onSkip: {
+                    Task {
+                        await viewModel.confirmMeal(meal, action: "skipped")
+                    }
+                }
+            )
         }
     }
 

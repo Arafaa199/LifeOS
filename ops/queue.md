@@ -96,8 +96,8 @@ Status: DONE ✓
 ### TASK-CAPTURE.3: Meal Confirmation UX
 Priority: P0
 Owner: coder
-Status: PENDING
-**Blocked by:** TASK-CAPTURE.2
+Status: DONE ✓
+**Completed:** 2026-01-26T00:30+04
 
 **Context:**
 - Inferred meals need human confirmation
@@ -106,19 +106,27 @@ Status: PENDING
 **Objective:** iOS UI for confirming inferred meals.
 
 **Definition of Done:**
-- [ ] Create `MealConfirmationView.swift` showing:
+- [x] Create `MealConfirmationView.swift` showing:
   - Inferred meal card (time, type, confidence, signals summary)
   - Two buttons: ✓ Confirm / ✗ Skip
   - Swipe gestures (right=confirm, left=skip)
-- [ ] Integrate into TodayView (card appears when pending confirmations exist)
-- [ ] POST confirmation to /webhook/nexus-meal-confirmation
-- [ ] Dismissed meals don't reappear (stored in meal_confirmations)
-- [ ] Verification: confirm/skip flows work, data persists
+- [x] Integrate into TodayView (card appears when pending confirmations exist)
+- [x] POST confirmation to /webhook/nexus-meal-confirmation
+- [x] Dismissed meals don't reappear (stored in meal_confirmations)
+- [x] Verification: confirm/skip flows work, data persists
+
+**Evidence:** See state.md
+**Result:**
+- Created MealConfirmationView.swift with swipe gestures and tap buttons
+- Integrated into TodayView (shows first pending meal)
+- Added API methods: fetchPendingMealConfirmations(), confirmMeal()
+- Created n8n webhooks: pending-meals-webhook.json, meal-confirmation-webhook.json
+- Build successful ✓
 
 **UX Requirements:**
-- No text input
-- No meal details editing
-- Just binary: "Did you eat around this time?" → Yes/No
+- No text input ✓
+- No meal details editing ✓
+- Just binary: "Did you eat around this time?" → Yes/No ✓
 
 ---
 

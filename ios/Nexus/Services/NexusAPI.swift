@@ -258,6 +258,42 @@ class NexusAPI: ObservableObject {
         return try JSONDecoder().decode(NexusResponse.self, from: data)
     }
 
+    // MARK: - Meal Confirmation Methods
+
+    func fetchPendingMealConfirmations(date: Date? = nil) async throws -> [InferredMeal] {
+        var endpoint = "/webhook/nexus-pending-meals"
+        if let date = date {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withFullDate]
+            endpoint += "?date=\(formatter.string(from: date))"
+        }
+
+        struct Response: Codable {
+            let meals: [InferredMeal]
+        }
+
+        let response: Response = try await get(endpoint)
+        return response.meals
+    }
+
+    func confirmMeal(mealDate: String, mealTime: String, mealType: String, action: String) async throws -> NexusResponse {
+        struct Request: Codable {
+            let meal_date: String
+            let meal_time: String
+            let meal_type: String
+            let action: String
+        }
+
+        let request = Request(
+            meal_date: mealDate,
+            meal_time: mealTime,
+            meal_type: mealType,
+            action: action
+        )
+
+        return try await post("/webhook/nexus-meal-confirmation", body: request)
+    }
+
     // MARK: - Finance Planning Methods
 
     func fetchCategories() async throws -> CategoriesResponse {

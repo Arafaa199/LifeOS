@@ -4554,3 +4554,50 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'yaml' imported from /Users/ra
 }
 
 Node.js v24.13.0
+[Sat Jan 24 23:48:44 +04 2026] Starting automatic SMS import...
+node:internal/modules/package_json_reader:316
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'yaml' imported from /Users/rafa/Cyber/Dev/LifeOS/backend/scripts/sms-classifier.js
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:316:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:858:18)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:718:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:735:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:764:52)
+    at #resolve (node:internal/modules/esm/loader:700:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:620:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:143:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.13.0
+[Sun Jan 25 00:03:45 +04 2026] Starting automatic SMS import...
+[2026-01-24T20:03:45.240Z] Starting SMS import (last 1 days)...
+Found 2 messages from tracked senders
+
+Import complete in 0.8s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 2
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-24T20:03:46.081Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-24T20:03:46.086Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 45 tx, spent 41434.43, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Sun Jan 25 00:03:46 +04 2026] SMS import completed successfully
