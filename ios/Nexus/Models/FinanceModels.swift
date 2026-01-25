@@ -783,3 +783,188 @@ struct DeleteResponse: Codable {
     let success: Bool
     let message: String?
 }
+
+// MARK: - LifeOS Daily Summary Response
+
+struct FinanceDailySummaryResponse: Codable {
+    let date: String
+    let health: HealthSummary?
+    let finance: FinanceDaySummary?
+    let behavior: BehaviorSummary?
+    let anomalies: [Anomaly]?
+    let confidence: Double?
+    let dataCoverage: DataCoverage?
+    let generatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case date, health, finance, behavior, anomalies, confidence
+        case dataCoverage = "data_coverage"
+        case generatedAt = "generated_at"
+    }
+}
+
+struct HealthSummary: Codable {
+    let sleepHours: Double?
+    let recovery: Int?
+    let hrv: Double?
+    let rhr: Int?
+    let strain: Double?
+    let weight: Double?
+    let sleepPerformance: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case recovery, hrv, rhr, strain, weight
+        case sleepHours = "sleep_hours"
+        case sleepPerformance = "sleep_performance"
+    }
+}
+
+struct FinanceDaySummary: Codable {
+    let totalSpent: Double?
+    let totalIncome: Double?
+    let topCategories: [CategorySpend]?
+    let largestTx: LargestTransaction?
+    let isExpensiveDay: Bool?
+    let spendScore: Int?
+    let transactionCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case topCategories = "top_categories"
+        case largestTx = "largest_tx"
+        case isExpensiveDay = "is_expensive_day"
+        case spendScore = "spend_score"
+        case transactionCount = "transaction_count"
+        case totalSpent = "total_spent"
+        case totalIncome = "total_income"
+    }
+}
+
+struct CategorySpend: Codable {
+    let category: String
+    let spent: Double
+}
+
+struct LargestTransaction: Codable {
+    let amount: Double?
+    let merchant: String?
+    let category: String?
+}
+
+struct BehaviorSummary: Codable {
+    let leftHomeAt: String?
+    let returnedHomeAt: String?
+    let hoursAtHome: Double?
+    let hoursAway: Double?
+    let tvMinutes: Int?
+    let screenLate: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case leftHomeAt = "left_home_at"
+        case returnedHomeAt = "returned_home_at"
+        case hoursAtHome = "hours_at_home"
+        case hoursAway = "hours_away"
+        case tvMinutes = "tv_minutes"
+        case screenLate = "screen_late"
+    }
+}
+
+struct Anomaly: Codable {
+    let type: String
+    let reason: String?
+    let explanation: String?
+    let confidence: Double?
+    let metrics: AnomalyMetrics?
+}
+
+struct AnomalyMetrics: Codable {
+    let value: Double?
+    let baseline: Double?
+    let zScore: Double?
+    let unit: String?
+
+    enum CodingKeys: String, CodingKey {
+        case value, baseline, unit
+        case zScore = "z_score"
+    }
+}
+
+struct DataCoverage: Codable {
+    let sms: Bool?
+    let receipts: Bool?
+    let health: Bool?
+    let staleFeeds: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case sms, receipts, health
+        case staleFeeds = "stale_feeds"
+    }
+}
+
+// MARK: - Weekly Report Response
+
+struct WeeklyReportResponse: Codable {
+    let success: Bool
+    let weekStart: String?
+    let weekEnd: String?
+    let reportMarkdown: String?
+    let dataCompleteness: Double?
+    let generatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case weekStart = "week_start"
+        case weekEnd = "week_end"
+        case reportMarkdown = "report_markdown"
+        case dataCompleteness = "data_completeness"
+        case generatedAt = "generated_at"
+    }
+}
+
+// MARK: - System Health Response
+
+struct SystemHealthResponse: Codable {
+    let feeds: [SystemFeedStatus]?
+    let feedsOk: Int?
+    let feedsStale: Int?
+    let feedsCritical: Int?
+    let feedsTotal: Int?
+    let overallStatus: String?
+
+    enum CodingKeys: String, CodingKey {
+        case feeds
+        case feedsOk = "feeds_ok"
+        case feedsStale = "feeds_stale"
+        case feedsCritical = "feeds_critical"
+        case feedsTotal = "feeds_total"
+        case overallStatus = "overall_status"
+    }
+}
+
+struct SystemFeedStatus: Codable, Identifiable {
+    var id: String { feedName }
+    let feedName: String
+    let lastEventAt: String?
+    let hoursSince: Double?
+    let expectedFrequencyHours: Double?
+    let status: String
+    let domain: String?
+    let events24h: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case status, domain
+        case feedName = "feed_name"
+        case lastEventAt = "last_event_at"
+        case hoursSince = "hours_since"
+        case expectedFrequencyHours = "expected_frequency_hours"
+        case events24h = "events_24h"
+    }
+
+    var statusColor: String {
+        switch status.uppercased() {
+        case "OK": return "green"
+        case "STALE": return "yellow"
+        case "CRITICAL": return "red"
+        default: return "gray"
+        }
+    }
+}

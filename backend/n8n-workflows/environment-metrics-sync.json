@@ -1,0 +1,170 @@
+{
+  "name": "Nexus: Environment Metrics Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "url": "http://172.17.0.1:8123/api/states",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "get-ha-states",
+      "name": "Get HA States",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "i8GNdq9zaSY5GVVO",
+          "name": "HA Token New"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract environment sensors from HA\nconst states = $input.first().json;\nconst now = new Date().toISOString();\nconst today = now.split('T')[0];\n\n// Map HA sensors to areas and metrics\nconst temperatureSensors = {\n  'sensor.pivpn_temperature': 'server_room',\n  'sensor.ai_temperature': 'server_room',\n  'sensor.nas_temperature': 'server_room'\n};\n\nconst humiditySensors = {\n  // Add humidity sensors if available\n};\n\nconst metrics = [];\n\nfor (const state of states) {\n  // Temperature sensors\n  const area = temperatureSensors[state.entity_id];\n  if (area && state.state !== 'unavailable' && state.state !== 'unknown') {\n    const temp = parseFloat(state.state);\n    if (!isNaN(temp)) {\n      metrics.push({\n        recorded_at: state.last_updated || now,\n        date: today,\n        area: area,\n        temperature_c: temp,\n        entity_id: state.entity_id\n      });\n    }\n  }\n  \n  // Humidity sensors (if available)\n  const humidityArea = humiditySensors[state.entity_id];\n  if (humidityArea && state.state !== 'unavailable' && state.state !== 'unknown') {\n    const humidity = parseFloat(state.state);\n    if (!isNaN(humidity)) {\n      metrics.push({\n        recorded_at: state.last_updated || now,\n        date: today,\n        area: humidityArea,\n        humidity_pct: humidity,\n        entity_id: state.entity_id\n      });\n    }\n  }\n}\n\nreturn metrics;"
+      },
+      "id": "extract-metrics",
+      "name": "Extract Environment Metrics",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-metrics",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-metrics",
+      "name": "Has Metrics?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO home.environment_log (recorded_at, date, area, temperature_c, humidity_pct)\nVALUES \n{{ $input.all().map(item => \n  `('${item.json.recorded_at}', '${item.json.date}', '${item.json.area}', ${item.json.temperature_c || 'NULL'}, ${item.json.humidity_pct || 'NULL'})`\n).join(',\\n') }}\nON CONFLICT DO NOTHING\nRETURNING id, area, temperature_c;",
+        "options": {}
+      },
+      "id": "insert-metrics",
+      "name": "Insert to Nexus",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "no-metrics",
+      "name": "No Metrics",
+      "type": "n8n-nodes-base.noOp",
+      "position": [1120, 400],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get HA States",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get HA States": {
+      "main": [
+        [
+          {
+            "node": "Extract Environment Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Environment Metrics": {
+      "main": [
+        [
+          {
+            "node": "Has Metrics?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Metrics?": {
+      "main": [
+        [
+          {
+            "node": "Insert to Nexus",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1a4b2c3d4e5f6a7b8c9d0e1f2a3b4c5d"
+  },
+  "id": "env-metrics-sync",
+  "tags": []
+}
