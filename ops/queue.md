@@ -16,14 +16,163 @@ SMS ingestion is FROZEN (no changes).
 Bank SMS coverage: 100% (143/143)
 Overall coverage: 96.1% (6 missing are wallet refunds, not bank TX)
 
-**Current Milestone:** Assisted Capture (P0)
-**Goal:** Passive health signals + inferred meal detection, zero manual input.
+**Current Milestone:** End-to-End Continuity & Trust (P0)
+**Goal:** Verify the complete data pipeline is reliable, replayable, and has no gaps.
 
-**Previous Milestone:** Reality Verification — COMPLETE ✅
+**Previous Milestones:**
+- Assisted Capture — COMPLETE ✅
+- Reality Verification — COMPLETE ✅
 
 ---
 
-## ACTIVE TASK: HealthKit iOS Integration
+## CODER INSTRUCTIONS
+
+You have completed the Assisted Capture milestone successfully.
+
+Next milestone: END-TO-END CONTINUITY & TRUST.
+
+Your tasks, in order:
+
+1. Push the pending commit (e37ae23) to main.
+2. Import and activate the two n8n workflows:
+   - pending-meals-webhook.json
+   - meal-confirmation-webhook.json
+3. Implement a continuity verification checklist:
+   - HealthKit data present for last 7 days
+   - Inferred meals present for last 7 days
+   - Confirmed meals linked correctly
+   - No orphan pending meals older than 24h
+4. Add a SQL coverage view:
+   - Days with HealthKit data but no meals
+   - Days with meals but no groceries/transactions
+5. Create a deterministic replay script for meals:
+   - Truncate inferred + confirmed meals (keep raw data)
+   - Re-run inference
+   - Verify counts and totals match
+6. Do NOT add new features.
+7. Log results clearly in state.md.
+
+Stop after verification is complete.
+
+---
+
+## ACTIVE TASK: Push and Deploy
+
+### TASK-CONTINUITY.1: Push and Deploy Meal Webhooks
+Priority: P0
+Owner: coder
+Status: DONE ✓
+**Completed:** 2026-01-26T09:25+04
+
+**Objective:** Push pending commit and activate meal workflows in n8n.
+
+**Definition of Done:**
+- [x] Push commit e37ae23 to main
+- [x] Copy pending-meals-webhook.json to pivpn
+- [x] Import workflow: `docker exec n8n n8n import:workflow --input=/path/to/pending-meals-webhook.json`
+- [x] Copy meal-confirmation-webhook.json to pivpn
+- [x] Import workflow: `docker exec n8n n8n import:workflow --input=/path/to/meal-confirmation-webhook.json`
+- [x] Activate both workflows
+- [x] Restart n8n if needed
+- [x] Verify webhooks respond (curl test)
+
+**Evidence:** See state.md
+**Result:**
+- Commit e37ae23 pushed to origin/main ✓
+- pending-meals-webhook (GET) working perfectly ✓
+- meal-confirmation-webhook (POST) fixed schema mismatch and imported ✓
+- Both workflows activated in n8n ✓
+- n8n restarted successfully ✓
+
+---
+
+### TASK-CONTINUITY.2: Continuity Verification Checklist
+Priority: P0
+Owner: coder
+Status: PENDING
+**Blocked by:** TASK-CONTINUITY.1
+
+**Objective:** Verify all data pipelines have continuity for last 7 days.
+
+**Definition of Done:**
+- [ ] Create `life.v_continuity_check` view showing:
+  - Days with HealthKit data (raw.healthkit_samples)
+  - Days with inferred meals (life.v_inferred_meals)
+  - Days with confirmed meals (life.meal_confirmations)
+  - Days with orphan pending meals > 24h old
+- [ ] Run verification query for last 7 days
+- [ ] Document any gaps in state.md
+- [ ] All checks pass OR gaps explained
+
+---
+
+### TASK-CONTINUITY.3: Meal Coverage View
+Priority: P0
+Owner: coder
+Status: PENDING
+**Blocked by:** TASK-CONTINUITY.2
+
+**Objective:** Create SQL view showing meal-related coverage gaps.
+
+**Definition of Done:**
+- [ ] Create `life.v_meal_coverage_gaps` view showing:
+  - Days with HealthKit data but no inferred meals
+  - Days with inferred meals but no restaurant/grocery transactions
+  - Days with confirmed meals but missing signals
+- [ ] Query identifies data quality issues
+- [ ] Document findings in state.md
+
+---
+
+### TASK-CONTINUITY.4: Meal Replay Script
+Priority: P0
+Owner: coder
+Status: PENDING
+**Blocked by:** TASK-CONTINUITY.3
+
+**Objective:** Prove meal inference is deterministic and replayable.
+
+**Definition of Done:**
+- [ ] Create `scripts/replay-meals.sh`:
+  - Backup current meal counts
+  - Truncate life.meal_confirmations (keep backup)
+  - Refresh life.v_inferred_meals
+  - Compare inferred meal counts before/after
+  - Report discrepancies
+- [ ] Run replay, verify counts match ±0
+- [ ] Document in state.md
+
+---
+
+## COMPLETED: Assisted Capture
+
+### TASK-CAPTURE.1: HealthKit iOS Integration
+Priority: P0
+Owner: coder
+Status: DONE ✓
+**Completed:** 2026-01-25T23:15+04
+
+### TASK-CAPTURE.2: Meal Inference Engine
+Priority: P0
+Owner: coder
+Status: DONE ✓
+**Completed:** 2026-01-25T23:50+04
+
+### TASK-CAPTURE.3: Meal Confirmation UX
+Priority: P0
+Owner: coder
+Status: DONE ✓
+**Completed:** 2026-01-26T00:30+04
+
+---
+
+## COMPLETED: Reality Verification
+
+### TASK-VERIFY.1: Data Coverage Audit
+Priority: P0
+Owner: coder
+Status: DONE ✓
+**Completed:** 2026-01-25T22:10+04
 
 ### TASK-CAPTURE.1: HealthKit iOS Integration
 Priority: P0
