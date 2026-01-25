@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.nexus.resolve-events</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/node</string>
+        <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts/resolve-raw-events.js</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NEXUS_HOST</key>
+        <string>100.90.189.16</string>
+        <key>NEXUS_PORT</key>
+        <string>5432</string>
+        <key>NEXUS_DB</key>
+        <string>nexus</string>
+        <key>NEXUS_USER</key>
+        <string>nexus</string>
+        <key>NEXUS_PASSWORD</key>
+        <string>XRtRxHAtSXCYK2OLK2C9Fu8Ak6PhuwiI</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/logs/resolve-events.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/logs/resolve-events.log</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts</string>
+</dict>
+</plist>

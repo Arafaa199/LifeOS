@@ -1,8 +1,65 @@
 # LifeOS — Canonical State
-Last updated: 2026-01-25T23:15:00+04:00
-Last coder run: 2026-01-25T23:15:00+04:00
+Last updated: 2026-01-25T23:50:00+04:00
+Last coder run: 2026-01-25T23:50:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
+
+---
+
+### TASK-CAPTURE.2: Meal Inference Engine (2026-01-25T23:50+04)
+- **Status**: DONE ✓
+- **Changed**:
+  - `migrations/072_meal_inference_engine.up.sql`
+  - `migrations/072_meal_inference_engine.down.sql`
+  - `migrations/072_verification.sql`
+- **Created**:
+  - Table: `life.meal_confirmations` — User feedback (confirmed/skipped)
+  - View: `life.v_inferred_meals` — 4 inference sources (restaurant, home_cooking lunch/dinner, grocery)
+  - Function: `life.get_pending_meal_confirmations(date)` — Returns unconfirmed inferences
+- **Inference Logic**:
+  1. **Restaurant TX** → 0.9 confidence (high)
+     - Time-based meal type: breakfast (6-10h), lunch (11-15h), dinner (18-22h), snack (other)
+  2. **Home cooking (lunch)** → 0.6 confidence (medium)
+     - At home ≥30min during day, TV off/low usage (<1h)
+     - Uses daily_location_summary + daily_behavioral_summary
+  3. **Home cooking (dinner)** → 0.6 confidence (medium)
+     - At home ≥1h, last arrival 17-22h (evening)
+  4. **Grocery purchase** → 0.4 confidence (low)
+     - Grocery TX + home that evening → inferred cooked meal
+- **Evidence**:
+  ```sql
+  -- View working with real data
+  SELECT inferred_at_date, meal_type, confidence, inference_source
+  FROM life.v_inferred_meals
+  WHERE inferred_at_date >= CURRENT_DATE - INTERVAL '7 days';
+  --  inferred_at_date | meal_type | confidence | inference_source
+  -- ------------------+-----------+------------+------------------
+  --  2026-01-23       | lunch     |        0.6 | home_cooking
+
+  -- Function working
+  SELECT * FROM life.get_pending_meal_confirmations('2026-01-23'::DATE);
+  --  meal_date  | meal_time | meal_type | confidence | inference_source
+  -- ------------+-----------+-----------+------------+------------------
+  --  2026-01-23 | 12:30:00  | lunch     |        0.6 | home_cooking
+
+  -- Signals captured
+  SELECT jsonb_pretty(signals_used) FROM life.v_inferred_meals WHERE inferred_at_date = '2026-01-23';
+  -- {
+  --   "source": "home_location",
+  --   "tv_off": true,
+  --   "tv_hours": 0.00,
+  --   "hours_at_home": 0.89
+  -- }
+  ```
+- **Current Coverage**:
+  - Last 30 days: 1 meal inferred (home cooking lunch on 2026-01-23)
+  - 0 restaurant meals (no Restaurant category TX in last 30 days)
+  - Limited behavioral data (location tracking sparse)
+- **Notes**:
+  - View automatically filters out confirmed/skipped meals (only shows pending)
+  - All inferences use Dubai timezone for hour extraction
+  - Confirmation status tracked in meal_confirmations table
+  - Ready for TASK-CAPTURE.3 (iOS confirmation UX)
 
 ---
 

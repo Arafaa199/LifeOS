@@ -65,8 +65,8 @@ Status: DONE ✓
 ### TASK-CAPTURE.2: Meal Inference Engine
 Priority: P0
 Owner: coder
-Status: PENDING
-**Blocked by:** TASK-CAPTURE.1
+Status: DONE ✓
+**Completed:** 2026-01-25T23:50+04
 
 **Context:**
 - Signals available: transaction time, merchant category (Restaurant/Grocery), location (home/away), TV off periods, motion gaps
@@ -75,20 +75,21 @@ Status: PENDING
 **Objective:** Create SQL-based meal inference using existing signals.
 
 **Definition of Done:**
-- [ ] Create `life.v_inferred_meals` view detecting meal candidates:
+- [x] Create `life.v_inferred_meals` view detecting meal candidates:
   - Restaurant transaction → high confidence meal
   - Home + cooking time window (11-14h, 18-21h) + no TV → medium confidence
   - Grocery purchase same day + home evening → low confidence (cooked)
-- [ ] Each inference has: inferred_at, meal_type (breakfast/lunch/dinner/snack), confidence (0-1), signals_used (JSONB)
-- [ ] Create `life.meal_confirmations` table for user feedback (confirmed/skipped)
-- [ ] Function `life.get_pending_meal_confirmations(date)` returns unconfirmed inferences
-- [ ] Verification: query shows inferred meals for last 7 days with confidence scores
+- [x] Each inference has: inferred_at, meal_type (breakfast/lunch/dinner/snack), confidence (0-1), signals_used (JSONB)
+- [x] Create `life.meal_confirmations` table for user feedback (confirmed/skipped)
+- [x] Function `life.get_pending_meal_confirmations(date)` returns unconfirmed inferences
+- [x] Verification: query shows inferred meals for last 7 days with confidence scores
 
-**Signals to use:**
-- `finance.transactions` (restaurant, grocery timing)
-- `life.locations` (home arrival/departure)
-- `life.behavioral_events` (TV sessions, motion gaps)
-- Time windows for meal types
+**Evidence:** See state.md
+**Result:**
+- View created with 4 inference sources (restaurant, home_cooking lunch, home_cooking dinner, grocery)
+- 1 meal inferred for 2026-01-23 (lunch, 0.6 confidence, home cooking signals)
+- Table, view, and function all working correctly ✓
+- Signals include: hours_at_home, tv_hours, tv_off, merchant, amount, last_arrival
 
 ---
 

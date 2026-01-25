@@ -25,8 +25,8 @@ exclude_patterns:
     reason: "Authentication codes"
 
   - name: apple_pay_setup
-    regex: '(add.*to.*wallet|Apple Pay|card.*ready for contactless)'
-    reason: "Card setup notifications"
+    regex: '(add.*to.*wallet|Apple Pay.*(setup|activated|ready|added|enabled)|card.*ready for contactless|successfully added.*Apple Pay)'
+    reason: "Card setup/activation notifications (not POS payments via Apple Pay)"
 
   - name: card_authorization_request
     regex: '(يوجد لديك دفعة.*تتطلب موافقتك)'
@@ -159,6 +159,18 @@ alrajhibank:
   sender: "AlRajhiBank"
 
   patterns:
+    # ----- REFUND POS (MUST BE BEFORE pos_purchase) -----
+    - name: refund_pos
+      intent: refund
+      confidence: 0.95
+      regex: 'Refund\s+PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [card, method, currency, amount]
+      sample: |
+        Refund PoS
+        By:8308;mada
+        Amount:SAR 38.94
+        At:Amazon SA
+
     # ----- POS PURCHASE (LOCAL) -----
     - name: pos_purchase
       intent: expense
@@ -209,18 +221,6 @@ alrajhibank:
         By:8308;mada
         Amount:SAR 50
         Place:MARAHEL ROOM
-
-    # ----- REFUND POS -----
-    - name: refund_pos
-      intent: refund
-      confidence: 0.95
-      regex: 'Refund PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
-      entities: [card, method, currency, amount]
-      sample: |
-        Refund PoS
-        By:8308;mada
-        Amount:SAR 38.94
-        At:Amazon SA
 
     # ----- INTERNAL TRANSFER (OUTGOING) -----
     - name: internal_transfer_out
