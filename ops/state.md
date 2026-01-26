@@ -1,6 +1,6 @@
 # LifeOS — Canonical State
-Last updated: 2026-01-26T11:25:00+04:00
-Last coder run: 2026-01-26T15:00:00+04:00
+Last updated: 2026-01-27T00:15:00+04:00
+Last coder run: 2026-01-27T00:15:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -254,6 +254,60 @@ Control Mode: Autonomous (Human-in-the-loop on alerts only)
 - New columns allowed (backward compatible)
 - Dropping columns, changing types, or removing constraints = BREAKING
 - Breaking changes must increment migration number and update this document
+
+---
+
+### TASK-FIX.2: Fix Receipt Ingestion NULL Date (2026-01-27T00:15+04)
+- **Status**: DONE ✓
+- **Objective**: Fix NOT NULL violation when creating transactions from receipts with NULL receipt_date
+- **Changed**:
+  - `backend/scripts/receipt-ingest/receipt_ingestion.py` (lines 699-707, 777)
+- **Root Cause**:
+  - `create_transaction_for_receipt()` passed `receipt['receipt_date']` directly to INSERT without fallback
+  - Receipt 54 (pdf_hash: `gmail_19bf6a34139b4ff6`) had `receipt_date = NULL` but `parse_status = 'success'`
+  - The SQL function `finance.finalize_receipt()` already had `COALESCE(receipt_date, email_received_at::date, created_at::date)` but the Python code path didn't
+- **Fix Applied**:
+  1. Added NULL date fallback in `create_transaction_for_receipt()`:
+     ```python
+     if receipt_date is None:
+         receipt_date = receipt.get('created_at')
+         if hasattr(receipt_date, 'date'):
+             receipt_date = receipt_date.date()
+     ```
+  2. Updated `create_transactions_for_unlinked_receipts()` SELECT to include `r.created_at` column
+  3. Updated ORDER BY to use `COALESCE(r.receipt_date, r.created_at::date)` for NULL-safe sorting
+  4. Manually created transaction for receipt 54 via SQL (Python script can't reach DB directly from pro14)
+- **Evidence**:
+  ```sql
+  -- Transaction created for receipt 54 (the failing receipt)
+  SELECT id, date, amount, merchant_name, client_id FROM finance.transactions WHERE id = 2224;
+  --  id  |    date    | amount  | merchant_name |         client_id
+  -- ------+------------+---------+---------------+-----------------------------
+  --  2224 | 2026-01-25 | -143.80 | Carrefour     | rcpt:gmail_19bf6a34139b4ff6
+
+  -- Receipt 54 now linked
+  SELECT id, receipt_date, linked_transaction_id FROM finance.receipts WHERE id = 54;
+  --  id | receipt_date | linked_transaction_id
+  -- ----+--------------+-----------------------
+  --  54 |              |                  2224
+
+  -- No NULL date violations
+  SELECT COUNT(*) FROM finance.transactions WHERE date IS NULL;
+  -- 0 ✓
+
+  -- No unlinked successful receipts
+  SELECT COUNT(*) FROM finance.receipts
+  WHERE linked_transaction_id IS NULL AND parse_status = 'success' AND total_amount IS NOT NULL;
+  -- 0 ✓
+
+  -- All 9 receipt-sourced transactions exist
+  SELECT COUNT(*) FROM finance.transactions WHERE client_id LIKE 'rcpt:%';
+  -- 9 ✓
+  ```
+- **Notes**:
+  - Port 5432 not reachable from pro14 over Tailscale (SSH works but direct TCP doesn't)
+  - Python script can only run on nexus or via SSH tunnel
+  - SQL `finalize_receipt()` function was already correct — only Python path had the bug
 
 ---
 
@@ -4484,7 +4538,7 @@ All O-phase tasks completed:
 - **Observation Period**: 2026-01-25 to 2026-02-01 (7 days)
 - **Current Date**: Day 2 of 7
 - **Queue Status**: All tasks COMPLETE ✓ — No READY tasks
-- **Observation Log**: `ops/artifacts/observation-log.md` 
+- **Observation Log**: `ops/artifacts/observation-log.md`
 - **Instructions Followed**:
   - ✓ No code changes made
   - ✓ No schema modifications
@@ -4496,7 +4550,48 @@ All O-phase tasks completed:
   - Stable contracts: 7 schemas documented
   - Coverage: 0 unexplained gaps
 - **Next Action**: User continues daily app usage, logs friction to `ops/artifacts/observation-log.md`
-- **Post-Observation (2026-02-01)**: 
+- **Post-Observation (2026-02-01)**:
   - Review observation log
   - Transfer actionable items to `ops/queue/post-usage.md`
   - Resume development only after human approval
+
+---
+
+### TASK-FIX.1: Fix SMS Import Launchd Path (2026-01-26T23:05+04)
+- **Status**: DONE ✓
+- **Objective**: Fix the path mismatch causing SMS import fallback to fail (exit code 78)
+- **Changed**:
+  - `~/Library/LaunchAgents/com.nexus.sms-import.plist`
+- **Fix Applied**:
+  - Updated path: `/Users/rafa/Cyber/Dev/LifeOS/backend/scripts/auto-import-sms.sh` → `/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/auto-import-sms.sh`
+  - Unloaded and reloaded launchd job
+  - Rebuilt `better-sqlite3` node module (discovered additional issue during verification)
+- **Evidence**:
+  ```bash
+  # Path now correct in plist
+  cat ~/Library/LaunchAgents/com.nexus.sms-import.plist | grep -A2 ProgramArguments
+  # <key>ProgramArguments</key>
+  # <array>
+  #     <string>/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/auto-import-sms.sh</string>
+
+  # Launchd job running with exit 0
+  launchctl list | grep sms-import
+  # 1972	0	com.nexus.sms-import
+
+  # Script file exists at correct path
+  ls -la /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/auto-import-sms.sh
+  # -rwxr-xr-x  1 rafa  staff  1196 Jan 24 21:08 .../auto-import-sms.sh
+
+  # Node module rebuilt
+  cd /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts && npm rebuild better-sqlite3
+  # rebuilt dependencies successfully
+  ```
+- **Definition of Done Checklist**:
+  - [x] Path updated in plist
+  - [x] Unloaded and reloaded launchd job
+  - [x] Launchctl shows exit 0 and running PID
+  - [x] Script runs (path found, no exit 78)
+- **Additional Issue Found**:
+  - Full Disk Access required for Terminal to read `~/Library/Messages/chat.db`
+  - This is a macOS system permission (System Settings > Privacy & Security > Full Disk Access)
+  - Not a code issue — user must grant permission manually

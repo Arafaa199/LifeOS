@@ -700,6 +700,11 @@ def create_transaction_for_receipt(conn, receipt: Dict) -> Optional[int]:
     pdf_hash = receipt['pdf_hash']
     total_amount = receipt['total_amount']
     receipt_date = receipt['receipt_date']
+    if receipt_date is None:
+        receipt_date = receipt.get('created_at')
+        if hasattr(receipt_date, 'date'):
+            receipt_date = receipt_date.date()
+        print(f"  WARNING: receipt {receipt_id} has no receipt_date, using created_at: {receipt_date}")
     store_name = receipt.get('store_name', 'Carrefour')
 
     # Generate idempotent client_id from PDF hash
@@ -774,12 +779,12 @@ def create_transactions_for_unlinked_receipts(conn) -> int:
     """Create transactions for all unlinked receipts that don't match SMS."""
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
-            SELECT r.id, r.pdf_hash, r.receipt_date, r.total_amount, r.store_name
+            SELECT r.id, r.pdf_hash, r.receipt_date, r.total_amount, r.store_name, r.created_at
             FROM finance.receipts r
             WHERE r.linked_transaction_id IS NULL
               AND r.parse_status = 'success'
               AND r.total_amount IS NOT NULL
-            ORDER BY r.receipt_date DESC
+            ORDER BY COALESCE(r.receipt_date, r.created_at::date) DESC
         """)
         unlinked = cur.fetchall()
 
