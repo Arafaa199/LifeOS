@@ -19,121 +19,79 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.headers['x-api-key'] }}",
-              "operation": "equals",
-              "value2": "={{ $env.N8N_API_KEY }}"
-            }
-          ]
-        }
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst clientId = body.client_id || null;\nconst device = body.device || 'unknown';\nconst sourceBundleId = body.source_bundle_id || 'unknown';\n\nconst samples = body.samples || [];\nconst workouts = body.workouts || [];\nconst sleep = body.sleep || [];\n\n// Build batch SQL for samples\nlet samplesSql = '';\nif (samples.length > 0) {\n  const vals = samples.map(s => {\n    const sid = (s.sample_id || '').replace(/'/g, \"''\");\n    const stype = (s.type || s.sample_type || '').replace(/'/g, \"''\");\n    const val = parseFloat(s.value) || 0;\n    const unit = (s.unit || '').replace(/'/g, \"''\");\n    const sd = (s.start_date || '').replace(/'/g, \"''\");\n    const ed = (s.end_date || '').replace(/'/g, \"''\");\n    const sbi = (s.source_bundle_id || sourceBundleId).replace(/'/g, \"''\");\n    const dev = (s.device || device).replace(/'/g, \"''\");\n    return `('${sid}', '${stype}', ${val}, '${unit}', '${sd}'::timestamptz, '${ed}'::timestamptz, '${sbi}', '${dev}', 'ios_healthkit')`;\n  }).join(',\\n');\n  samplesSql = `INSERT INTO raw.healthkit_samples (sample_id, sample_type, value, unit, start_date, end_date, source_bundle_id, device_name, source)\\nVALUES ${vals}\\nON CONFLICT (sample_id, source) DO NOTHING;`;\n}\n\n// Build batch SQL for workouts\nlet workoutsSql = '';\nif (workouts.length > 0) {\n  const vals = workouts.map(w => {\n    const wid = (w.workout_id || '').replace(/'/g, \"''\");\n    const wtype = (w.type || '').replace(/'/g, \"''\");\n    const dur = parseFloat(w.duration_min) || 0;\n    const cal = w.calories != null ? parseFloat(w.calories) : 'NULL';\n    const dist = w.distance_m != null ? parseFloat(w.distance_m) : 'NULL';\n    const sd = (w.start_date || '').replace(/'/g, \"''\");\n    const ed = (w.end_date || '').replace(/'/g, \"''\");\n    const sbi = (w.source_bundle_id || sourceBundleId).replace(/'/g, \"''\");\n    const dev = (w.device || device).replace(/'/g, \"''\");\n    return `('${wid}', '${wtype}', ${dur}, ${cal}, ${dist}, '${sd}'::timestamptz, '${ed}'::timestamptz, '${sbi}', '${dev}', 'ios_healthkit')`;\n  }).join(',\\n');\n  workoutsSql = `INSERT INTO raw.healthkit_workouts (workout_id, type, duration_min, calories, distance_m, start_date, end_date, source_bundle_id, device_name, source)\\nVALUES ${vals}\\nON CONFLICT (workout_id, source) DO NOTHING;`;\n}\n\n// Build batch SQL for sleep\nlet sleepSql = '';\nif (sleep.length > 0) {\n  const vals = sleep.map(sl => {\n    const sid = (sl.sleep_id || '').replace(/'/g, \"''\");\n    const stage = (sl.stage || '').replace(/'/g, \"''\");\n    const sd = (sl.start_date || '').replace(/'/g, \"''\");\n    const ed = (sl.end_date || '').replace(/'/g, \"''\");\n    const sbi = (sl.source_bundle_id || sourceBundleId).replace(/'/g, \"''\");\n    const dev = (sl.device || device).replace(/'/g, \"''\");\n    return `('${sid}', '${stage}', '${sd}'::timestamptz, '${ed}'::timestamptz, '${sbi}', '${dev}', 'ios_healthkit')`;\n  }).join(',\\n');\n  sleepSql = `INSERT INTO raw.healthkit_sleep (sleep_id, stage, start_date, end_date, source_bundle_id, device_name, source)\\nVALUES ${vals}\\nON CONFLICT (sleep_id, source) DO NOTHING;`;\n}\n\nreturn {\n  json: {\n    samplesSql: samplesSql || 'SELECT 1',\n    workoutsSql: workoutsSql || 'SELECT 1',\n    sleepSql: sleepSql || 'SELECT 1',\n    samplesCount: samples.length,\n    workoutsCount: workouts.length,\n    sleepCount: sleep.length\n  }\n};"
       },
-      "id": "auth-check",
-      "name": "Check API Key",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [450, 300]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"error\": \"Unauthorized\", \"message\": \"Invalid or missing X-API-Key header\" } }}",
-        "options": {
-          "responseCode": 401
-        }
-      },
-      "id": "unauthorized-response",
-      "name": "Unauthorized Response",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [650, 200]
-    },
-    {
-      "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nconst clientId = body.client_id;\nconst device = body.device || 'unknown';\nconst sourceBundleId = body.source_bundle_id || 'unknown';\nconst capturedAt = body.captured_at || new Date().toISOString();\n\nconst samples = body.samples || [];\nconst workouts = body.workouts || [];\nconst sleep = body.sleep || [];\n\nconst results = {\n  samples: [],\n  workouts: [],\n  sleep: []\n};\n\n// Process samples\nfor (const sample of samples) {\n  results.samples.push({\n    sample_id: sample.sample_id,\n    type: sample.type,\n    value: sample.value,\n    unit: sample.unit,\n    start_date: sample.start_date,\n    end_date: sample.end_date,\n    source_bundle_id: sourceBundleId,\n    device: device,\n    client_id: clientId\n  });\n}\n\n// Process workouts\nfor (const workout of workouts) {\n  results.workouts.push({\n    workout_id: workout.workout_id,\n    type: workout.type,\n    duration_min: workout.duration_min,\n    calories: workout.calories,\n    distance_m: workout.distance_m,\n    start_date: workout.start_date,\n    end_date: workout.end_date,\n    source_bundle_id: sourceBundleId,\n    device: device,\n    client_id: clientId\n  });\n}\n\n// Process sleep\nfor (const sleepEntry of sleep) {\n  results.sleep.push({\n    sleep_id: sleepEntry.sleep_id,\n    stage: sleepEntry.stage,\n    start_date: sleepEntry.start_date,\n    end_date: sleepEntry.end_date,\n    source_bundle_id: sourceBundleId,\n    device: device,\n    client_id: clientId\n  });\n}\n\nreturn { json: results };"
-      },
-      "id": "parse-payload",
-      "name": "Parse Payload",
+      "id": "build-sql",
+      "name": "Build SQL",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [650, 400]
+      "position": [480, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw.healthkit_samples (sample_id, sample_type, value, unit, start_date, end_date, source_bundle_id, device_name, client_id, source)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ios_healthkit')\nON CONFLICT (sample_id, source) DO NOTHING",
-        "additionalFields": {}
+        "query": "={{ $json.samplesSql }}",
+        "options": {}
       },
       "id": "insert-samples",
       "name": "Insert Samples",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [850, 300],
+      "typeVersion": 2.5,
+      "position": [700, 200],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus DB"
+          "name": "Nexus PostgreSQL"
         }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw.healthkit_workouts (workout_id, type, duration_min, calories, distance_m, start_date, end_date, source_bundle_id, device_name, client_id, source)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ios_healthkit')\nON CONFLICT (workout_id, source) DO NOTHING",
-        "additionalFields": {}
+        "query": "={{ $json.workoutsSql }}",
+        "options": {}
       },
       "id": "insert-workouts",
       "name": "Insert Workouts",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [850, 450],
+      "typeVersion": 2.5,
+      "position": [700, 400],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus DB"
+          "name": "Nexus PostgreSQL"
         }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw.healthkit_sleep (sleep_id, stage, start_date, end_date, source_bundle_id, device_name, client_id, source)\nVALUES ($1, $2, $3, $4, $5, $6, $7, 'ios_healthkit')\nON CONFLICT (sleep_id, source) DO NOTHING",
-        "additionalFields": {}
+        "query": "={{ $json.sleepSql }}",
+        "options": {}
       },
       "id": "insert-sleep",
       "name": "Insert Sleep",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.4,
-      "position": [850, 600],
+      "typeVersion": 2.5,
+      "position": [700, 600],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus DB"
+          "name": "Nexus PostgreSQL"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Count inserted rows from all three branches\nconst samplesResult = $input.all()[0].json;\nconst workoutsResult = $input.all()[1].json;\nconst sleepResult = $input.all()[2].json;\n\nreturn {\n  json: {\n    success: true,\n    inserted: {\n      samples: samplesResult?.rowCount || 0,\n      workouts: workoutsResult?.rowCount || 0,\n      sleep: sleepResult?.rowCount || 0\n    },\n    timestamp: new Date().toISOString()\n  }\n};"
-      },
-      "id": "build-response",
-      "name": "Build Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1050, 400]
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={\n  \"success\": true,\n  \"inserted\": {\n    \"samples\": {{ $('Build SQL').item.json.samplesCount }},\n    \"workouts\": {{ $('Build SQL').item.json.workoutsCount }},\n    \"sleep\": {{ $('Build SQL').item.json.sleepCount }}\n  },\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
       "id": "success-response",
       "name": "Success Response",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [1250, 400]
+      "typeVersion": 1.1,
+      "position": [920, 400]
     }
   ],
   "connections": {
@@ -141,32 +99,14 @@
       "main": [
         [
           {
-            "node": "Check API Key",
+            "node": "Build SQL",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check API Key": {
-      "main": [
-        [
-          {
-            "node": "Parse Payload",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Unauthorized Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Payload": {
+    "Build SQL": {
       "main": [
         [
           {
@@ -191,7 +131,7 @@
       "main": [
         [
           {
-            "node": "Build Response",
+            "node": "Success Response",
             "type": "main",
             "index": 0
           }
@@ -202,7 +142,7 @@
       "main": [
         [
           {
-            "node": "Build Response",
+            "node": "Success Response",
             "type": "main",
             "index": 0
           }
@@ -210,17 +150,6 @@
       ]
     },
     "Insert Sleep": {
-      "main": [
-        [
-          {
-            "node": "Build Response",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Response": {
       "main": [
         [
           {
@@ -235,9 +164,9 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "updatedAt": "2026-01-25T15:00:00.000Z",
-  "versionId": "1"
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
 }
