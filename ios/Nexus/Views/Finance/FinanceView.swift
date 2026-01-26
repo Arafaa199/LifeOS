@@ -1,59 +1,41 @@
 import SwiftUI
+import Combine
 
 struct FinanceView: View {
     @StateObject private var viewModel = FinanceViewModel()
-    @State private var selectedTab = 0
+    @State private var selectedSegment = 0
     @State private var showingSettings = false
+    @State private var showingAddExpense = false
+    @State private var showingAddIncome = false
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Custom Tab Picker
-                HStack(spacing: 0) {
-                    ForEach(0..<5) { index in
-                        Button(action: { withAnimation(.easeInOut(duration: 0.2)) { selectedTab = index } }) {
-                            VStack(spacing: 6) {
-                                Image(systemName: tabIcon(for: index))
-                                    .font(.system(size: 18, weight: selectedTab == index ? .semibold : .regular))
-                                Text(tabTitle(for: index))
-                                    .font(.caption2)
-                                    .fontWeight(selectedTab == index ? .semibold : .regular)
-                            }
-                            .foregroundColor(selectedTab == index ? .nexusFinance : .secondary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(
-                                selectedTab == index ?
-                                Color.nexusFinance.opacity(0.1) :
-                                Color.clear
-                            )
-                        }
-                    }
+                // Segmented Control
+                Picker("", selection: $selectedSegment) {
+                    Text("Overview").tag(0)
+                    Text("Activity").tag(1)
+                    Text("Budgets").tag(2)
                 }
-                .background(Color(.systemBackground))
-                .overlay(
-                    Rectangle()
-                        .fill(Color(.separator).opacity(0.3))
-                        .frame(height: 1),
-                    alignment: .bottom
-                )
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
 
-                // Tab Content
-                TabView(selection: $selectedTab) {
-                    QuickExpenseView(viewModel: viewModel)
-                        .tag(0)
+                // Content
+                TabView(selection: $selectedSegment) {
+                    FinanceOverviewView(
+                        viewModel: viewModel,
+                        onAddExpense: { showingAddExpense = true },
+                        onAddIncome: { showingAddIncome = true }
+                    )
+                    .tag(0)
 
-                    TransactionsListView(viewModel: viewModel)
+                    FinanceActivityView(viewModel: viewModel)
                         .tag(1)
 
-                    BudgetView(viewModel: viewModel)
+                    FinanceBudgetsView(viewModel: viewModel)
                         .tag(2)
-
-                    InstallmentsView(viewModel: viewModel)
-                        .tag(3)
-
-                    InsightsView(viewModel: viewModel)
-                        .tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
@@ -72,38 +54,433 @@ struct FinanceView: View {
                             await viewModel.triggerSMSImport()
                         }
                     }) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .foregroundColor(.nexusFinance)
+                        if viewModel.isLoading {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .foregroundColor(.nexusFinance)
+                        }
                     }
+                    .disabled(viewModel.isLoading)
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 FinancePlanningView()
             }
+            .sheet(isPresented: $showingAddExpense) {
+                AddExpenseView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showingAddIncome) {
+                IncomeView(viewModel: viewModel)
+            }
+        }
+    }
+}
+
+// MARK: - Overview Screen
+
+struct FinanceOverviewView: View {
+    @ObservedObject var viewModel: FinanceViewModel
+    var onAddExpense: () -> Void
+    var onAddIncome: () -> Void
+
+    private var mtdSpend: Double {
+        viewModel.summary.totalSpent
+    }
+
+    private var mtdIncome: Double {
+        // Calculate from transactions with positive amounts
+        viewModel.recentTransactions
+            .filter { $0.amount > 0 }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    private var topCategories: [(String, Double)] {
+        Array(viewModel.summary.categoryBreakdown
+            .sorted { $0.value > $1.value }
+            .prefix(3))
+            .map { ($0.key, $0.value) }
+    }
+
+    private var budgetStatus: BudgetStatusInfo {
+        let budgets = viewModel.summary.budgets
+        guard !budgets.isEmpty else {
+            return BudgetStatusInfo(status: .noBudgets, message: "No budgets set")
+        }
+
+        let totalBudget = budgets.reduce(0) { $0 + $1.budgetAmount }
+        let totalSpent = budgets.reduce(0) { $0 + ($1.spent ?? 0) }
+        let percentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0
+
+        if percentage > 100 {
+            return BudgetStatusInfo(status: .over, message: String(format: "%.0f%% of budget", percentage))
+        } else if percentage > 80 {
+            return BudgetStatusInfo(status: .warning, message: String(format: "%.0f%% of budget", percentage))
+        } else {
+            return BudgetStatusInfo(status: .ok, message: String(format: "%.0f%% of budget", percentage))
         }
     }
 
-    private func tabIcon(for index: Int) -> String {
-        switch index {
-        case 0: return selectedTab == 0 ? "bolt.fill" : "bolt"
-        case 1: return selectedTab == 1 ? "list.bullet.rectangle.fill" : "list.bullet.rectangle"
-        case 2: return selectedTab == 2 ? "chart.bar.fill" : "chart.bar"
-        case 3: return selectedTab == 3 ? "creditcard.fill" : "creditcard"
-        case 4: return selectedTab == 4 ? "lightbulb.fill" : "lightbulb"
-        default: return "circle"
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Freshness indicator
+                if let lastUpdated = viewModel.lastUpdated {
+                    financeFreshnessIndicator(lastUpdated: lastUpdated, isOffline: viewModel.isOffline)
+                }
+
+                // MTD Spend Card with Budget Status
+                mtdSpendCard
+
+                // Top Categories
+                if !topCategories.isEmpty {
+                    topCategoriesCard
+                }
+
+                // Cashflow Mini
+                cashflowCard
+
+                // Action Row
+                actionRow
+
+                // Insights Card (max 2)
+                insightsCard
+
+                // Error message
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding()
+                }
+            }
+            .padding()
+        }
+        .refreshable {
+            await viewModel.refresh()
+        }
+        .onAppear {
+            viewModel.loadFinanceSummary()
         }
     }
 
-    private func tabTitle(for index: Int) -> String {
-        switch index {
-        case 0: return "Quick"
-        case 1: return "History"
-        case 2: return "Budget"
-        case 3: return "BNPL"
-        case 4: return "Insights"
-        default: return ""
+    // MARK: - MTD Spend Card
+
+    private var mtdSpendCard: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Month to Date")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text(formatCurrency(mtdSpend, currency: AppSettings.shared.defaultCurrency))
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundColor(.primary)
+                }
+                Spacer()
+                budgetStatusBadge
+            }
+
+            // Progress to budget
+            if case .ok = budgetStatus.status, !viewModel.summary.budgets.isEmpty {
+                let totalBudget = viewModel.summary.budgets.reduce(0) { $0 + $1.budgetAmount }
+                let progress = totalBudget > 0 ? min(mtdSpend / totalBudget, 1.0) : 0
+
+                VStack(alignment: .leading, spacing: 4) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color(.tertiarySystemFill))
+                                .frame(height: 6)
+                                .cornerRadius(3)
+
+                            Rectangle()
+                                .fill(Color.nexusFinance)
+                                .frame(width: geo.size.width * progress, height: 6)
+                                .cornerRadius(3)
+                        }
+                    }
+                    .frame(height: 6)
+
+                    Text(formatCurrency(totalBudget - mtdSpend, currency: AppSettings.shared.defaultCurrency) + " remaining")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(16)
+    }
+
+    private var budgetStatusBadge: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(budgetStatus.status.color)
+                .frame(width: 8, height: 8)
+            Text(budgetStatus.message)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(budgetStatus.status.color.opacity(0.1))
+        .cornerRadius(12)
+    }
+
+    // MARK: - Top Categories Card
+
+    private var topCategoriesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Top Categories")
+                .font(.headline)
+
+            ForEach(topCategories, id: \.0) { category, amount in
+                HStack {
+                    Text(category.capitalized)
+                        .font(.subheadline)
+
+                    Spacer()
+
+                    Text(formatCurrency(amount, currency: AppSettings.shared.defaultCurrency))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+
+                // Mini progress bar
+                GeometryReader { geo in
+                    let maxAmount = topCategories.first?.1 ?? 1
+                    let progress = maxAmount > 0 ? amount / maxAmount : 0
+
+                    Rectangle()
+                        .fill(Color.nexusFinance.opacity(0.3))
+                        .frame(width: geo.size.width * progress, height: 4)
+                        .cornerRadius(2)
+                }
+                .frame(height: 4)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(16)
+    }
+
+    // MARK: - Cashflow Card
+
+    private var cashflowCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Cashflow This Month")
+                .font(.headline)
+
+            HStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Income")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Text(formatCurrency(mtdIncome, currency: AppSettings.shared.defaultCurrency))
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.green)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text("Spend")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundColor(.red)
+                    }
+                    Text(formatCurrency(mtdSpend, currency: AppSettings.shared.defaultCurrency))
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.red)
+                }
+            }
+
+            // Net
+            let net = mtdIncome - mtdSpend
+            Divider()
+            HStack {
+                Text("Net")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text((net >= 0 ? "+" : "") + formatCurrency(net, currency: AppSettings.shared.defaultCurrency))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(net >= 0 ? .green : .red)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(16)
+    }
+
+    // MARK: - Action Row
+
+    private var actionRow: some View {
+        HStack(spacing: 12) {
+            Button(action: onAddExpense) {
+                VStack(spacing: 6) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title2)
+                    Text("Expense")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.red.opacity(0.1))
+                .foregroundColor(.red)
+                .cornerRadius(12)
+            }
+
+            Button(action: onAddIncome) {
+                VStack(spacing: 6) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                    Text("Income")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.green.opacity(0.1))
+                .foregroundColor(.green)
+                .cornerRadius(12)
+            }
+
+            Button(action: {
+                // Stub for receipt scanning
+            }) {
+                VStack(spacing: 6) {
+                    Image(systemName: "doc.text.viewfinder")
+                        .font(.title2)
+                    Text("Receipt")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color.blue.opacity(0.1))
+                .foregroundColor(.blue)
+                .cornerRadius(12)
+            }
         }
     }
+
+    // MARK: - Insights Card
+
+    private var insightsCard: some View {
+        let insights = generateInsights()
+
+        return Group {
+            if !insights.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundColor(.yellow)
+                        Text("Insights")
+                            .font(.headline)
+                    }
+
+                    ForEach(insights.prefix(2), id: \.self) { insight in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("•")
+                                .foregroundColor(.secondary)
+                            Text(insight)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(16)
+            }
+        }
+    }
+
+    private func generateInsights() -> [String] {
+        var insights: [String] = []
+
+        // Unusual spending insight
+        let avgDaily = mtdSpend / max(Double(Calendar.current.component(.day, from: Date())), 1)
+        if avgDaily > 500 {
+            insights.append("You're averaging \(formatCurrency(avgDaily, currency: AppSettings.shared.defaultCurrency)) per day this month.")
+        }
+
+        // Top category insight
+        if let topCategory = topCategories.first {
+            let percentage = mtdSpend > 0 ? (topCategory.1 / mtdSpend) * 100 : 0
+            if percentage > 40 {
+                insights.append("\(topCategory.0.capitalized) accounts for \(Int(percentage))% of your spending.")
+            }
+        }
+
+        // Budget warning
+        let overBudget = viewModel.summary.budgets.filter { ($0.spent ?? 0) > $0.budgetAmount }
+        if !overBudget.isEmpty {
+            let categories = overBudget.map { $0.category.capitalized }.joined(separator: ", ")
+            insights.append("You're over budget on: \(categories)")
+        }
+
+        // Net cashflow insight
+        let net = mtdIncome - mtdSpend
+        if net < 0 {
+            insights.append("You've spent \(formatCurrency(abs(net), currency: AppSettings.shared.defaultCurrency)) more than you've earned this month.")
+        }
+
+        return insights
+    }
+
+    private func financeFreshnessIndicator(lastUpdated: Date, isOffline: Bool) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(isOffline ? Color.orange : Color.green)
+                .frame(width: 6, height: 6)
+
+            Text("Updated \(lastUpdated, style: .relative) ago")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            if isOffline {
+                Text("(Offline)")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 4)
+    }
+}
+
+// MARK: - Budget Status
+
+struct BudgetStatusInfo {
+    enum Status {
+        case ok, warning, over, noBudgets
+
+        var color: Color {
+            switch self {
+            case .ok: return .green
+            case .warning: return .orange
+            case .over: return .red
+            case .noBudgets: return .gray
+            }
+        }
+    }
+
+    let status: Status
+    let message: String
 }
 
 #Preview {

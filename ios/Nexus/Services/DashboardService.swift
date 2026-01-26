@@ -85,6 +85,7 @@ enum DashboardError: LocalizedError {
     case serverError(String)
     case emptyResponse
     case noCache
+    case timeout
 
     var errorDescription: String? {
         switch self {
@@ -94,6 +95,8 @@ enum DashboardError: LocalizedError {
             return "Server returned empty response"
         case .noCache:
             return "No cached data available"
+        case .timeout:
+            return "Dashboard refresh timed out"
         }
     }
 }

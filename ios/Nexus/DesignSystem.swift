@@ -19,6 +19,7 @@ extension Color {
     static let nexusMood = Color(red: 0.69, green: 0.32, blue: 0.87) // #B052DE
     static let nexusProtein = Color(red: 0.96, green: 0.26, blue: 0.21) // #F54336
     static let nexusFinance = Color(red: 0.13, green: 0.59, blue: 0.95) // #2196F3
+    static let nexusHealth = Color(red: 0.2, green: 0.78, blue: 0.35) // #33C759 - same as success/weight
 
     // Semantic colors
     static let nexusSuccess = Color(red: 0.2, green: 0.78, blue: 0.35)

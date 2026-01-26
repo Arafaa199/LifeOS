@@ -42,7 +42,7 @@ struct QuickExpenseView: View {
                         .font(.headline)
 
                     VStack(spacing: 12) {
-                        TextField("e.g., $45 at Whole Foods", text: $expenseText)
+                        TextField("e.g., 45 at Carrefour", text: $expenseText)
                             .textFieldStyle(.roundedBorder)
                             .focused($isTextFieldFocused)
                             .submitLabel(.done)
@@ -50,7 +50,7 @@ struct QuickExpenseView: View {
                                 submitExpense()
                             }
 
-                        Text("Try: \"$45 groceries at Whole Foods\" or \"spent $12 on coffee\"")
+                        Text("Try: \"45 groceries at Carrefour\" or \"spent 12 on coffee\"")
                             .font(.caption)
                             .foregroundColor(.secondary)
 
@@ -249,7 +249,7 @@ struct QuickExpenseView: View {
                     Spacer()
                     if let spent = budget.spent {
                         if isOverBudget {
-                            Text(String(format: "AED %.0f over", spent - budget.budgetAmount))
+                            Text("\(formatCurrency(spent - budget.budgetAmount, currency: AppSettings.shared.defaultCurrency)) over")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                         } else {

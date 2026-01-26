@@ -4,6 +4,7 @@ struct ContentView: View {
     @EnvironmentObject var settings: AppSettings
     @StateObject private var viewModel = DashboardViewModel()
     @State private var selectedTab = 0
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -19,9 +20,9 @@ struct ContentView: View {
                 }
                 .tag(1)
 
-            FoodLogView(viewModel: viewModel)
+            HealthView()
                 .tabItem {
-                    Label("Food", systemImage: selectedTab == 2 ? "fork.knife.circle.fill" : "fork.knife")
+                    Label("Health", systemImage: selectedTab == 2 ? "heart.fill" : "heart")
                 }
                 .tag(2)
 
@@ -39,10 +40,15 @@ struct ContentView: View {
         }
         .tint(.nexusPrimary)
         .environmentObject(viewModel)
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                viewModel.foregroundRefresh()
+            }
+        }
     }
 }
 
 #Preview {
     ContentView()
-        .environmentObject(AppSettings())
+        .environmentObject(AppSettings.shared)
 }

@@ -4,6 +4,7 @@ import Combine
 struct FinancePlanningView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel = FinancePlanningViewModel()
+    @ObservedObject private var appSettings = AppSettings.shared
     @State private var selectedSection = 0
 
     var body: some View {
@@ -13,6 +14,7 @@ struct FinancePlanningView: View {
                     Text("Categories").tag(0)
                     Text("Recurring").tag(1)
                     Text("Rules").tag(2)
+                    Text("Settings").tag(3)
                 }
                 .pickerStyle(.segmented)
                 .padding()
@@ -26,6 +28,9 @@ struct FinancePlanningView: View {
 
                     MatchingRulesListView(viewModel: viewModel)
                         .tag(2)
+
+                    FinanceSettingsView()
+                        .tag(3)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
@@ -40,6 +45,37 @@ struct FinancePlanningView: View {
                 viewModel.loadAll()
             }
         }
+    }
+}
+
+// MARK: - Finance Settings View (Currency & Preferences)
+
+struct FinanceSettingsView: View {
+    @ObservedObject private var settings = AppSettings.shared
+
+    var body: some View {
+        List {
+            Section("Currency") {
+                Picker("Default Currency", selection: $settings.defaultCurrency) {
+                    ForEach(AppSettings.supportedCurrencies, id: \.self) { currency in
+                        Text(currency).tag(currency)
+                    }
+                }
+
+                Toggle("Show Currency Conversion", isOn: $settings.showCurrencyConversion)
+
+                Text("Conversion is currently disabled. All amounts will display in their original currency.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section("Display") {
+                Text("Currency formatting uses locale settings. AED amounts use \"AED\" prefix instead of symbols.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .listStyle(.insetGrouped)
     }
 }
 

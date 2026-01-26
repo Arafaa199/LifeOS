@@ -15,6 +15,17 @@ struct Transaction: Identifiable, Codable {
     let notes: String?
     let tags: [String]?
 
+    // Correction fields (from transactions_effective view)
+    let isCorrected: Bool?
+    let correctionId: Int?
+    let correctionReason: String?
+    let correctionNotes: String?
+    let originalAmount: Double?
+    let originalCategory: String?
+    let originalMerchantName: String?
+    let originalDate: Date?
+    let source: String?  // sms, manual, receipt, import
+
     enum CodingKeys: String, CodingKey {
         case id
         case date
@@ -27,6 +38,15 @@ struct Transaction: Identifiable, Codable {
         case isRestaurant = "is_restaurant"
         case notes
         case tags
+        case isCorrected = "is_corrected"
+        case correctionId = "correction_id"
+        case correctionReason = "correction_reason"
+        case correctionNotes = "correction_notes"
+        case originalAmount = "original_amount"
+        case originalCategory = "original_category"
+        case originalMerchantName = "original_merchant_name"
+        case originalDate = "original_date"
+        case source
     }
 
     var displayAmount: String {
@@ -54,8 +74,31 @@ struct Transaction: Identifiable, Codable {
             isGrocery: correctedCategory == "Grocery",
             isRestaurant: correctedCategory == "Restaurant",
             notes: notes,
-            tags: tags
+            tags: tags,
+            isCorrected: isCorrected,
+            correctionId: correctionId,
+            correctionReason: correctionReason,
+            correctionNotes: correctionNotes,
+            originalAmount: originalAmount,
+            originalCategory: originalCategory,
+            originalMerchantName: originalMerchantName,
+            originalDate: originalDate,
+            source: source
         )
+    }
+
+    var hasCorrection: Bool {
+        isCorrected == true
+    }
+
+    var sourceDisplay: String {
+        switch source?.lowercased() {
+        case "sms": return "SMS Import"
+        case "manual": return "Manual Entry"
+        case "receipt": return "Receipt"
+        case "import": return "Import"
+        default: return "Unknown"
+        }
     }
 
     // MARK: - Merchant Name Normalization
@@ -782,6 +825,72 @@ struct SingleItemResponse<T: Codable>: Codable {
 struct DeleteResponse: Codable {
     let success: Bool
     let message: String?
+}
+
+// MARK: - Transaction Correction Models
+
+struct CreateCorrectionRequest: Codable {
+    let transactionId: Int
+    let amount: Double?
+    let currency: String?
+    let category: String?
+    let merchantName: String?
+    let date: String?
+    let reason: String
+    let notes: String?
+    let createdBy: String
+
+    enum CodingKeys: String, CodingKey {
+        case transactionId = "transaction_id"
+        case amount
+        case currency
+        case category
+        case merchantName = "merchant_name"
+        case date
+        case reason
+        case notes
+        case createdBy = "created_by"
+    }
+}
+
+struct CorrectionResponse: Codable {
+    let success: Bool
+    let correctionId: Int?
+    let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case correctionId = "correction_id"
+        case message
+    }
+}
+
+struct DeactivateCorrectionRequest: Codable {
+    let correctionId: Int
+
+    enum CodingKeys: String, CodingKey {
+        case correctionId = "correction_id"
+    }
+}
+
+enum CorrectionReason: String, CaseIterable {
+    case wrongAmount = "wrong_amount"
+    case wrongCategory = "wrong_category"
+    case wrongMerchant = "wrong_merchant"
+    case wrongDate = "wrong_date"
+    case duplicate = "duplicate"
+    case other = "other"
+
+    var displayName: String {
+        switch self {
+        case .wrongAmount: return "Wrong Amount"
+        case .wrongCategory: return "Wrong Category"
+        case .wrongMerchant: return "Wrong Merchant"
+        case .wrongDate: return "Wrong Date"
+        case .duplicate: return "Duplicate"
+        case .other: return "Other"
+        }
+    }
 }
 
 // MARK: - LifeOS Daily Summary Response

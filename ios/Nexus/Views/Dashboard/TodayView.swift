@@ -15,6 +15,11 @@ struct TodayView: View {
                         offlineBanner
                     }
 
+                    // Stale data banner
+                    if viewModel.hasAnyStaleData && !viewModel.isForegroundRefreshing {
+                        staleBanner
+                    }
+
                     // Pending meal confirmations
                     if let pendingMeal = viewModel.pendingMeals.first {
                         mealConfirmationSection(meal: pendingMeal)
@@ -31,6 +36,21 @@ struct TodayView: View {
                     Spacer(minLength: 40)
                 }
                 .padding()
+            }
+            .overlay(alignment: .top) {
+                if viewModel.isForegroundRefreshing {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Text("Refreshing...")
+                            .font(.caption.weight(.medium))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(20)
+                    .padding(.top, 8)
+                }
             }
             .background(Color(UIColor.systemGroupedBackground))
             .refreshable {
@@ -89,6 +109,40 @@ struct TodayView: View {
         .cornerRadius(8)
     }
 
+    // MARK: - Stale Data Banner
+
+    private var staleBanner: some View {
+        Button {
+            viewModel.forceRefresh()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.caption)
+                Text(staleBannerText)
+                    .font(.caption.weight(.medium))
+                Image(systemName: "arrow.clockwise")
+                    .font(.caption2)
+            }
+            .foregroundColor(.orange)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.orange.opacity(0.12))
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var staleBannerText: String {
+        if viewModel.foregroundRefreshFailed, let formatted = viewModel.lastUpdatedFormatted {
+            return "Showing data from \(formatted)"
+        }
+        let staleFeeds = viewModel.dashboardPayload?.dataFreshness
+        if staleFeeds?.health?.isStale == true || staleFeeds?.finance?.isStale == true {
+            return "Some data sources delayed"
+        }
+        return "Data may be outdated"
+    }
+
     // MARK: - State Card (Recovery + Budget)
 
     private var stateCard: some View {
@@ -133,6 +187,12 @@ struct TodayView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+
+                if let freshness = viewModel.healthFreshness {
+                    Text(freshness.syncTimeLabel)
+                        .font(.caption2)
+                        .foregroundColor(freshness.isStale ? .orange : .secondary)
+                }
             }
         }
     }
@@ -146,6 +206,12 @@ struct TodayView: View {
             Text(spentTodayText)
                 .font(.caption)
                 .foregroundColor(.secondary)
+
+            if let freshness = viewModel.financeFreshness {
+                Text(freshness.syncTimeLabel)
+                    .font(.caption2)
+                    .foregroundColor(freshness.isStale ? .orange : .secondary)
+            }
         }
     }
 
@@ -234,24 +300,23 @@ struct TodayView: View {
 
     private var topInsight: String? {
         let facts = viewModel.dashboardPayload?.todayFacts
+        let insights = viewModel.dashboardPayload?.dailyInsights
 
-        // Priority 1: Unusual spending
-        if facts?.spendUnusual == true {
-            let spent = Int(spentToday)
-            return "Unusual spending detected: \(spent) AED today"
+        // Server-ranked insights (quality-gated, confidence-ordered)
+        if let top = insights?.rankedInsights?.first {
+            return top.description
         }
 
-        // Priority 2: Low recovery
+        // Fallback: flag-based signals (no statistical inference, always valid)
+        if facts?.spendUnusual == true {
+            return "Unusual spending detected: \(Int(spentToday)) AED today"
+        }
         if let score = recoveryScore, score < 34 {
             return "Low recovery - consider a rest day"
         }
-
-        // Priority 3: Good state
         if let score = recoveryScore, score >= 67 {
             return "High recovery - good day for intensity"
         }
-
-        // Priority 4: High spend vs average
         if let vsAvg = facts?.spendVs7d, vsAvg > 50 {
             return "Spending \(Int(vsAvg))% above your 7-day average"
         }

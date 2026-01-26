@@ -2,6 +2,39 @@ import Foundation
 import SwiftUI
 import WidgetKit
 import Combine
+import os
+
+// MARK: - Refresh Reason
+
+enum RefreshReason: String {
+    case foreground
+    case pullToRefresh
+    case force
+}
+
+// MARK: - Refresh Log Entry
+
+struct RefreshLogEntry: Identifiable {
+    let id = UUID()
+    let timestamp: Date
+    let reason: RefreshReason
+    let outcome: Outcome
+    let durationMs: Int
+
+    enum Outcome: String {
+        case success
+        case timeout
+        case error
+        case cancelled
+        case debounced
+    }
+
+    var summary: String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "HH:mm:ss"
+        return "\(fmt.string(from: timestamp)) [\(reason.rawValue)] \(outcome.rawValue) (\(durationMs)ms)"
+    }
+}
 
 @MainActor
 class DashboardViewModel: ObservableObject {
@@ -17,6 +50,15 @@ class DashboardViewModel: ObservableObject {
     @Published var dataSource: DashboardResult.DataSource?
     @Published var isDataStale = false
     @Published var lastUpdatedFormatted: String?
+
+    // Foreground refresh state
+    @Published var isForegroundRefreshing = false
+    @Published var foregroundRefreshFailed = false
+    @Published var lastRefreshReason: RefreshReason?
+    @Published private(set) var refreshLog: [RefreshLogEntry] = []
+
+    private let refreshLogger = Logger(subsystem: "com.nexus.lifeos", category: "refresh")
+    private let maxRefreshLogEntries = 20
 
     // Meal confirmations
     @Published var pendingMeals: [InferredMeal] = []
@@ -72,8 +114,26 @@ class DashboardViewModel: ObservableObject {
     var hasStaleFeeds: Bool {
         !staleFeeds.isEmpty
     }
+
+    var healthFreshness: DomainFreshness? {
+        dashboardPayload?.dataFreshness?.health
+    }
+
+    var financeFreshness: DomainFreshness? {
+        dashboardPayload?.dataFreshness?.finance
+    }
+
+    var hasAnyStaleData: Bool {
+        if let overall = dashboardPayload?.dataFreshness?.overallStatus, overall != "healthy" {
+            return true
+        }
+        return isDataStale || foregroundRefreshFailed
+    }
     private let storage = SharedStorage.shared
     private var loadTask: Task<Void, Never>?
+    private var foregroundRefreshTask: Task<Void, Never>?
+    private var lastForegroundRefreshDate: Date?
+    private let foregroundRefreshMinInterval: TimeInterval = 30
 
     init() {
         loadFromCache()
@@ -82,6 +142,7 @@ class DashboardViewModel: ObservableObject {
 
     deinit {
         loadTask?.cancel()
+        foregroundRefreshTask?.cancel()
     }
 
     // MARK: - Load Data
@@ -231,8 +292,15 @@ class DashboardViewModel: ObservableObject {
     }
 
     func refresh() async {
+        // Cancel any in-flight foreground refresh — pull-to-refresh takes priority
+        foregroundRefreshTask?.cancel()
+        foregroundRefreshTask = nil
+        isForegroundRefreshing = false
+
+        lastRefreshReason = .pullToRefresh
         isRefreshing = true
         errorMessage = nil
+        let start = CFAbsoluteTimeGetCurrent()
 
         do {
             let result = try await dashboardService.fetchDashboard()
@@ -242,6 +310,8 @@ class DashboardViewModel: ObservableObject {
             isDataStale = result.isStale
             lastUpdatedFormatted = result.lastUpdatedFormatted
             lastSyncDate = result.lastUpdated
+            foregroundRefreshFailed = false
+            lastForegroundRefreshDate = Date()
 
             mapPayloadToSummary(result.payload)
             saveToStorage()
@@ -252,12 +322,109 @@ class DashboardViewModel: ObservableObject {
 
             // Load pending meal confirmations
             await loadPendingMeals()
+            recordRefresh(reason: .pullToRefresh, outcome: .success, start: start)
         } catch {
             // Keep existing data, show error
             errorMessage = "Refresh failed - using cached data"
+            recordRefresh(reason: .pullToRefresh, outcome: .error, start: start)
         }
 
         isRefreshing = false
+    }
+
+    func foregroundRefresh(reason: RefreshReason = .foreground) {
+        guard dashboardPayload != nil else { return }
+
+        // Debounce: skip if last refresh was recent (force bypasses)
+        if reason != .force,
+           let last = lastForegroundRefreshDate,
+           Date().timeIntervalSince(last) < foregroundRefreshMinInterval {
+            recordRefresh(reason: reason, outcome: .debounced, durationMs: 0)
+            return
+        }
+
+        // Cancel any in-flight foreground refresh
+        foregroundRefreshTask?.cancel()
+
+        foregroundRefreshTask = Task {
+            lastRefreshReason = reason
+            isForegroundRefreshing = true
+            foregroundRefreshFailed = false
+            let start = CFAbsoluteTimeGetCurrent()
+
+            do {
+                let result = try await withThrowingTaskGroup(of: DashboardResult.self) { group in
+                    group.addTask {
+                        try await self.dashboardService.fetchDashboard()
+                    }
+                    group.addTask {
+                        try await Task.sleep(nanoseconds: 5_000_000_000)
+                        throw DashboardError.timeout
+                    }
+
+                    let first = try await group.next()!
+                    group.cancelAll()
+                    return first
+                }
+
+                guard !Task.isCancelled else {
+                    recordRefresh(reason: reason, outcome: .cancelled, start: start)
+                    return
+                }
+
+                dashboardPayload = result.payload
+                dataSource = result.source
+                isDataStale = result.isStale
+                lastUpdatedFormatted = result.lastUpdatedFormatted
+                lastSyncDate = result.lastUpdated
+                foregroundRefreshFailed = false
+                lastForegroundRefreshDate = Date()
+
+                mapPayloadToSummary(result.payload)
+                saveToStorage()
+                errorMessage = nil
+                recordRefresh(reason: reason, outcome: .success, start: start)
+            } catch is CancellationError {
+                recordRefresh(reason: reason, outcome: .cancelled, start: start)
+            } catch {
+                guard !Task.isCancelled else {
+                    recordRefresh(reason: reason, outcome: .cancelled, start: start)
+                    return
+                }
+                foregroundRefreshFailed = true
+                let outcome: RefreshLogEntry.Outcome
+                if case DashboardError.timeout = error {
+                    outcome = .timeout
+                } else {
+                    outcome = .error
+                }
+                recordRefresh(reason: reason, outcome: outcome, start: start)
+            }
+
+            if !Task.isCancelled {
+                isForegroundRefreshing = false
+            }
+        }
+    }
+
+    func forceRefresh() {
+        foregroundRefresh(reason: .force)
+    }
+
+    // MARK: - Refresh Logging
+
+    private func recordRefresh(reason: RefreshReason, outcome: RefreshLogEntry.Outcome, start: CFAbsoluteTime) {
+        let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+        recordRefresh(reason: reason, outcome: outcome, durationMs: ms)
+    }
+
+    private func recordRefresh(reason: RefreshReason, outcome: RefreshLogEntry.Outcome, durationMs: Int) {
+        let entry = RefreshLogEntry(timestamp: Date(), reason: reason, outcome: outcome, durationMs: durationMs)
+        refreshLog.append(entry)
+        if refreshLog.count > maxRefreshLogEntries {
+            refreshLog.removeFirst(refreshLog.count - maxRefreshLogEntries)
+        }
+        refreshLogger.info("\(entry.summary)")
     }
 
     func loadPendingMeals() async {

@@ -1,0 +1,236 @@
+{
+  "name": "Nexus: Transaction Corrections API",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "nexus-create-correction",
+        "httpMethod": "POST",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-create",
+      "name": "Create Correction",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 200],
+      "webhookId": "nexus-create-correction",
+      "typeVersion": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SZxrJ8QXk6ZennvF",
+          "name": "Nexus API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT finance.create_correction(\n  {{ $json.transaction_id }}::INTEGER,\n  {{ $json.amount ? $json.amount : 'NULL' }}::NUMERIC,\n  {{ $json.currency ? \"'\" + $json.currency + \"'\" : 'NULL' }}::VARCHAR,\n  {{ $json.category ? \"'\" + $json.category + \"'\" : 'NULL' }}::VARCHAR,\n  {{ $json.merchant_name ? \"'\" + $json.merchant_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }}::VARCHAR,\n  {{ $json.date ? \"'\" + $json.date + \"'\" : 'NULL' }}::DATE,\n  {{ $json.transaction_at ? \"'\" + $json.transaction_at + \"'\" : 'NULL' }}::TIMESTAMPTZ,\n  {{ $json.account_id ? $json.account_id : 'NULL' }}::INTEGER,\n  '{{ $json.reason || \"manual_correction\" }}'::VARCHAR,\n  {{ $json.notes ? \"'\" + $json.notes.replace(/'/g, \"''\") + \"'\" : 'NULL' }}::TEXT,\n  '{{ $json.created_by || \"ios\" }}'::VARCHAR\n) AS correction_id;",
+        "options": {}
+      },
+      "id": "create-correction-db",
+      "name": "Execute Create",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, correction_id: $json.correction_id }) }}",
+        "options": {}
+      },
+      "id": "respond-create",
+      "name": "Respond Create",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 200],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "path": "nexus-deactivate-correction",
+        "httpMethod": "POST",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-deactivate",
+      "name": "Deactivate Correction",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 400],
+      "webhookId": "nexus-deactivate-correction",
+      "typeVersion": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SZxrJ8QXk6ZennvF",
+          "name": "Nexus API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT finance.deactivate_correction({{ $json.correction_id }}::INTEGER) AS success;",
+        "options": {}
+      },
+      "id": "deactivate-db",
+      "name": "Execute Deactivate",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 400],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: $json.success }) }}",
+        "options": {}
+      },
+      "id": "respond-deactivate",
+      "name": "Respond Deactivate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 400],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "path": "nexus-link-raw-event",
+        "httpMethod": "POST",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-link",
+      "name": "Link Raw Event",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 600],
+      "webhookId": "nexus-link-raw-event",
+      "typeVersion": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SZxrJ8QXk6ZennvF",
+          "name": "Nexus API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT finance.link_raw_event({{ $json.event_id }}::INTEGER, {{ $json.transaction_id }}::INTEGER) AS success;",
+        "options": {}
+      },
+      "id": "link-db",
+      "name": "Execute Link",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 600],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: $json.success }) }}",
+        "options": {}
+      },
+      "id": "respond-link",
+      "name": "Respond Link",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 600],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "path": "nexus-ignore-raw-event",
+        "httpMethod": "POST",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-ignore",
+      "name": "Ignore Raw Event",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 800],
+      "webhookId": "nexus-ignore-raw-event",
+      "typeVersion": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SZxrJ8QXk6ZennvF",
+          "name": "Nexus API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT finance.ignore_raw_event({{ $json.event_id }}::INTEGER, '{{ $json.reason.replace(/'/g, \"''\") }}'::TEXT) AS success;",
+        "options": {}
+      },
+      "id": "ignore-db",
+      "name": "Execute Ignore",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 800],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: $json.success }) }}",
+        "options": {}
+      },
+      "id": "respond-ignore",
+      "name": "Respond Ignore",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 800],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Create Correction": {
+      "main": [[{"node": "Execute Create", "type": "main", "index": 0}]]
+    },
+    "Execute Create": {
+      "main": [[{"node": "Respond Create", "type": "main", "index": 0}]]
+    },
+    "Deactivate Correction": {
+      "main": [[{"node": "Execute Deactivate", "type": "main", "index": 0}]]
+    },
+    "Execute Deactivate": {
+      "main": [[{"node": "Respond Deactivate", "type": "main", "index": 0}]]
+    },
+    "Link Raw Event": {
+      "main": [[{"node": "Execute Link", "type": "main", "index": 0}]]
+    },
+    "Execute Link": {
+      "main": [[{"node": "Respond Link", "type": "main", "index": 0}]]
+    },
+    "Ignore Raw Event": {
+      "main": [[{"node": "Execute Ignore", "type": "main", "index": 0}]]
+    },
+    "Execute Ignore": {
+      "main": [[{"node": "Respond Ignore", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {"executionOrder": "v1"}
+}

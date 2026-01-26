@@ -78,7 +78,7 @@ struct BudgetView: View {
                     Text(category.capitalized)
                         .font(.subheadline)
                     Spacer()
-                    Text(String(format: "$%.2f", amount))
+                    Text(formatCurrency(amount, currency: AppSettings.shared.defaultCurrency))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
@@ -119,15 +119,40 @@ struct StatItem: View {
 struct TransactionRow: View {
     let transaction: Transaction
 
+    private var formattedTime: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: transaction.date)
+    }
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(transaction.merchantName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                HStack(spacing: 4) {
+                    Text(transaction.merchantName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
 
-                if let category = transaction.category {
-                    Text(category)
+                    if transaction.hasCorrection {
+                        Image(systemName: "pencil.circle.fill")
+                            .foregroundColor(.orange)
+                            .font(.caption2)
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    if let category = transaction.category {
+                        Text(category)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Text("•")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    Text(formattedTime)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -135,7 +160,7 @@ struct TransactionRow: View {
 
             Spacer()
 
-            Text(transaction.displayAmount)
+            Text(formatCurrency(transaction.amount, currency: transaction.currency))
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(transaction.amount < 0 ? .red : .green)
@@ -165,7 +190,7 @@ struct BudgetCard: View {
                 Text(budget.category.capitalized)
                     .font(.headline)
                 Spacer()
-                Text(String(format: "$%.0f / $%.0f", budget.spent ?? 0, budget.budgetAmount))
+                Text("\(formatCurrency(budget.spent ?? 0, currency: AppSettings.shared.defaultCurrency)) / \(formatCurrency(budget.budgetAmount, currency: AppSettings.shared.defaultCurrency))")
                     .font(.subheadline)
                     .foregroundColor(isOverBudget ? .red : .secondary)
             }
@@ -186,7 +211,9 @@ struct BudgetCard: View {
             .frame(height: 8)
 
             if let remaining = budget.remaining {
-                Text(remaining >= 0 ? String(format: "$%.2f remaining", remaining) : String(format: "$%.2f over budget", abs(remaining)))
+                Text(remaining >= 0 ?
+                     "\(formatCurrency(remaining, currency: AppSettings.shared.defaultCurrency)) remaining" :
+                     "\(formatCurrency(abs(remaining), currency: AppSettings.shared.defaultCurrency)) over budget")
                     .font(.caption)
                     .foregroundColor(remaining >= 0 ? .secondary : .red)
             }

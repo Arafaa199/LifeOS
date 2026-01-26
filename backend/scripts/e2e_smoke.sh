@@ -310,6 +310,41 @@ test_sync_status
 test_finance_summary
 test_dashboard
 
+# ── Test 7: Dashboard Insights ────────────────────────────────────────
+test_dashboard_insights() {
+    log_info "Testing Dashboard Insights (daily_insights key)"
+
+    local response
+    response=$(curl -s -k "${WEBHOOK_BASE}/webhook/nexus-dashboard-today" 2>/dev/null)
+
+    local has_insights
+    has_insights=$(echo "$response" | python3 -c "
+import sys,json
+data = json.load(sys.stdin)
+di = data.get('daily_insights')
+if di is None:
+    print('missing')
+elif not isinstance(di, dict):
+    print('wrong_type')
+elif 'alerts' not in di or 'patterns' not in di or 'spending_by_recovery' not in di or 'today_is' not in di:
+    print('incomplete')
+else:
+    print('ok')
+" 2>/dev/null || echo "error")
+
+    if [ "$has_insights" = "ok" ]; then
+        log_pass "Dashboard includes daily_insights with all keys"
+    elif [ "$has_insights" = "missing" ]; then
+        log_fail "Dashboard insights" "daily_insights key missing — migration 082 not applied?"
+    elif [ "$has_insights" = "incomplete" ]; then
+        log_fail "Dashboard insights" "daily_insights present but missing sub-keys"
+    else
+        log_fail "Dashboard insights" "Could not parse response ($has_insights)"
+    fi
+}
+
+test_dashboard_insights
+
 echo ""
 echo "═══════════════════════════════════════════════"
 echo -e "  Results: ${GREEN}$PASS passed${NC}, ${RED}$FAIL failed${NC}"

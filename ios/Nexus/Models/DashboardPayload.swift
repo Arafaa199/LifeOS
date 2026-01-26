@@ -11,6 +11,8 @@ struct DashboardPayload: Codable {
     let feedStatus: [FeedStatus]
     let staleFeeds: [String]
     let recentEvents: [RecentEvent]
+    let dailyInsights: DailyInsights?
+    let dataFreshness: DataFreshness?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -19,6 +21,66 @@ struct DashboardPayload: Codable {
         case feedStatus = "feed_status"
         case staleFeeds = "stale_feeds"
         case recentEvents = "recent_events"
+        case dailyInsights = "daily_insights"
+        case dataFreshness = "data_freshness"
+    }
+}
+
+// MARK: - Data Freshness
+
+struct DataFreshness: Codable {
+    let health: DomainFreshness?
+    let finance: DomainFreshness?
+    let overallStatus: String?
+    let generatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case health, finance
+        case overallStatus = "overall_status"
+        case generatedAt = "generated_at"
+    }
+}
+
+struct DomainFreshness: Codable {
+    let status: String
+    let lastSync: String?
+    let hoursSinceSync: Double?
+    let staleFeeds: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case lastSync = "last_sync"
+        case hoursSinceSync = "hours_since_sync"
+        case staleFeeds = "stale_feeds"
+    }
+
+    var isStale: Bool { status != "healthy" }
+
+    var lastSyncDate: Date? {
+        guard let lastSync else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: lastSync) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: lastSync)
+    }
+
+    var freshnessLabel: String {
+        guard let date = lastSyncDate else { return "Unknown" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    var syncTimeLabel: String {
+        guard let date = lastSyncDate else { return "No sync" }
+        let formatter = DateFormatter()
+        if Calendar.current.isDateInToday(date) {
+            formatter.dateFormat = "HH:mm"
+        } else {
+            formatter.dateFormat = "MMM d, HH:mm"
+        }
+        return "Synced \(formatter.string(from: date))"
     }
 }
 
@@ -261,6 +323,86 @@ struct EventPayload: Codable {
         merchant = try container.decodeIfPresent(String.self, forKey: .merchant)
         weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
         description = try container.decodeIfPresent(String.self, forKey: .description)
+    }
+}
+
+// MARK: - Daily Insights
+
+struct DailyInsights: Codable {
+    let alerts: [InsightAlert]?
+    let patterns: [DayPattern]?
+    let spendingByRecovery: [RecoverySpendLevel]?
+    let todayIs: String?
+    let rankedInsights: [RankedInsight]?
+
+    enum CodingKeys: String, CodingKey {
+        case alerts, patterns
+        case spendingByRecovery = "spending_by_recovery"
+        case todayIs = "today_is"
+        case rankedInsights = "ranked_insights"
+    }
+}
+
+struct InsightAlert: Codable, Identifiable {
+    var id: String { "\(alertType)-\(description)" }
+    let alertType: String
+    let severity: String
+    let description: String
+
+    enum CodingKeys: String, CodingKey {
+        case alertType = "alert_type"
+        case severity, description
+    }
+}
+
+struct DayPattern: Codable {
+    let dayName: String
+    let patternFlag: String
+    let avgSpend: Double?
+    let avgRecovery: Double?
+    let sampleSize: Int?
+    let daysWithSpend: Int?
+    let confidence: String?
+
+    enum CodingKeys: String, CodingKey {
+        case dayName = "day_name"
+        case patternFlag = "pattern_flag"
+        case avgSpend = "avg_spend"
+        case avgRecovery = "avg_recovery"
+        case sampleSize = "sample_size"
+        case daysWithSpend = "days_with_spend"
+        case confidence
+    }
+}
+
+struct RecoverySpendLevel: Codable {
+    let recoveryLevel: String
+    let days: Int
+    let daysWithSpend: Int?
+    let avgSpend: Double?
+    let confidence: String?
+
+    enum CodingKeys: String, CodingKey {
+        case recoveryLevel = "recovery_level"
+        case days
+        case daysWithSpend = "days_with_spend"
+        case avgSpend = "avg_spend"
+        case confidence
+    }
+}
+
+struct RankedInsight: Codable, Identifiable {
+    var id: String { "\(type)-\(description)" }
+    let type: String
+    let confidence: String
+    let description: String
+    let daysSampled: Int
+    let daysWithData: Int
+
+    enum CodingKeys: String, CodingKey {
+        case type, confidence, description
+        case daysSampled = "days_sampled"
+        case daysWithData = "days_with_data"
     }
 }
 

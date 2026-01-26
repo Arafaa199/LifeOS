@@ -1,7 +1,7 @@
 # E2E Smoke Test Report
 
-**Run**: 2026-01-26T07:25:00Z
-**Result**: 14/14 passed (0 failed)
+**Run**: 2026-01-26T14:14:20Z
+**Result**: 15/15 passed (0 failed)
 **Status**: ALL PASS
 
 ## Results
@@ -12,7 +12,7 @@
 - PASS: Workflow active: Nexus: Sync Status API
 - PASS: Workflow active: Nexus: Finance Summary API
 - PASS: Workflow active: Nexus: Dashboard Today API
-- PASS: Calendar webhook returned success (run_id: 641fbc06...)
+- PASS: Calendar webhook returned success (run_id: 87438dcf...)
 - PASS: Calendar event written to DB (raw.calendar_events)
 - PASS: Sync run recorded in ops.sync_runs
 - PASS: Idempotent upsert working (1 updated, 0 inserted)
@@ -20,6 +20,7 @@
 - PASS: Calendar domain shows 'fresh' status
 - PASS: Finance summary endpoint reachable (auth required — HTTP 403)
 - PASS: Dashboard endpoint returned valid data
+- PASS: Dashboard includes daily_insights with all keys
 
 ## Environment
 
