@@ -40,6 +40,28 @@ struct ResponseData: Codable {
     let weight_kg: Double?
 }
 
+// MARK: - Sync Status
+
+struct SyncStatusResponse: Codable {
+    let success: Bool
+    let domains: [SyncDomainStatus]?
+    let timestamp: String?
+}
+
+struct SyncDomainStatus: Codable, Identifiable {
+    var id: String { domain }
+    let domain: String
+    let last_success_at: String?
+    let last_success_rows: Int?
+    let last_success_duration_ms: Int?
+    let last_success_source: String?
+    let last_error_at: String?
+    let last_error: String?
+    let running_count: Int?
+    let freshness: String?
+    let seconds_since_success: Int?
+}
+
 // MARK: - View Models
 
 struct LogEntry: Identifiable {

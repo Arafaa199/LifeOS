@@ -16,12 +16,29 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract events from request body\nconst body = $input.item.json.body;\n\nif (!body || !body.events || !Array.isArray(body.events)) {\n  return [{ json: { success: false, error: 'Invalid payload: events array required' } }];\n}\n\nconst events = body.events;\nconst clientId = body.client_id || null;\nconst device = body.device || 'unknown';\nconst source = body.source || 'ios_eventkit';\n\n// Format events for database insertion\nconst formattedEvents = events.map(e => ({\n  event_id: e.event_id,\n  title: e.title || null,\n  start_at: e.start_at,\n  end_at: e.end_at,\n  is_all_day: e.is_all_day || false,\n  calendar_name: e.calendar_name || null,\n  location: e.location || null,\n  notes: e.notes || null,\n  recurrence_rule: e.recurrence_rule || null,\n  client_id: clientId,\n  source: source\n}));\n\nreturn formattedEvents.map(e => ({ json: e }));"
+        "operation": "executeQuery",
+        "query": "SELECT ops.start_sync('calendar', 'n8n') as run_id;",
+        "options": {}
+      },
+      "name": "Start Sync Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [350, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Save run_id and extract events from request body\nconst runId = $input.item.json.run_id;\nconst body = $('Webhook').item.json.body;\n\nif (!body || !body.events || !Array.isArray(body.events)) {\n  return [{ json: { success: false, error: 'Invalid payload: events array required', run_id: runId } }];\n}\n\nconst events = body.events;\nconst clientId = body.client_id || null;\nconst device = body.device || 'unknown';\nconst source = body.source || 'ios_eventkit';\n\nconst formattedEvents = events.map(e => ({\n  event_id: e.event_id,\n  title: e.title || null,\n  start_at: e.start_at,\n  end_at: e.end_at,\n  is_all_day: e.is_all_day || false,\n  calendar_name: e.calendar_name || null,\n  location: e.location || null,\n  notes: e.notes || null,\n  recurrence_rule: e.recurrence_rule || null,\n  client_id: clientId,\n  source: source,\n  run_id: runId\n}));\n\nreturn formattedEvents.map(e => ({ json: e }));"
       },
       "name": "Parse Events",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 300]
+      "position": [500, 300]
     },
     {
       "parameters": {
@@ -32,7 +49,7 @@
       "name": "Upsert Calendar Events",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.3,
-      "position": [600, 300],
+      "position": [700, 300],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -42,12 +59,38 @@
     },
     {
       "parameters": {
-        "jsCode": "// Aggregate results\nconst results = $input.all();\nconst inserted = results.filter(r => r.json.was_inserted === true).length;\nconst updated = results.filter(r => r.json.was_inserted === false).length;\n\nreturn [{\n  json: {\n    success: true,\n    inserted: {\n      events: inserted,\n      updated: updated,\n      total: results.length\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const results = $input.all();\nconst inserted = results.filter(r => r.json.was_inserted === true).length;\nconst updated = results.filter(r => r.json.was_inserted === false).length;\nconst runId = $('Parse Events').first().json.run_id;\n\nreturn [{\n  json: {\n    success: true,\n    run_id: runId,\n    inserted: {\n      events: inserted,\n      updated: updated,\n      total: results.length\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "name": "Aggregate Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [800, 300]
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ops.finish_sync(\n  '{{ $json.run_id }}'::uuid,\n  'success',\n  {{ $json.inserted.total }},\n  NULL,\n  '{{ JSON.stringify({ inserted: $json.inserted.events, updated: $json.inserted.updated }) }}'::jsonb\n);",
+        "options": {}
+      },
+      "name": "Finish Sync Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1100, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pass through the aggregated result for the webhook response\nconst agg = $('Aggregate Results').item.json;\nreturn [{ json: agg }];"
+      },
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
     },
     {
       "parameters": {
@@ -56,60 +99,34 @@
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1000, 300]
+      "position": [1500, 300]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {
-            "node": "Parse Events",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Start Sync Run", "type": "main", "index": 0 } ]]
+    },
+    "Start Sync Run": {
+      "main": [[ { "node": "Parse Events", "type": "main", "index": 0 } ]]
     },
     "Parse Events": {
-      "main": [
-        [
-          {
-            "node": "Upsert Calendar Events",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Upsert Calendar Events", "type": "main", "index": 0 } ]]
     },
     "Upsert Calendar Events": {
-      "main": [
-        [
-          {
-            "node": "Aggregate Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Aggregate Results", "type": "main", "index": 0 } ]]
     },
     "Aggregate Results": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[ { "node": "Finish Sync Run", "type": "main", "index": 0 } ]]
+    },
+    "Finish Sync Run": {
+      "main": [[ { "node": "Build Response", "type": "main", "index": 0 } ]]
+    },
+    "Build Response": {
+      "main": [[ { "node": "Respond to Webhook", "type": "main", "index": 0 } ]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "staticData": null,
+  "settings": { "executionOrder": "v1" },
   "meta": {
-    "notes": "Calendar sync webhook for iOS EventKit integration.\n\nEndpoint: POST /webhook/nexus-calendar-sync\nAuth: X-API-Key header\n\nUpserts events using ON CONFLICT - existing events updated, new inserted.\nSee 068_webhook_payload_example.json for payload format."
+    "notes": "Calendar sync webhook with ops.sync_runs observability.\nEndpoint: POST /webhook/nexus-calendar-sync\nRecords start/finish in ops.sync_runs for freshness tracking."
   }
 }

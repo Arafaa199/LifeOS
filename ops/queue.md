@@ -145,6 +145,44 @@ Status: DONE
 
 ---
 
+### TASK-NEXT.5: E2E Reliability Verification
+Priority: P0
+Owner: coder
+Status: DONE
+**Completed:** 2026-01-26T11:25+04
+
+**Objective:** Make system provably working end-to-end for Calendar + Finance + Dashboard.
+
+**Definition of Done:**
+- [x] Activate Calendar Sync Webhook in n8n
+- [x] Verify webhook → DB write → idempotent upsert
+- [x] Create ops.sync_runs reliability layer (migration 081)
+- [x] Create Sync Status API (GET /webhook/nexus-sync-status)
+- [x] Instrument Calendar webhook with sync_runs tracking
+- [x] Add Backend Sync Status section to iOS SettingsView
+- [x] Create E2E smoke test (scripts/e2e_smoke.sh)
+- [x] All 14/14 tests passing
+
+**Evidence:**
+- Migration 081: `ops.sync_runs` table, `ops.start_sync()`, `ops.finish_sync()`, `ops.v_sync_status` view
+- Calendar webhook active (ID: qBJJ21jmPFHnpDN7) with sync_runs instrumentation
+- Sync Status API active (ID: Q120opu62Trm4v3y)
+- iOS SettingsView shows per-domain freshness (green/orange/gray indicators)
+- E2E report: `ops/artifacts/e2e-report.md` — 14/14 PASS
+- Old duplicate calendar workflow (2Zzs1zpQlCLgfGs1) deactivated
+
+**Files Created/Modified:**
+- `backend/migrations/081_sync_runs.up.sql` (applied)
+- `backend/migrations/081_sync_runs.down.sql`
+- `backend/n8n-workflows/calendar-sync-webhook.json` (updated with sync_runs)
+- `backend/n8n-workflows/sync-status-webhook.json` (new)
+- `backend/scripts/e2e_smoke.sh` (new)
+- `ios/Nexus/Models/NexusModels.swift` (added SyncStatusResponse)
+- `ios/Nexus/Services/NexusAPI.swift` (added fetchSyncStatus)
+- `ios/Nexus/Views/SettingsView.swift` (added Backend Sync Status section)
+
+---
+
 You have completed the End-to-End Continuity & Trust milestone.
 
 Next milestone: TRUST-LOCKIN (P0)

@@ -10,6 +10,9 @@ struct SettingsView: View {
     @State private var showingSaveConfirmation = false
     @State private var isRefreshing = false
     @State private var refreshMessage: String?
+    @State private var syncStatus: [SyncDomainStatus] = []
+    @State private var isLoadingSyncStatus = false
+    @State private var syncStatusError: String?
 
     var body: some View {
         NavigationView {
@@ -270,6 +273,84 @@ struct SettingsView: View {
                     Text("Data")
                 }
 
+                // Sync Status Section
+                Section {
+                    if isLoadingSyncStatus {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    } else if let error = syncStatusError {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } else if syncStatus.isEmpty {
+                        Text("No sync data yet")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(syncStatus) { domain in
+                            HStack {
+                                Circle()
+                                    .fill(freshnessColor(domain.freshness))
+                                    .frame(width: 10, height: 10)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(domain.domain.capitalized)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    if let secs = domain.seconds_since_success {
+                                        Text(formatAge(secs))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Never synced")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                if let rows = domain.last_success_rows {
+                                    Text("\(rows) rows")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                if let running = domain.running_count, running > 0 {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                }
+                            }
+                        }
+                    }
+
+                    Button {
+                        Task { await loadSyncStatus() }
+                    } label: {
+                        HStack {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                            Text("Refresh Status")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .foregroundColor(.white)
+                    .background(isLoadingSyncStatus ? Color.gray : Color.nexusPrimary)
+                    .cornerRadius(8)
+                    .disabled(isLoadingSyncStatus)
+                } header: {
+                    Text("Backend Sync Status")
+                } footer: {
+                    Text("Shows per-domain data freshness from the server.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
                 // Developer Section
                 Section {
                     NavigationLink(destination: DebugView()) {
@@ -333,6 +414,7 @@ struct SettingsView: View {
             .onAppear {
                 webhookURL = settings.webhookBaseURL
                 apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") ?? ""
+                Task { await loadSyncStatus() }
             }
             .alert("Settings Saved", isPresented: $showingSaveConfirmation) {
                 Button("OK", role: .cancel) { }
@@ -360,6 +442,39 @@ struct SettingsView: View {
 
         let haptics = UINotificationFeedbackGenerator()
         haptics.notificationOccurred(.success)
+    }
+
+    private func loadSyncStatus() async {
+        isLoadingSyncStatus = true
+        syncStatusError = nil
+        do {
+            let response = try await NexusAPI.shared.fetchSyncStatus()
+            await MainActor.run {
+                syncStatus = response.domains ?? []
+                isLoadingSyncStatus = false
+            }
+        } catch {
+            await MainActor.run {
+                syncStatusError = "Failed to load"
+                isLoadingSyncStatus = false
+            }
+        }
+    }
+
+    private func freshnessColor(_ freshness: String?) -> Color {
+        switch freshness {
+        case "fresh": return .green
+        case "stale": return .orange
+        case "never_synced": return .gray
+        default: return .gray
+        }
+    }
+
+    private func formatAge(_ seconds: Int) -> String {
+        if seconds < 60 { return "\(seconds)s ago" }
+        if seconds < 3600 { return "\(seconds / 60)m ago" }
+        if seconds < 86400 { return "\(seconds / 3600)h ago" }
+        return "\(seconds / 86400)d ago"
     }
 
     private func refreshServerData() async {

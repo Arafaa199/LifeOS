@@ -1,0 +1,5 @@
+DROP VIEW IF EXISTS ops.v_sync_status;
+DROP FUNCTION IF EXISTS ops.finish_sync(UUID, TEXT, INTEGER, TEXT, JSONB);
+DROP FUNCTION IF EXISTS ops.start_sync(TEXT, TEXT);
+DROP FUNCTION IF EXISTS ops.domain_lock_id(TEXT);
+DROP TABLE IF EXISTS ops.sync_runs;

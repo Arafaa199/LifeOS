@@ -242,6 +242,10 @@ class NexusAPI: ObservableObject {
         return try await get("/webhook/nexus-system-health", decoder: Self.financeDateDecoder)
     }
 
+    func fetchSyncStatus() async throws -> SyncStatusResponse {
+        return try await get("/webhook/nexus-sync-status")
+    }
+
     func refreshSummaries() async throws -> NexusResponse {
         guard let url = URL(string: "\(baseURL)/webhook/nexus-refresh-summary") else {
             throw APIError.invalidURL
@@ -334,6 +338,17 @@ class NexusAPI: ObservableObject {
 
     func createBudget(_ request: CreateBudgetRequest) async throws -> SingleItemResponse<Budget> {
         return try await post("/webhook/nexus-budgets", body: request, decoder: Self.financeDateDecoder)
+    }
+
+    // MARK: - Transaction Corrections
+
+    func createCorrection(_ request: CreateCorrectionRequest) async throws -> CorrectionResponse {
+        return try await post("/webhook/nexus-create-correction", body: request, decoder: JSONDecoder())
+    }
+
+    func deactivateCorrection(correctionId: Int) async throws -> DeleteResponse {
+        let request = DeactivateCorrectionRequest(correctionId: correctionId)
+        return try await post("/webhook/nexus-deactivate-correction", body: request, decoder: JSONDecoder())
     }
 
     // MARK: - Network Layer
@@ -580,6 +595,10 @@ extension NexusAPI {
     func fetchSleepHistory(days: Int = 7) async throws -> SleepHistoryResponse {
         return try await get("/webhook/nexus-sleep-history?days=\(days)")
     }
+
+    func fetchHealthTimeseries(days: Int = 30) async throws -> HealthTimeseriesResponse {
+        return try await get("/webhook/nexus-health-timeseries?days=\(days)")
+    }
 }
 
 // MARK: - Sleep/Recovery Models
@@ -650,5 +669,42 @@ struct RecoveryMetrics: Codable {
         case rhr
         case spo2
         case skinTemp = "skin_temp"
+    }
+}
+
+// MARK: - Health Timeseries Models
+
+struct HealthTimeseriesResponse: Codable {
+    let success: Bool
+    let data: [DailyHealthPoint]?
+    let count: Int?
+}
+
+struct DailyHealthPoint: Codable, Identifiable {
+    var id: String { date }
+    let date: String
+    let hrv: Double?
+    let rhr: Int?
+    let recovery: Int?
+    let sleepMinutes: Int?
+    let sleepQuality: Int?
+    let strain: Double?
+    let steps: Int?
+    let weight: Double?
+    let activeEnergy: Int?
+    let coverage: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case hrv
+        case rhr
+        case recovery
+        case sleepMinutes = "sleep_minutes"
+        case sleepQuality = "sleep_quality"
+        case strain
+        case steps
+        case weight
+        case activeEnergy = "active_energy"
+        case coverage
     }
 }
