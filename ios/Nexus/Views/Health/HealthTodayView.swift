@@ -9,7 +9,18 @@ struct HealthTodayView: View {
         ScrollView {
             VStack(spacing: 16) {
                 // Freshness indicator
-                if let lastUpdated = viewModel.lastUpdated {
+                if let freshness = viewModel.healthFreshness {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(freshness.isStale ? Color.orange : Color.green)
+                            .frame(width: 6, height: 6)
+                        Text(freshness.syncTimeLabel)
+                            .font(.caption)
+                            .foregroundColor(freshness.isStale ? .orange : .secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 4)
+                } else if let lastUpdated = viewModel.lastUpdated {
                     freshnessIndicator(lastUpdated: lastUpdated, source: viewModel.dataSource)
                 }
 
@@ -27,9 +38,6 @@ struct HealthTodayView: View {
 
                     // Body Card
                     bodyCard(facts)
-
-                    // Finance Context (light)
-                    financeContextCard(facts)
 
                 } else {
                     emptyState
@@ -164,26 +172,6 @@ struct HealthTodayView: View {
                     }
                 }
 
-                Divider()
-                    .frame(height: 40)
-
-                // Active Calories (placeholder - would need to be added to facts)
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "flame.fill")
-                            .foregroundColor(.orange)
-                        Text("--")
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
-                            .foregroundColor(.secondary)
-                    }
-                    HStack(spacing: 4) {
-                        Text("Active Cal")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        SourceBadgeSmall(source: .healthkit)
-                    }
-                }
-
                 Spacer()
             }
         }
@@ -216,34 +204,6 @@ struct HealthTodayView: View {
                 notAvailableView("Weight not logged yet")
             }
         }
-    }
-
-    // MARK: - Finance Context Card
-
-    private func financeContextCard(_ facts: TodayFacts) -> some View {
-        HStack {
-            Image(systemName: "creditcard")
-                .foregroundColor(.nexusFinance)
-
-            if let spend = facts.spendTotal, spend > 0 {
-                if facts.spendUnusual == true {
-                    Text("High spend day")
-                        .foregroundColor(.orange)
-                } else {
-                    Text("Spent \(formatCurrency(spend, currency: AppSettings.shared.defaultCurrency)) today")
-                        .foregroundColor(.secondary)
-                }
-            } else {
-                Text("No spend today")
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-        }
-        .font(.subheadline)
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
     }
 
     // MARK: - Helper Views

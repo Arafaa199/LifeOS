@@ -68,6 +68,10 @@ class HealthViewModel: ObservableObject {
     @Published var lastHealthKitSync: Date?
     @Published var healthKitSampleCount = 0
 
+    // Error flags for data quality transparency
+    @Published var timeseriesError = false
+    @Published var healthKitSyncError = false
+
     private let dashboardService = DashboardService.shared
     private let healthKitManager = HealthKitManager.shared
     private let api = NexusAPI.shared
@@ -88,6 +92,18 @@ class HealthViewModel: ObservableObject {
 
     var todayFacts: TodayFacts? {
         dashboardPayload?.todayFacts
+    }
+
+    var healthFreshness: DomainFreshness? {
+        dashboardPayload?.dataFreshness?.health
+    }
+
+    var serverHealthInsights: [RankedInsight] {
+        let all = dashboardPayload?.dailyInsights?.rankedInsights ?? []
+        return all.filter { insight in
+            let t = insight.type.lowercased()
+            return t.hasPrefix("recovery") || t.hasPrefix("sleep") || t.hasPrefix("weight") || t.hasPrefix("health") || t.hasPrefix("hrv") || t.hasPrefix("strain")
+        }
     }
 
     var trends: [TrendPeriod] {
@@ -142,13 +158,13 @@ class HealthViewModel: ObservableObject {
             let response = try await api.fetchHealthTimeseries(days: days)
             if response.success, let data = response.data {
                 healthTimeseries = data
-                // Consider data available if we have at least 3 days with some coverage
                 let daysWithData = data.filter { ($0.coverage ?? 0) > 0.1 }.count
                 hasTimeseriesData = daysWithData >= 3
+                timeseriesError = false
             }
         } catch {
-            // Silent failure - timeseries is optional enhancement
             hasTimeseriesData = false
+            timeseriesError = true
         }
     }
 
@@ -156,8 +172,9 @@ class HealthViewModel: ObservableObject {
         let syncService = HealthKitSyncService.shared
         do {
             try await syncService.syncAllData()
+            healthKitSyncError = false
         } catch {
-            // Handle error silently - sync failed
+            healthKitSyncError = true
         }
         lastHealthKitSync = syncService.lastSyncDate
         healthKitSampleCount = syncService.lastSyncSampleCount
@@ -166,24 +183,24 @@ class HealthViewModel: ObservableObject {
     // MARK: - Computed Insights
 
     func generateInsights() -> [HealthInsight] {
+        // Prefer server-ranked insights for health
+        let server = serverHealthInsights
+        if !server.isEmpty {
+            return server.prefix(3).map { ranked in
+                HealthInsight(
+                    title: ranked.type.replacingOccurrences(of: "_", with: " ").capitalized,
+                    detail: ranked.description,
+                    confidence: mapServerConfidence(ranked.confidence),
+                    icon: iconForInsightType(ranked.type),
+                    color: colorForInsightType(ranked.type)
+                )
+            }
+        }
+
+        // Fallback: client-side insights when server returns none
         guard let facts = todayFacts else { return [] }
         var insights: [HealthInsight] = []
 
-        // Low sleep correlation with spending
-        if let sleepHours = facts.sleepMinutes.map({ Double($0) / 60 }),
-           sleepHours < 6,
-           let spendVs7d = facts.spendVs7d,
-           spendVs7d > 10 {
-            insights.append(HealthInsight(
-                title: "Low sleep linked to higher spending",
-                detail: "On days with <6h sleep, your spending tends to be \(Int(spendVs7d))% higher than average.",
-                confidence: .early,
-                icon: "moon.zzz",
-                color: .purple
-            ))
-        }
-
-        // High recovery correlation
         if let recovery = facts.recoveryScore,
            recovery > 70,
            let hrvVs7d = facts.hrvVs7d,
@@ -197,7 +214,6 @@ class HealthViewModel: ObservableObject {
             ))
         }
 
-        // Low recovery warning
         if let recovery = facts.recoveryScore,
            recovery < 40 {
             insights.append(HealthInsight(
@@ -209,7 +225,6 @@ class HealthViewModel: ObservableObject {
             ))
         }
 
-        // Weight stability check
         if let weightDelta = facts.weight30dDelta {
             if abs(weightDelta) < 0.5 {
                 insights.append(HealthInsight(
@@ -230,7 +245,6 @@ class HealthViewModel: ObservableObject {
             }
         }
 
-        // Sleep consistency
         if let sleepVs7d = facts.sleepVs7d {
             if sleepVs7d < -15 {
                 insights.append(HealthInsight(
@@ -244,6 +258,34 @@ class HealthViewModel: ObservableObject {
         }
 
         return Array(insights.prefix(3))
+    }
+
+    private func mapServerConfidence(_ confidence: String) -> HealthInsight.Confidence {
+        switch confidence.lowercased() {
+        case "strong", "high": return .strong
+        case "moderate", "medium": return .moderate
+        default: return .early
+        }
+    }
+
+    private func iconForInsightType(_ type: String) -> String {
+        let t = type.lowercased()
+        if t.contains("sleep") { return "bed.double" }
+        if t.contains("recovery") { return "heart.fill" }
+        if t.contains("weight") { return "scalemass" }
+        if t.contains("hrv") { return "waveform.path.ecg" }
+        if t.contains("strain") { return "flame.fill" }
+        return "lightbulb.fill"
+    }
+
+    private func colorForInsightType(_ type: String) -> Color {
+        let t = type.lowercased()
+        if t.contains("sleep") { return .purple }
+        if t.contains("recovery") { return .green }
+        if t.contains("weight") { return .blue }
+        if t.contains("hrv") { return .teal }
+        if t.contains("strain") { return .orange }
+        return .yellow
     }
 }
 

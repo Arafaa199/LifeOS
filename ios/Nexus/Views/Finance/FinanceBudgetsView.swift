@@ -26,23 +26,30 @@ struct FinanceBudgetsView: View {
         ScrollView {
             VStack(spacing: 20) {
                 // Freshness indicator
-                if let lastUpdated = viewModel.lastUpdated {
-                    HStack(spacing: 6) {
+                HStack(spacing: 6) {
+                    if let freshness = viewModel.financeFreshness {
+                        Circle()
+                            .fill(freshness.isStale ? Color.orange : Color.green)
+                            .frame(width: 6, height: 6)
+                        Text(freshness.syncTimeLabel)
+                            .font(.caption)
+                            .foregroundColor(freshness.isStale ? .orange : .secondary)
+                    } else if let lastUpdated = viewModel.lastUpdated {
                         Circle()
                             .fill(viewModel.isOffline ? Color.orange : Color.green)
                             .frame(width: 6, height: 6)
                         Text("Updated \(lastUpdated, style: .relative) ago")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        if viewModel.isOffline {
-                            Text("(Offline)")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-                        Spacer()
                     }
-                    .padding(.horizontal, 4)
+                    if viewModel.isOffline {
+                        Text("(Offline)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    Spacer()
                 }
+                .padding(.horizontal, 4)
 
                 // Overall budget summary
                 if !viewModel.summary.budgets.isEmpty {

@@ -21,8 +21,35 @@ struct HealthTrendsView: View {
         ScrollView {
             VStack(spacing: 20) {
                 // Freshness indicator
-                if let lastUpdated = viewModel.lastUpdated {
+                if let freshness = viewModel.healthFreshness {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(freshness.isStale ? Color.orange : Color.green)
+                            .frame(width: 6, height: 6)
+                        Text(freshness.syncTimeLabel)
+                            .font(.caption)
+                            .foregroundColor(freshness.isStale ? .orange : .secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 4)
+                } else if let lastUpdated = viewModel.lastUpdated {
                     freshnessIndicator(lastUpdated: lastUpdated, source: viewModel.dataSource)
+                }
+
+                // Timeseries error banner
+                if viewModel.timeseriesError {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                        Text("Trends temporarily unavailable — pull to retry")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(8)
                 }
 
                 // Period Selector - only show if backend provides multiple periods

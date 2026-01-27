@@ -241,6 +241,7 @@ struct Budget: Identifiable, Codable {
 
 struct FinanceSummary: Codable {
     var totalSpent: Double
+    var totalIncome: Double
     var grocerySpent: Double
     var eatingOutSpent: Double
     var currency: String
@@ -250,6 +251,7 @@ struct FinanceSummary: Codable {
 
     init() {
         totalSpent = 0
+        totalIncome = 0
         grocerySpent = 0
         eatingOutSpent = 0
         currency = "AED"  // Default to AED
@@ -368,6 +370,7 @@ struct FinanceResponse: Codable {
 struct FinanceResponseData: Codable {
     let transaction: Transaction?
     let totalSpent: Double?
+    let totalIncome: Double?
     let categorySpent: Double?
     let grocerySpent: Double?
     let eatingOutSpent: Double?
@@ -379,6 +382,7 @@ struct FinanceResponseData: Codable {
     enum CodingKeys: String, CodingKey {
         case transaction
         case totalSpent = "total_spent"
+        case totalIncome = "total_income"
         case categorySpent = "category_spent"
         case grocerySpent = "grocery_spent"
         case eatingOutSpent = "eating_out_spent"

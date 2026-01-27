@@ -89,10 +89,7 @@ struct FinanceOverviewView: View {
     }
 
     private var mtdIncome: Double {
-        // Calculate from transactions with positive amounts
-        viewModel.recentTransactions
-            .filter { $0.amount > 0 }
-            .reduce(0) { $0 + $1.amount }
+        viewModel.summary.totalIncome
     }
 
     private var topCategories: [(String, Double)] {
@@ -356,23 +353,6 @@ struct FinanceOverviewView: View {
                 .foregroundColor(.green)
                 .cornerRadius(12)
             }
-
-            Button(action: {
-                // Stub for receipt scanning
-            }) {
-                VStack(spacing: 6) {
-                    Image(systemName: "doc.text.viewfinder")
-                        .font(.title2)
-                    Text("Receipt")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Color.blue.opacity(0.1))
-                .foregroundColor(.blue)
-                .cornerRadius(12)
-            }
         }
     }
 
@@ -409,30 +389,21 @@ struct FinanceOverviewView: View {
     }
 
     private func generateInsights() -> [String] {
+        // Prefer server-ranked insights for finance
+        let server = viewModel.serverInsights
+        if !server.isEmpty {
+            return server.prefix(2).map { $0.description }
+        }
+
+        // Fallback: client-side insights when server returns none
         var insights: [String] = []
 
-        // Unusual spending insight
-        let avgDaily = mtdSpend / max(Double(Calendar.current.component(.day, from: Date())), 1)
-        if avgDaily > 500 {
-            insights.append("You're averaging \(formatCurrency(avgDaily, currency: AppSettings.shared.defaultCurrency)) per day this month.")
-        }
-
-        // Top category insight
-        if let topCategory = topCategories.first {
-            let percentage = mtdSpend > 0 ? (topCategory.1 / mtdSpend) * 100 : 0
-            if percentage > 40 {
-                insights.append("\(topCategory.0.capitalized) accounts for \(Int(percentage))% of your spending.")
-            }
-        }
-
-        // Budget warning
         let overBudget = viewModel.summary.budgets.filter { ($0.spent ?? 0) > $0.budgetAmount }
         if !overBudget.isEmpty {
             let categories = overBudget.map { $0.category.capitalized }.joined(separator: ", ")
             insights.append("You're over budget on: \(categories)")
         }
 
-        // Net cashflow insight
         let net = mtdIncome - mtdSpend
         if net < 0 {
             insights.append("You've spent \(formatCurrency(abs(net), currency: AppSettings.shared.defaultCurrency)) more than you've earned this month.")
@@ -443,13 +414,21 @@ struct FinanceOverviewView: View {
 
     private func financeFreshnessIndicator(lastUpdated: Date, isOffline: Bool) -> some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(isOffline ? Color.orange : Color.green)
-                .frame(width: 6, height: 6)
-
-            Text("Updated \(lastUpdated, style: .relative) ago")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            if let freshness = viewModel.financeFreshness {
+                Circle()
+                    .fill(freshness.isStale ? Color.orange : Color.green)
+                    .frame(width: 6, height: 6)
+                Text(freshness.syncTimeLabel)
+                    .font(.caption)
+                    .foregroundColor(freshness.isStale ? .orange : .secondary)
+            } else {
+                Circle()
+                    .fill(isOffline ? Color.orange : Color.green)
+                    .frame(width: 6, height: 6)
+                Text("Updated \(lastUpdated, style: .relative) ago")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             if isOffline {
                 Text("(Offline)")

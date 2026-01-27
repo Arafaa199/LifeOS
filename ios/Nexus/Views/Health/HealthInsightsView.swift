@@ -106,7 +106,7 @@ struct HealthInsightsView: View {
                     name: "HealthKit",
                     icon: "heart.circle.fill",
                     color: .red,
-                    status: viewModel.healthKitAuthorized ? "connected" : "disconnected"
+                    status: viewModel.healthKitSyncError ? "sync failed" : (viewModel.healthKitAuthorized ? "connected" : "disconnected")
                 )
             }
             .padding()
@@ -173,6 +173,10 @@ struct DataSourceIndicator: View {
         status.lowercased() == "connected"
     }
 
+    private var isSyncFailed: Bool {
+        status.lowercased().contains("fail")
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
@@ -185,10 +189,10 @@ struct DataSourceIndicator: View {
 
             HStack(spacing: 4) {
                 Circle()
-                    .fill(isConnected ? Color.green : Color.orange)
+                    .fill(isConnected ? Color.green : (isSyncFailed ? Color.red : Color.orange))
                     .frame(width: 6, height: 6)
 
-                Text(isConnected ? "Connected" : "Check status")
+                Text(isSyncFailed ? "Sync failed" : (isConnected ? "Connected" : "Check status"))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }

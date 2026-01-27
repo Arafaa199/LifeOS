@@ -267,7 +267,7 @@ struct TodayView: View {
         if spentToday == 0 {
             return "No spending today"
         }
-        return String(format: "%.0f AED today", abs(spentToday))
+        return formatCurrency(abs(spentToday), currency: AppSettings.shared.defaultCurrency) + " today"
     }
 
     private var budgetStatusText: String {
@@ -309,7 +309,7 @@ struct TodayView: View {
 
         // Fallback: flag-based signals (no statistical inference, always valid)
         if facts?.spendUnusual == true {
-            return "Unusual spending detected: \(Int(spentToday)) AED today"
+            return "Unusual spending detected: " + formatCurrency(spentToday, currency: AppSettings.shared.defaultCurrency) + " today"
         }
         if let score = recoveryScore, score < 34 {
             return "Low recovery - consider a rest day"

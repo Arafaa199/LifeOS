@@ -14,8 +14,23 @@ class FinanceViewModel: ObservableObject {
 
     private let api = NexusAPI.shared
     private let cache = CacheManager.shared
+    private let dashboardService = DashboardService.shared
     private let networkMonitor = NetworkMonitor.shared
     private var loadTask: Task<Void, Never>?
+
+    // MARK: - Dashboard-Sourced Properties
+
+    var financeFreshness: DomainFreshness? {
+        dashboardService.loadCached()?.payload.dataFreshness?.finance
+    }
+
+    var serverInsights: [RankedInsight] {
+        let all = dashboardService.loadCached()?.payload.dailyInsights?.rankedInsights ?? []
+        return all.filter { insight in
+            let t = insight.type.lowercased()
+            return t.hasPrefix("spending") || t.hasPrefix("budget") || t.hasPrefix("finance") || t.hasPrefix("pattern")
+        }
+    }
 
     init() {
         loadFromCache()
@@ -85,6 +100,11 @@ class FinanceViewModel: ObservableObject {
                     }
                     if let categoryBreakdown = data.categoryBreakdown {
                         summary.categoryBreakdown = categoryBreakdown
+                    }
+                    if let totalIncome = data.totalIncome {
+                        summary.totalIncome = abs(totalIncome)
+                    } else if let dashboardIncome = dashboardService.loadCached()?.payload.todayFacts.incomeTotal {
+                        summary.totalIncome = abs(dashboardIncome)
                     }
 
                     // Cache the data

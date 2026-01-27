@@ -67,25 +67,32 @@ struct FinanceActivityView: View {
     var body: some View {
         List {
             // Freshness indicator
-            if let lastUpdated = viewModel.lastUpdated {
-                Section {
-                    HStack(spacing: 6) {
+            Section {
+                HStack(spacing: 6) {
+                    if let freshness = viewModel.financeFreshness {
+                        Circle()
+                            .fill(freshness.isStale ? Color.orange : Color.green)
+                            .frame(width: 6, height: 6)
+                        Text(freshness.syncTimeLabel)
+                            .font(.caption)
+                            .foregroundColor(freshness.isStale ? .orange : .secondary)
+                    } else if let lastUpdated = viewModel.lastUpdated {
                         Circle()
                             .fill(viewModel.isOffline ? Color.orange : Color.green)
                             .frame(width: 6, height: 6)
                         Text("Updated \(lastUpdated, style: .relative) ago")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        if viewModel.isOffline {
-                            Text("(Offline)")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-                        Spacer()
                     }
+                    if viewModel.isOffline {
+                        Text("(Offline)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    Spacer()
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
             }
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
 
             // Date range selector
             Section {
