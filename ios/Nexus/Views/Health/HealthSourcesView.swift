@@ -81,10 +81,10 @@ struct HealthSourcesView: View {
 
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(viewModel.healthKitAuthorized ? Color.green : Color.orange)
+                                .fill(healthKitStatusColor)
                                 .frame(width: 8, height: 8)
 
-                            Text(viewModel.healthKitAuthorized ? "Connected" : "Not authorized")
+                            Text(healthKitStatusLabel)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -136,8 +136,15 @@ struct HealthSourcesView: View {
                     }
                 }
 
-                // Sync button
-                Button(action: syncHealthKit) {
+                // All refresh goes through SyncCoordinator.syncAll
+                Button {
+                    isSyncing = true
+                    SyncCoordinator.shared.syncAll(force: true)
+                    // Reset after brief delay (syncAll is fire-and-forget)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        isSyncing = false
+                    }
+                } label: {
                     HStack {
                         if isSyncing {
                             ProgressView()
@@ -145,10 +152,10 @@ struct HealthSourcesView: View {
                         } else {
                             Image(systemName: "arrow.triangle.2.circlepath")
                         }
-                        Text("Sync Now")
+                        Text("Sync All")
                     }
                 }
-                .disabled(isSyncing || !viewModel.healthKitAuthorized)
+                .disabled(isSyncing)
             }
 
             // Data Priority Rules
@@ -177,11 +184,21 @@ struct HealthSourcesView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func syncHealthKit() {
-        isSyncing = true
-        Task {
-            await viewModel.refreshHealthKit()
-            isSyncing = false
+    private var healthKitStatusLabel: String {
+        switch HealthKitManager.shared.permissionStatus {
+        case .working: return "Active"
+        case .requested: return "Authorized (no query yet)"
+        case .notSetUp: return "Not set up"
+        case .failed: return "Not available"
+        }
+    }
+
+    private var healthKitStatusColor: Color {
+        switch HealthKitManager.shared.permissionStatus {
+        case .working: return .green
+        case .requested: return .orange
+        case .notSetUp: return .gray
+        case .failed: return .red
         }
     }
 

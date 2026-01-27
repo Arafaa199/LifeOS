@@ -239,17 +239,27 @@ struct SettingsView: View {
                 .padding(.vertical, 2)
             }
 
-            // Force refresh (bypass cache)
-            Button {
-                coordinator.syncAll(force: true)
-            } label: {
-                HStack {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.caption)
-                    Text("Force Refresh (bypass cache)")
-                        .font(.caption)
+            // WHOOP debug info
+            if let debug = coordinator.whoopDebugInfo {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 4) {
+                        whoopDebugRow("Raw lastSync", debug.rawLastSync ?? "nil")
+                        whoopDebugRow("Parsed date", debug.parsedDate?.description ?? "nil")
+                        whoopDebugRow("Checked at", debug.checkedAt.description)
+                        whoopDebugRow("Age (hours)", debug.ageHours.map { String(format: "%.1f", $0) } ?? "nil")
+                        whoopDebugRow("Server status", debug.serverStatus)
+                        whoopDebugRow("Server hours", debug.serverHoursSinceSync.map { String(format: "%.1f", $0) } ?? "nil")
+                    }
+                    .font(.caption2.monospaced())
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "ladybug")
+                            .font(.caption)
+                        Text("WHOOP Debug")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.secondary)
                 }
-                .foregroundColor(.nexusPrimary)
             }
         } header: {
             Text("Sync Center")
@@ -279,9 +289,16 @@ struct SettingsView: View {
 
             // Name + detail
             VStack(alignment: .leading, spacing: 2) {
-                Text(domain.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                HStack(spacing: 4) {
+                    Text(domain.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    if let subtitle = domain.subtitle {
+                        Text(subtitle)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
 
                 if let error = state.lastError {
                     Text(error)
@@ -315,6 +332,17 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    @ViewBuilder
+    private func whoopDebugRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+                .lineLimit(1)
+        }
+    }
 
     private func domainStatusColor(_ state: SyncCoordinator.DomainSyncState) -> Color {
         if state.isSyncing { return .orange }

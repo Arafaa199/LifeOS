@@ -44,6 +44,9 @@ class HealthKitSyncService: ObservableObject {
 
         let (quantitySamples, sleepSamples, workoutSamples) = try await (samples, sleep, workouts)
 
+        // HK queries succeeded — proof of access regardless of sample count
+        HealthKitManager.shared.markQuerySuccess()
+
         let totalCount = quantitySamples.count + sleepSamples.count + workoutSamples.count
 
         // Try batch sync if we have non-weight samples

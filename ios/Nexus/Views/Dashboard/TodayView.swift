@@ -20,17 +20,22 @@ struct TodayView: View {
                         staleBanner
                     }
 
-                    // Pending meal confirmations
-                    if let pendingMeal = viewModel.pendingMeals.first {
-                        mealConfirmationSection(meal: pendingMeal)
-                    }
+                    // No data state
+                    if viewModel.dashboardPayload == nil && !viewModel.isLoading {
+                        noDataView
+                    } else {
+                        // Pending meal confirmations
+                        if let pendingMeal = viewModel.pendingMeals.first {
+                            mealConfirmationSection(meal: pendingMeal)
+                        }
 
-                    // Top state: Recovery + Budget
-                    stateCard
+                        // Top state: Recovery + Budget
+                        stateCard
 
-                    // Single insight
-                    if let insight = topInsight {
-                        insightCard(insight)
+                        // Single insight
+                        if let insight = topInsight {
+                            insightCard(insight)
+                        }
                     }
 
                     Spacer(minLength: 40)
@@ -136,11 +141,48 @@ struct TodayView: View {
         if viewModel.foregroundRefreshFailed, let formatted = viewModel.lastUpdatedFormatted {
             return "Showing data from \(formatted)"
         }
-        let staleFeeds = viewModel.dashboardPayload?.dataFreshness
-        if staleFeeds?.health?.isStale == true || staleFeeds?.finance?.isStale == true {
-            return "Some data sources delayed"
+        let freshness = viewModel.dashboardPayload?.dataFreshness
+        var staleNames: [String] = []
+        if freshness?.health?.isStale == true { staleNames.append("Health") }
+        if freshness?.finance?.isStale == true { staleNames.append("Finance") }
+        if !staleNames.isEmpty {
+            return "\(staleNames.joined(separator: " & ")) data delayed"
         }
         return "Data may be outdated"
+    }
+
+    // MARK: - No Data View
+
+    private var noDataView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 40))
+                .foregroundColor(.secondary)
+
+            Text("Waiting for data")
+                .font(.headline)
+
+            Text("Pull down to refresh, or check Settings > Sync Center")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                viewModel.forceRefresh()
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Sync Now")
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(Color.accentColor)
+                .cornerRadius(10)
+            }
+        }
+        .padding(.vertical, 60)
     }
 
     // MARK: - State Card (Recovery + Budget)
@@ -271,6 +313,7 @@ struct TodayView: View {
     }
 
     private var budgetStatusText: String {
+        guard viewModel.dashboardPayload != nil else { return "No data" }
         let facts = viewModel.dashboardPayload?.todayFacts
 
         // Check for unusual spending flag
@@ -291,6 +334,7 @@ struct TodayView: View {
     }
 
     private var budgetStatusColor: Color {
+        guard viewModel.dashboardPayload != nil else { return .gray }
         let facts = viewModel.dashboardPayload?.todayFacts
 
         if facts?.spendUnusual == true { return .red }

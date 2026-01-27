@@ -82,6 +82,28 @@ struct HealthInsightsView: View {
         .padding(.vertical, 40)
     }
 
+    private var healthKitStatus: DataSourceStatus {
+        if viewModel.healthKitSyncError { return .failed }
+        switch HealthKitManager.shared.permissionStatus {
+        case .working: return .healthy
+        case .requested: return .stale
+        case .notSetUp: return .unknown
+        case .failed: return .failed
+        }
+    }
+
+    private var whoopStatus: DataSourceStatus {
+        guard let feed = viewModel.feedStatus.first(where: { $0.feed.lowercased().contains("whoop") }) else {
+            return .unknown
+        }
+        switch feed.status {
+        case .healthy: return .healthy
+        case .stale: return .stale
+        case .critical: return .failed
+        case .unknown: return .unknown
+        }
+    }
+
     // MARK: - Data Quality Section
 
     private var dataQualitySection: some View {
@@ -90,23 +112,21 @@ struct HealthInsightsView: View {
                 .font(.headline)
 
             HStack(spacing: 16) {
-                // WHOOP Status
                 DataSourceIndicator(
                     name: "WHOOP",
                     icon: "w.circle.fill",
                     color: .orange,
-                    status: viewModel.feedStatus.first(where: { $0.feed.lowercased().contains("whoop") })?.status.rawValue ?? "unknown"
+                    status: whoopStatus
                 )
 
                 Divider()
                     .frame(height: 40)
 
-                // HealthKit Status
                 DataSourceIndicator(
                     name: "HealthKit",
                     icon: "heart.circle.fill",
                     color: .red,
-                    status: viewModel.healthKitSyncError ? "sync failed" : (viewModel.healthKitAuthorized ? "connected" : "disconnected")
+                    status: healthKitStatus
                 )
             }
             .padding()
@@ -159,29 +179,43 @@ struct InsightCard: View {
     }
 }
 
+// MARK: - Data Source Status
+
+enum DataSourceStatus {
+    case healthy, stale, failed, unknown
+
+    var dotColor: Color {
+        switch self {
+        case .healthy: return .green
+        case .stale: return .orange
+        case .failed: return .red
+        case .unknown: return .gray
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .healthy: return "Active"
+        case .stale: return "Stale"
+        case .failed: return "Error"
+        case .unknown: return "Unknown"
+        }
+    }
+}
+
 // MARK: - Data Source Indicator
 
 struct DataSourceIndicator: View {
     let name: String
     let icon: String
     let color: Color
-    let status: String
-
-    private var isConnected: Bool {
-        status.lowercased() == "healthy" ||
-        status.lowercased() == "ok" ||
-        status.lowercased() == "connected"
-    }
-
-    private var isSyncFailed: Bool {
-        status.lowercased().contains("fail")
-    }
+    let status: DataSourceStatus
 
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(isConnected ? color : .gray)
+                .foregroundColor(status == .healthy ? color : .gray)
 
             Text(name)
                 .font(.caption)
@@ -189,10 +223,10 @@ struct DataSourceIndicator: View {
 
             HStack(spacing: 4) {
                 Circle()
-                    .fill(isConnected ? Color.green : (isSyncFailed ? Color.red : Color.orange))
+                    .fill(status.dotColor)
                     .frame(width: 6, height: 6)
 
-                Text(isSyncFailed ? "Sync failed" : (isConnected ? "Connected" : "Check status"))
+                Text(status.label)
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }

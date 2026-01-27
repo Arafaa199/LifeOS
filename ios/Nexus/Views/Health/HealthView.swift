@@ -174,15 +174,13 @@ class HealthViewModel: ObservableObject {
     }
 
     func refreshHealthKit() async {
-        let syncService = HealthKitSyncService.shared
-        do {
-            try await syncService.syncAllData()
-            healthKitSyncError = false
-        } catch {
-            healthKitSyncError = true
-        }
-        lastHealthKitSync = syncService.lastSyncDate
-        healthKitSampleCount = syncService.lastSyncSampleCount
+        SyncCoordinator.shared.syncAll(force: true)
+        // Brief wait for coordinator to process
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        let state = SyncCoordinator.shared.domainStates[.healthKit]
+        healthKitSyncError = state?.lastError != nil
+        lastHealthKitSync = state?.lastSyncDate ?? HealthKitSyncService.shared.lastSyncDate
+        healthKitSampleCount = HealthKitSyncService.shared.lastSyncSampleCount
     }
 
     // MARK: - Computed Insights

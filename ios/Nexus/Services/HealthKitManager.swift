@@ -8,9 +8,23 @@ class HealthKitManager: ObservableObject {
 
     private let healthStore = HKHealthStore()
 
-    @Published var isAuthorized = false
+    enum PermissionStatus: String {
+        case notSetUp
+        case requested
+        case working
+        case failed
+    }
+
+    @Published var permissionStatus: PermissionStatus = .notSetUp
+    @Published var lastSuccessfulHKQueryAt: Date?
     @Published var latestWeight: Double?
     @Published var latestWeightDate: Date?
+
+    private let lastHKQueryKey = "healthkit_last_successful_query_at"
+
+    var isAuthorized: Bool {
+        permissionStatus == .requested || permissionStatus == .working
+    }
 
     // Quantity types (guaranteed to exist in HealthKit for these standard identifiers)
     private var weightType: HKQuantityType { HKQuantityType(.bodyMass) }
@@ -27,6 +41,7 @@ class HealthKitManager: ObservableObject {
     private var sleepType: HKCategoryType { HKCategoryType(.sleepAnalysis) }
 
     private init() {
+        lastSuccessfulHKQueryAt = UserDefaults.standard.object(forKey: lastHKQueryKey) as? Date
         checkAuthorization()
     }
 
@@ -36,22 +51,22 @@ class HealthKitManager: ObservableObject {
 
     func checkAuthorization() {
         guard isHealthDataAvailable else {
-            isAuthorized = false
+            permissionStatus = .failed
             return
         }
 
-        // Note: authorizationStatus(for:) only works for WRITE permissions.
-        // For READ-only permissions (our case), Apple doesn't expose the status
-        // for privacy reasons. We use a heuristic approach:
-        // 1. Check if we've previously completed authorization flow
-        // 2. If not, try to verify by requesting authorization (no UI if already granted)
-
+        // Apple hides read-permission status for privacy.
+        // We use proof-of-access: if an HK query ever completed successfully
+        // (tracked by lastSuccessfulHKQueryAt), we know access works.
         let hasCompletedAuth = UserDefaults.standard.bool(forKey: "healthKitAuthorizationRequested")
         if hasCompletedAuth {
-            isAuthorized = true
+            if lastSuccessfulHKQueryAt != nil {
+                permissionStatus = .working
+            } else {
+                permissionStatus = .requested
+            }
         } else {
-            // User may have authorized in a previous app version before this flag existed.
-            // Try requesting auth - if already granted, this won't show UI.
+            permissionStatus = .notSetUp
             Task {
                 await verifyAndRequestAuthorizationIfNeeded()
             }
@@ -66,14 +81,19 @@ class HealthKitManager: ObservableObject {
             try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
             markAuthorizationCompleted()
         } catch {
-            // Authorization not granted
-            isAuthorized = false
+            permissionStatus = .failed
         }
     }
 
     func markAuthorizationCompleted() {
         UserDefaults.standard.set(true, forKey: "healthKitAuthorizationRequested")
-        isAuthorized = true
+        permissionStatus = .requested
+    }
+
+    func markQuerySuccess() {
+        lastSuccessfulHKQueryAt = Date()
+        UserDefaults.standard.set(lastSuccessfulHKQueryAt, forKey: lastHKQueryKey)
+        permissionStatus = .working
     }
 
     func requestAuthorization() async throws {

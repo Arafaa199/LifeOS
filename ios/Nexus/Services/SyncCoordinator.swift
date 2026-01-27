@@ -8,7 +8,7 @@ class SyncCoordinator: ObservableObject {
     static let shared = SyncCoordinator()
 
     enum SyncDomain: String, CaseIterable, Identifiable {
-        case dashboard, finance, healthKit, calendar
+        case dashboard, finance, healthKit, calendar, whoop
 
         var id: String { rawValue }
 
@@ -18,6 +18,7 @@ class SyncCoordinator: ObservableObject {
             case .finance: return "Finance"
             case .healthKit: return "HealthKit"
             case .calendar: return "Calendar"
+            case .whoop: return "WHOOP"
             }
         }
 
@@ -27,6 +28,7 @@ class SyncCoordinator: ObservableObject {
             case .finance: return "chart.pie"
             case .healthKit: return "heart.fill"
             case .calendar: return "calendar"
+            case .whoop: return "w.circle.fill"
             }
         }
 
@@ -36,6 +38,14 @@ class SyncCoordinator: ObservableObject {
             case .finance: return .nexusFinance
             case .healthKit: return .red
             case .calendar: return .blue
+            case .whoop: return .orange
+            }
+        }
+
+        var subtitle: String? {
+            switch self {
+            case .whoop: return "Server status (read-only)"
+            default: return nil
             }
         }
     }
@@ -46,6 +56,15 @@ class SyncCoordinator: ObservableObject {
         var lastError: String?
         var source: String?
         var detail: String?
+    }
+
+    struct WhoopDebugInfo {
+        let rawLastSync: String?
+        let parsedDate: Date?
+        let checkedAt: Date
+        let ageHours: Double?
+        let serverStatus: String
+        let serverHoursSinceSync: Double?
     }
 
     // MARK: - Published State
@@ -61,6 +80,7 @@ class SyncCoordinator: ObservableObject {
     @Published var dashboardPayload: DashboardPayload?
     @Published var financeSummaryResult: FinanceResponse?
     @Published var isSyncingAll = false
+    @Published var whoopDebugInfo: WhoopDebugInfo?
 
     // MARK: - Private
 
@@ -82,6 +102,7 @@ class SyncCoordinator: ObservableObject {
                 lastSyncDate: cached.lastUpdated,
                 source: "cache"
             )
+            updateWhoopStatus()
         }
     }
 
@@ -106,6 +127,7 @@ class SyncCoordinator: ObservableObject {
                 group.addTask { await self.syncFinance() }
                 group.addTask { await self.syncHealthKit() }
                 group.addTask { await self.syncCalendar() }
+                // WHOOP is read-only server status, updated after dashboard sync
             }
 
             isSyncingAll = false
@@ -114,10 +136,14 @@ class SyncCoordinator: ObservableObject {
 
     func sync(_ domain: SyncDomain) async {
         switch domain {
-        case .dashboard: await syncDashboard()
+        case .dashboard:
+            await syncDashboard()
         case .finance: await syncFinance()
         case .healthKit: await syncHealthKit()
         case .calendar: await syncCalendar()
+        case .whoop:
+            // Read-only: refresh from current dashboard payload
+            updateWhoopStatus()
         }
     }
 
@@ -134,6 +160,8 @@ class SyncCoordinator: ObservableObject {
                 lastSyncDate: Date(),
                 source: result.source == .network ? "network" : "cache"
             )
+            // WHOOP status derives from dashboard feedStatus
+            updateWhoopStatus()
         } catch {
             domainStates[.dashboard]?.isSyncing = false
             domainStates[.dashboard]?.lastError = error.localizedDescription
@@ -160,8 +188,16 @@ class SyncCoordinator: ObservableObject {
     }
 
     private func syncHealthKit() async {
+        let manager = HealthKitManager.shared
         domainStates[.healthKit]?.isSyncing = true
         domainStates[.healthKit]?.lastError = nil
+
+        guard manager.isAuthorized else {
+            domainStates[.healthKit] = DomainSyncState(
+                lastError: "HealthKit not authorized"
+            )
+            return
+        }
 
         do {
             try await healthKitSync.syncAllData()
@@ -169,7 +205,7 @@ class SyncCoordinator: ObservableObject {
             domainStates[.healthKit] = DomainSyncState(
                 lastSyncDate: Date(),
                 source: "healthkit",
-                detail: count > 0 ? "\(count) samples" : nil
+                detail: count > 0 ? "\(count) samples" : "No new samples"
             )
         } catch {
             domainStates[.healthKit]?.isSyncing = false
@@ -195,6 +231,54 @@ class SyncCoordinator: ObservableObject {
             domainStates[.calendar]?.lastError = error.localizedDescription
             logger.error("Calendar sync failed: \(error.localizedDescription)")
         }
+    }
+
+    // WHOOP status is read-only — no upstream trigger available.
+    // Reads from dashboardPayload.feedStatus (populated by syncDashboard).
+    private func updateWhoopStatus() {
+        let now = Date()
+
+        guard let feed = dashboardPayload?.feedStatus.first(where: { $0.feed.lowercased().contains("whoop") }) else {
+            domainStates[.whoop] = DomainSyncState(
+                lastError: "No WHOOP feed in server response"
+            )
+            whoopDebugInfo = WhoopDebugInfo(
+                rawLastSync: nil, parsedDate: nil, checkedAt: now,
+                ageHours: nil, serverStatus: "missing", serverHoursSinceSync: nil
+            )
+            return
+        }
+
+        let parsedDate = parseFeedSyncDate(feed.lastSync)
+        let ageHours = parsedDate.map { now.timeIntervalSince($0) / 3600 }
+
+        domainStates[.whoop] = DomainSyncState(
+            lastSyncDate: parsedDate,
+            source: "server (read-only)",
+            detail: feed.status == .healthy ? nil : "Status: \(feed.status.rawValue)"
+        )
+
+        if feed.status == .stale || feed.status == .critical {
+            domainStates[.whoop]?.lastError = "Data is \(feed.status.rawValue) (\(String(format: "%.0f", feed.hoursSinceSync ?? 0))h old)"
+        }
+
+        whoopDebugInfo = WhoopDebugInfo(
+            rawLastSync: feed.lastSync,
+            parsedDate: parsedDate,
+            checkedAt: now,
+            ageHours: ageHours,
+            serverStatus: feed.status.rawValue,
+            serverHoursSinceSync: feed.hoursSinceSync
+        )
+    }
+
+    private func parseFeedSyncDate(_ dateString: String?) -> Date? {
+        guard let dateString else { return nil }
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = fmt.date(from: dateString) { return d }
+        fmt.formatOptions = [.withInternetDateTime]
+        return fmt.date(from: dateString)
     }
 
     // MARK: - Helpers
