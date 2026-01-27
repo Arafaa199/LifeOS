@@ -22,7 +22,7 @@ const MESSAGES_DB = process.env.MESSAGES_DB || `${homedir()}/Library/Messages/ch
 
 // Nexus database connection
 const nexusPool = new Pool({
-  host: process.env.NEXUS_HOST || '100.90.189.16',
+  host: process.env.NEXUS_HOST || '10.0.0.11',
   port: parseInt(process.env.NEXUS_PORT || '5432'),
   database: process.env.NEXUS_DB || 'nexus',
   user: process.env.NEXUS_USER || 'nexus',

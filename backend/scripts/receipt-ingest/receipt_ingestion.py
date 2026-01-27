@@ -28,6 +28,7 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
+import time
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -59,7 +60,7 @@ PDF_STORAGE_PATH = Path(os.environ.get('PDF_STORAGE_PATH', str(_default_pdf_path
 
 # Database config (can be overridden by env vars)
 DB_CONFIG = {
-    'host': os.environ.get('NEXUS_HOST', '100.90.189.16'),
+    'host': os.environ.get('NEXUS_HOST', '10.0.0.11'),
     'port': os.environ.get('NEXUS_PORT', '5432'),
     'database': os.environ.get('NEXUS_DB', 'nexus'),
     'user': os.environ.get('NEXUS_USER', 'nexus'),
@@ -77,9 +78,25 @@ TOKEN_PATH = SECRETS_DIR / 'token.pickle'
 # Database Connection
 # ============================================================================
 
-def get_db_connection():
-    """Get PostgreSQL database connection."""
-    return psycopg2.connect(**DB_CONFIG)
+def get_db_connection(max_retries=3, backoff_delays=(5, 15, 45)):
+    """Get PostgreSQL database connection with retry and exponential backoff."""
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            conn = psycopg2.connect(**DB_CONFIG, connect_timeout=10)
+            if attempt > 0:
+                print(f"  Connected to database on attempt {attempt + 1}")
+            return conn
+        except psycopg2.OperationalError as e:
+            last_error = e
+            if attempt < max_retries:
+                delay = backoff_delays[attempt] if attempt < len(backoff_delays) else backoff_delays[-1]
+                print(f"  DB connection failed (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                print(f"  Retrying in {delay}s...")
+                time.sleep(delay)
+            else:
+                print(f"  DB connection failed after {max_retries + 1} attempts")
+    raise last_error
 
 
 # ============================================================================

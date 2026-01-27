@@ -10,7 +10,7 @@ cd "$SCRIPT_DIR"
 # Configuration
 export SECRETS_DIR="$SCRIPT_DIR/secrets"
 export PDF_STORAGE_PATH="/tmp/receipts"
-export NEXUS_HOST="100.90.189.16"
+export NEXUS_HOST="10.0.0.11"
 export NEXUS_PORT="5432"
 export NEXUS_DB="nexus"
 export NEXUS_USER="nexus"

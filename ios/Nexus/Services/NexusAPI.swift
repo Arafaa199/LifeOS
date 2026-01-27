@@ -82,6 +82,7 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
+        request.timeoutInterval = 30
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
@@ -152,6 +153,7 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
@@ -189,6 +191,7 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
+        request.timeoutInterval = 30
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
@@ -253,6 +256,7 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
@@ -402,6 +406,7 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
@@ -428,6 +433,7 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
@@ -469,6 +475,7 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
@@ -487,6 +494,7 @@ class NexusAPI: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
+        request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let apiKey = apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")

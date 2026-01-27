@@ -133,7 +133,7 @@ class DashboardViewModel: ObservableObject {
     private var loadTask: Task<Void, Never>?
     private var foregroundRefreshTask: Task<Void, Never>?
     private var lastForegroundRefreshDate: Date?
-    private let foregroundRefreshMinInterval: TimeInterval = 30
+    private let foregroundRefreshMinInterval: TimeInterval = 15
 
     init() {
         loadFromCache()
@@ -358,7 +358,7 @@ class DashboardViewModel: ObservableObject {
                         try await self.dashboardService.fetchDashboard()
                     }
                     group.addTask {
-                        try await Task.sleep(nanoseconds: 5_000_000_000)
+                        try await Task.sleep(nanoseconds: 15_000_000_000)
                         throw DashboardError.timeout
                     }
 

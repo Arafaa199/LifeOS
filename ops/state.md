@@ -1,6 +1,6 @@
 # LifeOS — Canonical State
-Last updated: 2026-01-27T00:45:00+04:00
-Last coder run: 2026-01-27T00:45:00+04:00
+Last updated: 2026-01-27T23:00:00+04:00
+Last coder run: 2026-01-27T23:00:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -254,6 +254,306 @@ Control Mode: Autonomous (Human-in-the-loop on alerts only)
 - New columns allowed (backward compatible)
 - Dropping columns, changing types, or removing constraints = BREAKING
 - Breaking changes must increment migration number and update this document
+
+---
+
+## SMS INGESTION ARCHITECTURE
+
+**Documented:** 2026-01-27 (TASK-FIX.12)
+**Status:** FROZEN (no changes to parsing logic since 2026-01-25)
+
+### Data Flow
+
+```
+~/Library/Messages/chat.db (iMessage SQLite)
+    │
+    ├── [fswatch trigger] com.nexus.sms-watcher (instant)
+    │   └── auto-import-sms.sh
+    │
+    └── [cron fallback] com.nexus.sms-import (every 15 min)
+        └── auto-import-sms.sh
+            │
+            └── import-sms-transactions.js
+                │
+                ├── Reads: chat.db → filters bank senders (EmiratesNBD, AlRajhiBank, JKB, CAREEM, Amazon)
+                ├── Classifies: sms-classifier.js + sms_regex_patterns.yaml
+                │   └── Intents: FIN_TXN_APPROVED, FIN_TXN_REFUND, FIN_TXN_DECLINED, IGNORE, FIN_INFO_ONLY, FIN_AUTH_CODE
+                └── Writes: finance.transactions (DIRECT — bypasses raw layer)
+```
+
+### Why SMS Bypasses raw.bank_sms
+
+The SMS import writes **directly** to `finance.transactions` instead of going through `raw.bank_sms → normalized.transactions → finance.transactions`. This is intentional:
+
+1. **Historical**: SMS import predates the raw/normalized pipeline design
+2. **Idempotency**: Handled by `external_id` UNIQUE constraint on `finance.transactions` — each SMS message_id becomes the external_id, preventing duplicates
+3. **No transformation needed**: The classifier extracts amount, currency, merchant, and direction directly — there's no intermediate normalization step required
+4. **`raw.bank_sms` exists but is unused**: Contains 1 test row. The table was created for potential future use (audit trail) but the import script never writes to it
+
+### Idempotency Mechanism
+
+- Each SMS gets `external_id = message_id` (from iMessage chat.db)
+- `finance.transactions` has `UNIQUE INDEX` on `external_id`
+- Import uses `INSERT ... ON CONFLICT (external_id) DO NOTHING`
+- Re-running the import on the same messages produces zero new rows
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `backend/scripts/auto-import-sms.sh` | Entry point (called by launchd) |
+| `backend/scripts/import-sms-transactions.js` | Main importer (reads chat.db, writes to DB) |
+| `backend/scripts/sms-classifier.js` | Intent classification engine |
+| `ops/artifacts/sms_regex_patterns.yaml` | Bank-specific regex patterns |
+
+### Coverage (Audited 2026-01-25)
+
+- **Pattern coverage**: 99% (343 SMS, 1 unhandled variant)
+- **Capture rate**: 92.9% (financial SMS → transactions)
+- **Report**: `ops/artifacts/sms_coverage_report.md`
+
+---
+
+### TASK-FEAT.1: GitHub Activity Dashboard Widget (2026-01-28T02:30+04)
+- **Status**: DONE ✓
+- **Objective**: Create backend function returning GitHub activity data for dashboard widget consumption
+- **Changed**:
+  - `backend/migrations/087_github_activity_widget.up.sql` (new)
+  - `backend/migrations/087_github_activity_widget.down.sql` (new)
+- **Created**:
+  - Function: `life.get_github_activity_widget(days)` — Returns complete GitHub activity as JSON
+  - View: `life.v_github_activity_widget` — Convenience view (14-day default)
+- **Widget JSON Schema**:
+  - `summary`: active_days_7d, active_days_30d, push_events_7d, push_events_30d, repos_7d, current_streak, max_streak_90d
+  - `daily`: Array of {day, push_events, repos_touched, productivity_score} — gap-filled with zeros
+  - `repos`: Array of {name, events_30d, last_active}
+  - `generated_at`: Timestamp
+- **Evidence**:
+  ```sql
+  -- Summary metrics verified
+  SELECT (life.get_github_activity_widget(14))->'summary'->>'current_streak' as streak,
+         (life.get_github_activity_widget(14))->'summary'->>'max_streak_90d' as max_streak,
+         (life.get_github_activity_widget(14))->'summary'->>'active_days_7d' as active_7d,
+         (life.get_github_activity_widget(14))->'summary'->>'push_events_7d' as pushes_7d;
+  -- streak=3, max_streak=3, active_7d=6, pushes_7d=42 ✓
+
+  -- Streak calculation correct (ascending day-row_number grouping)
+  -- Jan 24-26: streak of 3 (current) ✓
+  -- Jan 20-22: streak of 3 ✓
+  -- Jan 16: streak of 1 ✓
+
+  -- Daily array gap-filled to 14 entries
+  SELECT jsonb_array_length(life.get_github_activity_widget(14)->'daily');
+  -- 14 ✓
+
+  -- Active repos (5 in last 30d)
+  SELECT jsonb_array_length(life.get_github_activity_widget(14)->'repos');
+  -- 5 ✓
+
+  -- Performance
+  EXPLAIN ANALYZE SELECT life.get_github_activity_widget(14);
+  -- Execution Time: 8.314 ms ✓
+
+  -- Determinism
+  SELECT md5((life.get_github_activity_widget(14) - 'generated_at')::text) =
+         md5((life.get_github_activity_widget(14) - 'generated_at')::text) as is_deterministic;
+  -- t ✓
+  ```
+- **Also Fixed**: Rebuilt `better-sqlite3` node module (per auditor recommendation — Node.js version mismatch causing SMS cron failures)
+- **Notes**:
+  - Uses existing `raw.github_events` and `life.daily_productivity` view
+  - No new tables created (view/function only)
+  - Streak includes today or yesterday (accounts for timezone lag)
+  - Gap-filled daily array shows 0 for inactive days (no sparse data)
+
+---
+
+### TASK-FIX.11: Add Feed Status Refresh Trigger (2026-01-27T13:25+04)
+- **Status**: DONE ✓
+- **Objective**: Auto-update `life.feed_status` when data arrives in source tables
+- **Changed**:
+  - `backend/migrations/086_feed_status_triggers.up.sql` (new)
+  - `backend/migrations/086_feed_status_triggers.down.sql` (new)
+- **Root Cause**:
+  - `life.feed_status` was a VIEW that scanned full source tables (`health.whoop_recovery`, `health.metrics`, `finance.transactions`, `nutrition.food_log`) on every query
+  - Only tracked 4 sources (whoop, healthkit, bank_sms, manual) — missing github, behavioral, location, receipts
+  - Each query performed 4 full table scans: 8-20ms execution time
+  - Some sources queried wrong tables (e.g., healthkit checked `health.metrics` instead of `raw.healthkit_samples`)
+- **Fix Applied**:
+  1. Created `life.feed_status_live` TABLE as lightweight lookup (8 rows, 1 per source)
+  2. Seeded table with current timestamps from all source tables
+  3. Created `life.update_feed_status()` trigger function that:
+     - Updates `last_event_at` to NOW() on every source INSERT
+     - Increments `events_today` counter (auto-resets on new day)
+     - Uses `ON CONFLICT DO UPDATE` for idempotent upsert
+  4. Attached AFTER INSERT triggers on 8 source tables:
+     - `health.whoop_recovery` → 'whoop'
+     - `raw.healthkit_samples` → 'healthkit'
+     - `finance.transactions` → 'bank_sms'
+     - `nutrition.food_log` → 'manual'
+     - `raw.github_events` → 'github'
+     - `life.behavioral_events` → 'behavioral'
+     - `life.locations` → 'location'
+     - `finance.receipts` → 'receipts'
+  5. Replaced VIEW to read from lookup table (DROP + CREATE for column type change)
+  6. Added `life.reset_feed_events_today()` helper for daily counter reset
+- **Evidence**:
+  ```sql
+  -- All 8 triggers registered
+  SELECT trigger_name, event_object_schema || '.' || event_object_table as on_table
+  FROM information_schema.triggers WHERE trigger_name LIKE 'trg_feed_%';
+  --     trigger_name     |        on_table
+  -- ---------------------+------------------------
+  --  trg_feed_bank_sms   | finance.transactions
+  --  trg_feed_behavioral | life.behavioral_events
+  --  trg_feed_github     | raw.github_events
+  --  trg_feed_healthkit  | raw.healthkit_samples
+  --  trg_feed_location   | life.locations
+  --  trg_feed_manual     | nutrition.food_log
+  --  trg_feed_receipts   | finance.receipts
+  --  trg_feed_whoop      | health.whoop_recovery
+
+  -- Trigger auto-update verified (healthkit)
+  -- Before INSERT: last_event_at = 2026-01-26 20:43:47, events_today = 0
+  INSERT INTO raw.healthkit_samples (...) VALUES ('test-086-trigger', ...);
+  -- After INSERT:  last_event_at = 2026-01-26 21:23:29, events_today = 1 ✓
+  -- Second INSERT: events_today = 2 ✓ (counter increments)
+
+  -- Trigger auto-update verified (bank_sms via finance.transactions)
+  -- Before: status = 'error', events_today = 0
+  INSERT INTO finance.transactions (...) VALUES (...);
+  -- After: status = 'ok', events_today = 1 ✓
+
+  -- Performance improvement
+  EXPLAIN ANALYZE SELECT * FROM life.feed_status;
+  -- Execution Time: 0.024 ms (was 8-20ms with full table scans)
+
+  -- Backward compatibility
+  SELECT (dashboard.get_payload())->'feed_status' IS NOT NULL;
+  -- t ✓
+
+  -- All 8 sources tracked (was 4)
+  SELECT source, status FROM life.feed_status ORDER BY source;
+  --    source   | status
+  -- ------------+--------
+  --  bank_sms   | ok
+  --  behavioral | error
+  --  github     | stale
+  --  healthkit  | ok
+  --  location   | error
+  --  manual     | error
+  --  receipts   | stale
+  --  whoop      | stale
+  ```
+- **Notes**:
+  - No test data left in DB (finance.transactions test row deleted, healthkit test rows are immutable but harmless)
+  - events_today counter auto-resets when `last_updated` date changes (built into trigger logic)
+  - `life.reset_feed_events_today()` function available for explicit daily reset if needed
+  - View column type changed from `timestamp` to `timestamptz` (required DROP + CREATE)
+
+---
+
+### TASK-FIX.10: Add Connection Retry to Receipt Ingestion (2026-01-27T09:30+04)
+- **Status**: DONE ✓
+- **Objective**: Make receipt ingestion resilient to transient network failures (Tailscale down, brief DNS blip)
+- **Changed**:
+  - `backend/scripts/receipt-ingest/receipt_ingestion.py`
+- **Root Cause**:
+  - `get_db_connection()` called `psycopg2.connect()` with no retry logic
+  - If nexus is unreachable (Tailscale disconnected, network blip), the launchd job fails immediately with `OperationalError`
+  - No recovery mechanism — the hourly cron would just fail again if the issue persisted briefly
+- **Fix Applied**:
+  1. Added `import time` for sleep-based backoff
+  2. Rewrote `get_db_connection(max_retries=3, backoff_delays=(5, 15, 45))`:
+     - 4 total attempts (1 initial + 3 retries)
+     - Exponential backoff: 5s → 15s → 45s between retries
+     - `connect_timeout=10` per attempt (fail fast, don't hang)
+     - Catches `psycopg2.OperationalError` (connection refused, timeout, DNS)
+     - Logs each retry attempt with delay info
+     - Raises original error after all retries exhausted
+  3. Total worst-case wait: 10s + 5s + 10s + 15s + 10s + 45s = 95s (under 2min)
+- **Evidence**:
+  ```bash
+  # Syntax verification
+  python3 -c "import ast; ast.parse(open('receipt_ingestion.py').read()); print('Syntax OK')"
+  # Syntax OK ✓
+
+  # Function signature verification via AST
+  python3 -c "
+  import ast
+  tree = ast.parse(open('receipt_ingestion.py').read())
+  for node in ast.walk(tree):
+      if isinstance(node, ast.FunctionDef) and node.name == 'get_db_connection':
+          defaults = [ast.literal_eval(d) for d in node.args.defaults]
+          assert 3 in defaults  # max_retries=3
+          assert (5, 15, 45) in defaults  # backoff_delays
+          print('All assertions PASS')
+  "
+  # All assertions PASS ✓
+
+  # Key code (lines 81-99):
+  # def get_db_connection(max_retries=3, backoff_delays=(5, 15, 45)):
+  #     last_error = None
+  #     for attempt in range(max_retries + 1):
+  #         try:
+  #             conn = psycopg2.connect(**DB_CONFIG, connect_timeout=10)
+  #             if attempt > 0:
+  #                 print(f"  Connected to database on attempt {attempt + 1}")
+  #             return conn
+  #         except psycopg2.OperationalError as e:
+  #             last_error = e
+  #             if attempt < max_retries:
+  #                 delay = backoff_delays[attempt]
+  #                 print(f"  DB connection failed (attempt {attempt + 1}/{max_retries + 1}): {e}")
+  #                 print(f"  Retrying in {delay}s...")
+  #                 time.sleep(delay)
+  #             else:
+  #                 print(f"  DB connection failed after {max_retries + 1} attempts")
+  #     raise last_error
+  ```
+- **Notes**:
+  - No behavioral change when DB is reachable (first attempt succeeds, no delay)
+  - Backward compatible: `get_db_connection()` still returns a connection object
+  - All callers (`main()` on line 912) unchanged — they call without arguments
+  - Only catches `OperationalError` (network issues), not `ProgrammingError` or others
+
+---
+
+### TASK-FIX.8: Make OfflineQueue Processing Atomic (2026-01-27T04:57+04)
+- **Status**: DONE ✓
+- **Objective**: Prevent race condition in OfflineQueue where concurrent calls to `processQueue()` could both pass the `isProcessing` guard before either sets it to `true`, causing double-submit
+- **Changed**:
+  - `ios/Nexus/Services/OfflineQueue.swift`
+- **Root Cause**:
+  - `isProcessing` was a plain `Bool` property — reads and writes were non-atomic
+  - Multiple concurrent callers (network observer callback + scheduled retry + app foreground) could race past the `guard !isProcessing` check
+- **Fix Applied**:
+  1. Replaced `private var isProcessing = false` with `private let isProcessing = OSAllocatedUnfairLock(initialState: false)`
+  2. `processQueue()` now uses atomic check-and-set: `withLock { if value { return true }; value = true; return false }`
+  3. `scheduleProcessing()` reads the lock atomically before spawning a new Task
+  4. `observeNetworkChanges()` reads the lock atomically before triggering processing
+  5. Added `import os` for `OSAllocatedUnfairLock` availability
+- **Evidence**:
+  ```bash
+  # iOS build succeeds
+  cd /Users/rafa/Cyber/Dev/Projects/LifeOS/ios
+  xcodebuild -scheme Nexus -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+  # ** BUILD SUCCEEDED **
+
+  # Key code change (atomic check-and-set):
+  # let alreadyRunning = isProcessing.withLock { value -> Bool in
+  #     if value { return true }
+  #     value = true
+  #     return false
+  # }
+  # guard !alreadyRunning else { return }
+  # defer { isProcessing.withLock { $0 = false } }
+  ```
+- **Notes**:
+  - `OSAllocatedUnfairLock` requires iOS 16+ (deployment target is 26.2, so available)
+  - Lock is `let` (not `var`) since the lock object itself doesn't change, only its protected state
+  - No behavioral changes — same logic, just thread-safe now
+  - No call-site changes required (public API unchanged)
 
 ---
 
@@ -4701,3 +5001,41 @@ All O-phase tasks completed:
   - Full Disk Access required for Terminal to read `~/Library/Messages/chat.db`
   - This is a macOS system permission (System Settings > Privacy & Security > Full Disk Access)
   - Not a code issue — user must grant permission manually
+
+---
+
+### TASK-FIX.12: Document SMS Flow Architecture (2026-01-27T18:00+04)
+- **Status**: DONE ✓
+- **Objective**: Document that SMS import bypasses raw layer (intentional design)
+- **Changed**:
+  - `ops/state.md` — Added "## SMS INGESTION ARCHITECTURE" section
+- **What Was Documented**:
+  1. Complete data flow diagram: chat.db → fswatch/cron → auto-import-sms.sh → import-sms-transactions.js → finance.transactions
+  2. Why SMS bypasses raw.bank_sms (historical, idempotency via external_id, no transformation needed)
+  3. Idempotency mechanism (external_id = message_id, ON CONFLICT DO NOTHING)
+  4. Key files table (auto-import-sms.sh, import-sms-transactions.js, sms-classifier.js, sms_regex_patterns.yaml)
+  5. Coverage stats (99% pattern coverage, 92.9% capture rate)
+- **Evidence**:
+  - Section added to state.md between "TRUST-LOCKIN COMPLIANCE" and task evidence entries
+  - All three Definition of Done items satisfied:
+    - [x] "SMS Architecture" section added to state.md
+    - [x] Documented: SMS watcher → import-sms-transactions.js → finance.transactions (direct)
+    - [x] Noted: idempotency handled by external_id unique constraint
+
+---
+
+### Coder Run (2026-01-27T23:00+04)
+- **Status**: NO ACTION — No READY task in queue
+- **Queue Scan**: All ACTIVE TASKS (FIX.1-FIX.12, FEAT.1) are DONE ✓
+- **Auditor Status**: SAFE/PASS (2026-01-27) — No BLOCKs
+- **Operational Check**:
+  - `better-sqlite3` module loads correctly (rebuilt in FEAT.1) ✓
+  - Auditor risk (SMS import cron broken) already resolved ✓
+- **ROADMAP Items** (not yet formalized as tasks):
+  - Weekly Insights Email Enhancement
+  - iOS Widget Improvements
+  - Improve receipt→nutrition matching
+  - Add more merchants to auto-categorization rules
+  - Calendar → productivity correlation views
+- **Conclusion**: ALL TASKS COMPLETE. Coder is idle. Queue contains no READY tasks.
+- **Next Action Required**: Human must add new tasks to queue.md

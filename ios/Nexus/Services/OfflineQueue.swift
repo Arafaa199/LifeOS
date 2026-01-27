@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import os
 
 // Offline queue manager for handling failed API requests
 class OfflineQueue {
@@ -10,7 +11,7 @@ class OfflineQueue {
     private let baseRetryDelay: TimeInterval = 5.0 // Base delay for exponential backoff
     private let maxRetryDelay: TimeInterval = 60.0 // Cap at 60 seconds
     private var processingTask: Task<Void, Never>?
-    private var isProcessing = false
+    private let isProcessing = OSAllocatedUnfairLock(initialState: false)
     private var networkCancellable: AnyCancellable?
 
     struct QueuedEntry: Codable {
@@ -62,7 +63,8 @@ class OfflineQueue {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isConnected in
                 guard let self = self else { return }
-                if isConnected && !self.isProcessing {
+                let busy = self.isProcessing.withLock { $0 }
+                if isConnected && !busy {
                     // Network became available - try to process queue
                     self.scheduleProcessing()
                 }
@@ -77,7 +79,8 @@ class OfflineQueue {
     }
 
     private func scheduleProcessing() {
-        guard processingTask == nil, !isProcessing else { return }
+        let busy = isProcessing.withLock { $0 }
+        guard processingTask == nil, !busy else { return }
         processingTask = Task {
             await processQueue()
             processingTask = nil
@@ -108,9 +111,13 @@ class OfflineQueue {
     // MARK: - Process Queue
 
     func processQueue() async {
-        guard !isProcessing else { return }
-        isProcessing = true
-        defer { isProcessing = false }
+        let alreadyRunning = isProcessing.withLock { value -> Bool in
+            if value { return true }
+            value = true
+            return false
+        }
+        guard !alreadyRunning else { return }
+        defer { isProcessing.withLock { $0 = false } }
 
         var queue = loadQueue()
         guard !queue.isEmpty else { return }
