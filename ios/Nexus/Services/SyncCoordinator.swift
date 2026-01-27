@@ -166,6 +166,8 @@ class SyncCoordinator: ObservableObject {
             )
             // WHOOP status derives from dashboard feedStatus
             updateWhoopStatus()
+        } catch is CancellationError {
+            domainStates[.dashboard]?.isSyncing = false
         } catch {
             domainStates[.dashboard]?.isSyncing = false
             domainStates[.dashboard]?.lastError = error.localizedDescription
@@ -184,6 +186,8 @@ class SyncCoordinator: ObservableObject {
                 lastSyncDate: Date(),
                 source: "network"
             )
+        } catch is CancellationError {
+            domainStates[.finance]?.isSyncing = false
         } catch {
             domainStates[.finance]?.isSyncing = false
             domainStates[.finance]?.lastError = error.localizedDescription
@@ -196,9 +200,16 @@ class SyncCoordinator: ObservableObject {
         domainStates[.healthKit]?.isSyncing = true
         domainStates[.healthKit]?.lastError = nil
 
+        guard manager.permissionStatus != .failed else {
+            domainStates[.healthKit] = DomainSyncState(
+                lastError: "HealthKit not available"
+            )
+            return
+        }
+
         guard manager.isAuthorized else {
             domainStates[.healthKit] = DomainSyncState(
-                lastError: "HealthKit not authorized"
+                lastError: "HealthKit not set up"
             )
             return
         }
@@ -211,10 +222,23 @@ class SyncCoordinator: ObservableObject {
                 source: "healthkit",
                 detail: count > 0 ? "\(count) samples" : "No new samples"
             )
+        } catch is CancellationError {
+            domainStates[.healthKit]?.isSyncing = false
         } catch {
             domainStates[.healthKit]?.isSyncing = false
             domainStates[.healthKit]?.lastError = error.localizedDescription
-            logger.error("HealthKit sync failed: \(error.localizedDescription)")
+
+            // Authorization not determined = stale UserDefaults flag.
+            // Reset so checkAuthorization() re-requests the system dialog.
+            let desc = error.localizedDescription.lowercased()
+            if desc.contains("authorization") || desc.contains("not determined") {
+                UserDefaults.standard.set(false, forKey: "healthKitAuthorizationRequested")
+                manager.checkAuthorization()
+                domainStates[.healthKit]?.lastError = "HealthKit needs re-authorization"
+                logger.warning("HealthKit auth stale — requesting re-authorization")
+            } else {
+                logger.error("HealthKit sync failed: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -230,6 +254,8 @@ class SyncCoordinator: ObservableObject {
                 source: "eventkit",
                 detail: count > 0 ? "\(count) events" : nil
             )
+        } catch is CancellationError {
+            domainStates[.calendar]?.isSyncing = false
         } catch {
             domainStates[.calendar]?.isSyncing = false
             domainStates[.calendar]?.lastError = error.localizedDescription
