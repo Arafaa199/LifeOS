@@ -118,10 +118,14 @@ class SyncCoordinator: ObservableObject {
         }
 
         syncAllTask?.cancel()
-        syncAllTask = Task {
-            isSyncingAll = true
-            lastSyncAllDate = Date()
 
+        // Freshness contract: these are synchronous (@MainActor),
+        // so any subscriber sees the change within the same run-loop pass.
+        // UI must reflect a visible state change within 300ms of app foreground.
+        isSyncingAll = true
+        lastSyncAllDate = Date()
+
+        syncAllTask = Task {
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await self.syncDashboard() }
                 group.addTask { await self.syncFinance() }

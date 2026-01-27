@@ -30,6 +30,7 @@ struct HealthInsightsView: View {
         }
         .background(Color(.systemGroupedBackground))
         .refreshable {
+            SyncCoordinator.shared.syncAll(force: true)
             await viewModel.loadData()
         }
     }

@@ -144,6 +144,16 @@ class DashboardViewModel: ObservableObject {
                 self?.handlePayloadUpdate(payload)
             }
             .store(in: &cancellables)
+
+        // Freshness contract: mirror coordinator syncing state immediately.
+        // isSyncingAll is set synchronously in syncAll(), so this fires
+        // within the same run-loop pass — well under 300ms.
+        coordinator.$isSyncingAll
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] syncing in
+                self?.isForegroundRefreshing = syncing
+            }
+            .store(in: &cancellables)
     }
 
     private func handlePayloadUpdate(_ payload: DashboardPayload) {
@@ -173,7 +183,7 @@ class DashboardViewModel: ObservableObject {
         saveToStorage()
         errorMessage = nil
         isLoading = false
-        isForegroundRefreshing = false
+        // isForegroundRefreshing is driven by coordinator.$isSyncingAll subscription
     }
 
     // MARK: - Load Data
@@ -259,11 +269,14 @@ class DashboardViewModel: ObservableObject {
 
         coordinator.syncAll(force: true)
 
-        // Wait briefly for the coordinator to finish dashboard sync
-        // The Combine subscription will handle the payload update
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        // Poll coordinator state until sync completes (max 10s).
+        // No arbitrary sleep — pull-to-refresh spinner stays visible
+        // until real work finishes.
+        for _ in 0..<100 {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            if !coordinator.isSyncingAll { break }
+        }
 
-        // Check if we got updated data
         if dashboardPayload != nil {
             await loadPendingMeals()
             recordRefresh(reason: .pullToRefresh, outcome: .success, start: start)
@@ -278,7 +291,7 @@ class DashboardViewModel: ObservableObject {
     func foregroundRefresh(reason: RefreshReason = .foreground) {
         let start = CFAbsoluteTimeGetCurrent()
         lastRefreshReason = reason
-        isForegroundRefreshing = true
+        // isForegroundRefreshing is driven by coordinator.$isSyncingAll subscription
 
         if reason == .force {
             coordinator.syncAll(force: true)
