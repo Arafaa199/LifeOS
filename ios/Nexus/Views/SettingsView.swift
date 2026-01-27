@@ -3,20 +3,17 @@ import EventKit
 
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
-    @StateObject private var healthKitSync = HealthKitSyncService.shared
-    @StateObject private var calendarSync = CalendarSyncService.shared
+    @StateObject private var coordinator = SyncCoordinator.shared
     @State private var webhookURL: String = ""
     @State private var apiKey: String = ""
     @State private var showingSaveConfirmation = false
-    @State private var isRefreshing = false
-    @State private var refreshMessage: String?
-    @State private var syncStatus: [SyncDomainStatus] = []
-    @State private var isLoadingSyncStatus = false
-    @State private var syncStatusError: String?
 
     var body: some View {
         NavigationView {
             List {
+                // Sync Center
+                syncCenterSection
+
                 // Connection Section
                 Section {
                     NavigationLink(destination: TestConnectionView()) {
@@ -81,146 +78,8 @@ struct SettingsView: View {
                     Text("Configuration")
                 }
 
-                // Integrations Section
+                // Extras
                 Section {
-                    // HealthKit Sync Status
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "heart.fill")
-                                .foregroundColor(.red)
-                            Text("HealthKit Sync")
-                                .fontWeight(.medium)
-                            Spacer()
-                            if healthKitSync.isSyncing {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            }
-                        }
-
-                        if let lastSync = healthKitSync.lastSyncDate {
-                            HStack {
-                                Text("Last sync:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(lastSync, style: .relative)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text("ago")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if healthKitSync.lastSyncSampleCount > 0 {
-                                Text("\(healthKitSync.lastSyncSampleCount) samples synced")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        } else {
-                            Text("Never synced")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Button {
-                            Task {
-                                do {
-                                    try await healthKitSync.syncAllData()
-                                    let haptics = UINotificationFeedbackGenerator()
-                                    haptics.notificationOccurred(.success)
-                                } catch {
-                                    let haptics = UINotificationFeedbackGenerator()
-                                    haptics.notificationOccurred(.error)
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                Text("Sync Now")
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .foregroundColor(.white)
-                        .background(healthKitSync.isSyncing ? Color.gray : Color.red.opacity(0.8))
-                        .cornerRadius(8)
-                        .disabled(healthKitSync.isSyncing)
-                    }
-                    .padding(.vertical, 4)
-
-                    // Calendar Sync Status
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "calendar")
-                                .foregroundColor(.blue)
-                            Text("Calendar Sync")
-                                .fontWeight(.medium)
-                            Spacer()
-                            if calendarSync.isSyncing {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            }
-                        }
-
-                        if calendarSync.authorizationStatus == .denied || calendarSync.authorizationStatus == .restricted {
-                            Text("Calendar access denied. Enable in Settings.")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        } else if let lastSync = calendarSync.lastSyncDate {
-                            HStack {
-                                Text("Last sync:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(lastSync, style: .relative)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text("ago")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            if calendarSync.lastSyncEventCount > 0 {
-                                Text("\(calendarSync.lastSyncEventCount) events synced")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        } else {
-                            Text("Never synced")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Button {
-                            Task {
-                                if calendarSync.authorizationStatus == .notDetermined {
-                                    let granted = await calendarSync.requestAccess()
-                                    if !granted { return }
-                                }
-                                do {
-                                    try await calendarSync.syncAllData()
-                                    let haptics = UINotificationFeedbackGenerator()
-                                    haptics.notificationOccurred(.success)
-                                } catch {
-                                    let haptics = UINotificationFeedbackGenerator()
-                                    haptics.notificationOccurred(.error)
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "arrow.triangle.2.circlepath")
-                                Text("Sync Now")
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .foregroundColor(.white)
-                        .background(calendarSync.isSyncing ? Color.gray : Color.blue.opacity(0.8))
-                        .cornerRadius(8)
-                        .disabled(calendarSync.isSyncing)
-                    }
-                    .padding(.vertical, 4)
-
                     NavigationLink(destination: WidgetSettingsView()) {
                         SettingsRow(
                             icon: "square.grid.2x2",
@@ -239,26 +98,11 @@ struct SettingsView: View {
                         )
                     }
                 } header: {
-                    Text("Integrations")
-                } footer: {
-                    Text("HealthKit syncs health data, Calendar syncs meeting hours to help you understand your time allocation.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text("Extras")
                 }
 
                 // Data Section
                 Section {
-                    Button {
-                        Task { await refreshServerData() }
-                    } label: {
-                        SettingsRow(
-                            icon: "arrow.triangle.2.circlepath",
-                            iconColor: .nexusPrimary,
-                            title: "Refresh Server Data",
-                            subtitle: "Regenerate summaries from database"
-                        )
-                    }
-
                     Button(role: .destructive) {
                         clearLocalData()
                     } label: {
@@ -271,84 +115,6 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("Data")
-                }
-
-                // Sync Status Section
-                Section {
-                    if isLoadingSyncStatus {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .padding(.vertical, 8)
-                    } else if let error = syncStatusError {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    } else if syncStatus.isEmpty {
-                        Text("No sync data yet")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        ForEach(syncStatus) { domain in
-                            HStack {
-                                Circle()
-                                    .fill(freshnessColor(domain.freshness))
-                                    .frame(width: 10, height: 10)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(domain.domain.capitalized)
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    if let secs = domain.seconds_since_success {
-                                        Text(formatAge(secs))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    } else {
-                                        Text("Never synced")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                if let rows = domain.last_success_rows {
-                                    Text("\(rows) rows")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                                if let running = domain.running_count, running > 0 {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                }
-                            }
-                        }
-                    }
-
-                    Button {
-                        Task { await loadSyncStatus() }
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                            Text("Refresh Status")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .foregroundColor(.white)
-                    .background(isLoadingSyncStatus ? Color.gray : Color.nexusPrimary)
-                    .cornerRadius(8)
-                    .disabled(isLoadingSyncStatus)
-                } header: {
-                    Text("Backend Sync Status")
-                } footer: {
-                    Text("Shows per-domain data freshness from the server.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
 
                 // Developer Section
@@ -371,7 +137,7 @@ struct SettingsView: View {
                         icon: "info.circle",
                         iconColor: .secondary,
                         title: "Version",
-                        value: "1.0.0 (1)"
+                        value: versionString
                     )
 
                     Link(destination: URL(string: "https://github.com/Arafaa199/LifeOS")!) {
@@ -414,7 +180,6 @@ struct SettingsView: View {
             .onAppear {
                 webhookURL = settings.webhookBaseURL
                 apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") ?? ""
-                Task { await loadSyncStatus() }
             }
             .alert("Settings Saved", isPresented: $showingSaveConfirmation) {
                 Button("OK", role: .cancel) { }
@@ -422,6 +187,157 @@ struct SettingsView: View {
                 Text("Your configuration has been updated.")
             }
         }
+    }
+
+    // MARK: - Sync Center Section
+
+    private var syncCenterSection: some View {
+        Section {
+            // Sync All button
+            Button {
+                coordinator.syncAll(force: true)
+                let haptics = UINotificationFeedbackGenerator()
+                haptics.notificationOccurred(.success)
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.body.weight(.semibold))
+                    Text("Sync Now (All)")
+                        .fontWeight(.medium)
+                    Spacer()
+                    if coordinator.anySyncing {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .foregroundColor(.white)
+            .background(coordinator.anySyncing ? Color.gray : Color.nexusPrimary)
+            .cornerRadius(8)
+            .disabled(coordinator.anySyncing)
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+
+            // Per-domain rows
+            ForEach(SyncCoordinator.SyncDomain.allCases) { domain in
+                syncDomainRow(domain)
+            }
+
+            // Cache age
+            if let cacheAge = coordinator.cacheAgeFormatted {
+                HStack {
+                    Image(systemName: "clock")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("Cache: \(cacheAge)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.vertical, 2)
+            }
+
+            // Force refresh (bypass cache)
+            Button {
+                coordinator.syncAll(force: true)
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
+                    Text("Force Refresh (bypass cache)")
+                        .font(.caption)
+                }
+                .foregroundColor(.nexusPrimary)
+            }
+        } header: {
+            Text("Sync Center")
+        } footer: {
+            Text("Shows sync status for all data domains. Tap Sync Now to refresh everything.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Domain Row
+
+    private func syncDomainRow(_ domain: SyncCoordinator.SyncDomain) -> some View {
+        let state = coordinator.domainStates[domain] ?? SyncCoordinator.DomainSyncState()
+
+        return HStack(spacing: 10) {
+            // Status dot
+            Circle()
+                .fill(domainStatusColor(state))
+                .frame(width: 10, height: 10)
+
+            // Icon
+            Image(systemName: domain.icon)
+                .font(.system(size: 14))
+                .foregroundColor(domain.color)
+                .frame(width: 20)
+
+            // Name + detail
+            VStack(alignment: .leading, spacing: 2) {
+                Text(domain.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                if let error = state.lastError {
+                    Text(error)
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                        .lineLimit(1)
+                } else if let detail = state.detail {
+                    Text(detail)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            // Sync time or spinner
+            if state.isSyncing {
+                ProgressView()
+                    .scaleEffect(0.7)
+            } else if let lastSync = state.lastSyncDate {
+                Text(formatSyncTime(lastSync))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Never")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    // MARK: - Helpers
+
+    private func domainStatusColor(_ state: SyncCoordinator.DomainSyncState) -> Color {
+        if state.isSyncing { return .orange }
+        if state.lastError != nil { return .red }
+        if let lastSync = state.lastSyncDate {
+            let age = Date().timeIntervalSince(lastSync)
+            if age < 300 { return .green }    // < 5 min
+            if age < 3600 { return .orange }  // < 1 hour
+            return .red
+        }
+        return .gray // never synced
+    }
+
+    private func formatSyncTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private var versionString: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
     }
 
     private func saveSettings() {
@@ -436,67 +352,11 @@ struct SettingsView: View {
     }
 
     private func clearLocalData() {
-        // Clear cached data
         CacheManager.shared.clearAll()
         SharedStorage.shared.resetDailyStats()
 
         let haptics = UINotificationFeedbackGenerator()
         haptics.notificationOccurred(.success)
-    }
-
-    private func loadSyncStatus() async {
-        isLoadingSyncStatus = true
-        syncStatusError = nil
-        do {
-            let response = try await NexusAPI.shared.fetchSyncStatus()
-            await MainActor.run {
-                syncStatus = response.domains ?? []
-                isLoadingSyncStatus = false
-            }
-        } catch {
-            await MainActor.run {
-                syncStatusError = "Failed to load"
-                isLoadingSyncStatus = false
-            }
-        }
-    }
-
-    private func freshnessColor(_ freshness: String?) -> Color {
-        switch freshness {
-        case "fresh": return .green
-        case "stale": return .orange
-        case "never_synced": return .gray
-        default: return .gray
-        }
-    }
-
-    private func formatAge(_ seconds: Int) -> String {
-        if seconds < 60 { return "\(seconds)s ago" }
-        if seconds < 3600 { return "\(seconds / 60)m ago" }
-        if seconds < 86400 { return "\(seconds / 3600)h ago" }
-        return "\(seconds / 86400)d ago"
-    }
-
-    private func refreshServerData() async {
-        isRefreshing = true
-        refreshMessage = nil
-
-        do {
-            let response = try await NexusAPI.shared.refreshSummaries()
-            await MainActor.run {
-                isRefreshing = false
-                refreshMessage = response.success ? "Data refreshed successfully" : (response.message ?? "Refresh failed")
-                let haptics = UINotificationFeedbackGenerator()
-                haptics.notificationOccurred(response.success ? .success : .error)
-            }
-        } catch {
-            await MainActor.run {
-                isRefreshing = false
-                refreshMessage = "Failed to refresh: \(error.localizedDescription)"
-                let haptics = UINotificationFeedbackGenerator()
-                haptics.notificationOccurred(.error)
-            }
-        }
     }
 }
 
@@ -563,7 +423,6 @@ struct TestConnectionView: View {
         VStack(spacing: 32) {
             Spacer()
 
-            // Status Icon
             ZStack {
                 Circle()
                     .fill(statusColor.opacity(0.15))

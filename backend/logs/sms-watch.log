@@ -447,3 +447,327 @@ Account Summary (SMS transactions):
   Emirates NBD: 97 tx, spent 80148.74, received 47026.32
   Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
 [Sun Jan 25 03:34:49 +04 2026] Import complete
+[Sun Jan 25 19:09:54 +04 2026] New message detected, importing...
+[2026-01-25T15:09:54.318Z] Starting SMS import (last 365 days)...
+Found 352 messages from tracked senders
+
+Import complete in 2.9s:
+  New: 0
+  Duplicates: 246
+  Excluded (OTP/promo): 38
+  Declined: 3
+  No match: 47
+  No account: 5
+  Errors: 0
+
+By intent:
+
+[2026-01-25T15:09:57.211Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-25T15:09:57.240Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Sun Jan 25 19:09:57 +04 2026] Import complete
+[Mon Jan 26 01:23:02 +04 2026] New message detected, importing...
+[2026-01-25T21:23:02.693Z] Starting SMS import (last 365 days)...
+Found 351 messages from tracked senders
+
+Import complete in 2.1s:
+  New: 0
+  Duplicates: 245
+  Excluded (OTP/promo): 38
+  Declined: 3
+  No match: 47
+  No account: 5
+  Errors: 0
+
+By intent:
+
+[2026-01-25T21:23:04.756Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-25T21:23:04.783Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Mon Jan 26 01:23:05 +04 2026] Import complete
+[Mon Jan 26 03:49:54 +04 2026] New message detected, importing...
+[2026-01-25T23:49:54.765Z] Starting SMS import (last 365 days)...
+Found 351 messages from tracked senders
+
+Import complete in 2.5s:
+  New: 0
+  Duplicates: 245
+  Excluded (OTP/promo): 38
+  Declined: 3
+  No match: 47
+  No account: 5
+  Errors: 0
+
+By intent:
+
+[2026-01-25T23:49:57.303Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-25T23:49:57.345Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Mon Jan 26 03:49:57 +04 2026] Import complete
+[Mon Jan 26 04:19:05 +04 2026] New message detected, importing...
+[2026-01-26T00:19:06.055Z] Starting SMS import (last 365 days)...
+Found 351 messages from tracked senders
+
+Import complete in 2.4s:
+  New: 0
+  Duplicates: 245
+  Excluded (OTP/promo): 38
+  Declined: 3
+  No match: 47
+  No account: 5
+  Errors: 0
+
+By intent:
+
+[2026-01-26T00:19:08.433Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-26T00:19:08.458Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Mon Jan 26 04:19:08 +04 2026] Import complete
+[Mon Jan 26 07:56:50 +04 2026] New message detected, importing...
+[2026-01-26T03:56:52.472Z] Starting SMS import (last 365 days)...
+Found 351 messages from tracked senders
+
+Import complete in 6.6s:
+  New: 0
+  Duplicates: 245
+  Excluded (OTP/promo): 38
+  Declined: 3
+  No match: 47
+  No account: 5
+  Errors: 0
+
+By intent:
+
+[2026-01-26T03:56:59.129Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-26T03:56:59.490Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Mon Jan 26 07:57:00 +04 2026] Import complete
+[Mon Jan 26 09:46:46 +04 2026] New message detected, importing...
+[2026-01-26T05:46:46.451Z] Starting SMS import (last 365 days)...
+Found 351 messages from tracked senders
+
+Import complete in 1.8s:
+  New: 0
+  Duplicates: 245
+  Excluded (OTP/promo): 38
+  Declined: 3
+  No match: 47
+  No account: 5
+  Errors: 0
+
+By intent:
+
+[2026-01-26T05:46:48.262Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-26T05:46:48.300Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Mon Jan 26 09:46:48 +04 2026] Import complete
+[Tue Jan 27 03:50:33 +04 2026] New message detected, importing...
+[2026-01-26T23:50:33.153Z] Starting SMS import (last 365 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 03:50:33 +04 2026] Import complete
+[Tue Jan 27 09:15:15 +04 2026] New message detected, importing...
+[2026-01-27T05:15:15.988Z] Starting SMS import (last 365 days)...
+Found 348 messages from tracked senders
+Error processing message 9094: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9226: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9203: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9215: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9188: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9196: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9289: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9194: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9095: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9297: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9128: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9236: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9083: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9170: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9292: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9251: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9180: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9214: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9195: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9193: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9250: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9213: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9269: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9300: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9267: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9190: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9253: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9237: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9245: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9169: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9216: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9278: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9238: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9294: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9229: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9184: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9187: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9317: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9175: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9243: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9206: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9274: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9114: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9191: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9280: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9211: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9073: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9230: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9084: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9082: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8900: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8981: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8950: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8915: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8952: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9014: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8976: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9064: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8987: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9026: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8906: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9040: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9076: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9006: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8880: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8935: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9108: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9002: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9105: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8899: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8978: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9043: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8948: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9134: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9162: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9159: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9153: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9107: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9074: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9072: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9017: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9027: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9009: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9053: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9056: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 9112: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8985: connect ETIMEDOUT 100.90.189.16:5432
+Error processing message 8903: connect ETIMEDOUT 100.90.189.16:5432
+
+Import complete in 8614.7s:
+  New: 0
+  Duplicates: 154
+  Excluded (OTP/promo): 38
+  Declined: 3
+  No match: 47
+  No account: 5
+  Errors: 88
+
+By intent:
+
+[2026-01-27T07:38:50.673Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-27T07:38:50.805Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Tue Jan 27 11:38:51 +04 2026] Import complete
+[Tue Jan 27 11:38:51 +04 2026] New message detected, importing...
+[2026-01-27T07:38:51.545Z] Starting SMS import (last 365 days)...
+Found 349 messages from tracked senders
+
+Import complete in 7.0s:
+  New: 0
+  Duplicates: 242
+  Excluded (OTP/promo): 38
+  Declined: 3
+  No match: 48
+  No account: 5
+  Errors: 0
+
+By intent:
+
+[2026-01-27T07:38:58.540Z] Processing BNPL messages...
+Found 1 BNPL messages
+BNPL import: 0 new, 1 duplicates
+
+[2026-01-27T07:38:58.599Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Tue Jan 27 11:38:58 +04 2026] Import complete

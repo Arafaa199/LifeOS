@@ -8,7 +8,6 @@ struct HealthView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Segmented Control
                 Picker("", selection: $selectedSegment) {
                     Text("Today").tag(0)
                     Text("Trends").tag(1)
@@ -19,7 +18,6 @@ struct HealthView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 12)
 
-                // Content
                 TabView(selection: $selectedSegment) {
                     HealthTodayView(viewModel: viewModel)
                         .tag(0)
@@ -72,9 +70,10 @@ class HealthViewModel: ObservableObject {
     @Published var timeseriesError = false
     @Published var healthKitSyncError = false
 
-    private let dashboardService = DashboardService.shared
     private let healthKitManager = HealthKitManager.shared
     private let api = NexusAPI.shared
+    private let coordinator = SyncCoordinator.shared
+    private var cancellables = Set<AnyCancellable>()
 
     enum DataSourceInfo {
         case network
@@ -114,18 +113,41 @@ class HealthViewModel: ObservableObject {
         dashboardPayload?.feedStatus ?? []
     }
 
+    init() {
+        subscribeToCoordinator()
+    }
+
+    // MARK: - Coordinator Subscription
+
+    private func subscribeToCoordinator() {
+        coordinator.$dashboardPayload
+            .compactMap { $0 }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] payload in
+                self?.dashboardPayload = payload
+                self?.lastUpdated = Date()
+                self?.dataSource = .network
+            }
+            .store(in: &cancellables)
+    }
+
     // MARK: - Data Loading
 
     func loadData() async {
         isLoading = true
         errorMessage = nil
 
-        // Load dashboard and timeseries in parallel
-        async let dashboardTask: () = loadDashboard()
-        async let timeseriesTask: () = loadHealthTimeseries(days: 30)
+        // Load timeseries data (dashboard data comes from coordinator subscription)
+        await loadHealthTimeseries(days: 30)
 
-        await dashboardTask
-        await timeseriesTask
+        // If coordinator hasn't provided data yet, use cached
+        if dashboardPayload == nil {
+            if let cached = DashboardService.shared.loadCached() {
+                dashboardPayload = cached.payload
+                lastUpdated = cached.lastUpdated
+                dataSource = .cache
+            }
+        }
 
         // Check HealthKit status
         healthKitAuthorized = healthKitManager.isAuthorized
@@ -134,23 +156,6 @@ class HealthViewModel: ObservableObject {
         healthKitSampleCount = syncService.lastSyncSampleCount
 
         isLoading = false
-    }
-
-    private func loadDashboard() async {
-        do {
-            let result = try await dashboardService.fetchDashboard()
-            dashboardPayload = result.payload
-            lastUpdated = result.lastUpdated
-            dataSource = result.source == .network ? .network : .cache
-        } catch {
-            errorMessage = "Failed to load health data"
-            // Try cached data
-            if let cached = dashboardService.loadCached() {
-                dashboardPayload = cached.payload
-                lastUpdated = cached.lastUpdated
-                dataSource = .cache
-            }
-        }
     }
 
     func loadHealthTimeseries(days: Int = 30) async {
@@ -183,7 +188,6 @@ class HealthViewModel: ObservableObject {
     // MARK: - Computed Insights
 
     func generateInsights() -> [HealthInsight] {
-        // Prefer server-ranked insights for health
         let server = serverHealthInsights
         if !server.isEmpty {
             return server.prefix(3).map { ranked in
@@ -197,7 +201,6 @@ class HealthViewModel: ObservableObject {
             }
         }
 
-        // Fallback: client-side insights when server returns none
         guard let facts = todayFacts else { return [] }
         var insights: [HealthInsight] = []
 

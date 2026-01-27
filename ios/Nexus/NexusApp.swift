@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 import UIKit
 
 @main
@@ -17,11 +16,7 @@ struct NexusApp: App {
             if newPhase == .background {
                 BackgroundTaskManager.shared.scheduleHealthRefresh()
             } else if newPhase == .active {
-                // Sync HealthKit and Calendar data when app comes to foreground
-                Task {
-                    try? await HealthKitSyncService.shared.syncAllData()
-                    try? await CalendarSyncService.shared.syncAllData()
-                }
+                SyncCoordinator.shared.syncAll()
             }
         }
     }

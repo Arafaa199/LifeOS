@@ -4601,3 +4601,1219 @@ Account Summary (SMS transactions):
   Emirates NBD: 97 tx, spent 80148.74, received 47026.32
   Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
 [Sun Jan 25 00:03:46 +04 2026] SMS import completed successfully
+[Mon Jan 26 22:59:55 +04 2026] Starting automatic SMS import...
+[2026-01-26T18:59:55.133Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-26T18:59:55.218Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-26T18:59:55.220Z] Matching Tabby payments...
+[Mon Jan 26 23:00:04 +04 2026] Starting automatic SMS import...
+[2026-01-26T19:00:04.731Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 137. This version of Node.js requires
+NODE_MODULE_VERSION 131. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1925:18)
+    at Module.load (node:internal/modules/cjs/loader:1469:32)
+    at Function._load (node:internal/modules/cjs/loader:1286:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.require (node:internal/modules/cjs/loader:1491:12)
+    at require (node:internal/modules/helpers:135:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Mon Jan 26 23:00:04 +04 2026] SMS import completed successfully
+[Mon Jan 26 23:00:51 +04 2026] Starting automatic SMS import...
+[2026-01-26T19:00:51.995Z] Starting SMS import (last 1 days)...
+SqliteError: unable to open database file
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:69:26)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22)
+    at runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:498:11)
+    at file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:507:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:98:5) {
+  code: 'SQLITE_CANTOPEN'
+}
+[Mon Jan 26 23:00:52 +04 2026] SMS import completed successfully
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Mon Jan 26 23:01:10 +04 2026] SMS import completed successfully
+[Mon Jan 26 23:16:10 +04 2026] Starting automatic SMS import...
+[2026-01-26T19:16:10.451Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Mon Jan 26 23:16:10 +04 2026] SMS import completed successfully
+[Mon Jan 26 23:31:10 +04 2026] Starting automatic SMS import...
+[2026-01-26T19:31:10.685Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Mon Jan 26 23:31:10 +04 2026] SMS import completed successfully
+[Mon Jan 26 23:46:10 +04 2026] Starting automatic SMS import...
+[2026-01-26T19:46:10.924Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Mon Jan 26 23:46:10 +04 2026] SMS import completed successfully
+[Tue Jan 27 00:01:11 +04 2026] Starting automatic SMS import...
+[2026-01-26T20:01:11.132Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 00:01:11 +04 2026] SMS import completed successfully
+[Tue Jan 27 00:16:11 +04 2026] Starting automatic SMS import...
+[2026-01-26T20:16:11.407Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 00:16:11 +04 2026] SMS import completed successfully
+[Tue Jan 27 00:31:11 +04 2026] Starting automatic SMS import...
+[2026-01-26T20:31:11.613Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 00:31:11 +04 2026] SMS import completed successfully
+[Tue Jan 27 00:46:11 +04 2026] Starting automatic SMS import...
+[2026-01-26T20:46:11.797Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 00:46:11 +04 2026] SMS import completed successfully
+[Tue Jan 27 01:01:11 +04 2026] Starting automatic SMS import...
+[2026-01-26T21:01:11.996Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 01:01:12 +04 2026] SMS import completed successfully
+[Tue Jan 27 01:16:12 +04 2026] Starting automatic SMS import...
+[2026-01-26T21:16:12.172Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 01:16:12 +04 2026] SMS import completed successfully
+[Tue Jan 27 01:31:12 +04 2026] Starting automatic SMS import...
+[2026-01-26T21:31:12.385Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 01:31:12 +04 2026] SMS import completed successfully
+[Tue Jan 27 01:46:12 +04 2026] Starting automatic SMS import...
+[2026-01-26T21:46:12.592Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 01:46:12 +04 2026] SMS import completed successfully
+[Tue Jan 27 02:01:12 +04 2026] Starting automatic SMS import...
+[2026-01-26T22:01:12.765Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 02:01:12 +04 2026] SMS import completed successfully
+[Tue Jan 27 02:16:12 +04 2026] Starting automatic SMS import...
+[2026-01-26T22:16:12.938Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 02:16:12 +04 2026] SMS import completed successfully
+[Tue Jan 27 02:31:13 +04 2026] Starting automatic SMS import...
+[2026-01-26T22:31:13.158Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 02:31:13 +04 2026] SMS import completed successfully
+[Tue Jan 27 02:46:13 +04 2026] Starting automatic SMS import...
+[2026-01-26T22:46:13.355Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 02:46:13 +04 2026] SMS import completed successfully
+[Tue Jan 27 03:01:13 +04 2026] Starting automatic SMS import...
+[2026-01-26T23:01:13.586Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 03:01:13 +04 2026] SMS import completed successfully
+[Tue Jan 27 03:16:13 +04 2026] Starting automatic SMS import...
+[2026-01-26T23:16:13.779Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 03:16:13 +04 2026] SMS import completed successfully
+[Tue Jan 27 03:31:13 +04 2026] Starting automatic SMS import...
+[2026-01-26T23:31:14.002Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 03:31:14 +04 2026] SMS import completed successfully
+[Tue Jan 27 03:46:14 +04 2026] Starting automatic SMS import...
+[2026-01-26T23:46:14.218Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 03:46:14 +04 2026] SMS import completed successfully
+[Tue Jan 27 04:01:14 +04 2026] Starting automatic SMS import...
+[2026-01-27T00:01:14.409Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 04:01:14 +04 2026] SMS import completed successfully
+[Tue Jan 27 04:16:14 +04 2026] Starting automatic SMS import...
+[2026-01-27T00:16:14.596Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 04:16:14 +04 2026] SMS import completed successfully
+[Tue Jan 27 04:31:14 +04 2026] Starting automatic SMS import...
+[2026-01-27T00:31:14.814Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 04:31:14 +04 2026] SMS import completed successfully
+[Tue Jan 27 04:46:14 +04 2026] Starting automatic SMS import...
+[2026-01-27T00:46:15.059Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 04:46:15 +04 2026] SMS import completed successfully
+[Tue Jan 27 05:01:15 +04 2026] Starting automatic SMS import...
+[2026-01-27T01:01:15.657Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 05:01:15 +04 2026] SMS import completed successfully
+[Tue Jan 27 05:16:15 +04 2026] Starting automatic SMS import...
+[2026-01-27T01:16:16.558Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 05:16:16 +04 2026] SMS import completed successfully
+[Tue Jan 27 05:31:16 +04 2026] Starting automatic SMS import...
+[2026-01-27T01:31:17.249Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 05:31:17 +04 2026] SMS import completed successfully
+[Tue Jan 27 05:46:17 +04 2026] Starting automatic SMS import...
+[2026-01-27T01:46:17.944Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 05:46:18 +04 2026] SMS import completed successfully
+[Tue Jan 27 06:01:18 +04 2026] Starting automatic SMS import...
+[2026-01-27T02:01:18.732Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 06:01:18 +04 2026] SMS import completed successfully
+[Tue Jan 27 06:16:19 +04 2026] Starting automatic SMS import...
+[2026-01-27T02:16:19.659Z] Starting SMS import (last 1 days)...
+Error: The module '/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/build/Release/better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 131. This version of Node.js requires
+NODE_MODULE_VERSION 137. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at Object..node (node:internal/modules/cjs/loader:1920:18)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+    at bindings (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/bindings/bindings.js:112:48)
+    at new Database (/Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/better-sqlite3/lib/database.js:48:64)
+    at importTransactions (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:117:22) {
+  code: 'ERR_DLOPEN_FAILED'
+}
+[Tue Jan 27 06:16:19 +04 2026] SMS import completed successfully
+[Tue Jan 27 06:31:25 +04 2026] Starting automatic SMS import...
+[2026-01-27T02:31:27.440Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.3s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T02:31:27.722Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T02:31:27.733Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 06:32:42 +04 2026] SMS import completed successfully
+[Tue Jan 27 06:47:42 +04 2026] Starting automatic SMS import...
+[2026-01-27T02:47:43.068Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T02:47:43.118Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T02:47:43.119Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 06:48:58 +04 2026] SMS import completed successfully
+[Tue Jan 27 07:03:58 +04 2026] Starting automatic SMS import...
+[2026-01-27T03:03:58.346Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T03:03:58.411Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T03:03:58.413Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 07:05:13 +04 2026] SMS import completed successfully
+[Tue Jan 27 07:20:13 +04 2026] Starting automatic SMS import...
+[2026-01-27T03:20:13.652Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T03:20:13.720Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T03:20:13.721Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 07:21:28 +04 2026] SMS import completed successfully
+[Tue Jan 27 07:36:28 +04 2026] Starting automatic SMS import...
+[2026-01-27T03:36:28.956Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T03:36:29.026Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T03:36:29.027Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 07:37:44 +04 2026] SMS import completed successfully
+[Tue Jan 27 07:52:44 +04 2026] Starting automatic SMS import...
+[2026-01-27T03:52:44.226Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T03:52:44.279Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T03:52:44.280Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 07:53:59 +04 2026] SMS import completed successfully
+[Tue Jan 27 08:08:59 +04 2026] Starting automatic SMS import...
+[2026-01-27T04:08:59.487Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T04:08:59.535Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T04:08:59.536Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 08:10:14 +04 2026] SMS import completed successfully
+[Tue Jan 27 08:25:14 +04 2026] Starting automatic SMS import...
+[2026-01-27T04:25:14.822Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T04:25:14.896Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T04:25:14.897Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 08:26:29 +04 2026] SMS import completed successfully
+[Tue Jan 27 08:41:30 +04 2026] Starting automatic SMS import...
+[2026-01-27T04:41:30.119Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T04:41:30.168Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T04:41:30.169Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 08:42:45 +04 2026] SMS import completed successfully
+[Tue Jan 27 08:57:45 +04 2026] Starting automatic SMS import...
+[2026-01-27T04:57:45.401Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T04:57:45.451Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T04:57:45.452Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 08:59:00 +04 2026] SMS import completed successfully
+[Tue Jan 27 09:14:00 +04 2026] Starting automatic SMS import...
+[2026-01-27T05:14:00.710Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T05:14:00.762Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T05:14:00.763Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 09:15:15 +04 2026] SMS import completed successfully
+[Tue Jan 27 09:30:15 +04 2026] Starting automatic SMS import...
+[2026-01-27T05:30:16.003Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T05:30:16.046Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T05:30:16.047Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 09:31:31 +04 2026] SMS import completed successfully
+[Tue Jan 27 09:46:31 +04 2026] Starting automatic SMS import...
+[2026-01-27T05:46:31.244Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T05:46:31.289Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T05:46:31.290Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 09:47:46 +04 2026] SMS import completed successfully
+[Tue Jan 27 10:02:46 +04 2026] Starting automatic SMS import...
+[2026-01-27T06:02:46.532Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T06:02:46.574Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T06:02:46.575Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 10:04:01 +04 2026] SMS import completed successfully
+[Tue Jan 27 10:19:01 +04 2026] Starting automatic SMS import...
+[2026-01-27T06:19:01.873Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T06:19:01.923Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T06:19:01.924Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 10:20:16 +04 2026] SMS import completed successfully
+[Tue Jan 27 11:08:54 +04 2026] Starting automatic SMS import...
+[2026-01-27T07:08:54.164Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T07:08:54.214Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T07:08:54.215Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 11:10:09 +04 2026] SMS import completed successfully
+[Tue Jan 27 11:25:09 +04 2026] Starting automatic SMS import...
+[2026-01-27T07:25:09.516Z] Starting SMS import (last 1 days)...
+Found 0 messages from tracked senders
+
+Import complete in 0.0s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 0
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T07:25:09.566Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T07:25:09.567Z] Matching Tabby payments...
+Error: connect ETIMEDOUT 100.90.189.16:5432
+    at /Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async matchTabbyPayments (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:406:19)
+    at async runAll (file:///Users/rafa/Cyber/Dev/Projects/LifeOS/backend/scripts/import-sms-transactions.js:500:5) {
+  errno: -60,
+  code: 'ETIMEDOUT',
+  syscall: 'connect',
+  address: '100.90.189.16',
+  port: 5432
+}
+[Tue Jan 27 11:26:24 +04 2026] SMS import completed successfully
+[Tue Jan 27 11:41:24 +04 2026] Starting automatic SMS import...
+[2026-01-27T07:41:24.780Z] Starting SMS import (last 1 days)...
+Found 1 messages from tracked senders
+
+Import complete in 0.1s:
+  New: 0
+  Duplicates: 0
+  Excluded (OTP/promo): 0
+  Declined: 0
+  No match: 1
+  No account: 0
+  Errors: 0
+
+By intent:
+
+[2026-01-27T07:41:24.868Z] Processing BNPL messages...
+Found 0 BNPL messages
+BNPL import: 0 new, 0 duplicates
+
+[2026-01-27T07:41:24.870Z] Matching Tabby payments...
+No unlinked Tabby transactions found
+
+Account Summary (SMS transactions):
+  AlRajhi Bank: 146 tx, spent 76689.50, received 63200.00
+  Emirates NBD: 97 tx, spent 80148.74, received 47026.32
+  Jordan Kuwait Bank: 5 tx, spent 1102.00, received 215.59
+[Tue Jan 27 11:41:25 +04 2026] SMS import completed successfully

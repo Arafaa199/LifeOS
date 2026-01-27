@@ -4,7 +4,6 @@ struct ContentView: View {
     @EnvironmentObject var settings: AppSettings
     @StateObject private var viewModel = DashboardViewModel()
     @State private var selectedTab = 0
-    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -40,11 +39,6 @@ struct ContentView: View {
         }
         .tint(.nexusPrimary)
         .environmentObject(viewModel)
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
-                viewModel.foregroundRefresh()
-            }
-        }
     }
 }
 

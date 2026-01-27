@@ -16,7 +16,9 @@ class FinanceViewModel: ObservableObject {
     private let cache = CacheManager.shared
     private let dashboardService = DashboardService.shared
     private let networkMonitor = NetworkMonitor.shared
+    private let coordinator = SyncCoordinator.shared
     private var loadTask: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Dashboard-Sourced Properties
 
@@ -34,7 +36,7 @@ class FinanceViewModel: ObservableObject {
 
     init() {
         loadFromCache()
-        loadFinanceSummary()
+        subscribeToCoordinator()
         updateQueuedCount()
     }
 
@@ -44,6 +46,59 @@ class FinanceViewModel: ObservableObject {
 
     deinit {
         loadTask?.cancel()
+    }
+
+    // MARK: - Coordinator Subscription
+
+    private func subscribeToCoordinator() {
+        coordinator.$financeSummaryResult
+            .compactMap { $0 }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] response in
+                self?.applyFinanceResponse(response)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func applyFinanceResponse(_ response: FinanceResponse) {
+        guard response.success, let data = response.data else { return }
+
+        if let totalSpent = data.totalSpent {
+            summary.totalSpent = abs(totalSpent)
+        }
+        if let grocerySpent = data.grocerySpent {
+            summary.grocerySpent = abs(grocerySpent)
+        }
+        if let eatingOutSpent = data.eatingOutSpent {
+            summary.eatingOutSpent = abs(eatingOutSpent)
+        }
+        if let currency = data.currency {
+            summary.currency = currency
+        }
+        if let transactions = data.recentTransactions {
+            recentTransactions = transactions.map { $0.normalized() }
+        }
+        if let budgets = data.budgets {
+            summary.budgets = budgets
+        }
+        if let categoryBreakdown = data.categoryBreakdown {
+            summary.categoryBreakdown = categoryBreakdown
+        }
+        if let totalIncome = data.totalIncome {
+            summary.totalIncome = abs(totalIncome)
+        } else if let dashboardIncome = dashboardService.loadCached()?.payload.todayFacts.incomeTotal {
+            summary.totalIncome = abs(dashboardIncome)
+        }
+
+        cache.saveFinanceSummary(summary, transactions: recentTransactions)
+        if !summary.budgets.isEmpty {
+            cache.saveBudgets(summary.budgets)
+        }
+
+        lastUpdated = Date()
+        errorMessage = nil
+        isLoading = false
+        isOffline = false
     }
 
     private func loadFromCache() {
@@ -57,75 +112,16 @@ class FinanceViewModel: ObservableObject {
     }
 
     func loadFinanceSummary() {
-        loadTask?.cancel()
         isLoading = true
-        loadTask = Task {
-            guard !Task.isCancelled else {
-                isLoading = false
-                return
-            }
-
-            // Check network connectivity
-            guard networkMonitor.isConnected else {
+        // Delegate to coordinator — the Combine subscription handles the response
+        Task {
+            await coordinator.sync(.finance)
+            // If coordinator didn't produce a result (e.g. offline), mark offline
+            if coordinator.domainStates[.finance]?.lastError != nil {
                 isOffline = true
-                isLoading = false
-                errorMessage = "No internet connection. Showing cached data."
-                return
-            }
-
-            isOffline = false
-
-            do {
-                let response = try await api.fetchFinanceSummary()
-
-                if response.success, let data = response.data {
-                    // Update summary with real data from database
-                    if let totalSpent = data.totalSpent {
-                        summary.totalSpent = abs(totalSpent)
-                    }
-                    if let grocerySpent = data.grocerySpent {
-                        summary.grocerySpent = abs(grocerySpent)
-                    }
-                    if let eatingOutSpent = data.eatingOutSpent {
-                        summary.eatingOutSpent = abs(eatingOutSpent)
-                    }
-                    if let currency = data.currency {
-                        summary.currency = currency
-                    }
-                    if let transactions = data.recentTransactions {
-                        recentTransactions = transactions.map { $0.normalized() }
-                    }
-                    if let budgets = data.budgets {
-                        summary.budgets = budgets
-                    }
-                    if let categoryBreakdown = data.categoryBreakdown {
-                        summary.categoryBreakdown = categoryBreakdown
-                    }
-                    if let totalIncome = data.totalIncome {
-                        summary.totalIncome = abs(totalIncome)
-                    } else if let dashboardIncome = dashboardService.loadCached()?.payload.todayFacts.incomeTotal {
-                        summary.totalIncome = abs(dashboardIncome)
-                    }
-
-                    // Cache the data
-                    cache.saveFinanceSummary(summary, transactions: recentTransactions)
-                    if !summary.budgets.isEmpty {
-                        cache.saveBudgets(summary.budgets)
-                    }
-
-                    lastUpdated = Date()
-                    errorMessage = nil
-                }
-                isLoading = false
-            } catch {
-                // Use cached data on error
-                isOffline = true
-                isLoading = false
                 errorMessage = "Could not fetch latest data. Showing cached data."
-                #if DEBUG
-                print("Finance summary fetch failed: \(error)")
-                #endif
             }
+            isLoading = false
         }
     }
 
@@ -186,7 +182,13 @@ class FinanceViewModel: ObservableObject {
     }
 
     func refresh() async {
-        await loadFinanceSummary()
+        isLoading = true
+        await coordinator.sync(.finance)
+        if coordinator.domainStates[.finance]?.lastError != nil {
+            isOffline = true
+            errorMessage = "Could not fetch latest data. Showing cached data."
+        }
+        isLoading = false
     }
 
     func triggerSMSImport() async {

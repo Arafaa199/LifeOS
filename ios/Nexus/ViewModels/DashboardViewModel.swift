@@ -45,7 +45,6 @@ class DashboardViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var lastSyncDate: Date?
 
-    // New unified dashboard payload
     @Published var dashboardPayload: DashboardPayload?
     @Published var dataSource: DashboardResult.DataSource?
     @Published var isDataStale = false
@@ -64,10 +63,11 @@ class DashboardViewModel: ObservableObject {
     @Published var pendingMeals: [InferredMeal] = []
 
     private let dashboardService = DashboardService.shared
+    private let coordinator = SyncCoordinator.shared
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Computed Properties for Legacy View Compatibility
 
-    /// Recovery metrics from unified payload (for WHOOPRecoveryRow)
     var recoveryMetrics: RecoveryMetrics? {
         guard let facts = dashboardPayload?.todayFacts,
               facts.recoveryScore != nil || facts.hrv != nil || facts.rhr != nil else {
@@ -82,7 +82,6 @@ class DashboardViewModel: ObservableObject {
         )
     }
 
-    /// Sleep metrics from unified payload (for WHOOPSleepRow)
     var sleepMetrics: SleepMetrics? {
         guard let facts = dashboardPayload?.todayFacts,
               facts.sleepMinutes != nil else {
@@ -105,12 +104,10 @@ class DashboardViewModel: ObservableObject {
         )
     }
 
-    /// Stale feeds from payload
     var staleFeeds: [String] {
         dashboardPayload?.staleFeeds ?? []
     }
 
-    /// Whether any feeds are stale
     var hasStaleFeeds: Bool {
         !staleFeeds.isEmpty
     }
@@ -129,26 +126,59 @@ class DashboardViewModel: ObservableObject {
         }
         return isDataStale || foregroundRefreshFailed
     }
+
     private let storage = SharedStorage.shared
-    private var loadTask: Task<Void, Never>?
-    private var foregroundRefreshTask: Task<Void, Never>?
-    private var lastForegroundRefreshDate: Date?
-    private let foregroundRefreshMinInterval: TimeInterval = 15
 
     init() {
         loadFromCache()
-        loadTodaysSummary()
+        subscribeToCoordinator()
     }
 
-    deinit {
-        loadTask?.cancel()
-        foregroundRefreshTask?.cancel()
+    // MARK: - Coordinator Subscription
+
+    private func subscribeToCoordinator() {
+        coordinator.$dashboardPayload
+            .compactMap { $0 }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] payload in
+                self?.handlePayloadUpdate(payload)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handlePayloadUpdate(_ payload: DashboardPayload) {
+        dashboardPayload = payload
+        dataSource = .network
+        isDataStale = false
+        lastUpdatedFormatted = RelativeDateTimeFormatter().localizedString(for: Date(), relativeTo: Date())
+        lastSyncDate = Date()
+        foregroundRefreshFailed = false
+
+        mapPayloadToSummary(payload)
+
+        recentLogs = payload.recentEvents.prefix(10).compactMap { event -> LogEntry? in
+            let timestamp = ISO8601DateFormatter().date(from: "\(event.eventDate)T\(event.eventTime)") ?? Date()
+            let type = mapEventTypeToLogType(event.eventType)
+            let description = formatEventDescription(event)
+
+            return LogEntry(
+                timestamp: timestamp,
+                type: type,
+                description: description,
+                calories: nil,
+                protein: nil
+            )
+        }
+
+        saveToStorage()
+        errorMessage = nil
+        isLoading = false
+        isForegroundRefreshing = false
     }
 
     // MARK: - Load Data
 
     private func loadFromCache() {
-        // Try to load cached dashboard payload first
         if let cachedResult = dashboardService.loadCached() {
             dashboardPayload = cachedResult.payload
             dataSource = cachedResult.source
@@ -156,10 +186,8 @@ class DashboardViewModel: ObservableObject {
             lastUpdatedFormatted = cachedResult.lastUpdatedFormatted
             lastSyncDate = cachedResult.lastUpdated
 
-            // Map to DailySummary for backwards compatibility
             mapPayloadToSummary(cachedResult.payload)
         } else {
-            // Fall back to SharedStorage for widgets
             let cached = SharedStorage.DailySummary.current()
             summary.totalCalories = cached.calories
             summary.totalProtein = cached.protein
@@ -168,7 +196,6 @@ class DashboardViewModel: ObservableObject {
             lastSyncDate = cached.lastUpdate
         }
 
-        // Load recent logs
         let logsData = storage.getRecentLogs()
         recentLogs = logsData.compactMap { dict -> LogEntry? in
             guard let type = dict["type"] as? String,
@@ -195,82 +222,13 @@ class DashboardViewModel: ObservableObject {
         summary.weight = payload.todayFacts.weightKg
     }
 
-    func loadTodaysSummary() {
-        loadTask?.cancel()
-        isLoading = true
-        errorMessage = nil
-
-        loadTask = Task {
-            guard !Task.isCancelled else { return }
-            do {
-                // Fetch from unified dashboard endpoint
-                let result = try await dashboardService.fetchDashboard()
-
-                await MainActor.run {
-                    // Update dashboard payload
-                    dashboardPayload = result.payload
-                    dataSource = result.source
-                    isDataStale = result.isStale
-                    lastUpdatedFormatted = result.lastUpdatedFormatted
-                    lastSyncDate = result.lastUpdated
-
-                    // Map to DailySummary for backwards compatibility
-                    mapPayloadToSummary(result.payload)
-
-                    // Map recent events to recent logs
-                    recentLogs = result.payload.recentEvents.prefix(10).compactMap { event -> LogEntry? in
-                        let timestamp = ISO8601DateFormatter().date(from: "\(event.eventDate)T\(event.eventTime)") ?? Date()
-                        let type = mapEventTypeToLogType(event.eventType)
-                        let description = formatEventDescription(event)
-
-                        return LogEntry(
-                            timestamp: timestamp,
-                            type: type,
-                            description: description,
-                            calories: nil,
-                            protein: nil
-                        )
-                    }
-
-                    // Save to SharedStorage for widgets
-                    saveToStorage()
-
-                    // Clear error if we got data from cache
-                    if result.source == .cache {
-                        errorMessage = "Using cached data"
-                    } else {
-                        errorMessage = nil
-                    }
-
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    isLoading = false
-                    // Show error but keep cached data
-                    if dashboardPayload == nil && recentLogs.isEmpty {
-                        errorMessage = "Failed to load data. Please try again."
-                    } else {
-                        errorMessage = "Using cached data - sync failed"
-                    }
-                    lastSyncDate = Date()
-                }
-            }
-        }
-    }
-
     private func mapEventTypeToLogType(_ eventType: String) -> LogType {
         switch eventType {
-        case "weight":
-            return .weight
-        case "food":
-            return .food
-        case "water":
-            return .water
-        case "mood":
-            return .mood
-        default:
-            return .other
+        case "weight": return .weight
+        case "food": return .food
+        case "water": return .water
+        case "mood": return .mood
+        default: return .other
         }
     }
 
@@ -291,40 +249,25 @@ class DashboardViewModel: ObservableObject {
         }
     }
 
-    func refresh() async {
-        // Cancel any in-flight foreground refresh — pull-to-refresh takes priority
-        foregroundRefreshTask?.cancel()
-        foregroundRefreshTask = nil
-        isForegroundRefreshing = false
+    // MARK: - Refresh (delegates to coordinator)
 
+    func refresh() async {
         lastRefreshReason = .pullToRefresh
         isRefreshing = true
         errorMessage = nil
         let start = CFAbsoluteTimeGetCurrent()
 
-        do {
-            let result = try await dashboardService.fetchDashboard()
+        coordinator.syncAll(force: true)
 
-            dashboardPayload = result.payload
-            dataSource = result.source
-            isDataStale = result.isStale
-            lastUpdatedFormatted = result.lastUpdatedFormatted
-            lastSyncDate = result.lastUpdated
-            foregroundRefreshFailed = false
-            lastForegroundRefreshDate = Date()
+        // Wait briefly for the coordinator to finish dashboard sync
+        // The Combine subscription will handle the payload update
+        try? await Task.sleep(nanoseconds: 500_000_000)
 
-            mapPayloadToSummary(result.payload)
-            saveToStorage()
-
-            if result.source == .cache {
-                errorMessage = "Using cached data"
-            }
-
-            // Load pending meal confirmations
+        // Check if we got updated data
+        if dashboardPayload != nil {
             await loadPendingMeals()
             recordRefresh(reason: .pullToRefresh, outcome: .success, start: start)
-        } catch {
-            // Keep existing data, show error
+        } else {
             errorMessage = "Refresh failed - using cached data"
             recordRefresh(reason: .pullToRefresh, outcome: .error, start: start)
         }
@@ -333,78 +276,17 @@ class DashboardViewModel: ObservableObject {
     }
 
     func foregroundRefresh(reason: RefreshReason = .foreground) {
-        guard dashboardPayload != nil else { return }
+        let start = CFAbsoluteTimeGetCurrent()
+        lastRefreshReason = reason
+        isForegroundRefreshing = true
 
-        // Debounce: skip if last refresh was recent (force bypasses)
-        if reason != .force,
-           let last = lastForegroundRefreshDate,
-           Date().timeIntervalSince(last) < foregroundRefreshMinInterval {
-            recordRefresh(reason: reason, outcome: .debounced, durationMs: 0)
-            return
+        if reason == .force {
+            coordinator.syncAll(force: true)
+        } else {
+            coordinator.syncAll()
         }
 
-        // Cancel any in-flight foreground refresh
-        foregroundRefreshTask?.cancel()
-
-        foregroundRefreshTask = Task {
-            lastRefreshReason = reason
-            isForegroundRefreshing = true
-            foregroundRefreshFailed = false
-            let start = CFAbsoluteTimeGetCurrent()
-
-            do {
-                let result = try await withThrowingTaskGroup(of: DashboardResult.self) { group in
-                    group.addTask {
-                        try await self.dashboardService.fetchDashboard()
-                    }
-                    group.addTask {
-                        try await Task.sleep(nanoseconds: 15_000_000_000)
-                        throw DashboardError.timeout
-                    }
-
-                    let first = try await group.next()!
-                    group.cancelAll()
-                    return first
-                }
-
-                guard !Task.isCancelled else {
-                    recordRefresh(reason: reason, outcome: .cancelled, start: start)
-                    return
-                }
-
-                dashboardPayload = result.payload
-                dataSource = result.source
-                isDataStale = result.isStale
-                lastUpdatedFormatted = result.lastUpdatedFormatted
-                lastSyncDate = result.lastUpdated
-                foregroundRefreshFailed = false
-                lastForegroundRefreshDate = Date()
-
-                mapPayloadToSummary(result.payload)
-                saveToStorage()
-                errorMessage = nil
-                recordRefresh(reason: reason, outcome: .success, start: start)
-            } catch is CancellationError {
-                recordRefresh(reason: reason, outcome: .cancelled, start: start)
-            } catch {
-                guard !Task.isCancelled else {
-                    recordRefresh(reason: reason, outcome: .cancelled, start: start)
-                    return
-                }
-                foregroundRefreshFailed = true
-                let outcome: RefreshLogEntry.Outcome
-                if case DashboardError.timeout = error {
-                    outcome = .timeout
-                } else {
-                    outcome = .error
-                }
-                recordRefresh(reason: reason, outcome: outcome, start: start)
-            }
-
-            if !Task.isCancelled {
-                isForegroundRefreshing = false
-            }
-        }
+        recordRefresh(reason: reason, outcome: .success, start: start)
     }
 
     func forceRefresh() {
@@ -431,7 +313,6 @@ class DashboardViewModel: ObservableObject {
         do {
             pendingMeals = try await NexusAPI.shared.fetchPendingMealConfirmations()
         } catch {
-            // Silently fail - meal confirmations are optional
             pendingMeals = []
         }
     }
@@ -445,10 +326,8 @@ class DashboardViewModel: ObservableObject {
                 action: action
             )
 
-            // Remove from pending list
             pendingMeals.removeAll { $0.id == meal.id }
         } catch {
-            // Show error
             errorMessage = "Failed to save meal confirmation"
         }
     }
@@ -456,7 +335,6 @@ class DashboardViewModel: ObservableObject {
     // MARK: - Update After Logging
 
     func updateSummaryAfterLog(type: LogType, response: NexusResponse) {
-        // Update local summary
         if let data = response.data {
             if let calories = data.calories {
                 summary.totalCalories += calories
@@ -473,10 +351,8 @@ class DashboardViewModel: ObservableObject {
             }
         }
 
-        // Save to SharedStorage for widgets
         saveToStorage()
 
-        // Add to recent logs
         addRecentLog(
             type: type,
             description: response.message ?? "Logged",
@@ -484,10 +360,7 @@ class DashboardViewModel: ObservableObject {
             protein: response.data?.protein
         )
 
-        // Update timestamp
         lastSyncDate = Date()
-
-        // Reload widgets
         WidgetCenter.shared.reloadAllTimelines()
     }
 
@@ -502,12 +375,10 @@ class DashboardViewModel: ObservableObject {
 
         recentLogs.insert(entry, at: 0)
 
-        // Keep only last 10
         if recentLogs.count > 10 {
             recentLogs = Array(recentLogs.prefix(10))
         }
 
-        // Save to SharedStorage
         storage.saveRecentLog(
             type: type.rawValue,
             description: description,
