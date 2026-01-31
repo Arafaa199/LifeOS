@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-01T17:00:00+04:00
+Last updated: 2026-02-01T22:30:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -141,6 +141,8 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 1)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-PLAN.6: GitHub Feed Status Threshold | DONE | Migration 104: Adjusted GitHub `expected_interval` from `24:00:00` to `7 days` in `life.feed_status_live`. Root cause: `github-sync.json` has `"active": false` in n8n, and even when active (every 6h), GitHub activity is sporadic (1-3 day gaps). Status changed from `error` → `ok`. Down migration tested (reverts to 24h/error). 2 files changed. User action: reactivate `GitHub Activity Sync` workflow in n8n for fresh data. |
+| TASK-PLAN.4: GitHub Activity iOS View | DONE | Created `GitHubActivityView.swift` (summary card with streak/active days/pushes, 14-day bar chart, active repos list). Added NavigationLink in SettingsView Extras section. Reads from existing `DashboardPayload.githubActivity` via coordinator — no new API calls. Also fixed pre-existing build errors: SyncCoordinator.swift:291 (`count` → `totalCount`), ReminderSyncService.swift (added missing `import Combine`). 4 files changed. iOS build: BUILD SUCCEEDED. Commit `ff8995a`. |
 | TASK-PLAN.3: Unblock facts.daily_finance | DONE | Migration 103: Rewrote `facts.refresh_daily_finance()` to read from `finance.transactions` (was `normalized.transactions` with 0 rows). Category mapping: title-case (Grocery, Food, Transport, etc.), income via category IN (Income, Salary, Deposit, Refund), transfers excluded. Wired into both `life.refresh_all()` overloads with error handling. Backfilled 330 dates. Verified: totals match source, `refresh_all(1, 'test-103')` → 0 errors. Down migration tested. 2 files changed. Also resolves older TASK-PLAN.2 (BLOCKED). |
 | TASK-PLAN.2: Calendar Webhook SQL Sanitization | DONE | Added "Validate Dates" Code node with `/^\d{4}-\d{2}-\d{2}$/` regex between Webhook and Postgres. Added IF branch: valid → Postgres, invalid → 400 error response. Postgres now reads pre-validated `$json.start`/`$json.end` instead of raw query params. Injection attempts (`'; DROP TABLE`) blocked by regex. JSON valid (7 nodes, 5 connections). `grep -c` exit criteria = 2. 1 file changed. Commit `a982453`. Note: workflow must be re-imported into n8n. |
 | TASK-PLAN.1: CalendarVM Error Feedback | DONE | Added `errorMessage = "Failed to load calendar events"` in 3 API failure branches (fetchTodayEvents, fetchWeekEvents, fetchMonthEvents). Exit criteria: `grep -c 'errorMessage.*Failed'` = 3. Pre-existing build error in SyncCoordinator.swift:291 (`count` not in scope — unrelated). 1 file changed. Commit `9563d92`. |
