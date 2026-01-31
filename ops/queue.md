@@ -891,7 +891,7 @@ Lane: safe_auto
 ### TASK-PLAN.7: Fix ReminderSyncService Error Attribution in SyncCoordinator
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Reminder sync failure is caught inside the calendar sync block, causing misleading error attribution. If reminders fail, calendar domain is marked failed even when calendar API works fine.
@@ -907,10 +907,19 @@ Lane: safe_auto
 - Reminder sync failure should NOT mark calendar domain as failed
 - Keep reminder sync in the same TaskGroup task (no need for a separate domain — just isolate the error handling)
 
+**Files Changed:**
+- `ios/Nexus/Services/SyncCoordinator.swift`
+
+**Fix Applied:**
+- Wrapped `reminderSync.syncAllData()` in its own do/catch block inside the calendar sync's success path
+- Reminder failures logged as `[reminders]` not `[calendar]`
+- Calendar domain marked succeeded even when reminders fail
+- Reminder count correctly falls back to 0 on failure
+
 **Verification:**
-- [ ] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
-- [ ] grep for `[reminders]` in SyncCoordinator.swift — exists
-- [ ] Calendar sync success is not blocked by reminder failure
+- [x] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+- [x] grep for `[reminders]` in SyncCoordinator.swift — exists (line 279)
+- [x] Calendar sync success is not blocked by reminder failure
 
 **Done Means:** Reminder sync errors are logged under their own label and don't contaminate calendar domain status.
 
