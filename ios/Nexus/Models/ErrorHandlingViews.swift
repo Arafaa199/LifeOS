@@ -144,13 +144,13 @@ struct OfflineBannerView: View {
             .padding(.vertical, 8)
             .background(Color.orange.opacity(0.1))
             .task {
-                await updateQueueCount()
+                updateQueueCount()
             }
         }
     }
     
-    private func updateQueueCount() async {
-        queueCount = await OfflineQueue.shared.getQueueCount()
+    private func updateQueueCount() {
+        queueCount = OfflineQueue.shared.getQueueCount()
     }
 }
 
