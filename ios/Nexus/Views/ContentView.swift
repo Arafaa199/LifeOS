@@ -35,11 +35,17 @@ struct ContentView: View {
                     }
                     .tag(3)
 
-                SettingsView()
+                CalendarView()
                     .tabItem {
-                        Label("Settings", systemImage: selectedTab == 4 ? "gearshape.fill" : "gearshape")
+                        Label("Calendar", systemImage: selectedTab == 4 ? "calendar.circle.fill" : "calendar.circle")
                     }
                     .tag(4)
+
+                SettingsView()
+                    .tabItem {
+                        Label("Settings", systemImage: selectedTab == 5 ? "gearshape.fill" : "gearshape")
+                    }
+                    .tag(5)
             }
             .tint(.nexusPrimary)
             .environmentObject(viewModel)
