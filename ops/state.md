@@ -146,6 +146,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-PLAN.3: Dashboard GitHub Payload | DONE | Already wired — `github_activity` key was added in migration 087 (TASK-FEAT.1) via `COALESCE(life.get_github_activity_widget(14), '{}'::jsonb)`. Verified: IS NOT NULL=true, active_days_7d=3, payload size ~2.7KB. No migration needed. |
 | TASK-PLAN.5: HealthKit → daily_health | DONE | Migration 098: Wired `facts.refresh_daily_health()` into both `life.refresh_all()` overloads. Backfilled all dates with WHOOP or HealthKit data. Steps: 6 dates populated, weight: 3 dates. `refresh_all(1, 'test-098')` → 0 errors. Down migration tested. |
 | TASK-PLAN.7: Feed Counter Reset | DONE | Migration 099: Wired `life.reset_feed_events_today()` into both `life.refresh_all()` overloads (called at start). Verified: bank_sms 1108→0, github 11→0, receipts 2→0. Rows updated today (whoop, healthkit) correctly skipped — will reset after midnight. Down migration tested. |
+| TASK-PLAN.8: Health Backfill | DONE | Migration 100: Cleaned 24 empty placeholder rows from `facts.daily_health`, re-ran `refresh_daily_health()` for all 12 dates with WHOOP/HealthKit source data. Before: 36 rows (24 empty). After: 12 rows (all with real data). `get_health_timeseries(90)` returns 90 gap-filled points. |
 
 ### Jan 27
 | Task | Status | Summary |
