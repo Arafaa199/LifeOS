@@ -268,11 +268,17 @@ class SyncCoordinator: ObservableObject {
         do {
             try await calendarSync.syncAllData()
 
-            // Sync reminders alongside calendar events (same EventKit domain)
-            try await reminderSync.syncAllData()
-
             let eventCount = calendarSync.lastSyncEventCount
-            let reminderCount = reminderSync.lastSyncReminderCount
+            var reminderCount = 0
+
+            // Sync reminders separately so failures don't contaminate calendar status
+            do {
+                try await reminderSync.syncAllData()
+                reminderCount = reminderSync.lastSyncReminderCount
+            } catch {
+                logger.error("[reminders] sync failed error=\(error.localizedDescription)")
+            }
+
             let totalCount = eventCount + reminderCount
             var detail: String?
             if totalCount > 0 {
