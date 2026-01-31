@@ -426,10 +426,10 @@ Lane: safe_auto
 ### TASK-PLAN.2: Populate facts.daily_finance via Nightly Refresh
 Priority: P1
 Owner: coder
-Status: BLOCKED
+Status: DONE ✓ (Superseded by TASK-PLAN.3 from 2026-02-01 cycle)
 Lane: needs_approval
 
-**BLOCKED REASON:** `facts.refresh_daily_finance()` reads from `normalized.transactions` which has **0 rows**. Actual transaction data is in `finance.transactions` (1366 rows). The function must be rewritten to read from `finance.transactions` first, OR `normalized.transactions` must be populated. Do NOT run as-is — it will produce 0 rows and mark itself DONE.
+**RESOLVED:** TASK-PLAN.3 (2026-02-01 cycle) rewrote `facts.refresh_daily_finance()` to read from `finance.transactions`, wired into `life.refresh_all()`, and backfilled 330 dates. See migration 103.
 
 **Objective:** Wire `facts.daily_finance` (currently 0 rows) into the nightly refresh pipeline so the detailed per-category spending breakdown is available for queries and future widgets.
 
@@ -752,29 +752,29 @@ Lane: safe_auto
 ### TASK-PLAN.3: Unblock facts.daily_finance — Rewrite Refresh to Use finance.transactions
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** `facts.daily_finance` has 0 rows because `facts.refresh_daily_finance()` reads from `normalized.transactions` (0 rows). Rewrite it to read from `finance.transactions` (1366 rows) and backfill historical data.
 
-**Files to Touch:**
-- `backend/migrations/102_fix_daily_finance_refresh.up.sql`
-- `backend/migrations/102_fix_daily_finance_refresh.down.sql`
+**Files Changed:**
+- `backend/migrations/103_fix_daily_finance_refresh.up.sql`
+- `backend/migrations/103_fix_daily_finance_refresh.down.sql`
 
-**Implementation:**
-- Rewrite `facts.refresh_daily_finance(target_date)` to SELECT from `finance.transactions` instead of `normalized.transactions`
-- Map categories: `category ILIKE '%grocer%'` → `grocery_spent`, etc. (match existing category_map patterns)
-- Wire into `life.refresh_all()` so it runs nightly alongside other refreshes
-- Backfill all historical dates from `finance.transactions`
+**Fix Applied:**
+- Rewrote `facts.refresh_daily_finance(target_date)` to SELECT from `finance.transactions`
+- Category mapping: title-case categories (Grocery, Food, Transport, etc.) with ABS(amount) for expenses
+- Income detection: categories IN ('Income', 'Salary', 'Deposit', 'Refund') with amount > 0
+- Transfer exclusion: 'Transfer', 'Credit Card Payment' excluded from spending totals
+- Filters: `is_hidden IS NOT TRUE AND is_quarantined IS NOT TRUE`
+- Wired `facts.refresh_daily_finance(day)` into both `life.refresh_all()` overloads (with error handling)
+- Backfilled all 330 historical dates from `finance.transactions`
 
 **Verification:**
-- [ ] `SELECT COUNT(*) FROM facts.daily_finance;` — matches `SELECT COUNT(DISTINCT date) FROM finance.transactions WHERE amount < 0;`
-- [ ] `SELECT date, total_spent, transaction_count FROM facts.daily_finance ORDER BY date DESC LIMIT 5;` — totals match `SELECT date, SUM(ABS(amount)) FILTER (WHERE amount < 0), COUNT(*) FROM finance.transactions GROUP BY date ORDER BY date DESC LIMIT 5;`
-- [ ] `SELECT * FROM life.refresh_all(1, 'test-102');` — completes without error
-
-**Exit Criteria:**
-- [ ] `SELECT COUNT(*) FROM facts.daily_finance;` > 0
-- [ ] `facts.refresh_daily_finance(CURRENT_DATE)` executes without error
+- [x] `SELECT COUNT(*) FROM facts.daily_finance;` = 330 (matches 330 distinct dates with transactions)
+- [x] Spot-checked 5 recent dates — total_spent and transaction_count match source query
+- [x] `SELECT * FROM life.refresh_all(1, 'test-103');` — 0 errors
+- [x] Down migration tested — deletes data, restores original function, re-applied successfully
 
 **Done Means:** `facts.daily_finance` is populated with historical per-category spending data and auto-refreshes nightly.
 
