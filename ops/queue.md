@@ -928,16 +928,20 @@ Lane: safe_auto
 ### TASK-PLAN.8: Update TodayView Doc Comment
 Priority: P3
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** TodayView.swift line 4 says "Shows: Recovery + Budget status, one insight, nothing else" — now shows up to 3 insights. Update the doc comment.
 
-**Files to Touch:**
+**Files Changed:**
 - `ios/Nexus/Views/Dashboard/TodayView.swift` (line 4)
 
-**Implementation:**
-- Change doc comment to: `/// Shows: Recovery + Budget status, up to 3 ranked insights`
+**Fix Applied:**
+- Changed doc comment from `/// Shows: Recovery + Budget status, one insight, nothing else` to `/// Shows: Recovery + Budget status, up to 3 ranked insights`
+
+**Verification:**
+- [x] Comment updated to match actual behavior (ForEach renders all ranked insights)
+- [x] iOS build: BUILD SUCCEEDED
 
 **Done Means:** Comment matches actual behavior.
 
