@@ -719,30 +719,33 @@ Lane: safe_auto
 ### TASK-PLAN.2: Sanitize SQL Inputs in Calendar Events Webhook
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Prevent SQL injection in the calendar-events-webhook by validating date parameters in a Code node before they reach the Postgres node.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/n8n-workflows/calendar-events-webhook.json`
 
-**Implementation:**
-- Add a Code node between the Webhook trigger and the Postgres node
-- Validate `start` and `end` query params match `YYYY-MM-DD` format via regex `/^\d{4}-\d{2}-\d{2}$/`
-- If invalid, return `{ success: false, error: "Invalid date format" }` and skip the Postgres node
-- Pass validated strings through to the Postgres query
+**Fix Applied:**
+- Added "Validate Dates" Code node between Webhook and Postgres with `/^\d{4}-\d{2}-\d{2}$/` regex
+- Added "IF Valid" branch node: true → Postgres, false → Error response
+- Added "Respond Error" node returning `{ success: false, error: "Invalid date format" }` with HTTP 400
+- Postgres node now reads pre-validated `$json.start`/`$json.end` instead of raw `$json.query.*`
+- Workflow: 4 nodes → 7 nodes (Webhook → Validate → IF → Postgres/Error → Format → Respond)
 
 **Verification:**
-- [ ] Workflow JSON is valid (parseable with `node -e "JSON.parse(require('fs').readFileSync(...))"`)
-- [ ] Code node rejects `start=2026-01-01'; DROP TABLE x; --` (returns error, not query)
-- [ ] Code node passes `start=2026-01-28&end=2026-02-01` (valid dates forwarded)
+- [x] Workflow JSON is valid (parseable with `node -e "JSON.parse(...)"`): 7 nodes, 5 connections
+- [x] Code node rejects `start=2026-01-01'; DROP TABLE x; --` (regex fails, routes to error)
+- [x] Code node passes `start=2026-01-28&end=2026-02-01` (valid dates forwarded)
 
 **Exit Criteria:**
-- [ ] `grep -c 'YYYY-MM-DD\|\\\\d{4}' backend/n8n-workflows/calendar-events-webhook.json` returns ≥1
-- [ ] Workflow contains a Code node with date validation logic
+- [x] `grep -c 'YYYY-MM-DD\|\\\\d{4}' backend/n8n-workflows/calendar-events-webhook.json` returns 2
+- [x] Workflow contains a Code node with date validation logic
 
 **Done Means:** Calendar events webhook rejects malformed date inputs before they reach SQL execution.
+
+**Note:** Workflow JSON must be re-imported into n8n and activated (toggle off/on to register webhook).
 
 ---
 
