@@ -389,6 +389,212 @@ Status: DONE ✓
 
 ---
 
+---
+
+## PLANNED TASKS (Auditor-Generated 2026-01-31)
+
+### TASK-PLAN.1: Fix Feed Status False Alarms with Per-Source Thresholds
+Priority: P1
+Owner: coder
+Status: READY
+
+**Objective:** Replace the uniform 1-hour/24-hour thresholds in `life.feed_status` with per-source intervals so event-driven feeds (behavioral, location) and low-frequency feeds (receipts, weight) don't permanently show "error" or "stale".
+
+**Files to Touch:**
+- `backend/migrations/095_feed_status_per_source_thresholds.up.sql`
+- `backend/migrations/095_feed_status_per_source_thresholds.down.sql`
+
+**Implementation:**
+- Add `expected_interval` column to `life.feed_status_live` (e.g., `INTERVAL '1 hour'` for whoop, `INTERVAL '7 days'` for behavioral/location, `INTERVAL '8 hours'` for receipts, `INTERVAL '48 hours'` for weight/manual)
+- Rewrite `life.feed_status` VIEW to use per-row `expected_interval` instead of hardcoded 1h/24h
+- Backfill `expected_interval` for all 11 existing sources
+- Status logic: `ok` if within 1x interval, `stale` if within 3x interval, `error` if beyond 3x
+
+**Verification:**
+- [ ] `SELECT source, status FROM life.feed_status;` — behavioral/location should be `ok` or `stale` (not `error`)
+- [ ] receipts should be `ok` (updated 6h ago, within 8h threshold)
+- [ ] WHOOP feeds remain `ok`
+- [ ] Dashboard payload `staleFeeds` array shrinks (fewer false alarms)
+
+**Done Means:** Feed status accurately reflects actual data health — no false "error" statuses on event-driven or low-frequency feeds.
+
+---
+
+### TASK-PLAN.2: Populate facts.daily_finance via Nightly Refresh
+Priority: P1
+Owner: coder
+Status: READY
+
+**Objective:** Wire `facts.daily_finance` (currently 0 rows) into the nightly refresh pipeline so the detailed per-category spending breakdown is available for queries and future widgets.
+
+**Files to Touch:**
+- `backend/migrations/096_wire_facts_refresh.up.sql`
+- `backend/migrations/096_wire_facts_refresh.down.sql`
+
+**Implementation:**
+- Extend `life.refresh_all()` to also call `facts.refresh_daily_finance(day)` for each refreshed day
+- Run initial backfill: `SELECT facts.rebuild_all();`
+- Verify `facts.refresh_daily_finance()` produces correct totals matching `finance.transactions`
+
+**Verification:**
+- [ ] `SELECT COUNT(*) FROM facts.daily_finance;` — should match number of days with transactions
+- [ ] `SELECT date, total_spent, transaction_count FROM facts.daily_finance ORDER BY date DESC LIMIT 7;` — matches `SELECT date, SUM(ABS(amount)) FILTER (WHERE amount < 0), COUNT(*) FROM finance.transactions GROUP BY date ORDER BY date DESC LIMIT 7;`
+- [ ] After next nightly run (4 AM), new day auto-populates
+
+**Done Means:** `facts.daily_finance` is populated with historical data and auto-refreshes nightly via `life.refresh_all()`.
+
+---
+
+### TASK-PLAN.3: Add GitHub Activity to Dashboard Payload
+Priority: P1
+Owner: coder
+Status: READY
+
+**Objective:** Wire the existing `life.get_github_activity_widget()` function (TASK-FEAT.1) into `dashboard.get_payload()` so the iOS app can display GitHub activity without a separate API call.
+
+**Files to Touch:**
+- `backend/migrations/097_dashboard_github_widget.up.sql`
+- `backend/migrations/097_dashboard_github_widget.down.sql`
+
+**Implementation:**
+- Modify `dashboard.get_payload()` to add a `github_activity` key containing output of `life.get_github_activity_widget(14)`
+- Use `COALESCE(..., '{}'::jsonb)` to handle case where no GitHub data exists
+
+**Verification:**
+- [ ] `SELECT (dashboard.get_payload())->'github_activity' IS NOT NULL;` — returns `true`
+- [ ] `SELECT (dashboard.get_payload())->'github_activity'->'summary'->>'active_days_7d';` — returns a number
+- [ ] Payload size increase < 2KB (GitHub widget is small)
+
+**Done Means:** `dashboard.get_payload()` includes `github_activity` key with summary, daily breakdown, and repos.
+
+---
+
+### TASK-PLAN.4: iOS DashboardPayload Model — Decode GitHub Activity
+Priority: P1
+Owner: coder
+Status: READY
+
+**Objective:** Update the iOS `DashboardPayload` model to decode the new `github_activity` field from the dashboard payload, making it available to ViewModels.
+
+**Files to Touch:**
+- `ios/Nexus/Models/DashboardPayload.swift`
+
+**Implementation:**
+- Add `githubActivity: GitHubActivityWidget?` field to `DashboardPayload` struct
+- Define `GitHubActivityWidget` struct with: `summary` (active_days_7d, push_events_7d, current_streak, max_streak, total_events_7d, active_repos_7d), `daily` array, `repos` array
+- Make it optional (`?`) so older payloads without the field still decode
+
+**Verification:**
+- [ ] iOS project builds without errors (`xcodebuild -scheme Nexus build`)
+- [ ] JSON decoding test: payload with `github_activity` field decodes correctly
+- [ ] JSON decoding test: payload without `github_activity` field still decodes (backward compat)
+
+**Done Means:** `DashboardPayload.githubActivity` is available for ViewModels to consume; existing payloads continue to decode.
+
+---
+
+### TASK-PLAN.5: Wire HealthKit Steps + Weight into facts.daily_health
+Priority: P2
+Owner: coder
+Status: READY
+
+**Objective:** Populate `facts.daily_health` (currently 30 rows from WHOOP only) with HealthKit-sourced steps and weight data from `raw.healthkit_samples` (1051 rows), giving the system a unified health facts table.
+
+**Files to Touch:**
+- `backend/migrations/098_healthkit_to_daily_health.up.sql`
+- `backend/migrations/098_healthkit_to_daily_health.down.sql`
+
+**Implementation:**
+- Modify `life.refresh_daily_facts()` to pull steps and weight from `raw.healthkit_samples` when WHOOP doesn't provide them
+- Source priority: WHOOP recovery/sleep/strain data, HealthKit for steps/weight
+- Use `COALESCE` pattern: WHOOP first, HealthKit fallback
+
+**Verification:**
+- [ ] `SELECT day, steps, weight_kg FROM life.daily_facts WHERE steps IS NOT NULL ORDER BY day DESC LIMIT 7;` — shows HealthKit steps
+- [ ] `SELECT COUNT(*) FROM facts.daily_health WHERE steps IS NOT NULL;` — increases after refresh
+- [ ] `SELECT day, weight_kg FROM life.daily_facts WHERE weight_kg IS NOT NULL ORDER BY day DESC LIMIT 7;` — shows HealthKit weight
+
+**Done Means:** `life.daily_facts` and `facts.daily_health` include HealthKit steps and weight data alongside WHOOP metrics.
+
+---
+
+### TASK-PLAN.6: Add Daily Finance Category Velocity to Dashboard Insights
+Priority: P2
+Owner: coder
+Status: READY
+
+**Objective:** Surface category-level spending trends (e.g., "Groceries up 35% vs last week") in the dashboard insights, using the existing `finance.mv_category_velocity` materialized view.
+
+**Files to Touch:**
+- `backend/migrations/099_category_velocity_insights.up.sql`
+- `backend/migrations/099_category_velocity_insights.down.sql`
+
+**Implementation:**
+- Add a `category_trends` key to `dashboard.get_payload()` → `daily_insights` section
+- Query `finance.mv_category_velocity` for categories where week-over-week change > 25%
+- Format as insight objects: `{ "type": "category_trend", "category": "Groceries", "change_pct": 35, "direction": "up", "detail": "Groceries spending up 35% vs last week" }`
+- Limit to top 3 most significant changes
+
+**Verification:**
+- [ ] `SELECT (dashboard.get_payload())->'daily_insights'->'category_trends';` — returns array
+- [ ] Array contains entries with `category`, `change_pct`, `direction` fields
+- [ ] Only categories with >25% change appear
+
+**Done Means:** Dashboard payload includes top category spending trends, ready for iOS display.
+
+---
+
+### TASK-PLAN.7: Add Nightly Feed Events Counter Reset
+Priority: P2
+Owner: coder
+Status: READY
+
+**Objective:** Wire the existing `life.reset_feed_events_today()` function into the nightly refresh so `events_today` counters reset at midnight instead of accumulating indefinitely.
+
+**Files to Touch:**
+- `backend/n8n-workflows/nightly-refresh-facts.json`
+
+**Implementation:**
+- Add a SQL node after the existing refresh that calls `SELECT life.reset_feed_events_today();`
+- Alternatively, add it to `life.refresh_all()` if it runs after midnight
+
+**Verification:**
+- [ ] After midnight, `SELECT source, events_today FROM life.feed_status_live;` — all reset to 0
+- [ ] After new data arrives, counters increment correctly
+- [ ] n8n workflow execution log shows both refresh + reset steps
+
+**Done Means:** `events_today` in feed status resets daily, giving accurate daily event counts.
+
+---
+
+### TASK-PLAN.8: Create Health Timeseries Facts Backfill
+Priority: P2
+Owner: coder
+Status: READY
+
+**Objective:** Backfill `facts.daily_health` with all available historical WHOOP + HealthKit data so the health timeseries endpoint returns complete history (currently 30 rows, should be more given raw data).
+
+**Files to Touch:**
+- `backend/migrations/100_backfill_daily_health.up.sql`
+- `backend/migrations/100_backfill_daily_health.down.sql`
+
+**Implementation:**
+- INSERT INTO `facts.daily_health` from WHOOP tables (health.whoop_recovery/sleep/strain) for all available dates
+- Merge HealthKit steps and weight from `raw.healthkit_samples` grouped by date
+- Use `ON CONFLICT (date) DO UPDATE` to merge sources without duplicating
+- Verify row count matches distinct dates across all health sources
+
+**Verification:**
+- [ ] `SELECT COUNT(*) FROM facts.daily_health;` — matches `SELECT COUNT(DISTINCT date) FROM (SELECT cycle_date AS date FROM health.whoop_recovery UNION SELECT (created_at AT TIME ZONE 'Asia/Dubai')::date FROM raw.healthkit_samples) x;`
+- [ ] `SELECT * FROM facts.daily_health ORDER BY date DESC LIMIT 7;` — shows recovery + steps + weight
+- [ ] Health timeseries endpoint: `curl "http://10.0.0.11:5678/webhook/nexus-health-timeseries?days=90"` returns more data points
+
+**Done Means:** `facts.daily_health` contains all historical health data from both WHOOP and HealthKit sources.
+
+---
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)

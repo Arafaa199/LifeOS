@@ -68,6 +68,58 @@ exclude_patterns:
     regex: '(payment.*didn.*go through|Your payment.*didn)'
     reason: "Failed payment notifications (no transaction created)"
 
+  - name: alrajhi_otp
+    regex: '(One Time Password\nCode:)'
+    reason: "AlRajhi OTP verification codes"
+
+  - name: merchant_category_blocked
+    regex: '(merchant category is blocked|category.*is blocked)'
+    reason: "Merchant category blocked notifications (no transaction)"
+
+  - name: card_issue_notification
+    regex: '(encountered a problem adding your card|card.*was successfully removed|We encountered a problem)'
+    reason: "Card setup/removal notifications (informational)"
+
+  - name: beneficiary_notification
+    regex: '(المستفيد المضاف حديثًا|تمت إضافة المستفيد|Beneficiary (activated|added))'
+    reason: "Beneficiary management notifications (informational)"
+
+  - name: apple_pay_added_ar
+    regex: '(لقد تم إضافة خدمة Apple Pay)'
+    reason: "Apple Pay setup notification (Arabic)"
+
+  - name: banking_tariff_fees
+    regex: '(banking tariff fees|رسوم.*التعريفة)'
+    reason: "Banking tariff fee notifications (informational)"
+
+  - name: terms_conditions
+    regex: '(terms and conditions related|الشروط والأحكام)'
+    reason: "Terms and conditions notifications (informational)"
+
+  - name: login_attempt_ar
+    regex: '(لفت انتباهنا محاولتك تسجيل الدخول|suspicious login)'
+    reason: "Suspicious login alerts (informational)"
+
+  - name: insufficient_funding
+    regex: '(Due to insufficient fund|insufficient fundin)'
+    reason: "Insufficient funding notifications (informational)"
+
+  - name: transaction_could_not_complete_ar
+    regex: '(لقد تعذر إكمال معاملة)'
+    reason: "Transaction could not be completed (declined, Arabic)"
+
+  - name: password_changed
+    regex: '(Password has been changed|تم تغيير.*كلمة المرور)'
+    reason: "Password change notifications (informational)"
+
+  - name: device_registration
+    regex: '(New device registered|new device.*detected|device.*Face ID|Login using Touch/Face ID)'
+    reason: "Device/biometric registration notifications (informational)"
+
+  - name: payment_declined_update
+    regex: '(Payment declined:.*Payment update required|payment update required)'
+    reason: "Payment update required notifications (informational)"
+
 # =============================================================================
 # EMIRATESNBD PATTERNS (Arabic - Primary UAE Bank)
 # =============================================================================
@@ -143,6 +195,24 @@ emiratesnbd:
       never_create_transaction: true
       sample: "تم رفض معاملة بقيمة 250.00AED على بطاقتك"
 
+    # ----- DECLINED - INSUFFICIENT LIMIT (ARABIC) -----
+    - name: declined_insufficient
+      intent: declined
+      confidence: 0.99
+      regex: 'تم رفض عملية بقيمة\s+(?P<currency>AED|SAR|JOD|USD|EUR|GBP)\s+(?P<amount>[\d,]+\.?\d*)\s+على بطاقتك\s+(?P<card>\d+)\s+لدى\s+(?P<merchant>[^\s].+?)\s+بسبب'
+      entities: [currency, amount, card, merchant]
+      never_create_transaction: true
+      sample: "تم رفض عملية بقيمة AED 99.00 على بطاقتك 8236 لدى CAREEM BIKE بسبب عدم كفاية الحد"
+
+    # ----- COULD NOT BE COMPLETED (ARABIC) -----
+    - name: declined_incomplete
+      intent: declined
+      confidence: 0.99
+      regex: 'لقد تعذر إكمال معاملة بقيمة\s+(?P<amount>[\d,]+\.?\d*)\s+(?P<currency>AED|SAR|JOD|USD|EUR|GBP).*?بطاقتك.*?(?:بـ\s*)?(?P<card>\d+)'
+      entities: [amount, currency, card]
+      never_create_transaction: true
+      sample: "لقد تعذر إكمال معاملة بقيمة 99.45 USD منفذة ببطاقتك التي تنتهي أرقامها بـ 9865"
+
     # ----- FUND HOLD (for instant transfer) -----
     - name: fund_hold
       intent: transfer
@@ -151,6 +221,61 @@ emiratesnbd:
       entities: [currency, amount]
       category: "Transfer"
       sample: "تمّ تقييد مبلغ AED 30,000.00 في حسابك مقابل عملية تحويل فورية"
+
+    # ===== ENGLISH PATTERNS =====
+
+    # ----- DEBIT CARD PURCHASE (ENGLISH) -----
+    - name: debit_purchase_en
+      intent: expense
+      confidence: 0.95
+      regex: 'Purchase of (?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s+(?P<amount>[\d,]+\.?\d*)\s+with Debit Card ending (?P<card>\d+)\s+at\s+(?P<merchant>[^,.]+)'
+      entities: [currency, amount, card, merchant]
+      sample: "Purchase of AED 4.99 with Debit Card ending 8236 at noon one, 80038888. Avl Balance is AED 7.17."
+
+    # ----- DECLINED - INSUFFICIENT LIMIT (ENGLISH) -----
+    - name: declined_insufficient_en
+      intent: declined
+      confidence: 0.99
+      regex: 'Transaction of (?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s+(?P<amount>[\d,]+\.?\d*)\s+on your Card (?:\d+|ending \d+)\s+at\s+(?P<merchant>[^\s].+?)\s+was declined'
+      entities: [currency, amount, merchant]
+      never_create_transaction: true
+      sample: "Transaction of AED 568.02 on your Card 8236 at DUBAI ELECTRICITY AND was declined due to insufficient limit."
+
+    # ----- DECLINED - COULD NOT BE COMPLETED (ENGLISH) -----
+    - name: declined_incomplete_en
+      intent: declined
+      confidence: 0.99
+      regex: 'Transaction of (?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s+(?P<amount>[\d,]+\.?\d*)\s+on your Card ending (?P<card>\d+)\s+could not be completed'
+      entities: [currency, amount, card]
+      never_create_transaction: true
+      sample: "Transaction of USD 1.00 on your Card ending 9865 could not be completed. For Details, Please call 600540000"
+
+    # ----- FUNDS TRANSFER TO CARD (ENGLISH) -----
+    - name: funds_transfer_in_en
+      intent: income
+      confidence: 0.90
+      regex: 'Funds Transfer of (?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s+(?P<amount>[\d,]+\.?\d*)\s+has been initiated towards your Debit Card ending (?P<card>\d+)'
+      entities: [currency, amount, card]
+      category: "Transfer"
+      sample: "Funds Transfer of AED 871.94 has been initiated towards your Debit Card ending 8236. The amount will be credited to your account."
+
+    # ----- AUTH CODE / OTP (ENGLISH) -----
+    - name: auth_code_en
+      intent: ignore
+      confidence: 0.99
+      regex: '(?:DO NOT SHARE!?\s*)?(?:The )?Auth code is (?P<code>\d+)\s+for (?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s+(?P<amount>[\d,]+\.?\d*)\s+at\s+(?P<merchant>[^\s].+?)\s+for card ending (?P<card>\d+)'
+      entities: [code, currency, amount, merchant, card]
+      never_create_transaction: true
+      sample: "DO NOT SHARE! The Auth code is 806012 for USD 0.00 at ANTHROPIC for card ending 9865. Use in 5 mins."
+
+    # ----- LOGIN NOTIFICATION (ENGLISH) -----
+    - name: login_notification_en
+      intent: ignore
+      confidence: 0.99
+      regex: 'Dear Customer,?\s+a new login to (?:Mobile|Online)(?:/(?:Mobile|Online))?\s+Banking has been authorised'
+      entities: []
+      never_create_transaction: true
+      sample: "Dear Customer, a new login to Mobile/Online Banking has been authorised for device Chrome-127.0.0.0."
 
 # =============================================================================
 # ALRAJHIBANK PATTERNS (English - Saudi Bank)
@@ -163,7 +288,7 @@ alrajhibank:
     - name: refund_pos
       intent: refund
       confidence: 0.95
-      regex: 'Refund\s+PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
+      regex: 'Refund\s+PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)'
       entities: [card, method, currency, amount]
       sample: |
         Refund PoS
@@ -175,8 +300,8 @@ alrajhibank:
     - name: pos_purchase
       intent: expense
       confidence: 0.95
-      regex: 'PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
-      entities: [card, method, currency, amount]
+      regex: 'PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\n(?:At:(?P<merchant>[^\n]+))?'
+      entities: [card, method, currency, amount, merchant]
       sample: |
         PoS
         By:8308;mada-Apple Pay
@@ -187,8 +312,8 @@ alrajhibank:
     - name: pos_international
       intent: expense
       confidence: 0.95
-      regex: 'PoS International\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
-      entities: [card, method, currency, amount]
+      regex: 'PoS International\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\n(?:Country:(?P<country>[^\n]+)\n)?(?:At:(?P<merchant>[^\n]+)\n)?'
+      entities: [card, method, currency, amount, country, merchant]
       sample: |
         PoS International
         By:8308;mada
@@ -200,7 +325,7 @@ alrajhibank:
     - name: online_purchase
       intent: expense
       confidence: 0.95
-      regex: 'Online Purchase\nBy:(?P<card>\d+);(?P<method>[^\n]+)\n(?:From:(?P<from>\d+)\n)?Amount:(?P<currency>SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)'
+      regex: 'Online Purchase\nBy:(?P<card>\d+);(?P<method>[^\n]+)\n(?:From:(?P<from>\d+)\n)?Amount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)'
       entities: [card, method, from, currency, amount]
       sample: |
         Online Purchase
@@ -213,7 +338,7 @@ alrajhibank:
     - name: atm_withdrawal
       intent: expense
       confidence: 0.95
-      regex: 'Withdrawal:ATM\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|USD)\s*(?P<amount>[\d,]+\.?\d*)'
+      regex: 'Withdrawal:ATM\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)'
       entities: [card, method, currency, amount]
       category: "ATM"
       sample: |
@@ -226,7 +351,7 @@ alrajhibank:
     - name: internal_transfer_out
       intent: transfer
       confidence: 0.95
-      regex: 'Internal Transfer\nFrom:(?P<from>\d+)\nAmount:(?P<currency>SAR|USD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>[^\n]+)'
+      regex: 'Internal Transfer\nFrom:(?P<from>\d+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>[^\n]+)'
       entities: [from, currency, amount, to]
       category: "Transfer"
       sample: |
@@ -239,7 +364,7 @@ alrajhibank:
     - name: internal_transfer_in
       intent: income
       confidence: 0.95
-      regex: 'Internal Transfer\nAmount:(?P<currency>SAR|USD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>\d+)\nFrom:(?P<from>[^\n]+)'
+      regex: 'Internal Transfer\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>\d+)\nFrom:(?P<from>[^\n]+)'
       entities: [currency, amount, to, from]
       category: "Income"
       sample: |
@@ -252,7 +377,7 @@ alrajhibank:
     - name: local_transfer_in
       intent: income
       confidence: 0.95
-      regex: 'Local Transfer\nVia:(?P<via>\w+)\nAmount:(?P<currency>SAR|USD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>\d+)\nFrom:(?P<from>[^\n]+)'
+      regex: 'Local Transfer\nVia:(?P<via>\w+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>\d+)\nFrom:(?P<from>[^\n]+)'
       entities: [via, currency, amount, to, from]
       category: "Income"
       sample: |
@@ -261,6 +386,111 @@ alrajhibank:
         Amount:SAR 21100
         To:4281
         From:FADI WALID M ASSAF
+
+    # ----- BILL PAYMENT -----
+    - name: bill_payment
+      intent: expense
+      confidence: 0.95
+      regex: 'Bill Payment\nFrom:(?P<from>\d+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nBiller:(?P<biller>[^\n]+)\n(?:Service:(?P<service>[^\n]+)\n)?'
+      entities: [from, currency, amount, biller, service]
+      category: "Bills"
+      sample: |
+        Bill Payment
+        From:4281
+        Amount:SAR 124.70
+        Biller:044
+        Service:ZAIN
+        Bill:592256616
+
+    # ----- CREDIT TRANSFER INTERNAL (OUTGOING) -----
+    - name: credit_transfer_internal_out
+      intent: transfer
+      confidence: 0.95
+      regex: 'Credit Transfer Internal\nFrom:(?P<from>\d+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>[^\n]+)'
+      entities: [from, currency, amount, to]
+      category: "Transfer"
+      sample: |
+        Credit Transfer Internal
+        From:4281
+        Amount:SAR 1000
+        To:AHMED
+
+    # ----- CREDIT TRANSFER INTERNAL (INCOMING) -----
+    - name: credit_transfer_internal_in
+      intent: income
+      confidence: 0.95
+      regex: 'Credit Transfer Internal\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>\d+)\nFrom:(?P<from>[^\n]+)'
+      entities: [currency, amount, to, from]
+      category: "Income"
+      sample: |
+        Credit Transfer Internal
+        Amount:SAR 3000
+        To:4281
+        From:MOSTAFA AHMED
+
+    # ----- CREDIT TRANSFER LOCAL (OUTGOING) -----
+    - name: credit_transfer_local_out
+      intent: transfer
+      confidence: 0.95
+      regex: 'Credit Transfer Local\nFrom:(?P<from>\d+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>[^\n]+)'
+      entities: [from, currency, amount, to]
+      category: "Transfer"
+      sample: |
+        Credit Transfer Local
+        From:4281
+        Amount:SAR 500
+        To:BANK ACCOUNT
+
+    # ----- DEBIT TRANSFER INTERNATIONAL -----
+    - name: debit_transfer_international
+      intent: expense
+      confidence: 0.95
+      regex: 'Debit [Tt]ransfer[:\s]*International\nCountry:(?P<country>[^\n]+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [country, currency, amount]
+      category: "Transfer"
+      sample: |
+        Debit transfer:International
+        Country:United Arab Emirates
+        Amount:AED 871.94
+
+    # ----- DEBIT TRANSFER LOCAL -----
+    - name: debit_transfer_local
+      intent: expense
+      confidence: 0.95
+      regex: 'Debit Transfer Local\n(?:Bank:(?P<bank>\w+)\n)?(?:From:(?P<from>\d+)\n)?Amount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)'
+      entities: [bank, from, currency, amount]
+      category: "Transfer"
+      sample: |
+        Debit Transfer Local
+        Bank:BSFR
+        From:4281
+        Amount:SAR 500
+
+    # ----- CREDIT TRANSFER LOCAL (OUTGOING VIA) -----
+    - name: credit_transfer_local_out_via
+      intent: transfer
+      confidence: 0.95
+      regex: 'Credit Transfer Local\nVia:(?P<via>\w+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>[^\n]+)'
+      entities: [via, currency, amount, to]
+      category: "Transfer"
+      sample: |
+        Credit Transfer Local
+        Via:SAB
+        Amount:SAR 2000
+        To:4281
+
+    # ----- MOI PAYMENTS (Government) -----
+    - name: moi_payment
+      intent: expense
+      confidence: 0.95
+      regex: 'MOI Payments\nFrom:(?P<from>\d+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nProvider:(?P<provider>[^\n]+)'
+      entities: [from, currency, amount, provider]
+      category: "Government"
+      sample: |
+        MOI Payments
+        From:4281
+        Amount:SAR 700
+        Provider:Residence permit
 
 # =============================================================================
 # JKB PATTERNS (English/Arabic - Jordan Kuwait Bank)
@@ -315,7 +545,7 @@ jkb:
     - name: account_fee
       intent: expense
       confidence: 0.90
-      regex: 'تم قيد مبلغ\s+(?P<amount>[\d,]+\.?\d*)\s+(?P<currency>JOD|SAR|USD)\s+على حسابكم.*عمولة تدني'
+      regex: 'تم قيد مبلغ\s+(?P<amount>[\d,]+\.?\d*)\s+(?P<currency>JOD|SAR|AED|USD|EUR|GBP|JOD)\s+على حسابكم.*عمولة تدني'
       entities: [amount, currency]
       category: "Bank Fees"
       sample: "تم قيد مبلغ 1  JOD  على حسابكم  التوفير  0266XXXXXXX0013020000  عمولة تدني رصيد الحساب"

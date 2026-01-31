@@ -238,3 +238,37 @@ ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c \"SELECT day, spend_to
 - WHOOP sensor mappings
 - Core transaction schema
 - TodayView.swift (dashboard UI)
+
+---
+
+## Auditor Planning Mode (2026-01-31)
+
+## Planning Rationale
+
+### Why these tasks were chosen
+
+1. **TASK-PLAN.1 (Feed Status Thresholds)** — Highest impact, lowest effort. The dashboard currently shows 5 feeds as "error" and 3 as "stale" — most are false alarms from uniform 1-hour thresholds applied to feeds that update on 6-hour, daily, or event-driven schedules. This directly degrades user trust in the system. Single SQL migration, no iOS changes needed.
+
+2. **TASK-PLAN.2 (facts.daily_finance)** — 0 rows in a table that already has refresh functions built. Just needs to be wired into the nightly pipeline. Unlocks per-category historical spending queries and future trend widgets.
+
+3. **TASK-PLAN.3 (GitHub in Dashboard Payload)** — The backend function already exists (TASK-FEAT.1, 8.3ms). It just needs to be added to the existing payload function. One SQL migration.
+
+4. **TASK-PLAN.4 (iOS GitHub Model)** — Direct follow-on to PLAN.3. Add the Codable struct so the data is available to SwiftUI views. TodayView is frozen, but the data needs to be decodable first before any view can use it.
+
+5. **TASK-PLAN.5 (HealthKit → daily_health)** — 1051 HealthKit samples exist but aren't surfaced in daily facts. Steps and weight from HealthKit should complement WHOOP recovery/sleep/strain. Makes the health dashboard more complete.
+
+6. **TASK-PLAN.6 (Category Velocity Insights)** — The `mv_category_velocity` materialized view already exists and is refreshed nightly. Surfacing it in insights costs one SQL addition and gives the user actionable spending trend alerts.
+
+7. **TASK-PLAN.7 (Feed Counter Reset)** — Simple wiring task. The `reset_feed_events_today()` function exists but isn't called. Without it, `events_today` accumulates across days, making the count meaningless.
+
+8. **TASK-PLAN.8 (Health Timeseries Backfill)** — The health timeseries endpoint exists but `facts.daily_health` only has 30 rows despite more raw data being available. Backfill unlocks richer trend charts.
+
+### What was deliberately excluded
+
+- **iOS TodayView changes** — TodayView is frozen. Didn't generate tasks to add widgets there.
+- **Screen Time Integration** — Deferred per roadmap (needs App Store submission).
+- **New HealthKit sync improvements** — Current sync works; 1051 rows flowing. Not broken, just stale sometimes due to user not opening app.
+- **SMS/Receipt parsing changes** — Frozen pipelines.
+- **Weekly insights email enhancement** — Roadmap item but lower priority than fixing false-alarm feed status and wiring existing unused data.
+- **New n8n workflows** — Focused on wiring existing data/functions rather than building new ingestion.
+- **Behavioral/location pipeline fixes** — These require Home Assistant automations (external system), not code changes.

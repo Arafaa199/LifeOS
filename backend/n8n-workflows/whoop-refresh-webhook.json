@@ -1,0 +1,76 @@
+{
+  "name": "Nexus: WHOOP Refresh Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-whoop-refresh",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Refresh Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-whoop-refresh",
+      "typeVersion": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SZxrJ8QXk6ZennvF",
+          "name": "Nexus API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT life.refresh_daily_facts(life.dubai_today(), 'whoop_refresh_trigger') AS refresh_result;\n\nSELECT\n  r.date,\n  r.recovery_score,\n  r.hrv_rmssd,\n  r.rhr,\n  s.sleep_performance,\n  s.deep_sleep_min,\n  st.day_strain,\n  st.calories_total,\n  EXTRACT(EPOCH FROM (now() - GREATEST(\n    (SELECT MAX(created_at) FROM health.whoop_recovery WHERE date = life.dubai_today()),\n    (SELECT MAX(created_at) FROM health.whoop_sleep WHERE date = life.dubai_today()),\n    (SELECT MAX(created_at) FROM health.whoop_strain WHERE date = life.dubai_today())\n  ))) / 3600 AS hours_since_whoop_update\nFROM health.whoop_recovery r\nFULL OUTER JOIN health.whoop_sleep s ON s.date = r.date\nFULL OUTER JOIN health.whoop_strain st ON st.date = COALESCE(r.date, s.date)\nWHERE COALESCE(r.date, s.date, st.date) = life.dubai_today()\nLIMIT 1;",
+        "options": {}
+      },
+      "id": "refresh-and-query",
+      "name": "Refresh & Query WHOOP",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus DB" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nconst data = rows.length > 0 ? rows[rows.length - 1].json : null;\n\nif (!data || (!data.recovery_score && !data.sleep_performance && !data.day_strain)) {\n  return [{ json: {\n    success: true,\n    message: 'No WHOOP data available for today',\n    sensorsFound: 0,\n    recovery: null,\n    daily_facts_refreshed: true\n  }}];\n}\n\nlet sensorsFound = 0;\nif (data.recovery_score != null) sensorsFound++;\nif (data.hrv_rmssd != null) sensorsFound++;\nif (data.rhr != null) sensorsFound++;\nif (data.sleep_performance != null) sensorsFound++;\nif (data.deep_sleep_min != null) sensorsFound++;\nif (data.day_strain != null) sensorsFound++;\nif (data.calories_total != null) sensorsFound++;\n\nreturn [{ json: {\n  success: true,\n  message: `WHOOP data refreshed for ${data.date || 'today'}`,\n  sensorsFound: sensorsFound,\n  recovery: data.recovery_score,\n  daily_facts_refreshed: true,\n  hours_since_update: data.hours_since_whoop_update ? Math.round(data.hours_since_whoop_update * 10) / 10 : null\n}}];"
+      },
+      "id": "build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Refresh Webhook": {
+      "main": [[ { "node": "Refresh & Query WHOOP", "type": "main", "index": 0 } ]]
+    },
+    "Refresh & Query WHOOP": {
+      "main": [[ { "node": "Build Response", "type": "main", "index": 0 } ]]
+    },
+    "Build Response": {
+      "main": [[ { "node": "Respond", "type": "main", "index": 0 } ]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "nexus" }, { "name": "whoop" }]
+}

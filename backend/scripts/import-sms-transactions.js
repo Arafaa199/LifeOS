@@ -27,6 +27,9 @@ const nexusPool = new Pool({
   database: process.env.NEXUS_DB || 'nexus',
   user: process.env.NEXUS_USER || 'nexus',
   password: process.env.NEXUS_PASSWORD,
+  max: 3,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000,
 });
 
 // Account mapping by sender
@@ -43,6 +46,58 @@ const BNPL_PROVIDERS = {
   'tabby': { installments: 4, interval_days: 14 },
   'tabby-ad': { installments: 4, interval_days: 14 },
 };
+
+/**
+ * Extract plain text from NSAttributedString blob (attributedBody column).
+ * Modern iOS stores SMS body in attributedBody instead of text column.
+ * The blob is NSKeyedArchiver-encoded. The plain text follows a '+' (0x2B) marker
+ * with a length prefix, or can be found as the longest readable ASCII segment.
+ */
+function extractTextFromAttributedBody(buffer) {
+  if (!buffer || buffer.length === 0) return null;
+
+  // Method 1: Find text after the '+' marker (0x01 0x2B <length> <text>)
+  // NSAttributedString stores: 0x01 0x2B, then 1 byte = text length, then UTF-8 text
+  for (let i = 0; i < buffer.length - 3; i++) {
+    if (buffer[i] === 0x01 && buffer[i + 1] === 0x2B) {
+      const textLen = buffer[i + 2];
+      const textStart = i + 3;
+      if (textStart + textLen <= buffer.length) {
+        const text = buffer.slice(textStart, textStart + textLen).toString('utf-8');
+        const cleaned = cleanExtractedText(text);
+        if (cleaned && cleaned.length > 10) return cleaned;
+      }
+    }
+  }
+
+  // Method 2: Fallback — find longest printable ASCII segment
+  const str = buffer.toString('latin1');
+  const segments = str.match(/[\x20-\x7e\n\r\t]{15,}/g);
+  if (segments && segments.length > 0) {
+    const best = segments.reduce((a, b) => a.length >= b.length ? a : b);
+    return best.trim();
+  }
+
+  return null;
+}
+
+function cleanExtractedText(text) {
+  if (!text) return null;
+  // Strip leading/trailing non-printable characters and control chars
+  // Keep Arabic (0600-06FF), Latin, digits, punctuation, whitespace
+  return text.replace(/^[^\x20-\x7e\u0600-\u06FF\u0750-\u077F]+/, '')
+             .replace(/[^\x20-\x7e\u0600-\u06FF\u0750-\u077F]+$/, '')
+             .trim();
+}
+
+/**
+ * Get message body from either text column or attributedBody blob.
+ */
+function getMessageBody(msg) {
+  if (msg.text && msg.text.length > 10) return msg.text;
+  if (msg.attributedBody) return extractTextFromAttributedBody(msg.attributedBody);
+  return null;
+}
 
 /**
  * Clean merchant name for storage
@@ -121,13 +176,13 @@ async function importTransactions(daysBack = 365, verbose = false) {
       m.ROWID as rowid,
       h.id as sender,
       m.text,
+      m.attributedBody,
       datetime(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_datetime,
       date(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_date
     FROM message m
     JOIN handle h ON m.handle_id = h.ROWID
     WHERE LOWER(h.id) IN (${senderList})
-      AND m.text IS NOT NULL
-      AND length(m.text) > 20
+      AND (m.text IS NOT NULL OR m.attributedBody IS NOT NULL)
       AND m.date/1000000000 + 978307200 > unixepoch('now', '-${daysBack} days')
     ORDER BY m.date DESC
   `).all();
@@ -156,8 +211,15 @@ async function importTransactions(daysBack = 365, verbose = false) {
         continue;
       }
 
+      // Extract message body (text column or attributedBody blob)
+      const body = getMessageBody(msg);
+      if (!body || body.length < 15) {
+        stats.no_match++;
+        continue;
+      }
+
       // Classify message
-      const result = classifier.classify(msg.sender, msg.text, msg.msg_date);
+      const result = classifier.classify(msg.sender, body, msg.msg_date);
 
       if (!result.matched) {
         if (result.excluded) {
@@ -165,15 +227,15 @@ async function importTransactions(daysBack = 365, verbose = false) {
           if (verbose) console.log(`  Excluded: ${result.exclusion_reason}`);
         } else {
           stats.no_match++;
-          if (verbose) console.log(`  No match: ${msg.text.substring(0, 50)}...`);
+          if (verbose) console.log(`  No match: ${body.substring(0, 50)}...`);
         }
         continue;
       }
 
-      // Skip declined transactions (no financial impact)
-      if (result.intent === 'declined' || result.never_create_transaction) {
+      // Skip declined/ignored transactions (no financial impact)
+      if (result.intent === 'declined' || result.intent === 'ignore' || result.never_create_transaction) {
         stats.declined++;
-        if (verbose) console.log(`  Declined: ${result.pattern_name}`);
+        if (verbose) console.log(`  Skipped (${result.intent}): ${result.pattern_name}`);
         continue;
       }
 
@@ -215,7 +277,7 @@ async function importTransactions(daysBack = 365, verbose = false) {
           intent: result.intent,
           entities: result.entities,
           confidence: result.confidence,
-          original_text: msg.text,
+          original_text: body,
         }),
       ]);
 
@@ -299,12 +361,12 @@ async function importBNPLPurchases(daysBack = 365) {
       m.ROWID as rowid,
       h.id as sender,
       m.text,
+      m.attributedBody,
       date(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_date
     FROM message m
     JOIN handle h ON m.handle_id = h.ROWID
     WHERE LOWER(h.id) IN (${bnplSenders})
-      AND m.text IS NOT NULL
-      AND (m.text LIKE '%purchase%confirmed%' OR m.text LIKE '%Order of%confirmed%')
+      AND (m.text IS NOT NULL OR m.attributedBody IS NOT NULL)
       AND m.date/1000000000 + 978307200 > unixepoch('now', '-${daysBack} days')
     ORDER BY m.date DESC
   `).all();
@@ -319,11 +381,18 @@ async function importBNPLPurchases(daysBack = 365) {
     const provider = BNPL_PROVIDERS[senderLower];
     if (!provider) continue;
 
+    // Extract message body
+    const body = getMessageBody(msg);
+    if (!body) continue;
+
+    // Only process BNPL confirmation messages
+    if (!body.match(/purchase.*confirmed|Order of.*confirmed/i)) continue;
+
     // Parse Tabby format
     let bnpl = null;
 
     // Format 1: "Your CURRENCY AMOUNT purchase at MERCHANT is confirmed"
-    let match = msg.text.match(/Your\s+([A-Z]{3})\s+([\d,.]+)\s+purchase\s+at\s+(.+?)\s+is\s+confirmed/i);
+    let match = body.match(/Your\s+([A-Z]{3})\s+([\d,.]+)\s+purchase\s+at\s+(.+?)\s+is\s+confirmed/i);
     if (match) {
       bnpl = {
         currency: match[1],
@@ -335,7 +404,7 @@ async function importBNPLPurchases(daysBack = 365) {
 
     // Format 2: "Order of AMOUNT CURRENCY from MERCHANT is confirmed"
     if (!bnpl) {
-      match = msg.text.match(/Order\s+of\s+([\d,.]+)\s+([A-Z]{3})\s+from\s+(.+?)\s+is\s+confirmed/i);
+      match = body.match(/Order\s+of\s+([\d,.]+)\s+([A-Z]{3})\s+from\s+(.+?)\s+is\s+confirmed/i);
       if (match) {
         bnpl = {
           currency: match[2],
@@ -490,7 +559,8 @@ async function printAccountSummary() {
 }
 
 // Main execution
-const daysBack = parseInt(process.argv[2]) || 365;
+const daysArg = process.argv.find(a => a.startsWith('--days='));
+const daysBack = daysArg ? parseInt(daysArg.split('=')[1]) : (parseInt(process.argv[2]) || 365);
 const verbose = process.argv.includes('-v') || process.argv.includes('--verbose');
 
 async function runAll() {
