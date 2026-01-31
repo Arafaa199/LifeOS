@@ -141,6 +141,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 1)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-PLAN.1: CalendarVM Error Feedback | DONE | Added `errorMessage = "Failed to load calendar events"` in 3 API failure branches (fetchTodayEvents, fetchWeekEvents, fetchMonthEvents). Exit criteria: `grep -c 'errorMessage.*Failed'` = 3. Pre-existing build error in SyncCoordinator.swift:291 (`count` not in scope — unrelated). 1 file changed. Commit `9563d92`. |
 | TASK-FEAT.3: Calendar View (iOS) | DONE | Added Calendar tab to iOS app. Created CalendarViewModel (subscribes to coordinator for calendarSummary, fetches events via API), CalendarView (segmented Today/Week), CalendarTodayView (summary card + all-day chips + timeline), CalendarWeekView (grouped by day). Calendar tab at tag 4, Settings moved to tag 5. Model named `CalendarDisplayEvent` to avoid conflict with existing `CalendarEvent`. 5 files changed, 489 insertions. iOS build succeeded. Commit `43e3245`. |
 | TASK-FEAT.2: Calendar Events Endpoint | DONE | Migration 101: Added `calendar_summary` to `dashboard.get_payload()` (schema v5→v6). Queries `life.v_daily_calendar_summary` for target date, returns meeting_count/meeting_hours/first_meeting/last_meeting with zero-fallback. Created n8n webhook workflow `calendar-events-webhook.json` (GET /webhook/nexus-calendar-events?start=&end=). Added `CalendarSummary` Codable struct to iOS `DashboardPayload.swift`. iOS build succeeded. |
 
@@ -288,3 +289,33 @@ ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c \"SELECT day, spend_to
 - **Weekly insights email enhancement** — Roadmap item but lower priority than fixing false-alarm feed status and wiring existing unused data.
 - **New n8n workflows** — Focused on wiring existing data/functions rather than building new ingestion.
 - **Behavioral/location pipeline fixes** — These require Home Assistant automations (external system), not code changes.
+
+---
+
+## Auditor Planning Mode (2026-02-01)
+
+## Planning Rationale
+
+### Why these tasks were chosen
+
+1. **TASK-PLAN.1 (CalendarViewModel Silent Failure)** — Highest impact for lowest effort. 2-line fix directly from auditor finding. Users currently see empty calendar with zero feedback on API failure. This is a UX bug that erodes trust.
+
+2. **TASK-PLAN.2 (Calendar Webhook SQL Sanitization)** — Security fix for read-only endpoint. While blast radius is limited (SELECT only), data exfiltration via UNION injection is possible. Simple Code node addition with date regex validation.
+
+3. **TASK-PLAN.3 (Unblock facts.daily_finance)** — This was BLOCKED in the previous planning cycle because `facts.refresh_daily_finance()` reads from `normalized.transactions` (0 rows). The fix is to rewrite it to read from `finance.transactions` (1366 rows). This unblocks PLAN.6 from the previous cycle (category velocity insights) and enables per-category spending analysis.
+
+4. **TASK-PLAN.4 (GitHub Activity iOS View)** — The backend sends github_activity data, iOS decodes it (done in previous PLAN.4), but no view displays it. This is "last mile" wiring — all the data infrastructure exists, just needs a SwiftUI view. Delivers user-visible value from work already completed.
+
+5. **TASK-PLAN.5 (Transaction Update SQL Sanitization)** — Higher risk than calendar endpoint because this is a WRITE operation. Marked `needs_approval` because it modifies an existing workflow that handles financial data, and both standard and with-auth versions need coordinated changes.
+
+6. **TASK-PLAN.6 (GitHub Feed Status)** — GitHub shows `error` in feed status (5 days stale). Either the sync workflow stopped or the threshold is wrong. Low effort diagnostic + fix that removes a false alarm from the dashboard.
+
+### What was deliberately excluded
+
+- **iOS TodayView modifications** — Frozen. Can't add GitHub/calendar widgets there.
+- **Category velocity insights (prev PLAN.6)** — Still blocked until PLAN.3 populates `facts.daily_finance`.
+- **Weekly insights email** — Lower priority than security fixes and data wiring.
+- **Screen time integration** — Deferred per roadmap (needs App Store).
+- **Behavioral/location pipeline** — Requires Home Assistant (external system).
+- **New data sources** — Focus is on wiring existing data (GitHub, calendar, finance categories) into user-visible surfaces.
+- **HealthKit sync improvements** — Working fine (1187 samples), no action needed.
