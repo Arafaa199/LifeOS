@@ -74,6 +74,7 @@ class SyncCoordinator: ObservableObject {
     private let dashboardService = DashboardService.shared
     private let healthKitSync = HealthKitSyncService.shared
     private let calendarSync = CalendarSyncService.shared
+    private let reminderSync = ReminderSyncService.shared
     private let api = NexusAPI.shared
 
     private var lastSyncAllDate: Date?
@@ -266,15 +267,28 @@ class SyncCoordinator: ObservableObject {
 
         do {
             try await calendarSync.syncAllData()
-            let count = calendarSync.lastSyncEventCount
+
+            // Sync reminders alongside calendar events (same EventKit domain)
+            try await reminderSync.syncAllData()
+
+            let eventCount = calendarSync.lastSyncEventCount
+            let reminderCount = reminderSync.lastSyncReminderCount
+            let totalCount = eventCount + reminderCount
+            var detail: String?
+            if totalCount > 0 {
+                var parts: [String] = []
+                if eventCount > 0 { parts.append("\(eventCount) events") }
+                if reminderCount > 0 { parts.append("\(reminderCount) reminders") }
+                detail = parts.joined(separator: ", ")
+            }
             domainStates[.calendar]?.markSucceeded(
                 source: "eventkit",
-                detail: count > 0 ? "\(count) events" : nil,
-                itemCount: count
+                detail: detail,
+                itemCount: totalCount
             )
 
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
-            logger.info("[calendar] sync succeeded events=\(count) duration=\(ms)ms")
+            logger.info("[calendar] sync succeeded events=\(totalCount) duration=\(ms)ms")
         } catch is CancellationError {
             domainStates[.calendar]?.phase = .idle
         } catch {

@@ -86,6 +86,15 @@ struct SettingsView: View {
 
                 // Extras
                 Section {
+                    NavigationLink(destination: GitHubActivityView()) {
+                        SettingsRow(
+                            icon: "chevron.left.forwardslash.chevron.right",
+                            iconColor: .primary,
+                            title: "GitHub Activity",
+                            subtitle: "Streaks, daily pushes, active repos"
+                        )
+                    }
+
                     NavigationLink(destination: WidgetSettingsView()) {
                         SettingsRow(
                             icon: "square.grid.2x2",
