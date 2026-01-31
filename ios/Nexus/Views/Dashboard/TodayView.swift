@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Canonical "Today" screen - frozen design, no customization
-/// Shows: Recovery + Budget status, one insight, nothing else
+/// Shows: Recovery + Budget status, up to 3 ranked insights
 struct TodayView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @StateObject private var networkMonitor = NetworkMonitor.shared
@@ -32,10 +32,8 @@ struct TodayView: View {
                         // Top state: Recovery + Budget
                         stateCard
 
-                        // Single insight
-                        if let insight = topInsight {
-                            insightCard(insight)
-                        }
+                        // Insights feed
+                        insightsFeed
                     }
 
                     Spacer(minLength: 40)
@@ -266,23 +264,103 @@ struct TodayView: View {
         }
     }
 
-    // MARK: - Insight Card
+    // MARK: - Insights Feed
 
-    private func insightCard(_ text: String) -> some View {
+    @ViewBuilder
+    private var insightsFeed: some View {
+        let insights = viewModel.dashboardPayload?.dailyInsights?.rankedInsights ?? []
+
+        if insights.isEmpty {
+            if let fallback = fallbackInsight {
+                insightRow(
+                    icon: "lightbulb.fill",
+                    color: .yellow,
+                    text: fallback,
+                    confidence: nil,
+                    days: nil
+                )
+            }
+        } else {
+            VStack(spacing: 10) {
+                ForEach(insights) { insight in
+                    insightRow(
+                        icon: insight.icon ?? "lightbulb.fill",
+                        color: insightColor(insight.color),
+                        text: insight.description,
+                        confidence: insight.confidence,
+                        days: insight.daysSampled
+                    )
+                }
+            }
+        }
+    }
+
+    private func insightRow(icon: String, color: Color, text: String, confidence: String?, days: Int?) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "lightbulb.fill")
-                .foregroundColor(.yellow)
+            Image(systemName: icon)
+                .foregroundColor(color)
                 .font(.title3)
+                .frame(width: 28)
 
-            Text(text)
-                .font(.subheadline)
-                .foregroundColor(.primary)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+
+                if let confidence, let days {
+                    HStack(spacing: 6) {
+                        Text(confidence)
+                            .font(.caption2.weight(.medium))
+                            .foregroundColor(confidenceColor(confidence))
+                        Text("\u{2022}")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Text("\(days)d sample")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
 
             Spacer()
         }
         .padding(16)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(12)
+    }
+
+    private var fallbackInsight: String? {
+        let facts = viewModel.dashboardPayload?.todayFacts
+        if facts?.spendUnusual == true {
+            return "Unusual spending: " + formatCurrency(spentToday, currency: AppSettings.shared.defaultCurrency) + " today"
+        }
+        if let score = recoveryScore, score < 34 { return "Low recovery — consider a rest day" }
+        if let score = recoveryScore, score >= 67 { return "High recovery — good day for intensity" }
+        if let vsAvg = facts?.spendVs7d, vsAvg > 50 {
+            return "Spending \(Int(vsAvg))% above your 7-day average"
+        }
+        return nil
+    }
+
+    private func insightColor(_ hint: String?) -> Color {
+        switch hint {
+        case "red": return .red
+        case "orange": return .orange
+        case "blue": return .blue
+        case "purple": return .purple
+        case "indigo": return .indigo
+        case "green": return .green
+        case "yellow": return .yellow
+        default: return .yellow
+        }
+    }
+
+    private func confidenceColor(_ confidence: String) -> Color {
+        switch confidence {
+        case "high": return .green
+        case "medium": return .orange
+        default: return .secondary
+        }
     }
 
     // MARK: - Computed Properties
@@ -364,31 +442,6 @@ struct TodayView: View {
         return .green
     }
 
-    private var topInsight: String? {
-        let facts = viewModel.dashboardPayload?.todayFacts
-        let insights = viewModel.dashboardPayload?.dailyInsights
-
-        // Server-ranked insights (quality-gated, confidence-ordered)
-        if let top = insights?.rankedInsights?.first {
-            return top.description
-        }
-
-        // Fallback: flag-based signals (no statistical inference, always valid)
-        if facts?.spendUnusual == true {
-            return "Unusual spending detected: " + formatCurrency(spentToday, currency: AppSettings.shared.defaultCurrency) + " today"
-        }
-        if let score = recoveryScore, score < 34 {
-            return "Low recovery - consider a rest day"
-        }
-        if let score = recoveryScore, score >= 67 {
-            return "High recovery - good day for intensity"
-        }
-        if let vsAvg = facts?.spendVs7d, vsAvg > 50 {
-            return "Spending \(Int(vsAvg))% above your 7-day average"
-        }
-
-        return nil
-    }
 
     // MARK: - Helpers
 
