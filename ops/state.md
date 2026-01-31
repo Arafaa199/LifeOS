@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-01T00:30:00+04:00
+Last updated: 2026-02-01T00:40:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -144,6 +144,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-PLAN.1: Feed Status Thresholds | DONE | Migration 095: Added `expected_interval` column to `life.feed_status_live`, per-source thresholds (1h whoop, 48h healthkit/weight/sms, 24h github, 8h receipts, 7d manual/behavioral/location). Replaced VIEW with per-row threshold logic (ok=1x, stale=3x, error=3x+). Before: 5 error/3 stale/3 ok → After: 1 error/3 stale/7 ok. Down migration tested. |
 | TASK-PLAN.4: iOS GitHub Model | DONE | Added `GitHubActivityWidget`, `GitHubSummary`, `GitHubDailyActivity`, `GitHubRepo` structs to `DashboardPayload.swift`. Optional field for backward compat. Build succeeded. Commit `5637391`. |
 | TASK-PLAN.3: Dashboard GitHub Payload | DONE | Already wired — `github_activity` key was added in migration 087 (TASK-FEAT.1) via `COALESCE(life.get_github_activity_widget(14), '{}'::jsonb)`. Verified: IS NOT NULL=true, active_days_7d=3, payload size ~2.7KB. No migration needed. |
+| TASK-PLAN.5: HealthKit → daily_health | DONE | Migration 098: Wired `facts.refresh_daily_health()` into both `life.refresh_all()` overloads. Backfilled all dates with WHOOP or HealthKit data. Steps: 6 dates populated, weight: 3 dates. `refresh_all(1, 'test-098')` → 0 errors. Down migration tested. |
 
 ### Jan 27
 | Task | Status | Summary |

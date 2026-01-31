@@ -502,30 +502,30 @@ Lane: safe_auto
 ### TASK-PLAN.5: Wire HealthKit Steps + Weight into facts.daily_health
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Populate `facts.daily_health` (currently 30 rows from WHOOP only) with HealthKit-sourced steps and weight data from `raw.healthkit_samples` (1051 rows), giving the system a unified health facts table.
 
-**NOTE:** `raw.healthkit_samples` uses `start_date` (not `created_at`). The `facts.daily_health` table already has `weight_kg` column but no `steps` column — check schema and ALTER TABLE if needed.
+**Finding:** `facts.daily_health` already had a `steps` column and `facts.refresh_daily_health()` already pulled HealthKit data (steps, weight, HRV, RHR, calories). The gap was that `life.refresh_all()` never called `facts.refresh_daily_health()` — so it only populated when manually invoked.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/098_healthkit_to_daily_health.up.sql`
 - `backend/migrations/098_healthkit_to_daily_health.down.sql`
 
-**Implementation:**
-- Check if `facts.daily_health` has a `steps` column — if not, add it
-- Modify `life.refresh_daily_facts()` to pull steps and weight from `raw.healthkit_samples` when WHOOP doesn't provide them
-- HealthKit date derivation: `(start_date AT TIME ZONE 'Asia/Dubai')::date`
-- Source priority: WHOOP recovery/sleep/strain data, HealthKit for steps/weight
-- Use `COALESCE` pattern: WHOOP first, HealthKit fallback
+**Fix Applied:**
+- Wired `facts.refresh_daily_health(day)` into both overloads of `life.refresh_all()` (called per-day alongside `life.refresh_daily_facts()`)
+- Backfilled all dates with ANY health data (WHOOP or HealthKit) into `facts.daily_health`
+- Error handling: each `refresh_daily_health` call wrapped in BEGIN/EXCEPTION so failures don't block other days
 
 **Verification:**
-- [ ] `SELECT day, steps, weight_kg FROM life.daily_facts WHERE steps IS NOT NULL ORDER BY day DESC LIMIT 7;` — shows HealthKit steps
-- [ ] `SELECT COUNT(*) FROM facts.daily_health WHERE weight_kg IS NOT NULL;` — increases after refresh
-- [ ] `SELECT day, weight_kg FROM life.daily_facts WHERE weight_kg IS NOT NULL ORDER BY day DESC LIMIT 7;` — shows HealthKit weight
+- [x] `SELECT day, steps, weight_kg FROM life.daily_facts WHERE steps IS NOT NULL ORDER BY day DESC LIMIT 7;` — shows HealthKit steps (6 rows)
+- [x] `SELECT COUNT(*) FROM facts.daily_health WHERE weight_kg IS NOT NULL;` — 3 rows (matches 3 HealthKit BodyMass dates)
+- [x] `SELECT day, weight_kg FROM life.daily_facts WHERE weight_kg IS NOT NULL ORDER BY day DESC LIMIT 7;` — shows weight data
+- [x] `life.refresh_all(1, 'test-098')` — 0 errors, facts.daily_health refreshed_at updated
+- [x] Down migration tested (reverts to original refresh_all without daily_health call)
 
-**Done Means:** `life.daily_facts` and `facts.daily_health` include HealthKit steps and weight data alongside WHOOP metrics.
+**Done Means:** `life.daily_facts` and `facts.daily_health` include HealthKit steps and weight data alongside WHOOP metrics, auto-refreshed via `life.refresh_all()`.
 
 ---
 
