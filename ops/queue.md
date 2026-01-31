@@ -529,30 +529,69 @@ Lane: safe_auto
 
 ---
 
+### TASK-PLAN.5: Sanitize SQL Inputs in Transaction Update Webhook
+Priority: P1
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** The transaction-update-webhook interpolates `merchant_name`, `category`, `notes`, and `id` directly into SQL without sanitization. Add input validation to prevent SQL injection on write operations.
+
+**Files Changed:**
+- `backend/n8n-workflows/transaction-update-webhook.json`
+- `backend/n8n-workflows/with-auth/transaction-update-webhook.json`
+
+**Fix Applied:**
+- Added "Sanitize Inputs" Code node between Webhook (or Check API Key) and Postgres node
+- Validates `id` as positive integer (`parseInt` + `> 0` check)
+- Validates `amount` as numeric (`parseFloat` + `isNaN` check)
+- Validates `date` format with `/^\d{4}-\d{2}-\d{2}$/` regex
+- Escapes single quotes in `merchant_name`, `category`, `notes` (`'` → `''`)
+- Added IF Valid branch: valid → Postgres, invalid → 400 Validation Error response
+- Standard version: 4 nodes → 7 nodes (Webhook → Sanitize → IF → Postgres/Error → Response)
+- Auth version: 6 nodes → 9 nodes (Webhook → Auth → Sanitize → IF → Postgres/Error → Response)
+
+**Verification:**
+- [x] Workflow JSON is valid (parseable) — std: 7 nodes, auth: 9 nodes
+- [x] Code node escapes `merchant_name = "O'Reilly"` → `"O''Reilly"`
+- [x] Code node rejects non-numeric `id` (parseInt returns NaN → rejected)
+- [x] Injection `'; DROP TABLE` blocked by quote escaping + date regex
+
+**Exit Criteria:**
+- [x] Both workflow JSONs contain a sanitization Code node
+- [x] `grep -c "replace.*'" backend/n8n-workflows/transaction-update-webhook.json` returns ≥1
+
+**Done Means:** Transaction update webhook sanitizes all user inputs before SQL execution, preventing injection attacks on write operations.
+
+**Note:** Both workflow JSONs must be re-imported into n8n and activated (toggle off/on to register webhooks).
+
+---
+
 ### TASK-PLAN.6: Add Daily Finance Category Velocity to Dashboard Insights
 Priority: P2
 Owner: coder
-Status: BLOCKED
-Lane: needs_approval
+Status: READY
+Lane: safe_auto
 
-**BLOCKED REASON:** Depends on `finance.mv_category_velocity` which reads from `facts.daily_finance` (currently 0 rows). Unblock PLAN.2 first.
+**UNBLOCKED:** `facts.daily_finance` now has 330 rows (PLAN.3 complete). `finance.mv_category_velocity` has 16 rows with real data.
 
-**Objective:** Surface category-level spending trends (e.g., "Groceries up 35% vs last week") in the dashboard insights, using the existing `finance.mv_category_velocity` materialized view.
+**Objective:** Surface category-level spending trends in the dashboard insights, using the existing `finance.mv_category_velocity` materialized view.
 
 **Files to Touch:**
-- `backend/migrations/099_category_velocity_insights.up.sql`
-- `backend/migrations/099_category_velocity_insights.down.sql`
+- `backend/migrations/107_category_velocity_insights.up.sql`
+- `backend/migrations/107_category_velocity_insights.down.sql`
 
 **Implementation:**
 - Add a `category_trends` key to `dashboard.get_payload()` → `daily_insights` section
-- Query `finance.mv_category_velocity` for categories where week-over-week change > 25%
-- Format as insight objects: `{ "type": "category_trend", "category": "Groceries", "change_pct": 35, "direction": "up", "detail": "Groceries spending up 35% vs last week" }`
+- Query `finance.mv_category_velocity` for categories where `velocity_pct` absolute value > 25% (this is month-over-month trend, NOT week-over-week — the view compares recent 3-month avg vs previous 3-month avg)
+- Format as insight objects: `{ "type": "category_trend", "category": "Groceries", "change_pct": 35, "direction": "up", "detail": "Groceries spending up 35% vs prior months" }`
 - Limit to top 3 most significant changes
+- Exclude categories with `velocity_label = 'insufficient_data'`
 
 **Verification:**
 - [ ] `SELECT (dashboard.get_payload())->'daily_insights'->'category_trends';` — returns array
 - [ ] Array contains entries with `category`, `change_pct`, `direction` fields
-- [ ] Only categories with >25% change appear
+- [ ] Only categories with >25% change and sufficient data appear
 
 **Done Means:** Dashboard payload includes top category spending trends, ready for iOS display.
 
@@ -813,40 +852,6 @@ Lane: safe_auto
 
 ---
 
-### TASK-PLAN.5: Sanitize SQL Inputs in Transaction Update Webhook
-Priority: P2
-Owner: coder
-Status: READY
-Lane: needs_approval
-
-**Objective:** The transaction-update-webhook interpolates `merchant_name`, `category`, `notes`, and `id` directly into SQL without sanitization. Add input validation to prevent SQL injection on write operations.
-
-**Files to Touch:**
-- `backend/n8n-workflows/transaction-update-webhook.json`
-- `backend/n8n-workflows/with-auth/transaction-update-webhook.json`
-
-**Implementation:**
-- Add a Code node before the Postgres node that:
-  - Validates `id` is a positive integer
-  - Escapes single quotes in `merchant_name`, `category`, `notes` (replace `'` with `''`)
-  - Validates `amount` is numeric
-  - Validates `date` matches `YYYY-MM-DD` format
-- Pass sanitized values to the Postgres query node
-- Apply same fix to both standard and with-auth versions
-
-**Verification:**
-- [ ] Workflow JSON is valid (parseable)
-- [ ] Code node escapes `merchant_name = "O'Reilly"` → `"O''Reilly"`
-- [ ] Code node rejects non-numeric `id`
-
-**Exit Criteria:**
-- [ ] Both workflow JSONs contain a sanitization Code node
-- [ ] `grep -c "replace.*'" backend/n8n-workflows/transaction-update-webhook.json` returns ≥1
-
-**Done Means:** Transaction update webhook sanitizes all user inputs before SQL execution, preventing injection attacks on write operations.
-
----
-
 ### TASK-PLAN.6: Wire GitHub Error Status into Feed Status Threshold
 Priority: P2
 Owner: coder
@@ -876,6 +881,54 @@ Lane: safe_auto
 **Note:** User should reactivate `GitHub Activity Sync` workflow in n8n if they want fresh GitHub data. Currently inactive since Jan 27.
 
 **Done Means:** GitHub feed status accurately reflects whether data is stale relative to its actual sync schedule.
+
+---
+
+---
+
+### TASK-PLAN.7: Fix ReminderSyncService Error Attribution in SyncCoordinator
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Reminder sync failure is caught inside the calendar sync block, causing misleading error attribution. If reminders fail, calendar domain is marked failed even when calendar API works fine.
+
+**Source:** Auditor finding 2026-02-01 (item #3)
+
+**Files to Touch:**
+- `ios/Nexus/Services/SyncCoordinator.swift` (~lines 270-290)
+
+**Implementation:**
+- Wrap `reminderSync.syncAllData()` in its own do/catch block separate from the calendar sync
+- Log reminder failures as `[reminders]` not `[calendar]`
+- Reminder sync failure should NOT mark calendar domain as failed
+- Keep reminder sync in the same TaskGroup task (no need for a separate domain — just isolate the error handling)
+
+**Verification:**
+- [ ] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+- [ ] grep for `[reminders]` in SyncCoordinator.swift — exists
+- [ ] Calendar sync success is not blocked by reminder failure
+
+**Done Means:** Reminder sync errors are logged under their own label and don't contaminate calendar domain status.
+
+---
+
+### TASK-PLAN.8: Update TodayView Doc Comment
+Priority: P3
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** TodayView.swift line 4 says "Shows: Recovery + Budget status, one insight, nothing else" — now shows up to 3 insights. Update the doc comment.
+
+**Files to Touch:**
+- `ios/Nexus/Views/Dashboard/TodayView.swift` (line 4)
+
+**Implementation:**
+- Change doc comment to: `/// Shows: Recovery + Budget status, up to 3 ranked insights`
+
+**Done Means:** Comment matches actual behavior.
 
 ---
 
