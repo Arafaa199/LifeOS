@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-01T12:00:00+04:00
+Last updated: 2026-02-01T16:30:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -141,6 +141,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 1)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-FEAT.3: Calendar View (iOS) | DONE | Added Calendar tab to iOS app. Created CalendarViewModel (subscribes to coordinator for calendarSummary, fetches events via API), CalendarView (segmented Today/Week), CalendarTodayView (summary card + all-day chips + timeline), CalendarWeekView (grouped by day). Calendar tab at tag 4, Settings moved to tag 5. Model named `CalendarDisplayEvent` to avoid conflict with existing `CalendarEvent`. 5 files changed, 489 insertions. iOS build succeeded. Commit `43e3245`. |
 | TASK-FEAT.2: Calendar Events Endpoint | DONE | Migration 101: Added `calendar_summary` to `dashboard.get_payload()` (schema v5→v6). Queries `life.v_daily_calendar_summary` for target date, returns meeting_count/meeting_hours/first_meeting/last_meeting with zero-fallback. Created n8n webhook workflow `calendar-events-webhook.json` (GET /webhook/nexus-calendar-events?start=&end=). Added `CalendarSummary` Codable struct to iOS `DashboardPayload.swift`. iOS build succeeded. |
 
 ### Recent (Jan 31)

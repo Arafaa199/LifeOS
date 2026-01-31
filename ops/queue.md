@@ -657,35 +657,30 @@ Lane: safe_auto
 ### TASK-FEAT.3: Calendar View (iOS Display)
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 Depends: FEAT.2
 
 **Objective:** Add a Calendar tab to the iOS app displaying today's events and weekly summary.
 
-**Pattern:** Follow HealthView exactly (segmented picker + paged TabView + ViewModel subscribing to coordinator).
+**Files Changed:**
+- `ios/Nexus/ViewModels/CalendarViewModel.swift` (NEW, ~157 LOC) — subscribes to coordinator for calendarSummary, fetches events via GET /webhook/nexus-calendar-events
+- `ios/Nexus/Views/Calendar/CalendarView.swift` (NEW, ~48 LOC) — segmented Today/Week + paged TabView
+- `ios/Nexus/Views/Calendar/CalendarTodayView.swift` (NEW, ~173 LOC) — summary card + all-day chips + timeline with duration badges + location
+- `ios/Nexus/Views/Calendar/CalendarWeekView.swift` (NEW, ~103 LOC) — grouped by day with Today/Tomorrow smart headers
+- `ios/Nexus/Views/ContentView.swift` — added Calendar tab (tag 4, icon calendar.circle), Settings moved to tag 5
 
-**Files to Create/Modify:**
-- `ios/Nexus/ViewModels/CalendarViewModel.swift` (~120 LOC) — subscribe to coordinator for calendarSummary, fetch events via API
-- `ios/Nexus/Views/Calendar/CalendarView.swift` (~60 LOC) — segmented Today/Week + TabView
-- `ios/Nexus/Views/Calendar/CalendarTodayView.swift` (~100 LOC) — timeline of today's events
-- `ios/Nexus/Views/Calendar/CalendarWeekView.swift` (~80 LOC) — 7-day summary cards
-- `ios/Nexus/Views/ContentView.swift` — add Calendar tab (tag 5, icon `calendar`)
-- `ios/Nexus/Services/NexusAPI.swift` — add `fetchCalendarEvents(start:end:)` (~20 LOC)
-- `ios/Nexus/Models/DashboardPayload.swift` — add optional `calendarSummary` field (~15 LOC)
-
-**MVP (if budget tight):** CalendarViewModel + CalendarView + CalendarTodayView only. Defer CalendarWeekView.
-
-**Design:**
-- Use `.nexusPrimary` as domain color
-- Event cards: `.nexusCard()` with time on left, title + location on right
-- All-day events: `.nexusChip(color: .nexusPrimary)` at top
-- Empty state: `NexusEmptyState(icon: "calendar", title: "No events", message: "...")`
+**Implementation Notes:**
+- Model named `CalendarDisplayEvent` to avoid conflict with existing `CalendarEvent` in CalendarSyncService.swift
+- `CalendarSummary` already existed in DashboardPayload.swift (added in FEAT.2)
+- Uses NexusAPI.get() generic helper for API calls (no new NexusAPI methods needed)
+- Follows HealthView pattern: segmented picker + TabView + ViewModel subscribing to coordinator
 
 **Verification:**
-- [ ] `xcodebuild -scheme Nexus build` passes
-- [ ] Calendar tab appears as 6th tab (or 5th if replacing one)
-- [ ] Events display when CalendarSyncService has pushed data
+- [x] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+- [x] Calendar tab appears as 5th tab (before Settings)
+- [x] Today view: summary card, all-day events, timeline with time/title/location/duration
+- [x] Week view: events grouped by day with smart headers (Today/Tomorrow/EEEE, MMM d)
 
 **Done Means:** Calendar tab shows today's events and weekly overview, consuming data from FEAT.2 endpoint.
 
