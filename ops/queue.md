@@ -570,28 +570,30 @@ Lane: safe_auto
 ### TASK-PLAN.6: Add Daily Finance Category Velocity to Dashboard Insights
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **UNBLOCKED:** `facts.daily_finance` now has 330 rows (PLAN.3 complete). `finance.mv_category_velocity` has 16 rows with real data.
 
 **Objective:** Surface category-level spending trends in the dashboard insights, using the existing `finance.mv_category_velocity` materialized view.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/107_category_velocity_insights.up.sql`
 - `backend/migrations/107_category_velocity_insights.down.sql`
 
-**Implementation:**
-- Add a `category_trends` key to `dashboard.get_payload()` → `daily_insights` section
-- Query `finance.mv_category_velocity` for categories where `velocity_pct` absolute value > 25% (this is month-over-month trend, NOT week-over-week — the view compares recent 3-month avg vs previous 3-month avg)
-- Format as insight objects: `{ "type": "category_trend", "category": "Groceries", "change_pct": 35, "direction": "up", "detail": "Groceries spending up 35% vs prior months" }`
-- Limit to top 3 most significant changes
-- Exclude categories with `velocity_label = 'insufficient_data'`
+**Fix Applied:**
+- Added `category_trends` key to `dashboard.get_payload()` → `daily_insights` section
+- Queries `finance.mv_category_velocity` for categories where `ABS(velocity_pct) > 25` and `trend <> 'insufficient_data'`
+- Formats as insight objects: `{ type, category, change_pct, direction, detail }`
+- Limited to top 3 most significant changes (ordered by ABS(velocity_pct) DESC)
+- Schema version bumped 6 → 7
 
 **Verification:**
-- [ ] `SELECT (dashboard.get_payload())->'daily_insights'->'category_trends';` — returns array
-- [ ] Array contains entries with `category`, `change_pct`, `direction` fields
-- [ ] Only categories with >25% change and sufficient data appear
+- [x] `SELECT (dashboard.get_payload())->'daily_insights'->'category_trends';` — returns array with 3 entries
+- [x] Array contains entries with `category`, `change_pct`, `direction`, `detail` fields
+- [x] Only categories with >25% change and sufficient data appear (Food 1935.5%, Utilities 1385.7%, Government 531.0%)
+- [x] Schema version = 7
+- [x] Down migration tested — reverts to schema_version 6, removes category_trends
 
 **Done Means:** Dashboard payload includes top category spending trends, ready for iOS display.
 
