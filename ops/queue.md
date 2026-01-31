@@ -561,22 +561,24 @@ Lane: needs_approval
 ### TASK-PLAN.7: Add Nightly Feed Events Counter Reset
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Wire the existing `life.reset_feed_events_today()` function into the nightly refresh so `events_today` counters reset at midnight instead of accumulating indefinitely.
 
-**Files to Touch:**
-- `backend/n8n-workflows/nightly-refresh-facts.json`
+**Files Changed:**
+- `backend/migrations/099_wire_feed_counter_reset.up.sql`
+- `backend/migrations/099_wire_feed_counter_reset.down.sql`
 
 **Implementation:**
-- Add a SQL node after the existing refresh that calls `SELECT life.reset_feed_events_today();`
-- Alternatively, add it to `life.refresh_all()` if it runs after midnight
+- Wired `life.reset_feed_events_today()` into both overloads of `life.refresh_all()` (called at start of each refresh)
+- Chose SQL migration over n8n workflow modification — cleaner, version-controlled, runs regardless of which overload is called
 
 **Verification:**
-- [ ] After midnight, `SELECT source, events_today FROM life.feed_status_live;` — all reset to 0
-- [ ] After new data arrives, counters increment correctly
-- [ ] n8n workflow execution log shows both refresh + reset steps
+- [x] `refresh_all(1, 'test-099')` resets counters where `last_updated::date < CURRENT_DATE` — bank_sms 1108→0, github 11→0, receipts 2→0, weight 1→0
+- [x] Rows updated today (healthkit, whoop*) correctly NOT reset mid-day — will reset after midnight
+- [x] `reset_feed_events_today()` call present in both overloads (verified via pg_proc)
+- [x] Down migration tested and re-applied
 
 **Done Means:** `events_today` in feed status resets daily, giving accurate daily event counts.
 
