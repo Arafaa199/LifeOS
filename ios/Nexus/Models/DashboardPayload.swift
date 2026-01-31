@@ -15,6 +15,7 @@ struct DashboardPayload: Codable {
     let dataFreshness: DataFreshness?
     let domainsStatus: [DomainStatus]?
     let githubActivity: GitHubActivityWidget?
+    let calendarSummary: CalendarSummary?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -27,6 +28,7 @@ struct DashboardPayload: Codable {
         case dataFreshness = "data_freshness"
         case domainsStatus = "domains_status"
         case githubActivity = "github_activity"
+        case calendarSummary = "calendar_summary"
     }
 }
 
@@ -511,6 +513,22 @@ struct GitHubRepo: Codable, Identifiable {
         case name
         case events30d = "events_30d"
         case lastActive = "last_active"
+    }
+}
+
+// MARK: - Calendar Summary
+
+struct CalendarSummary: Codable {
+    let meetingCount: Int
+    let meetingHours: Double
+    let firstMeeting: String?
+    let lastMeeting: String?
+
+    enum CodingKeys: String, CodingKey {
+        case meetingCount = "meeting_count"
+        case meetingHours = "meeting_hours"
+        case firstMeeting = "first_meeting"
+        case lastMeeting = "last_meeting"
     }
 }
 

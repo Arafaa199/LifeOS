@@ -1,0 +1,102 @@
+{
+  "name": "Nexus: Calendar Events Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-calendar-events",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Calendar Events Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-calendar-events",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT json_agg(row_to_json(e.*)) AS events FROM (\n  SELECT\n    event_id,\n    title,\n    to_char(start_at AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS start_at,\n    to_char(end_at AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS end_at,\n    is_all_day,\n    calendar_name,\n    location,\n    notes\n  FROM raw.calendar_events\n  WHERE (start_at AT TIME ZONE 'Asia/Dubai')::date\n    BETWEEN '{{ $json.query.start || (new Date()).toISOString().slice(0,10) }}'::date\n    AND '{{ $json.query.end || (new Date()).toISOString().slice(0,10) }}'::date\n  ORDER BY start_at\n) e;",
+        "options": {}
+      },
+      "id": "fetch-events",
+      "name": "Fetch Calendar Events",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $input.first();\nconst events = row.json.events || [];\n\nreturn [{\n  json: {\n    success: true,\n    events: events,\n    count: events.length\n  }\n}];"
+      },
+      "id": "format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Calendar Events Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Calendar Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Calendar Events": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

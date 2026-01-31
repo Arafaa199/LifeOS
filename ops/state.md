@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-01-31T23:55:00+04:00
+Last updated: 2026-02-01T12:00:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -137,6 +137,11 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ---
 
 ## COMPLETED TASKS (Summary)
+
+### Recent (Feb 1)
+| Task | Status | Summary |
+|------|--------|---------|
+| TASK-FEAT.2: Calendar Events Endpoint | DONE | Migration 101: Added `calendar_summary` to `dashboard.get_payload()` (schema v5→v6). Queries `life.v_daily_calendar_summary` for target date, returns meeting_count/meeting_hours/first_meeting/last_meeting with zero-fallback. Created n8n webhook workflow `calendar-events-webhook.json` (GET /webhook/nexus-calendar-events?start=&end=). Added `CalendarSummary` Codable struct to iOS `DashboardPayload.swift`. iOS build succeeded. |
 
 ### Recent (Jan 31)
 | Task | Status | Summary |

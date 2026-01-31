@@ -615,6 +615,84 @@ Lane: safe_auto
 
 ---
 
+### TASK-FEAT.2: Calendar Events n8n Endpoint
+Priority: P1
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** Create a GET endpoint to fetch calendar events for iOS display, and wire calendar summary stats into the dashboard payload.
+
+**Files Changed:**
+- `backend/n8n-workflows/calendar-events-webhook.json` (new)
+- `backend/migrations/101_calendar_dashboard.up.sql`
+- `backend/migrations/101_calendar_dashboard.down.sql`
+- `ios/Nexus/Models/DashboardPayload.swift` (added `CalendarSummary` struct + `calendarSummary` field)
+
+**Fix Applied:**
+- Created n8n webhook workflow: `GET /webhook/nexus-calendar-events?start=YYYY-MM-DD&end=YYYY-MM-DD`
+  - Queries `raw.calendar_events` filtered by Dubai timezone date range
+  - Returns `{ success: true, events: [...], count: N }`
+  - Follows existing health-timeseries pattern (webhook → postgres → code → respond)
+- Migration 101: Added `calendar_summary` to `dashboard.get_payload()` (schema_version 5→6)
+  - Queries `life.v_daily_calendar_summary` for target date
+  - Returns `{ meeting_count, meeting_hours, first_meeting, last_meeting }`
+  - Falls back to `{ meeting_count: 0, meeting_hours: 0, ... }` when no events
+- Added `CalendarSummary` Codable struct to iOS `DashboardPayload.swift` (optional field for backward compat)
+
+**Verification:**
+- [x] `SELECT (dashboard.get_payload())->'calendar_summary';` returns JSON with meeting_count ✓
+- [x] `SELECT (dashboard.get_payload('2026-01-29'))->'calendar_summary';` returns `{"meeting_count": 1, "meeting_hours": 0.50, ...}` ✓
+- [x] Zero-event fallback: returns `{"meeting_count": 0, ...}` for days without events ✓
+- [x] Schema version bumped to 6 ✓
+- [x] iOS build: BUILD SUCCEEDED ✓
+- [ ] n8n webhook: Requires import into n8n and activation (user action)
+
+**Done Means:** iOS can fetch calendar events for any date range, and dashboard payload includes today's calendar summary.
+
+**Note:** The n8n workflow JSON must be imported into n8n and activated. After import, toggle active off/on to register the webhook.
+
+---
+
+### TASK-FEAT.3: Calendar View (iOS Display)
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+Depends: FEAT.2
+
+**Objective:** Add a Calendar tab to the iOS app displaying today's events and weekly summary.
+
+**Pattern:** Follow HealthView exactly (segmented picker + paged TabView + ViewModel subscribing to coordinator).
+
+**Files to Create/Modify:**
+- `ios/Nexus/ViewModels/CalendarViewModel.swift` (~120 LOC) — subscribe to coordinator for calendarSummary, fetch events via API
+- `ios/Nexus/Views/Calendar/CalendarView.swift` (~60 LOC) — segmented Today/Week + TabView
+- `ios/Nexus/Views/Calendar/CalendarTodayView.swift` (~100 LOC) — timeline of today's events
+- `ios/Nexus/Views/Calendar/CalendarWeekView.swift` (~80 LOC) — 7-day summary cards
+- `ios/Nexus/Views/ContentView.swift` — add Calendar tab (tag 5, icon `calendar`)
+- `ios/Nexus/Services/NexusAPI.swift` — add `fetchCalendarEvents(start:end:)` (~20 LOC)
+- `ios/Nexus/Models/DashboardPayload.swift` — add optional `calendarSummary` field (~15 LOC)
+
+**MVP (if budget tight):** CalendarViewModel + CalendarView + CalendarTodayView only. Defer CalendarWeekView.
+
+**Design:**
+- Use `.nexusPrimary` as domain color
+- Event cards: `.nexusCard()` with time on left, title + location on right
+- All-day events: `.nexusChip(color: .nexusPrimary)` at top
+- Empty state: `NexusEmptyState(icon: "calendar", title: "No events", message: "...")`
+
+**Verification:**
+- [ ] `xcodebuild -scheme Nexus build` passes
+- [ ] Calendar tab appears as 6th tab (or 5th if replacing one)
+- [ ] Events display when CalendarSyncService has pushed data
+
+**Done Means:** Calendar tab shows today's events and weekly overview, consuming data from FEAT.2 endpoint.
+
+**Ref:** `ios/ARCHITECTURE.md` → "How to Add a Feature" checklist
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)
