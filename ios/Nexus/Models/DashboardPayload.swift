@@ -14,6 +14,7 @@ struct DashboardPayload: Codable {
     let dailyInsights: DailyInsights?
     let dataFreshness: DataFreshness?
     let domainsStatus: [DomainStatus]?
+    let githubActivity: GitHubActivityWidget?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -25,6 +26,7 @@ struct DashboardPayload: Codable {
         case dailyInsights = "daily_insights"
         case dataFreshness = "data_freshness"
         case domainsStatus = "domains_status"
+        case githubActivity = "github_activity"
     }
 }
 
@@ -443,6 +445,72 @@ struct RankedInsight: Codable, Identifiable {
         case type, confidence, description
         case daysSampled = "days_sampled"
         case daysWithData = "days_with_data"
+    }
+}
+
+// MARK: - GitHub Activity Widget
+
+struct GitHubActivityWidget: Codable {
+    let summary: GitHubSummary
+    let daily: [GitHubDailyActivity]
+    let repos: [GitHubRepo]
+    let generatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case summary, daily, repos
+        case generatedAt = "generated_at"
+    }
+}
+
+struct GitHubSummary: Codable {
+    let activeDays7d: Int
+    let pushEvents7d: Int
+    let activeDays30d: Int
+    let pushEvents30d: Int
+    let repos7d: Int
+    let currentStreak: Int
+    let maxStreak90d: Int
+    let asOfDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case activeDays7d = "active_days_7d"
+        case pushEvents7d = "push_events_7d"
+        case activeDays30d = "active_days_30d"
+        case pushEvents30d = "push_events_30d"
+        case repos7d = "repos_7d"
+        case currentStreak = "current_streak"
+        case maxStreak90d = "max_streak_90d"
+        case asOfDate = "as_of_date"
+    }
+}
+
+struct GitHubDailyActivity: Codable, Identifiable {
+    var id: String { day }
+
+    let day: String
+    let pushEvents: Int
+    let reposTouched: Int
+    let productivityScore: Int
+
+    enum CodingKeys: String, CodingKey {
+        case day
+        case pushEvents = "push_events"
+        case reposTouched = "repos_touched"
+        case productivityScore = "productivity_score"
+    }
+}
+
+struct GitHubRepo: Codable, Identifiable {
+    var id: String { name }
+
+    let name: String
+    let events30d: Int
+    let lastActive: String
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case events30d = "events_30d"
+        case lastActive = "last_active"
     }
 }
 
