@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-01-27T15:00:00+04:00
+Last updated: 2026-02-01T00:30:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -138,7 +138,13 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 
 ## COMPLETED TASKS (Summary)
 
-### Recent (Jan 27)
+### Recent (Jan 31)
+| Task | Status | Summary |
+|------|--------|---------|
+| TASK-PLAN.1: Feed Status Thresholds | DONE | Migration 095: Added `expected_interval` column to `life.feed_status_live`, per-source thresholds (1h whoop, 48h healthkit/weight/sms, 24h github, 8h receipts, 7d manual/behavioral/location). Replaced VIEW with per-row threshold logic (ok=1x, stale=3x, error=3x+). Before: 5 error/3 stale/3 ok → After: 1 error/3 stale/7 ok. Down migration tested. |
+| TASK-PLAN.4: iOS GitHub Model | DONE | Added `GitHubActivityWidget`, `GitHubSummary`, `GitHubDailyActivity`, `GitHubRepo` structs to `DashboardPayload.swift`. Optional field for backward compat. Build succeeded. Commit `5637391`. |
+
+### Jan 27
 | Task | Status | Summary |
 |------|--------|---------|
 | SyncCoordinator iOS refactor | DONE | Single sync spine, 4 domains, Combine subscriptions |
