@@ -17,14 +17,54 @@
     },
     {
       "parameters": {
+        "jsCode": "const dateRegex = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst today = new Date().toISOString().slice(0, 10);\nconst start = $input.first().json.query.start || today;\nconst end = $input.first().json.query.end || today;\n\nif (!dateRegex.test(start) || !dateRegex.test(end)) {\n  return [{ json: { valid: false, error: 'Invalid date format. Expected YYYY-MM-DD.' } }];\n}\n\nreturn [{ json: { valid: true, start, end } }];"
+      },
+      "id": "validate-dates",
+      "name": "Validate Dates",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid",
+      "name": "IF Valid",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT json_agg(row_to_json(e.*)) AS events FROM (\n  SELECT\n    event_id,\n    title,\n    to_char(start_at AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS start_at,\n    to_char(end_at AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS end_at,\n    is_all_day,\n    calendar_name,\n    location,\n    notes\n  FROM raw.calendar_events\n  WHERE (start_at AT TIME ZONE 'Asia/Dubai')::date\n    BETWEEN '{{ $json.query.start || (new Date()).toISOString().slice(0,10) }}'::date\n    AND '{{ $json.query.end || (new Date()).toISOString().slice(0,10) }}'::date\n  ORDER BY start_at\n) e;",
+        "query": "=SELECT json_agg(row_to_json(e.*)) AS events FROM (\n  SELECT\n    event_id,\n    title,\n    to_char(start_at AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS start_at,\n    to_char(end_at AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS end_at,\n    is_all_day,\n    calendar_name,\n    location,\n    notes\n  FROM raw.calendar_events\n  WHERE (start_at AT TIME ZONE 'Asia/Dubai')::date\n    BETWEEN '{{ $json.start }}'::date\n    AND '{{ $json.end }}'::date\n  ORDER BY start_at\n) e;",
         "options": {}
       },
       "id": "fetch-events",
       "name": "Fetch Calendar Events",
       "type": "n8n-nodes-base.postgres",
-      "position": [460, 300],
+      "position": [900, 200],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
@@ -40,7 +80,7 @@
       "id": "format",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
-      "position": [680, 300],
+      "position": [1120, 200],
       "typeVersion": 2
     },
     {
@@ -52,7 +92,21 @@
       "id": "respond",
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [900, 300],
+      "position": [1340, 200],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.error } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 420],
       "typeVersion": 1.1
     }
   ],
@@ -61,7 +115,36 @@
       "main": [
         [
           {
+            "node": "Validate Dates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Dates": {
+      "main": [
+        [
+          {
+            "node": "IF Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Valid": {
+      "main": [
+        [
+          {
             "node": "Fetch Calendar Events",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }
