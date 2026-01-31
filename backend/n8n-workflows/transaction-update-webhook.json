@@ -8,6 +8,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
+      "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
@@ -16,14 +17,55 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE finance.transactions SET\n  merchant_name = '{{ $json.body.merchant_name }}',\n  amount = -{{ $json.body.amount }},\n  category = '{{ $json.body.category }}',\n  notes = {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : \"NULL\" }},\n  date = '{{ $json.body.date }}'::timestamp\nWHERE id = {{ $json.body.id }}\nRETURNING *;",
+        "jsCode": "const b = $input.first().json.body;\n\n// Validate id is a positive integer\nconst id = parseInt(b.id, 10);\nif (!Number.isInteger(id) || id <= 0) {\n  return [{ json: { valid: false, error: 'Invalid id: must be a positive integer' } }];\n}\n\n// Validate amount is numeric\nconst amount = parseFloat(b.amount);\nif (isNaN(amount)) {\n  return [{ json: { valid: false, error: 'Invalid amount: must be numeric' } }];\n}\n\n// Validate date format YYYY-MM-DD\nconst dateRegex = /^\\d{4}-\\d{2}-\\d{2}$/;\nif (b.date && !dateRegex.test(b.date)) {\n  return [{ json: { valid: false, error: 'Invalid date format. Expected YYYY-MM-DD.' } }];\n}\n\n// Escape single quotes in string fields to prevent SQL injection\nconst esc = (s) => s ? String(s).replace(/'/g, \"''\") : '';\n\nreturn [{ json: {\n  valid: true,\n  id: id,\n  merchant_name: esc(b.merchant_name),\n  amount: amount,\n  category: esc(b.category),\n  notes: b.notes ? esc(b.notes) : null,\n  date: b.date || null\n} }];"
+      },
+      "id": "sanitize",
+      "name": "Sanitize Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
         "options": {}
       },
+      "id": "if-valid",
+      "name": "IF Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE finance.transactions SET\n  merchant_name = '{{ $json.merchant_name }}',\n  amount = {{ $json.amount }},\n  category = '{{ $json.category }}',\n  notes = {{ $json.notes ? \"'\" + $json.notes + \"'\" : \"NULL\" }},\n  date = '{{ $json.date }}'::timestamp\nWHERE id = {{ $json.id }}\nRETURNING *;",
+        "options": {}
+      },
+      "id": "update-tx",
       "name": "Update Transaction",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [450, 300],
+      "position": [870, 200],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -37,10 +79,25 @@
         "responseBody": "={\n  \"success\": true,\n  \"message\": \"Transaction updated successfully\",\n  \"data\": {\n    \"transaction\": {{ JSON.stringify($json) }}\n  }\n}",
         "options": {}
       },
+      "id": "response-ok",
       "name": "Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [1090, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $json.error }}\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "response-invalid",
+      "name": "Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [870, 450]
     },
     {
       "parameters": {
@@ -50,18 +107,28 @@
           "responseCode": 500
         }
       },
+      "id": "response-error",
       "name": "Error Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [650, 500]
+      "position": [1090, 400]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Update Transaction", "type": "main", "index": 0}]]
+      "main": [[{ "node": "Sanitize Inputs", "type": "main", "index": 0 }]]
+    },
+    "Sanitize Inputs": {
+      "main": [[{ "node": "IF Valid", "type": "main", "index": 0 }]]
+    },
+    "IF Valid": {
+      "main": [
+        [{ "node": "Update Transaction", "type": "main", "index": 0 }],
+        [{ "node": "Validation Error", "type": "main", "index": 0 }]
+      ]
     },
     "Update Transaction": {
-      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
     }
   },
   "settings": {},
