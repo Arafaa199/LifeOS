@@ -8,9 +8,22 @@ class CalendarViewModel: ObservableObject {
     @Published var isLoadingEvents = false
     @Published var errorMessage: String?
 
+    // Month/Year support
+    @Published var monthEvents: [String: [CalendarDisplayEvent]] = [:]
+    @Published var monthReminders: [String: [ReminderDisplayItem]] = [:]
+    @Published var selectedDate: Date?
+    @Published var yearEventCounts: [String: Int] = [:]
+
     private let api = NexusAPI.shared
     private let coordinator = SyncCoordinator.shared
     private var cancellables = Set<AnyCancellable>()
+
+    private static let dayKeyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
 
     var isLoading: Bool {
         isLoadingEvents || coordinator.domainStates[.dashboard]?.isSyncing == true
@@ -49,9 +62,7 @@ class CalendarViewModel: ObservableObject {
         isLoadingEvents = true
         errorMessage = nil
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let today = formatter.string(from: Date())
+        let today = Self.dayKeyFormatter.string(from: Date())
 
         do {
             let response: CalendarDisplayEventsResponse = try await api.get(
@@ -61,6 +72,7 @@ class CalendarViewModel: ObservableObject {
                 events = response.events ?? []
             } else {
                 events = []
+                errorMessage = "Failed to load calendar events"
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -73,25 +85,132 @@ class CalendarViewModel: ObservableObject {
         isLoadingEvents = true
         errorMessage = nil
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
         let today = Date()
         let weekEnd = Calendar.current.date(byAdding: .day, value: 6, to: today) ?? today
 
         do {
             let response: CalendarDisplayEventsResponse = try await api.get(
-                "/webhook/nexus-calendar-events?start=\(formatter.string(from: today))&end=\(formatter.string(from: weekEnd))"
+                "/webhook/nexus-calendar-events?start=\(Self.dayKeyFormatter.string(from: today))&end=\(Self.dayKeyFormatter.string(from: weekEnd))"
             )
             if response.success {
                 events = response.events ?? []
             } else {
                 events = []
+                errorMessage = "Failed to load calendar events"
             }
         } catch {
             errorMessage = error.localizedDescription
         }
 
         isLoadingEvents = false
+    }
+
+    // MARK: - Month Events
+
+    func fetchMonthEvents(year: Int, month: Int) async {
+        isLoadingEvents = true
+        errorMessage = nil
+
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = month
+        comps.day = 1
+
+        guard let startDate = Calendar.current.date(from: comps),
+              let endDate = Calendar.current.date(byAdding: DateComponents(month: 1, day: -1), to: startDate) else {
+            isLoadingEvents = false
+            return
+        }
+
+        let startStr = Self.dayKeyFormatter.string(from: startDate)
+        let endStr = Self.dayKeyFormatter.string(from: endDate)
+
+        do {
+            let response: CalendarDisplayEventsResponse = try await api.get(
+                "/webhook/nexus-calendar-events?start=\(startStr)&end=\(endStr)"
+            )
+            if response.success {
+                let allEvents = response.events ?? []
+                var grouped: [String: [CalendarDisplayEvent]] = [:]
+                for event in allEvents {
+                    let dayKey = String(event.startAt.prefix(10))
+                    grouped[dayKey, default: []].append(event)
+                }
+                monthEvents = grouped
+            } else {
+                monthEvents = [:]
+                errorMessage = "Failed to load calendar events"
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            monthEvents = [:]
+        }
+
+        isLoadingEvents = false
+    }
+
+    // MARK: - Reminders
+
+    func fetchReminders(start: String, end: String) async {
+        do {
+            let response: RemindersDisplayResponse = try await api.get(
+                "/webhook/nexus-reminders?start=\(start)&end=\(end)"
+            )
+            if response.success {
+                var grouped: [String: [ReminderDisplayItem]] = [:]
+                for reminder in response.reminders ?? [] {
+                    let dayKey: String
+                    if let dueDate = reminder.dueDate {
+                        dayKey = String(dueDate.prefix(10))
+                    } else {
+                        dayKey = "no_date"
+                    }
+                    grouped[dayKey, default: []].append(reminder)
+                }
+                monthReminders = grouped
+            }
+        } catch {
+            print("[CalendarVM] Failed to fetch reminders: \(error)")
+        }
+    }
+
+    // MARK: - Year Events (counts only)
+
+    func fetchYearEvents(year: Int) async {
+        isLoadingEvents = true
+
+        let startStr = "\(year)-01-01"
+        let endStr = "\(year)-12-31"
+
+        do {
+            let response: CalendarDisplayEventsResponse = try await api.get(
+                "/webhook/nexus-calendar-events?start=\(startStr)&end=\(endStr)"
+            )
+            if response.success {
+                var counts: [String: Int] = [:]
+                for event in response.events ?? [] {
+                    let dayKey = String(event.startAt.prefix(10))
+                    counts[dayKey, default: 0] += 1
+                }
+                yearEventCounts = counts
+            }
+        } catch {
+            print("[CalendarVM] Failed to fetch year events: \(error)")
+        }
+
+        isLoadingEvents = false
+    }
+
+    // MARK: - Helpers
+
+    func eventsForDate(_ date: Date) -> [CalendarDisplayEvent] {
+        let key = Self.dayKeyFormatter.string(from: date)
+        return (monthEvents[key] ?? []).sorted { $0.startAt < $1.startAt }
+    }
+
+    func remindersForDate(_ date: Date) -> [ReminderDisplayItem] {
+        let key = Self.dayKeyFormatter.string(from: date)
+        return monthReminders[key] ?? []
     }
 }
 
@@ -153,5 +272,53 @@ struct CalendarDisplayEvent: Codable, Identifiable {
 struct CalendarDisplayEventsResponse: Codable {
     let success: Bool
     let events: [CalendarDisplayEvent]?
+    let count: Int?
+}
+
+// MARK: - Reminder Display Model
+
+struct ReminderDisplayItem: Codable, Identifiable {
+    var id: String { reminderId }
+
+    let reminderId: String
+    let title: String?
+    let notes: String?
+    let dueDate: String?
+    let isCompleted: Bool
+    let completedDate: String?
+    let priority: Int
+    let listName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case reminderId = "reminder_id"
+        case title
+        case notes
+        case dueDate = "due_date"
+        case isCompleted = "is_completed"
+        case completedDate = "completed_date"
+        case priority
+        case listName = "list_name"
+    }
+
+    var dueTime: String? {
+        guard let dueDate, let range = dueDate.range(of: "T") else { return nil }
+        let time = String(dueDate[range.upperBound...])
+        let hhmm = String(time.prefix(5))
+        return hhmm == "00:00" ? nil : hhmm
+    }
+
+    var priorityLabel: String? {
+        switch priority {
+        case 1: return "!!!"
+        case 5: return "!!"
+        case 9: return "!"
+        default: return nil
+        }
+    }
+}
+
+struct RemindersDisplayResponse: Codable {
+    let success: Bool
+    let reminders: [ReminderDisplayItem]?
     let count: Int?
 }
