@@ -42,20 +42,6 @@ class SyncCoordinator: ObservableObject {
             }
         }
 
-        var subtitle: String? {
-            switch self {
-            case .whoop: return "Server status (read-only)"
-            default: return nil
-            }
-        }
-    }
-
-    struct DomainSyncState {
-        var isSyncing: Bool = false
-        var lastSyncDate: Date?
-        var lastError: String?
-        var source: String?
-        var detail: String?
     }
 
     struct WhoopDebugInfo {
@@ -69,10 +55,10 @@ class SyncCoordinator: ObservableObject {
 
     // MARK: - Published State
 
-    @Published var domainStates: [SyncDomain: DomainSyncState] = {
-        var states: [SyncDomain: DomainSyncState] = [:]
+    @Published var domainStates: [SyncDomain: DomainState] = {
+        var states: [SyncDomain: DomainState] = [:]
         for domain in SyncDomain.allCases {
-            states[domain] = DomainSyncState()
+            states[domain] = DomainState()
         }
         return states
     }()
@@ -95,21 +81,19 @@ class SyncCoordinator: ObservableObject {
     private var syncAllTask: Task<Void, Never>?
 
     private init() {
-        // Load cached dashboard on init
         if let cached = dashboardService.loadCached() {
             dashboardPayload = cached.payload
-            domainStates[.dashboard] = DomainSyncState(
-                lastSyncDate: cached.lastUpdated,
-                source: "cache"
-            )
-            updateWhoopStatus()
+            var state = DomainState()
+            state.markSucceeded(source: "cache")
+            state.phase = .succeeded(at: cached.lastUpdated)
+            domainStates[.dashboard] = state
+            updateWhoopDebugFromFeedStatus()
         }
     }
 
     // MARK: - Sync All
 
     func syncAll(force: Bool = false) {
-        // Debounce unless forced
         if !force,
            let last = lastSyncAllDate,
            Date().timeIntervalSince(last) < minSyncInterval {
@@ -119,19 +103,31 @@ class SyncCoordinator: ObservableObject {
 
         syncAllTask?.cancel()
 
-        // Freshness contract: these are synchronous (@MainActor),
-        // so any subscriber sees the change within the same run-loop pass.
-        // UI must reflect a visible state change within 300ms of app foreground.
         isSyncingAll = true
         lastSyncAllDate = Date()
 
         syncAllTask = Task {
+            let flags = AppSettings.shared
+
+            // Phase 1: Push local data to server (HealthKit weight, calendar events)
+            await withTaskGroup(of: Void.self) { group in
+                if flags.healthKitSyncEnabled {
+                    group.addTask { await self.syncHealthKit() }
+                }
+                if flags.calendarSyncEnabled {
+                    group.addTask { await self.syncCalendar() }
+                }
+            }
+
+            // Phase 2: Fetch server data (now includes what we just pushed)
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await self.syncDashboard() }
-                group.addTask { await self.syncFinance() }
-                group.addTask { await self.syncHealthKit() }
-                group.addTask { await self.syncCalendar() }
-                // WHOOP is read-only server status, updated after dashboard sync
+                if flags.financeSyncEnabled {
+                    group.addTask { await self.syncFinance() }
+                }
+                if flags.whoopSyncEnabled {
+                    group.addTask { await self.syncWHOOP() }
+                }
             }
 
             isSyncingAll = false
@@ -146,151 +142,217 @@ class SyncCoordinator: ObservableObject {
         case .healthKit: await syncHealthKit()
         case .calendar: await syncCalendar()
         case .whoop:
-            // Read-only: refresh from current dashboard payload
-            updateWhoopStatus()
+            await syncWHOOP()
         }
+    }
+
+    // MARK: - Background Sync
+
+    func syncForBackground() async {
+        logger.info("[background] starting background sync")
+        await syncHealthKit()
+        await syncDashboard()
+        logger.info("[background] background sync complete")
     }
 
     // MARK: - Per-Domain Sync
 
     private func syncDashboard() async {
-        domainStates[.dashboard]?.isSyncing = true
-        domainStates[.dashboard]?.lastError = nil
+        domainStates[.dashboard]?.markSyncing()
+        let start = CFAbsoluteTimeGetCurrent()
+        logger.info("[dashboard] sync started")
 
         do {
             let result = try await dashboardService.fetchDashboard()
             dashboardPayload = result.payload
-            domainStates[.dashboard] = DomainSyncState(
-                lastSyncDate: Date(),
-                source: result.source == .network ? "network" : "cache"
-            )
-            // WHOOP status derives from dashboard feedStatus
-            updateWhoopStatus()
+            let src = result.source == .network ? "network" : "cache"
+            domainStates[.dashboard]?.markSucceeded(source: src)
+
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.info("[dashboard] sync succeeded source=\(src) duration=\(ms)ms")
         } catch is CancellationError {
-            domainStates[.dashboard]?.isSyncing = false
+            domainStates[.dashboard]?.phase = .idle
         } catch {
-            domainStates[.dashboard]?.isSyncing = false
-            domainStates[.dashboard]?.lastError = error.localizedDescription
-            logger.error("Dashboard sync failed: \(error.localizedDescription)")
+            domainStates[.dashboard]?.markFailed(error.localizedDescription)
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.error("[dashboard] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
         }
     }
 
     private func syncFinance() async {
-        domainStates[.finance]?.isSyncing = true
-        domainStates[.finance]?.lastError = nil
+        domainStates[.finance]?.markSyncing()
+        let start = CFAbsoluteTimeGetCurrent()
+        logger.info("[finance] sync started")
 
         do {
             let response = try await api.fetchFinanceSummary()
             financeSummaryResult = response
-            domainStates[.finance] = DomainSyncState(
-                lastSyncDate: Date(),
-                source: "network"
-            )
+            let count = response.data?.recentTransactions?.count
+            domainStates[.finance]?.markSucceeded(source: "network", itemCount: count)
+
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.info("[finance] sync succeeded items=\(count ?? 0) duration=\(ms)ms")
         } catch is CancellationError {
-            domainStates[.finance]?.isSyncing = false
+            domainStates[.finance]?.phase = .idle
         } catch {
-            domainStates[.finance]?.isSyncing = false
-            domainStates[.finance]?.lastError = error.localizedDescription
-            logger.error("Finance sync failed: \(error.localizedDescription)")
+            domainStates[.finance]?.markFailed(error.localizedDescription)
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.error("[finance] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
         }
     }
 
     private func syncHealthKit() async {
         let manager = HealthKitManager.shared
-        domainStates[.healthKit]?.isSyncing = true
-        domainStates[.healthKit]?.lastError = nil
+        domainStates[.healthKit]?.markSyncing()
+        let start = CFAbsoluteTimeGetCurrent()
+        logger.info("[healthKit] sync started")
 
-        guard manager.permissionStatus != .failed else {
-            domainStates[.healthKit] = DomainSyncState(
-                lastError: "HealthKit not available"
-            )
+        guard manager.isHealthDataAvailable else {
+            domainStates[.healthKit]?.markFailed("HealthKit not available")
+            logger.warning("[healthKit] not available")
             return
         }
 
         guard manager.isAuthorized else {
-            domainStates[.healthKit] = DomainSyncState(
-                lastError: "HealthKit not set up"
-            )
+            let message: String
+            switch manager.permissionStatus {
+            case .notSetUp:
+                message = "HealthKit not set up"
+            case .requested:
+                message = "HealthKit access not verified — open Health app to check permissions"
+            case .failed:
+                message = "HealthKit not available"
+            case .working:
+                message = ""
+            }
+            domainStates[.healthKit]?.markFailed(message)
+            logger.warning("[healthKit] not authorized: \(message)")
             return
         }
 
         do {
             try await healthKitSync.syncAllData()
             let count = healthKitSync.lastSyncSampleCount
-            domainStates[.healthKit] = DomainSyncState(
-                lastSyncDate: Date(),
+            domainStates[.healthKit]?.markSucceeded(
                 source: "healthkit",
-                detail: count > 0 ? "\(count) samples" : "No new samples"
+                detail: count > 0 ? "\(count) samples" : "No new samples",
+                itemCount: count
             )
-        } catch is CancellationError {
-            domainStates[.healthKit]?.isSyncing = false
-        } catch {
-            domainStates[.healthKit]?.isSyncing = false
-            domainStates[.healthKit]?.lastError = error.localizedDescription
 
-            // Authorization not determined = stale UserDefaults flag.
-            // Reset so checkAuthorization() re-requests the system dialog.
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.info("[healthKit] sync succeeded samples=\(count) duration=\(ms)ms")
+        } catch is CancellationError {
+            domainStates[.healthKit]?.phase = .idle
+        } catch {
+            domainStates[.healthKit]?.markFailed(error.localizedDescription)
+
             let desc = error.localizedDescription.lowercased()
             if desc.contains("authorization") || desc.contains("not determined") {
                 UserDefaults.standard.set(false, forKey: "healthKitAuthorizationRequested")
                 manager.checkAuthorization()
-                domainStates[.healthKit]?.lastError = "HealthKit needs re-authorization"
-                logger.warning("HealthKit auth stale — requesting re-authorization")
+                domainStates[.healthKit]?.markFailed("HealthKit needs re-authorization")
+                logger.warning("[healthKit] auth stale — requesting re-authorization")
             } else {
-                logger.error("HealthKit sync failed: \(error.localizedDescription)")
+                let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+                logger.error("[healthKit] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
             }
         }
     }
 
     private func syncCalendar() async {
-        domainStates[.calendar]?.isSyncing = true
-        domainStates[.calendar]?.lastError = nil
+        domainStates[.calendar]?.markSyncing()
+        let start = CFAbsoluteTimeGetCurrent()
+        logger.info("[calendar] sync started")
 
         do {
             try await calendarSync.syncAllData()
             let count = calendarSync.lastSyncEventCount
-            domainStates[.calendar] = DomainSyncState(
-                lastSyncDate: Date(),
+            domainStates[.calendar]?.markSucceeded(
                 source: "eventkit",
-                detail: count > 0 ? "\(count) events" : nil
+                detail: count > 0 ? "\(count) events" : nil,
+                itemCount: count
             )
+
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.info("[calendar] sync succeeded events=\(count) duration=\(ms)ms")
         } catch is CancellationError {
-            domainStates[.calendar]?.isSyncing = false
+            domainStates[.calendar]?.phase = .idle
         } catch {
-            domainStates[.calendar]?.isSyncing = false
-            domainStates[.calendar]?.lastError = error.localizedDescription
-            logger.error("Calendar sync failed: \(error.localizedDescription)")
+            domainStates[.calendar]?.markFailed(error.localizedDescription)
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.error("[calendar] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
         }
     }
 
-    // WHOOP status is read-only — no upstream trigger available.
-    // Reads from dashboardPayload.feedStatus (populated by syncDashboard).
-    private func updateWhoopStatus() {
-        let now = Date()
+    // MARK: - WHOOP Sync
 
+    private func syncWHOOP() async {
+        domainStates[.whoop]?.markSyncing()
+        let start = CFAbsoluteTimeGetCurrent()
+        logger.info("[whoop] sync started")
+
+        do {
+            let response = try await api.refreshWHOOP()
+
+            if response.success {
+                var detail: String?
+                if let sensors = response.sensorsFound, let recovery = response.recovery {
+                    detail = "\(sensors) sensors, recovery \(Int(recovery))%"
+                } else if let sensors = response.sensorsFound {
+                    detail = "\(sensors) sensors"
+                }
+                domainStates[.whoop]?.markSucceeded(source: "server", detail: detail)
+            } else {
+                domainStates[.whoop]?.markFailed(response.message ?? "WHOOP refresh failed")
+            }
+
+            updateWhoopDebugFromFeedStatus()
+
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.info("[whoop] sync completed duration=\(ms)ms success=\(response.success)")
+        } catch is CancellationError {
+            domainStates[.whoop]?.phase = .idle
+        } catch {
+            logger.warning("[whoop] refresh webhook failed, falling back to feed status: \(error.localizedDescription)")
+            updateWhoopFromFeedStatus()
+        }
+    }
+
+    private func updateWhoopFromFeedStatus() {
         guard let feed = dashboardPayload?.feedStatus.first(where: { $0.feed.lowercased().contains("whoop") }) else {
-            domainStates[.whoop] = DomainSyncState(
-                lastError: "No WHOOP feed in server response"
+            domainStates[.whoop]?.markFailed("No WHOOP feed in server response")
+            updateWhoopDebugFromFeedStatus()
+            return
+        }
+
+        let parsedDate = parseFeedSyncDate(feed.lastSync)
+        if let parsedDate {
+            domainStates[.whoop]?.markSucceeded(
+                source: "feed_status",
+                detail: feed.status == .healthy ? nil : "Status: \(feed.status.rawValue)"
             )
+            domainStates[.whoop]?.phase = .succeeded(at: parsedDate)
+        }
+
+        if feed.status == .stale || feed.status == .critical {
+            domainStates[.whoop]?.markFailed("Data is \(feed.status.rawValue) (\(String(format: "%.0f", feed.hoursSinceSync ?? 0))h old)")
+        }
+
+        updateWhoopDebugFromFeedStatus()
+    }
+
+    private func updateWhoopDebugFromFeedStatus() {
+        let now = Date()
+        guard let feed = dashboardPayload?.feedStatus.first(where: { $0.feed.lowercased().contains("whoop") }) else {
             whoopDebugInfo = WhoopDebugInfo(
                 rawLastSync: nil, parsedDate: nil, checkedAt: now,
-                ageHours: nil, serverStatus: "missing", serverHoursSinceSync: nil
+                ageHours: nil, serverStatus: "unknown", serverHoursSinceSync: nil
             )
             return
         }
 
         let parsedDate = parseFeedSyncDate(feed.lastSync)
         let ageHours = parsedDate.map { now.timeIntervalSince($0) / 3600 }
-
-        domainStates[.whoop] = DomainSyncState(
-            lastSyncDate: parsedDate,
-            source: "server (read-only)",
-            detail: feed.status == .healthy ? nil : "Status: \(feed.status.rawValue)"
-        )
-
-        if feed.status == .stale || feed.status == .critical {
-            domainStates[.whoop]?.lastError = "Data is \(feed.status.rawValue) (\(String(format: "%.0f", feed.hoursSinceSync ?? 0))h old)"
-        }
 
         whoopDebugInfo = WhoopDebugInfo(
             rawLastSync: feed.lastSync,
@@ -304,11 +366,7 @@ class SyncCoordinator: ObservableObject {
 
     private func parseFeedSyncDate(_ dateString: String?) -> Date? {
         guard let dateString else { return nil }
-        let fmt = ISO8601DateFormatter()
-        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = fmt.date(from: dateString) { return d }
-        fmt.formatOptions = [.withInternetDateTime]
-        return fmt.date(from: dateString)
+        return DomainFreshness.parseTimestamp(dateString)
     }
 
     // MARK: - Helpers

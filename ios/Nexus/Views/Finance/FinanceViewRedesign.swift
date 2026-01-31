@@ -5,11 +5,13 @@ import SwiftUI
 // Max 8 cards, premium calm design
 
 struct FinanceViewRedesign: View {
-    @StateObject private var viewModel = FinanceDashboardViewModel()
+    @StateObject private var viewModel = FinanceViewModel()
     @State private var showingAddExpense = false
     @State private var showingAddIncome = false
     @State private var showingSettings = false
     @State private var showingAllTransactions = false
+
+    private var coordinator: SyncCoordinator { SyncCoordinator.shared }
 
     var body: some View {
         NavigationView {
@@ -30,7 +32,7 @@ struct FinanceViewRedesign: View {
                     monthProgressCard
 
                     // 3. Categories
-                    if !viewModel.topCategories.isEmpty {
+                    if !viewModel.summary.categoryBreakdown.isEmpty {
                         categoriesCard
                     }
 
@@ -46,7 +48,7 @@ struct FinanceViewRedesign: View {
                     cashflowCard
 
                     // 7. Insight (if available)
-                    if let insight = viewModel.insight {
+                    if let insight = viewModel.serverInsights.first {
                         insightCard(insight)
                     }
 
@@ -62,7 +64,7 @@ struct FinanceViewRedesign: View {
                 await viewModel.refresh()
             }
             .onAppear {
-                viewModel.loadDashboard()
+                viewModel.loadFinanceSummary()
             }
             .navigationTitle("Finance")
             .navigationBarTitleDisplayMode(.large)
@@ -75,31 +77,37 @@ struct FinanceViewRedesign: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        Task { await viewModel.triggerImport() }
+                        Task { await viewModel.triggerSMSImport() }
                     }) {
-                        if viewModel.isRefreshing {
+                        if viewModel.isLoading {
                             ProgressView()
                         } else {
                             Image(systemName: "arrow.triangle.2.circlepath")
                                 .foregroundColor(.nexusFinance)
                         }
                     }
-                    .disabled(viewModel.isRefreshing)
+                    .disabled(viewModel.isLoading)
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 FinancePlanningView()
             }
             .sheet(isPresented: $showingAddExpense) {
-                AddExpenseView(viewModel: FinanceViewModel())
+                AddExpenseView(viewModel: viewModel)
             }
             .sheet(isPresented: $showingAddIncome) {
-                IncomeView(viewModel: FinanceViewModel())
+                IncomeView(viewModel: viewModel)
             }
             .sheet(isPresented: $showingAllTransactions) {
                 AllTransactionsSheet()
             }
         }
+    }
+
+    // MARK: - Convenience
+
+    private var currency: String {
+        viewModel.summary.currency
     }
 
     // MARK: - 1. Today Spend (Hero)
@@ -112,41 +120,22 @@ struct FinanceViewRedesign: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.secondary)
                     Spacer()
-                    if viewModel.isTodayUnusual {
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.caption)
-                            Text("High")
-                                .font(.caption.weight(.medium))
-                        }
-                        .foregroundColor(.orange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.orange.opacity(0.12))
-                        .cornerRadius(8)
-                    }
                 }
 
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(formatCurrency(viewModel.todaySpend, currency: viewModel.currency))
+                    Text(formatCurrency(viewModel.summary.totalSpent, currency: currency))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                 }
 
                 HStack(spacing: 16) {
-                    // Transaction count
                     HStack(spacing: 4) {
                         Image(systemName: "creditcard")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text("\(viewModel.todayTransactionCount) transactions")
+                        Text("\(viewModel.recentTransactions.count) transactions")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                    }
-
-                    // vs Yesterday delta
-                    if let delta = viewModel.todayVsYesterday {
-                        DeltaBadge(delta, suffix: "% vs yesterday", invertColors: true)
                     }
                 }
             }
@@ -164,15 +153,15 @@ struct FinanceViewRedesign: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.secondary)
 
-                        Text(formatCurrency(viewModel.monthSpend, currency: viewModel.currency))
+                        Text(formatCurrency(viewModel.summary.totalSpent, currency: currency))
                             .font(.title2.weight(.bold))
                     }
 
                     Spacer()
 
-                    // Budget ring or days remaining
-                    if let budgetPercent = viewModel.monthBudgetUsedPercent,
-                       let budget = viewModel.monthBudget {
+                    let totalBudget = viewModel.summary.budgets.reduce(0) { $0 + $1.budgetAmount }
+                    if totalBudget > 0 {
+                        let budgetPercent = (viewModel.summary.totalSpent / totalBudget) * 100
                         VStack(spacing: 4) {
                             ZStack {
                                 ProgressRing(
@@ -184,34 +173,21 @@ struct FinanceViewRedesign: View {
                                 Text("\(Int(budgetPercent))%")
                                     .font(.caption.weight(.bold))
                             }
-                            Text("of \(formatCurrencyShort(budget))")
+                            Text("of \(formatCurrencyShort(totalBudget))")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
                     } else {
+                        let daysRemaining = Calendar.current.range(of: .day, in: .month, for: Date())!.count -
+                                           Calendar.current.component(.day, from: Date())
                         VStack(spacing: 2) {
-                            Text("\(viewModel.daysRemaining)")
+                            Text("\(daysRemaining)")
                                 .font(.title2.weight(.bold))
                                 .foregroundColor(.nexusFinance)
                             Text("days left")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
-                    }
-                }
-
-                // Budget remaining text
-                if let remaining = viewModel.monthBudgetRemaining {
-                    HStack {
-                        Image(systemName: remaining >= 0 ? "checkmark.circle" : "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundColor(remaining >= 0 ? .green : .orange)
-                        Text(remaining >= 0 ?
-                             "\(formatCurrency(remaining, currency: viewModel.currency)) remaining" :
-                             "\(formatCurrency(abs(remaining), currency: viewModel.currency)) over budget")
-                            .font(.caption)
-                            .foregroundColor(remaining >= 0 ? .secondary : .orange)
-                        Spacer()
                     }
                 }
             }
@@ -227,13 +203,18 @@ struct FinanceViewRedesign: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(.secondary)
 
-                ForEach(viewModel.topCategories) { category in
+                let sorted = viewModel.summary.categoryBreakdown
+                    .sorted { $0.value > $1.value }
+                    .prefix(3)
+
+                ForEach(Array(sorted), id: \.key) { key, value in
+                    let total = viewModel.summary.totalSpent
                     CategoryRowView(
-                        name: category.name,
-                        icon: category.icon ?? "creditcard.fill",
-                        amount: category.spent,
-                        progress: category.percentOfTotal / 100,
-                        currency: viewModel.currency
+                        name: key.capitalized,
+                        icon: categoryIcon(for: key),
+                        amount: abs(value),
+                        progress: total > 0 ? abs(value) / total : 0,
+                        currency: currency
                     )
                 }
             }
@@ -291,10 +272,10 @@ struct FinanceViewRedesign: View {
                     }
                 }
 
-                ForEach(viewModel.recentTransactions) { tx in
-                    RecentTransactionRow(transaction: tx, currency: viewModel.currency)
+                ForEach(viewModel.recentTransactions.prefix(5)) { tx in
+                    RecentTransactionRow(transaction: tx, currency: currency)
 
-                    if tx.id != viewModel.recentTransactions.last?.id {
+                    if tx.id != viewModel.recentTransactions.prefix(5).last?.id {
                         Divider()
                     }
                 }
@@ -307,7 +288,6 @@ struct FinanceViewRedesign: View {
     private var cashflowCard: some View {
         SimpleCard(padding: 12) {
             HStack(spacing: 16) {
-                // Income
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.down.circle.fill")
@@ -317,7 +297,7 @@ struct FinanceViewRedesign: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    Text(formatCurrencyShort(viewModel.monthIncome))
+                    Text(formatCurrencyShort(viewModel.summary.totalIncome))
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.green)
                 }
@@ -325,7 +305,6 @@ struct FinanceViewRedesign: View {
                 Divider()
                     .frame(height: 30)
 
-                // Expenses
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.up.circle.fill")
@@ -335,7 +314,7 @@ struct FinanceViewRedesign: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    Text(formatCurrencyShort(viewModel.monthSpend))
+                    Text(formatCurrencyShort(viewModel.summary.totalSpent))
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.red)
                 }
@@ -343,14 +322,14 @@ struct FinanceViewRedesign: View {
                 Divider()
                     .frame(height: 30)
 
-                // Net
                 VStack(alignment: .leading, spacing: 2) {
+                    let net = viewModel.summary.totalIncome - viewModel.summary.totalSpent
                     Text("Net")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text((viewModel.monthNet >= 0 ? "+" : "") + formatCurrencyShort(viewModel.monthNet))
+                    Text((net >= 0 ? "+" : "") + formatCurrencyShort(net))
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(viewModel.monthNet >= 0 ? .green : .red)
+                        .foregroundColor(net >= 0 ? .green : .red)
                 }
 
                 Spacer()
@@ -360,18 +339,18 @@ struct FinanceViewRedesign: View {
 
     // MARK: - 7. Insight
 
-    private func insightCard(_ insight: FinanceInsightDTO) -> some View {
+    private func insightCard(_ insight: RankedInsight) -> some View {
         SimpleCard(padding: 12) {
             HStack(spacing: 12) {
-                Image(systemName: insight.icon)
+                Image(systemName: "lightbulb.fill")
                     .font(.title3)
-                    .foregroundColor(insightColor(insight.severity))
+                    .foregroundColor(.nexusFinance)
                     .frame(width: 32)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(insight.title)
+                    Text(insight.type.replacingOccurrences(of: "_", with: " ").capitalized)
                         .font(.subheadline.weight(.medium))
-                    Text(insight.detail)
+                    Text(insight.description)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
@@ -379,14 +358,6 @@ struct FinanceViewRedesign: View {
 
                 Spacer()
             }
-        }
-    }
-
-    private func insightColor(_ severity: FinanceInsightDTO.InsightSeverity) -> Color {
-        switch severity {
-        case .info: return .nexusFinance
-        case .warning: return .orange
-        case .alert: return .red
         }
     }
 
@@ -404,6 +375,21 @@ struct FinanceViewRedesign: View {
         .padding(12)
         .background(Color.orange.opacity(0.1))
         .cornerRadius(12)
+    }
+
+    // MARK: - Helpers
+
+    private func categoryIcon(for category: String) -> String {
+        switch category.lowercased() {
+        case "grocery", "groceries": return "cart.fill"
+        case "restaurant", "food", "dining": return "fork.knife"
+        case "transport", "transportation": return "car.fill"
+        case "utilities": return "house.fill"
+        case "entertainment": return "tv.fill"
+        case "health", "medical": return "heart.fill"
+        case "shopping": return "bag.fill"
+        default: return "creditcard.fill"
+        }
     }
 }
 
@@ -469,12 +455,11 @@ private struct FinanceQuickAction: View {
 }
 
 private struct RecentTransactionRow: View {
-    let transaction: FinanceTransactionDTO
+    let transaction: Transaction
     let currency: String
 
     var body: some View {
         HStack(spacing: 12) {
-            // Category icon
             ZStack {
                 Circle()
                     .fill(categoryColor.opacity(0.12))
@@ -485,9 +470,8 @@ private struct RecentTransactionRow: View {
                     .foregroundColor(categoryColor)
             }
 
-            // Details
             VStack(alignment: .leading, spacing: 2) {
-                Text(transaction.merchant)
+                Text(transaction.merchantName)
                     .font(.subheadline)
                     .lineLimit(1)
 
@@ -500,7 +484,7 @@ private struct RecentTransactionRow: View {
                     Text("•")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(transaction.time)
+                    Text(transaction.date, style: .time)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -508,10 +492,9 @@ private struct RecentTransactionRow: View {
 
             Spacer()
 
-            // Amount
             Text(formatCurrency(transaction.amount, currency: currency))
                 .font(.subheadline.weight(.medium))
-                .foregroundColor(transaction.isExpense ? .primary : .green)
+                .foregroundColor(transaction.amount < 0 ? .primary : .green)
         }
     }
 

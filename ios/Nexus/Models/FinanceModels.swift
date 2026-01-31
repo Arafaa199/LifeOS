@@ -49,6 +49,53 @@ struct Transaction: Identifiable, Codable {
         case source
     }
 
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(Int.self, forKey: .id)
+        date = try container.decode(Date.self, forKey: .date)
+        merchantName = try container.decodeIfPresent(String.self, forKey: .merchantName) ?? "Unknown"
+        amount = try container.decode(Double.self, forKey: .amount)
+        currency = try container.decode(String.self, forKey: .currency)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        subcategory = try container.decodeIfPresent(String.self, forKey: .subcategory)
+        isGrocery = try container.decodeIfPresent(Bool.self, forKey: .isGrocery) ?? false
+        isRestaurant = try container.decodeIfPresent(Bool.self, forKey: .isRestaurant) ?? false
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        tags = try container.decodeIfPresent([String].self, forKey: .tags)
+        isCorrected = try container.decodeIfPresent(Bool.self, forKey: .isCorrected)
+        correctionId = try container.decodeIfPresent(Int.self, forKey: .correctionId)
+        correctionReason = try container.decodeIfPresent(String.self, forKey: .correctionReason)
+        correctionNotes = try container.decodeIfPresent(String.self, forKey: .correctionNotes)
+        originalAmount = try container.decodeIfPresent(Double.self, forKey: .originalAmount)
+        originalCategory = try container.decodeIfPresent(String.self, forKey: .originalCategory)
+        originalMerchantName = try container.decodeIfPresent(String.self, forKey: .originalMerchantName)
+        originalDate = try container.decodeIfPresent(Date.self, forKey: .originalDate)
+        source = try container.decodeIfPresent(String.self, forKey: .source)
+    }
+
+    init(id: Int?, date: Date, merchantName: String, amount: Double, currency: String, category: String?, subcategory: String?, isGrocery: Bool, isRestaurant: Bool, notes: String?, tags: [String]?, isCorrected: Bool?, correctionId: Int?, correctionReason: String?, correctionNotes: String?, originalAmount: Double?, originalCategory: String?, originalMerchantName: String?, originalDate: Date?, source: String?) {
+        self.id = id
+        self.date = date
+        self.merchantName = merchantName
+        self.amount = amount
+        self.currency = currency
+        self.category = category
+        self.subcategory = subcategory
+        self.isGrocery = isGrocery
+        self.isRestaurant = isRestaurant
+        self.notes = notes
+        self.tags = tags
+        self.isCorrected = isCorrected
+        self.correctionId = correctionId
+        self.correctionReason = correctionReason
+        self.correctionNotes = correctionNotes
+        self.originalAmount = originalAmount
+        self.originalCategory = originalCategory
+        self.originalMerchantName = originalMerchantName
+        self.originalDate = originalDate
+        self.source = source
+    }
+
     var displayAmount: String {
         let absAmount = abs(amount)
         return String(format: "%@ %.2f", currency, absAmount)

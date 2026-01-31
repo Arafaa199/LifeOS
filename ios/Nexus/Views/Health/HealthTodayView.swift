@@ -47,6 +47,9 @@ struct HealthTodayView: View {
         }
         .background(Color(.systemGroupedBackground))
         .refreshable {
+            // Fetch fresh HealthKit data locally first
+            await viewModel.fetchLocalHealthKit()
+            // Then trigger full sync (push to server, then fetch dashboard)
             SyncCoordinator.shared.syncAll(force: true)
             await viewModel.loadData()
         }
@@ -149,14 +152,15 @@ struct HealthTodayView: View {
     // MARK: - Activity Card
 
     private func activityCard(_ facts: TodayFacts) -> some View {
-        HealthMetricCard(title: "Activity") {
+        let steps = facts.steps ?? viewModel.localSteps
+
+        return HealthMetricCard(title: "Activity") {
             HStack(spacing: 24) {
-                // Steps
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
                         Image(systemName: "figure.walk")
                             .foregroundColor(.blue)
-                        if let steps = facts.steps {
+                        if let steps {
                             Text(formatNumber(steps))
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                         } else {
@@ -181,15 +185,18 @@ struct HealthTodayView: View {
     // MARK: - Body Card
 
     private func bodyCard(_ facts: TodayFacts) -> some View {
-        HealthMetricCard(title: "Body") {
-            if let weight = facts.weightKg {
+        let weight = facts.weightKg ?? viewModel.localWeight
+        let vs7d = facts.weightVs7d
+
+        return HealthMetricCard(title: "Body") {
+            if let weight {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(String(format: "%.1f kg", weight))
                                 .font(.system(size: 24, weight: .bold, design: .rounded))
 
-                            if let vs7d = facts.weightVs7d {
+                            if let vs7d {
                                 Text(vs7d >= 0 ? "+\(String(format: "%.1f", vs7d)) kg vs 7d" : "\(String(format: "%.1f", vs7d)) kg vs 7d")
                                     .font(.caption)
                                     .foregroundColor(abs(vs7d) > 1 ? .orange : .secondary)

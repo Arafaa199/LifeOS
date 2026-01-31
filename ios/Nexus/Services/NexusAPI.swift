@@ -1,5 +1,8 @@
 import Foundation
 import Combine
+import os
+
+private let logger = Logger(subsystem: "com.nexus.app", category: "api")
 
 class NexusAPI: ObservableObject {
     static let shared = NexusAPI()
@@ -14,26 +17,63 @@ class NexusAPI: ObservableObject {
 
     // MARK: - Logging Methods
 
+    /// Logs a food entry to the Nexus API
+    ///
+    /// This method sends a natural language description of food consumed to the API,
+    /// which will parse it and return nutritional information.
+    ///
+    /// - Parameter text: Natural language description of the food consumed
+    /// - Returns: Response containing nutritional information including calories and protein
+    /// - Throws: ``APIError`` if the request fails
+    ///
+    /// ## Example
+    /// ```swift
+    /// let response = try await api.logFood("2 scrambled eggs and whole wheat toast")
+    /// print("Calories: \(response.data?.calories ?? 0)")
+    /// ```
     func logFood(_ text: String) async throws -> NexusResponse {
         let request = FoodLogRequest(text: text)
         return try await post("/webhook/nexus-food", body: request)
     }
 
+    /// Logs water intake in milliliters
+    ///
+    /// - Parameter amountML: Amount of water in milliliters (1-10,000)
+    /// - Returns: Response containing total water intake for the day
+    /// - Throws: ``ValidationError`` if amount is invalid, ``APIError`` if request fails
     func logWater(amountML: Int) async throws -> NexusResponse {
-        let request = WaterLogRequest(amount_ml: amountML)
+        let request = try WaterLogRequest(amount_ml: amountML)
         return try await post("/webhook/nexus-water", body: request)
     }
 
+    /// Logs body weight in kilograms
+    ///
+    /// - Parameter kg: Weight in kilograms (1-500)
+    /// - Returns: Response confirming weight was logged
+    /// - Throws: ``ValidationError`` if weight is invalid, ``APIError`` if request fails
     func logWeight(kg: Double) async throws -> NexusResponse {
-        let request = WeightLogRequest(weight_kg: kg)
+        let request = try WeightLogRequest(weight_kg: kg)
         return try await post("/webhook/nexus-weight", body: request)
     }
 
+    /// Logs mood and energy levels
+    ///
+    /// - Parameters:
+    ///   - mood: Mood rating from 1 (lowest) to 10 (highest)
+    ///   - energy: Energy level from 1 (lowest) to 10 (highest)
+    ///   - notes: Optional notes about the mood/energy state
+    /// - Returns: Response confirming mood was logged
+    /// - Throws: ``ValidationError`` if mood or energy is out of range, ``APIError`` if request fails
     func logMood(mood: Int, energy: Int, notes: String? = nil) async throws -> NexusResponse {
-        let request = MoodLogRequest(mood: mood, energy: energy, notes: notes)
+        let request = try MoodLogRequest(mood: mood, energy: energy, notes: notes)
         return try await post("/webhook/nexus-mood", body: request)
     }
 
+    /// Logs a universal entry that will be automatically categorized by the API
+    ///
+    /// - Parameter text: Natural language description of the activity or event
+    /// - Returns: Response from the API
+    /// - Throws: ``APIError`` if the request fails
     func logUniversal(_ text: String) async throws -> NexusResponse {
         let request = UniversalLogRequest(text: text)
         return try await post("/webhook/nexus-universal", body: request)
@@ -111,6 +151,13 @@ class NexusAPI: ObservableObject {
             isRecurring: isRecurring
         )
         return try await postFinance("/webhook/nexus-income", body: request)
+    }
+
+    // MARK: - WHOOP Refresh
+
+    func refreshWHOOP() async throws -> WhoopRefreshResponse {
+        struct EmptyBody: Encodable {}
+        return try await post("/webhook/nexus-whoop-refresh", body: EmptyBody(), decoder: JSONDecoder())
     }
 
     // MARK: - Finance Methods with Client ID (for idempotency)
@@ -362,16 +409,28 @@ class NexusAPI: ObservableObject {
     private let retryMultiplier: Double = 2.0
 
     private func performRequest(_ request: URLRequest, attempt: Int = 1) async throws -> (Data, HTTPURLResponse) {
+        let startTime = Date()
+        
         do {
+            logger.debug("[\(attempt)/\(self.maxRetries)] \(request.httpMethod ?? "GET") \(request.url?.path ?? "")")
+            
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse
             }
+            
+            let duration = Date().timeIntervalSince(startTime)
+            logger.debug("[\(httpResponse.statusCode)] Response received in \(String(format: "%.2f", duration))s")
+            
+            #if DEBUG
+            logResponse(data, response: httpResponse)
+            #endif
 
             // Retry on 5xx server errors or specific transient errors
             if httpResponse.statusCode >= 500, attempt < maxRetries {
                 let delay = initialRetryDelay * pow(retryMultiplier, Double(attempt - 1))
+                logger.warning("Server error \(httpResponse.statusCode), retrying in \(delay)s...")
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 return try await performRequest(request, attempt: attempt + 1)
             }
@@ -382,17 +441,32 @@ class NexusAPI: ObservableObject {
 
             return (data, httpResponse)
         } catch let error as APIError {
+            logger.error("API error: \(error.localizedDescription)")
             throw error
         } catch {
+            logger.error("Network error: \(error.localizedDescription)")
             // Retry on network errors (timeout, connection lost, etc.)
             if attempt < maxRetries {
                 let delay = initialRetryDelay * pow(retryMultiplier, Double(attempt - 1))
+                logger.warning("Retrying in \(delay)s...")
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 return try await performRequest(request, attempt: attempt + 1)
             }
             throw error
         }
     }
+    
+    #if DEBUG
+    private func logResponse(_ data: Data, response: HTTPURLResponse) {
+        if let json = try? JSONSerialization.jsonObject(with: data),
+           let prettyData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
+           let prettyString = String(data: prettyData, encoding: .utf8) {
+            logger.debug("Response body:\n\(prettyString)")
+        } else if let responseString = String(data: data, encoding: .utf8) {
+            logger.debug("Response body: \(responseString)")
+        }
+    }
+    #endif
 
     /// Generic POST method for all API calls
     private func post<Body: Encodable, Response: Decodable>(
@@ -424,8 +498,7 @@ class NexusAPI: ObservableObject {
         try await post(endpoint, body: body, decoder: JSONDecoder())
     }
 
-    /// POST for finance operations - tolerant of response format issues
-    /// On 2xx, if decode fails, returns synthetic success (operation likely succeeded)
+    /// POST for finance operations — decode failures are propagated as errors.
     func postFinance<T: Encodable>(_ endpoint: String, body: T) async throws -> FinanceResponse {
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
             throw APIError.invalidURL
@@ -444,26 +517,33 @@ class NexusAPI: ObservableObject {
 
         let (data, _) = try await performRequest(request)
 
-        // Try to decode the response
         do {
             return try Self.financeDateDecoder.decode(FinanceResponse.self, from: data)
         } catch {
-            // Log decode error for debugging
-            #if DEBUG
+            logger.warning("Finance decode failed: \(error.localizedDescription)")
             if let responseString = String(data: data, encoding: .utf8) {
-                print("[NexusAPI] Finance decode failed. Response: \(responseString)")
-                print("[NexusAPI] Decode error: \(error)")
+                logger.debug("Response was: \(responseString)")
             }
-            #endif
-
-            // On 2xx with decode failure, treat as success
-            // The operation likely succeeded, response format just differs
-            return FinanceResponse(
-                success: true,
-                message: "Operation completed (response format changed)",
-                data: nil
-            )
+            throw APIError.decodingError
         }
+    }
+    
+    // MARK: - URL Building Helper
+    
+    private func buildURL(endpoint: String, queryItems: [URLQueryItem]? = nil) throws -> URL {
+        guard var components = URLComponents(string: "\(baseURL)\(endpoint)") else {
+            throw APIError.invalidURL
+        }
+        
+        if let queryItems = queryItems, !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+        
+        guard let url = components.url else {
+            throw APIError.invalidURL
+        }
+        
+        return url
     }
 
     // MARK: - Generic GET Helper
@@ -552,6 +632,59 @@ enum APIError: LocalizedError {
             return "Failed to decode response"
         case .offline:
             return "No network connection"
+        }
+    }
+}
+
+// MARK: - Comprehensive Error Handling
+
+enum NexusError: LocalizedError {
+    case network(URLError)
+    case api(APIError)
+    case validation(ValidationError)
+    case offline(queuedItemCount: Int)
+    case unknown(Error)
+    
+    var errorDescription: String? {
+        switch self {
+        case .network(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .api(let error):
+            return error.localizedDescription
+        case .validation(let error):
+            return "Invalid input: \(error.localizedDescription)"
+        case .offline(let count):
+            return "Offline - \(count) items queued for sync"
+        case .unknown(let error):
+            return "An error occurred: \(error.localizedDescription)"
+        }
+    }
+    
+    var recoverySuggestion: String? {
+        switch self {
+        case .offline:
+            return "Your data will sync automatically when you're back online"
+        case .network:
+            return "Check your internet connection and try again"
+        case .validation:
+            return "Please check your input and try again"
+        case .api(.serverError(let code)) where code >= 500:
+            return "The server is experiencing issues. Please try again later"
+        case .api(.serverError(let code)) where code == 401:
+            return "Please check your API key in settings"
+        default:
+            return "Please try again"
+        }
+    }
+    
+    var isRecoverable: Bool {
+        switch self {
+        case .network, .api(.serverError), .offline:
+            return true
+        case .validation, .api(.invalidURL), .api(.invalidResponse):
+            return false
+        default:
+            return true
         }
     }
 }
@@ -681,6 +814,21 @@ struct RecoveryMetrics: Codable {
 }
 
 // MARK: - Health Timeseries Models
+
+// MARK: - WHOOP Refresh Response
+
+struct WhoopRefreshResponse: Codable {
+    let success: Bool
+    let message: String?
+    let sensorsFound: Int?
+    let recovery: Double?
+    let daily_facts_refreshed: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case success, message, sensorsFound, recovery
+        case daily_facts_refreshed
+    }
+}
 
 struct HealthTimeseriesResponse: Codable {
     let success: Bool

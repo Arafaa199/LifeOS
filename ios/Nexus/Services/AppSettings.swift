@@ -15,10 +15,29 @@ class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(webhookBaseURL, forKey: "webhookBaseURL") }
     }
 
+    @Published var whoopSyncEnabled: Bool {
+        didSet { UserDefaults.standard.set(whoopSyncEnabled, forKey: "whoopSyncEnabled") }
+    }
+    @Published var financeSyncEnabled: Bool {
+        didSet { UserDefaults.standard.set(financeSyncEnabled, forKey: "financeSyncEnabled") }
+    }
+    @Published var healthKitSyncEnabled: Bool {
+        didSet { UserDefaults.standard.set(healthKitSyncEnabled, forKey: "healthKitSyncEnabled") }
+    }
+    @Published var calendarSyncEnabled: Bool {
+        didSet { UserDefaults.standard.set(calendarSyncEnabled, forKey: "calendarSyncEnabled") }
+    }
+
     private init() {
         self.defaultCurrency = UserDefaults.standard.string(forKey: "defaultCurrency") ?? "AED"
         self.showCurrencyConversion = UserDefaults.standard.bool(forKey: "showCurrencyConversion")
         self.webhookBaseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
+
+        // Domain sync flags default to true (object_forKey returns nil for unset keys)
+        self.whoopSyncEnabled = UserDefaults.standard.object(forKey: "whoopSyncEnabled") as? Bool ?? true
+        self.financeSyncEnabled = UserDefaults.standard.object(forKey: "financeSyncEnabled") as? Bool ?? true
+        self.healthKitSyncEnabled = UserDefaults.standard.object(forKey: "healthKitSyncEnabled") as? Bool ?? true
+        self.calendarSyncEnabled = UserDefaults.standard.object(forKey: "calendarSyncEnabled") as? Bool ?? true
     }
 
     // Currency display helpers

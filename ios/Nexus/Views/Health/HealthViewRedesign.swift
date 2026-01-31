@@ -5,7 +5,7 @@ import SwiftUI
 // Max 8 cards, premium calm design
 
 struct HealthViewRedesign: View {
-    @StateObject private var viewModel = HealthDashboardViewModel()
+    @StateObject private var viewModel = HealthViewModel()
 
     var body: some View {
         NavigationView {
@@ -14,14 +14,14 @@ struct HealthViewRedesign: View {
                     // Freshness Badge
                     FreshnessBadge(
                         lastUpdated: viewModel.lastUpdated,
-                        isOffline: viewModel.isOffline
+                        isOffline: viewModel.dataSource == .cache
                     )
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
 
-                    if viewModel.isLoading && !viewModel.hasData {
+                    if viewModel.isLoading && viewModel.dashboardPayload == nil {
                         loadingState
-                    } else if !viewModel.hasData {
+                    } else if viewModel.dashboardPayload == nil {
                         emptyState
                     } else {
                         // 1. Recovery (Hero Card)
@@ -37,12 +37,12 @@ struct HealthViewRedesign: View {
                         activityCard
 
                         // 5. 7-Day Trend
-                        if !viewModel.recovery7d.isEmpty {
+                        if !recovery7d.isEmpty {
                             trendCard
                         }
 
                         // 6. Insight
-                        if let insight = viewModel.insight {
+                        if let insight = viewModel.generateInsights().first {
                             insightCard(insight)
                         }
                     }
@@ -56,22 +56,104 @@ struct HealthViewRedesign: View {
             }
             .background(Color(UIColor.systemGroupedBackground))
             .refreshable {
-                await viewModel.refresh()
+                await viewModel.loadData()
             }
             .task {
-                await viewModel.loadDashboard()
+                await viewModel.loadData()
             }
             .navigationTitle("Health")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: HealthSourcesView(viewModel: HealthViewModel())) {
+                    NavigationLink(destination: HealthSourcesView(viewModel: viewModel)) {
                         Image(systemName: "antenna.radiowaves.left.and.right")
                             .foregroundColor(.nexusHealth)
                     }
                 }
             }
         }
+    }
+
+    // MARK: - Data Accessors (from HealthViewModel's dashboardPayload)
+
+    private var facts: TodayFacts? {
+        viewModel.todayFacts
+    }
+
+    private var recoveryScore: Int? {
+        facts?.recoveryScore
+    }
+
+    private var isRecoveryUnusual: Bool {
+        facts?.recoveryUnusual ?? false
+    }
+
+    private var hrv: Double? {
+        facts?.hrv
+    }
+
+    private var hrvVs7d: Double? {
+        facts?.hrvVs7d
+    }
+
+    private var rhr: Int? {
+        facts?.rhr
+    }
+
+    private var strain: Double? {
+        facts?.strain
+    }
+
+    private var steps: Int? {
+        facts?.steps
+    }
+
+    private var sleepMinutes: Int? {
+        facts?.sleepMinutes
+    }
+
+    private var sleepEfficiency: Double? {
+        facts?.sleepEfficiency
+    }
+
+    private var deepSleepMinutes: Int? {
+        facts?.deepSleepMinutes
+    }
+
+    private var remSleepMinutes: Int? {
+        facts?.remSleepMinutes
+    }
+
+    private var lightSleepMinutes: Int? {
+        guard let total = sleepMinutes, let deep = deepSleepMinutes, let rem = remSleepMinutes else {
+            return nil
+        }
+        return max(0, total - deep - rem)
+    }
+
+    private var sleepVs7d: Double? {
+        facts?.sleepVs7d
+    }
+
+    private var weightKg: Double? {
+        facts?.weightKg
+    }
+
+    private var weightVs7d: Double? {
+        facts?.weightVs7d
+    }
+
+    private var weight30dDelta: Double? {
+        facts?.weight30dDelta
+    }
+
+    private var recovery7d: [Double] {
+        // Use timeseries data if available, otherwise empty
+        viewModel.healthTimeseries.compactMap { $0.recovery.map { Double($0) } }
+    }
+
+    private var avg7dRecovery: Double? {
+        facts?.recovery7dAvg
     }
 
     // MARK: - 1. Recovery Card (Hero)
@@ -86,28 +168,25 @@ struct HealthViewRedesign: View {
 
                     Spacer()
 
-                    // Unusual badge
-                    if viewModel.isRecoveryUnusual {
+                    if isRecoveryUnusual {
                         HStack(spacing: 4) {
-                            Image(systemName: viewModel.recoveryScore ?? 0 < 40 ? "exclamationmark.triangle.fill" : "sparkles")
+                            Image(systemName: recoveryScore ?? 0 < 40 ? "exclamationmark.triangle.fill" : "sparkles")
                                 .font(.caption)
-                            Text(viewModel.recoveryScore ?? 0 < 40 ? "Low" : "High")
+                            Text(recoveryScore ?? 0 < 40 ? "Low" : "High")
                                 .font(.caption.weight(.medium))
                         }
-                        .foregroundColor(viewModel.recoveryScore ?? 0 < 40 ? .orange : .green)
+                        .foregroundColor(recoveryScore ?? 0 < 40 ? .orange : .green)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background((viewModel.recoveryScore ?? 0 < 40 ? Color.orange : Color.green).opacity(0.12))
+                        .background((recoveryScore ?? 0 < 40 ? Color.orange : Color.green).opacity(0.12))
                         .cornerRadius(8)
                     }
 
-                    // WHOOP badge
                     SourceBadgeSmall(source: .whoop)
                 }
 
                 HStack(spacing: 24) {
-                    // Recovery Ring
-                    if let recovery = viewModel.recoveryScore {
+                    if let recovery = recoveryScore {
                         ZStack {
                             ProgressRing(
                                 progress: Double(recovery) / 100,
@@ -129,18 +208,17 @@ struct HealthViewRedesign: View {
                         recoveryPlaceholder
                     }
 
-                    // Metrics stack
                     VStack(alignment: .leading, spacing: 10) {
-                        if let hrv = viewModel.hrv {
+                        if let hrv = hrv {
                             MetricLine(
                                 icon: "waveform.path.ecg",
                                 label: "HRV",
                                 value: "\(Int(hrv)) ms",
-                                delta: viewModel.hrvVs7d
+                                delta: hrvVs7d
                             )
                         }
 
-                        if let rhr = viewModel.rhr {
+                        if let rhr = rhr {
                             MetricLine(
                                 icon: "heart.fill",
                                 label: "RHR",
@@ -149,7 +227,7 @@ struct HealthViewRedesign: View {
                             )
                         }
 
-                        if let strain = viewModel.strain {
+                        if let strain = strain {
                             MetricLine(
                                 icon: "flame.fill",
                                 label: "Strain",
@@ -178,7 +256,7 @@ struct HealthViewRedesign: View {
     }
 
     private var recoveryColor: Color {
-        guard let score = viewModel.recoveryScore else { return .gray }
+        guard let score = recoveryScore else { return .gray }
         if score >= 67 { return .green }
         if score >= 34 { return .yellow }
         return .red
@@ -197,7 +275,7 @@ struct HealthViewRedesign: View {
                     SourceBadgeSmall(source: .whoop)
                 }
 
-                if let sleepMinutes = viewModel.sleepMinutes {
+                if let sleepMinutes = sleepMinutes {
                     let hours = sleepMinutes / 60
                     let mins = sleepMinutes % 60
 
@@ -205,7 +283,7 @@ struct HealthViewRedesign: View {
                         Text("\(hours)h \(mins)m")
                             .font(.title2.weight(.bold))
 
-                        if let efficiency = viewModel.sleepEfficiency {
+                        if let efficiency = sleepEfficiency {
                             Text("• \(Int(efficiency))% efficiency")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -213,15 +291,14 @@ struct HealthViewRedesign: View {
 
                         Spacer()
 
-                        if let delta = viewModel.sleepVs7d {
+                        if let delta = sleepVs7d {
                             DeltaBadge(delta, suffix: "%")
                         }
                     }
 
-                    // Sleep stages bar
-                    if let deep = viewModel.deepSleepMinutes,
-                       let rem = viewModel.remSleepMinutes,
-                       let light = viewModel.lightSleepMinutes {
+                    if let deep = deepSleepMinutes,
+                       let rem = remSleepMinutes,
+                       let light = lightSleepMinutes {
                         SleepStagesBarCompact(
                             deep: deep,
                             rem: rem,
@@ -249,7 +326,7 @@ struct HealthViewRedesign: View {
                     SourceBadgeSmall(source: .healthkit)
                 }
 
-                if let weight = viewModel.weightKg {
+                if let weight = weightKg {
                     HStack {
                         Text(String(format: "%.1f kg", weight))
                             .font(.title2.weight(.bold))
@@ -257,7 +334,7 @@ struct HealthViewRedesign: View {
                         Spacer()
 
                         VStack(alignment: .trailing, spacing: 2) {
-                            if let delta7d = viewModel.weightVs7d {
+                            if let delta7d = weightVs7d {
                                 HStack(spacing: 4) {
                                     Image(systemName: delta7d >= 0 ? "arrow.up" : "arrow.down")
                                         .font(.caption2)
@@ -267,7 +344,7 @@ struct HealthViewRedesign: View {
                                 .foregroundColor(abs(delta7d) > 1 ? .orange : .secondary)
                             }
 
-                            if let delta30d = viewModel.weight30dDelta {
+                            if let delta30d = weight30dDelta {
                                 Text("\(delta30d >= 0 ? "+" : "")\(String(format: "%.1f", delta30d)) kg / 30d")
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
@@ -286,7 +363,6 @@ struct HealthViewRedesign: View {
     private var activityCard: some View {
         SimpleCard(padding: 12) {
             HStack(spacing: 20) {
-                // Steps
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
                         Image(systemName: "figure.walk")
@@ -297,7 +373,7 @@ struct HealthViewRedesign: View {
                             .foregroundColor(.secondary)
                     }
 
-                    if let steps = viewModel.steps {
+                    if let steps = steps {
                         Text(formatNumber(steps))
                             .font(.title3.weight(.bold))
                     } else {
@@ -310,7 +386,6 @@ struct HealthViewRedesign: View {
                 Divider()
                     .frame(height: 36)
 
-                // Strain
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
                         Image(systemName: "flame.fill")
@@ -321,7 +396,7 @@ struct HealthViewRedesign: View {
                             .foregroundColor(.secondary)
                     }
 
-                    if let strain = viewModel.strain {
+                    if let strain = strain {
                         Text(String(format: "%.1f", strain))
                             .font(.title3.weight(.bold))
                     } else {
@@ -333,7 +408,6 @@ struct HealthViewRedesign: View {
 
                 Spacer()
 
-                // Data source badges
                 VStack(alignment: .trailing, spacing: 4) {
                     SourceBadgeSmall(source: .healthkit)
                     SourceBadgeSmall(source: .whoop)
@@ -354,7 +428,7 @@ struct HealthViewRedesign: View {
 
                     Spacer()
 
-                    if let avg = viewModel.avg7dRecovery {
+                    if let avg = avg7dRecovery {
                         Text("Avg: \(Int(avg))%")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -362,7 +436,7 @@ struct HealthViewRedesign: View {
                 }
 
                 MiniSparkline(
-                    data: viewModel.recovery7d,
+                    data: recovery7d,
                     color: .nexusHealth,
                     height: 40
                 )
@@ -372,12 +446,12 @@ struct HealthViewRedesign: View {
 
     // MARK: - 6. Insight Card
 
-    private func insightCard(_ insight: HealthInsightDTO) -> some View {
+    private func insightCard(_ insight: HealthInsight) -> some View {
         SimpleCard(padding: 12) {
             HStack(spacing: 12) {
                 Image(systemName: insight.icon)
                     .font(.title3)
-                    .foregroundColor(insightColor(insight.color))
+                    .foregroundColor(insight.color)
                     .frame(width: 32)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -385,13 +459,12 @@ struct HealthViewRedesign: View {
                         Text(insight.title)
                             .font(.subheadline.weight(.medium))
 
-                        // Confidence badge
-                        Text(insight.confidence.rawValue.capitalized)
+                        Text(insight.confidence.rawValue)
                             .font(.caption2)
-                            .foregroundColor(confidenceColor(insight.confidence))
+                            .foregroundColor(insight.confidence.color)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(confidenceColor(insight.confidence).opacity(0.12))
+                            .background(insight.confidence.color.opacity(0.12))
                             .cornerRadius(4)
                     }
 
@@ -403,25 +476,6 @@ struct HealthViewRedesign: View {
 
                 Spacer()
             }
-        }
-    }
-
-    private func insightColor(_ color: String) -> Color {
-        switch color {
-        case "green": return .green
-        case "orange": return .orange
-        case "red": return .red
-        case "blue": return .blue
-        case "purple": return .purple
-        default: return .nexusHealth
-        }
-    }
-
-    private func confidenceColor(_ confidence: HealthInsightDTO.InsightConfidence) -> Color {
-        switch confidence {
-        case .early: return .orange
-        case .moderate: return .blue
-        case .strong: return .green
         }
     }
 

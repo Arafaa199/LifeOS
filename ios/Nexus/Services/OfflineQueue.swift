@@ -2,33 +2,43 @@ import Foundation
 import Combine
 import os
 
+private let logger = Logger(subsystem: "com.nexus.app", category: "offline")
+
 // Offline queue manager for handling failed API requests
+@MainActor
 class OfflineQueue {
     static let shared = OfflineQueue()
 
     private let queueKey = "offline_log_queue"
     private let maxRetries = 5
-    private let baseRetryDelay: TimeInterval = 5.0 // Base delay for exponential backoff
-    private let maxRetryDelay: TimeInterval = 60.0 // Cap at 60 seconds
+    private let maxQueueSize = 1000
+    private let baseRetryDelay: TimeInterval = 5.0
+    private let maxRetryDelay: TimeInterval = 60.0
     private var processingTask: Task<Void, Never>?
-    private let isProcessing = OSAllocatedUnfairLock(initialState: false)
+    private var isProcessing = false
     private var networkCancellable: AnyCancellable?
 
-    struct QueuedEntry: Codable {
+    struct QueuedEntry: Codable, Sendable {
         let id: UUID
-        let type: String // "food", "water", "universal", etc
-        let payload: String // JSON string of the request
+        let type: String
+        let payload: String
         let timestamp: Date
         var retryCount: Int
+        let priority: Priority
         let originalRequest: QueuedRequest
 
-        enum QueuedRequest: Codable {
+        enum Priority: Int, Codable, Sendable {
+            case high = 0
+            case normal = 1
+            case low = 2
+        }
+
+        enum QueuedRequest: Codable, Sendable {
             case food(text: String)
             case water(amount: Int)
             case weight(kg: Double)
             case mood(value: Int, energy: Int?)
             case universal(text: String)
-            // Finance operations
             case expense(text: String, clientId: String)
             case transaction(merchant: String, amount: Double, category: String?, clientId: String)
             case income(source: String, amount: Double, category: String, clientId: String)
@@ -49,38 +59,29 @@ class OfflineQueue {
     }
 
     private init() {
-        // Process queue on init if items exist
-        scheduleProcessing()
-
-        // Observe network changes - process queue when network becomes available
+        Task { scheduleProcessing() }
         observeNetworkChanges()
     }
 
     private func observeNetworkChanges() {
-        // Subscribe to network connectivity changes
         networkCancellable = NetworkMonitor.shared.$isConnected
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isConnected in
-                guard let self = self else { return }
-                let busy = self.isProcessing.withLock { $0 }
-                if isConnected && !busy {
-                    // Network became available - try to process queue
+                guard let self else { return }
+                if isConnected && !self.isProcessing {
                     self.scheduleProcessing()
                 }
             }
     }
 
-    /// Calculate retry delay with exponential backoff
-    /// 5s -> 10s -> 20s -> 40s -> 60s (capped)
     private func retryDelay(forAttempt attempt: Int) -> TimeInterval {
         let delay = baseRetryDelay * pow(2.0, Double(attempt))
         return min(delay, maxRetryDelay)
     }
 
     private func scheduleProcessing() {
-        let busy = isProcessing.withLock { $0 }
-        guard processingTask == nil, !busy else { return }
+        guard processingTask == nil, !isProcessing else { return }
         processingTask = Task {
             await processQueue()
             processingTask = nil
@@ -89,8 +90,13 @@ class OfflineQueue {
 
     // MARK: - Add to Queue
 
-    func enqueue(_ request: QueuedEntry.QueuedRequest) {
+    func enqueue(_ request: QueuedEntry.QueuedRequest, priority: QueuedEntry.Priority = .normal) {
         var queue = loadQueue()
+
+        if queue.count >= self.maxQueueSize {
+            logger.warning("Queue at capacity, removing \(queue.count - self.maxQueueSize + 1) oldest items")
+            queue.removeFirst(queue.count - self.maxQueueSize + 1)
+        }
 
         let entry = QueuedEntry(
             id: UUID(),
@@ -98,65 +104,64 @@ class OfflineQueue {
             payload: "",
             timestamp: Date(),
             retryCount: 0,
+            priority: priority,
             originalRequest: request
         )
 
         queue.append(entry)
         saveQueue(queue)
 
-        // Schedule processing (won't start if already running)
+        logger.info("Enqueued \(entry.type) with priority \(priority.rawValue)")
+
         scheduleProcessing()
     }
 
     // MARK: - Process Queue
 
     func processQueue() async {
-        let alreadyRunning = isProcessing.withLock { value -> Bool in
-            if value { return true }
-            value = true
-            return false
+        guard !isProcessing else {
+            logger.debug("Queue processing already in progress")
+            return
         }
-        guard !alreadyRunning else { return }
-        defer { isProcessing.withLock { $0 = false } }
+        isProcessing = true
+        defer { isProcessing = false }
 
         var queue = loadQueue()
-        guard !queue.isEmpty else { return }
+        guard !queue.isEmpty else {
+            logger.debug("Queue is empty")
+            return
+        }
+
+        logger.info("Processing \(queue.count) queued items")
+
+        queue.sort { $0.priority.rawValue < $1.priority.rawValue }
 
         var processed: [UUID] = []
         var failed: [QueuedEntry] = []
 
         for var entry in queue {
-            // Check for cancellation
             if Task.isCancelled { break }
 
             do {
-                // Try to send the request
                 try await sendRequest(entry.originalRequest)
-
-                // Success - mark for removal
                 processed.append(entry.id)
+                logger.info("Successfully synced: \(entry.type)")
 
             } catch {
-                // Failed - increment retry count
                 entry.retryCount += 1
 
-                if entry.retryCount >= maxRetries {
-                    // Max retries reached - remove from queue
+                if entry.retryCount >= self.maxRetries {
                     processed.append(entry.id)
-                    #if DEBUG
-                    print("❌ Offline queue: Max retries reached for \(entry.type)")
-                    #endif
+                    logger.error("Max retries reached for \(entry.type): \(error.localizedDescription)")
                 } else {
-                    // Keep in queue for retry
                     failed.append(entry)
+                    logger.warning("Retry \(entry.retryCount)/\(self.maxRetries) for \(entry.type): \(error.localizedDescription)")
                 }
             }
         }
 
-        // Remove processed entries
         queue.removeAll { processed.contains($0.id) }
 
-        // Update failed entries with new retry count
         for failedEntry in failed {
             if let index = queue.firstIndex(where: { $0.id == failedEntry.id }) {
                 queue[index] = failedEntry
@@ -165,11 +170,13 @@ class OfflineQueue {
 
         saveQueue(queue)
 
-        // If items remain, schedule retry after delay with exponential backoff
+        logger.info("Queue processing complete. Remaining: \(queue.count)")
+
         if !queue.isEmpty && !Task.isCancelled {
-            // Use the max retry count from remaining items to determine delay
             let maxAttempt = queue.map(\.retryCount).max() ?? 0
             let delay = retryDelay(forAttempt: maxAttempt)
+
+            logger.info("Scheduling retry in \(delay)s")
 
             Task {
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -249,16 +256,14 @@ extension NexusAPI {
     func logWithOfflineSupport<T: Encodable>(
         _ endpoint: String,
         body: T,
-        queueRequest: OfflineQueue.QueuedEntry.QueuedRequest
+        queueRequest: OfflineQueue.QueuedEntry.QueuedRequest,
+        priority: OfflineQueue.QueuedEntry.Priority = .normal
     ) async throws -> NexusResponse {
         do {
-            // Try to send normally
             return try await post(endpoint, body: body)
         } catch {
-            // Failed - add to offline queue
-            OfflineQueue.shared.enqueue(queueRequest)
+            OfflineQueue.shared.enqueue(queueRequest, priority: priority)
 
-            // Return a mock success response so UI doesn't fail
             return NexusResponse(
                 success: true,
                 message: "Queued offline - will sync when connected",
@@ -277,7 +282,7 @@ extension NexusAPI {
     }
 
     func logWaterOffline(_ amount: Int) async throws -> NexusResponse {
-        let request = WaterLogRequest(amount_ml: amount)
+        let request = try WaterLogRequest(amount_ml: amount)
         return try await logWithOfflineSupport(
             "/webhook/nexus-water",
             body: request,
@@ -301,7 +306,7 @@ extension NexusAPI {
         do {
             return try await logExpenseWithClientId(text, clientId: clientId)
         } catch {
-            OfflineQueue.shared.enqueue(.expense(text: text, clientId: clientId))
+            OfflineQueue.shared.enqueue(.expense(text: text, clientId: clientId), priority: .normal)
             return FinanceResponse(
                 success: true,
                 message: "Queued offline - will sync when connected",
@@ -315,7 +320,7 @@ extension NexusAPI {
         do {
             return try await addTransactionWithClientId(merchant: merchant, amount: amount, category: category, clientId: clientId)
         } catch {
-            OfflineQueue.shared.enqueue(.transaction(merchant: merchant, amount: amount, category: category, clientId: clientId))
+            OfflineQueue.shared.enqueue(.transaction(merchant: merchant, amount: amount, category: category, clientId: clientId), priority: .normal)
             return FinanceResponse(
                 success: true,
                 message: "Queued offline - will sync when connected",
@@ -329,7 +334,7 @@ extension NexusAPI {
         do {
             return try await addIncomeWithClientId(source: source, amount: amount, category: category, clientId: clientId)
         } catch {
-            OfflineQueue.shared.enqueue(.income(source: source, amount: amount, category: category, clientId: clientId))
+            OfflineQueue.shared.enqueue(.income(source: source, amount: amount, category: category, clientId: clientId), priority: .normal)
             return FinanceResponse(
                 success: true,
                 message: "Queued offline - will sync when connected",

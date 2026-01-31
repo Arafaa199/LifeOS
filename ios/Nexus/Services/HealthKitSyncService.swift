@@ -38,13 +38,12 @@ class HealthKitSyncService: ObservableObject {
         // Fetch samples from the last sync date or last 7 days
         let startDate = lastSyncDate ?? Calendar.current.date(byAdding: .day, value: -7, to: Date())!
 
-        async let samples = fetchQuantitySamples(since: startDate)
-        async let sleep = fetchSleepSamples(since: startDate)
-        async let workouts = fetchWorkoutSamples(since: startDate)
+        // Fetch each category independently — one failure shouldn't block others
+        let quantitySamples = (try? await fetchQuantitySamples(since: startDate)) ?? []
+        let sleepSamples = (try? await fetchSleepSamples(since: startDate)) ?? []
+        let workoutSamples = (try? await fetchWorkoutSamples(since: startDate)) ?? []
 
-        let (quantitySamples, sleepSamples, workoutSamples) = try await (samples, sleep, workouts)
-
-        // HK queries succeeded — proof of access regardless of sample count
+        // Any query completing (even with empty results) proves HK access works
         HealthKitManager.shared.markQuerySuccess()
 
         let totalCount = quantitySamples.count + sleepSamples.count + workoutSamples.count

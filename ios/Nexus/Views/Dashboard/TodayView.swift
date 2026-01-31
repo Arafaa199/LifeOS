@@ -224,7 +224,16 @@ struct TodayView: View {
                 Text("Recovery")
                     .font(.subheadline.weight(.medium))
 
-                if let sleep = viewModel.dashboardPayload?.todayFacts.sleepMinutes {
+                if recoveryScore == nil {
+                    let healthStatus = viewModel.dashboardPayload?.dataFreshness?.health?.status
+                    if healthStatus == "healthy" || healthStatus == nil {
+                        Text("Pending")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                if let sleep = viewModel.dashboardPayload?.todayFacts?.sleepMinutes {
                     Text(formatSleep(sleep))
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -279,7 +288,7 @@ struct TodayView: View {
     // MARK: - Computed Properties
 
     private var recoveryScore: Int? {
-        viewModel.dashboardPayload?.todayFacts.recoveryScore
+        viewModel.dashboardPayload?.todayFacts?.recoveryScore
     }
 
     private var recoveryProgress: CGFloat {
@@ -288,12 +297,25 @@ struct TodayView: View {
     }
 
     private var recoveryText: String {
-        guard let score = recoveryScore else { return "--" }
+        guard let score = recoveryScore else {
+            // If health feed is healthy, cycle just hasn't closed yet
+            let healthStatus = viewModel.dashboardPayload?.dataFreshness?.health?.status
+            if healthStatus == "healthy" || healthStatus == nil {
+                return "..."
+            }
+            return "--"
+        }
         return "\(score)%"
     }
 
     private var recoveryColor: Color {
-        guard let score = recoveryScore else { return .gray }
+        guard let score = recoveryScore else {
+            let healthStatus = viewModel.dashboardPayload?.dataFreshness?.health?.status
+            if healthStatus == "healthy" || healthStatus == nil {
+                return .secondary
+            }
+            return .gray
+        }
         switch score {
         case 67...100: return .green
         case 34...66: return .yellow
@@ -302,7 +324,7 @@ struct TodayView: View {
     }
 
     private var spentToday: Double {
-        viewModel.dashboardPayload?.todayFacts.spendTotal ?? 0
+        viewModel.dashboardPayload?.todayFacts?.spendTotal ?? 0
     }
 
     private var spentTodayText: String {

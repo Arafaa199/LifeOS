@@ -23,6 +23,10 @@ class HealthKitManager: ObservableObject {
     private let lastHKQueryKey = "healthkit_last_successful_query_at"
 
     var isAuthorized: Bool {
+        permissionStatus == .working
+    }
+
+    var isSetUp: Bool {
         permissionStatus == .requested || permissionStatus == .working
     }
 
@@ -73,15 +77,51 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    private var allReadTypes: Set<HKObjectType> {
+        [
+            weightType, bodyFatType,
+            HKQuantityType.quantityType(forIdentifier: .leanBodyMass)!,
+            hrvType, rhrType, heartRateType, respiratoryRateType, oxygenSatType,
+            stepsType, activeCaloriesType,
+            HKQuantityType.quantityType(forIdentifier: .appleExerciseTime)!,
+            sleepType
+        ]
+    }
+
     private func verifyAndRequestAuthorizationIfNeeded() async {
-        // Try to fetch any data as a verification method
         do {
-            // Request authorization - if already granted, this returns immediately without UI
-            let typesToRead: Set<HKObjectType> = [weightType, stepsType]
-            try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+            try await healthStore.requestAuthorization(toShare: [], read: allReadTypes)
             markAuthorizationCompleted()
+            // Try a probe query immediately to establish proof-of-access
+            await probeAndMarkAccess()
         } catch {
             permissionStatus = .failed
+        }
+    }
+
+    /// Run a lightweight query to verify HealthKit access actually works.
+    /// Sets permissionStatus = .working on success.
+    private func probeAndMarkAccess() async {
+        do {
+            let _: HKQuantitySample? = try await withCheckedThrowingContinuation { continuation in
+                let query = HKSampleQuery(
+                    sampleType: self.stepsType,
+                    predicate: nil,
+                    limit: 1,
+                    sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(returning: samples?.first as? HKQuantitySample)
+                    }
+                }
+                self.healthStore.execute(query)
+            }
+            // Query completed without error — access is working
+            markQuerySuccess()
+        } catch {
+            // Query failed — permissions may be denied
         }
     }
 
@@ -101,30 +141,9 @@ class HealthKitManager: ObservableObject {
             throw HealthKitError.notAvailable
         }
 
-        let typesToRead: Set<HKObjectType> = [
-            // Body measurements
-            weightType,
-            bodyFatType,
-            HKQuantityType.quantityType(forIdentifier: .leanBodyMass)!,
-
-            // WHOOP / Heart data
-            hrvType,
-            rhrType,
-            heartRateType,
-            respiratoryRateType,
-            oxygenSatType,
-
-            // Activity
-            stepsType,
-            activeCaloriesType,
-            HKQuantityType.quantityType(forIdentifier: .appleExerciseTime)!,
-
-            // Sleep
-            sleepType
-        ]
-
-        try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+        try await healthStore.requestAuthorization(toShare: [], read: allReadTypes)
         markAuthorizationCompleted()
+        await probeAndMarkAccess()
     }
 
     func fetchLatestWeight() async throws -> (weight: Double, date: Date)? {
@@ -482,6 +501,43 @@ class HealthKitManager: ObservableObject {
             activeCalories: calories,
             sleep: sleep
         )
+    }
+
+    // MARK: - Reauthorization
+
+    enum ReauthResult {
+        case prompted          // System dialog shown (.shouldRequest)
+        case alreadyGranted    // .unnecessary + proof-of-access exists
+        case likelyDenied      // .unnecessary + never had a successful query
+    }
+
+    func checkAndReauthorize() async throws -> ReauthResult {
+        guard isHealthDataAvailable else {
+            throw HealthKitError.notAvailable
+        }
+
+        let status = try await healthStore.statusForAuthorizationRequest(toShare: [], read: allReadTypes)
+
+        switch status {
+        case .shouldRequest:
+            try await healthStore.requestAuthorization(toShare: [], read: allReadTypes)
+            markAuthorizationCompleted()
+            await probeAndMarkAccess()
+            return .prompted
+        case .unnecessary:
+            // Don't guess from lastSuccessfulHKQueryAt — actually probe
+            await probeAndMarkAccess()
+            if permissionStatus == .working {
+                return .alreadyGranted
+            } else {
+                return .likelyDenied
+            }
+        default:
+            try await healthStore.requestAuthorization(toShare: [], read: allReadTypes)
+            markAuthorizationCompleted()
+            await probeAndMarkAccess()
+            return .prompted
+        }
     }
 
     func syncAllToNexus() async throws -> [String: Bool] {

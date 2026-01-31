@@ -6,28 +6,38 @@ import Combine
 class FinanceViewModel: ObservableObject {
     @Published var summary = FinanceSummary()
     @Published var recentTransactions: [Transaction] = []
-    @Published var isLoading = false
     @Published var errorMessage: String?
-    @Published var isOffline = false
     @Published var queuedCount = 0
     @Published var lastUpdated: Date?
 
+    // Tracks in-flight CRUD operations (not sync — sync state comes from coordinator)
+    @Published private(set) var operationInProgress = false
+
     private let api = NexusAPI.shared
     private let cache = CacheManager.shared
-    private let dashboardService = DashboardService.shared
     private let networkMonitor = NetworkMonitor.shared
     private let coordinator = SyncCoordinator.shared
     private var loadTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - Computed Sync State (derived from coordinator)
+
+    var isLoading: Bool {
+        operationInProgress || coordinator.domainStates[.finance]?.isSyncing == true
+    }
+
+    var isOffline: Bool {
+        coordinator.domainStates[.finance]?.lastError != nil
+    }
+
     // MARK: - Dashboard-Sourced Properties
 
     var financeFreshness: DomainFreshness? {
-        dashboardService.loadCached()?.payload.dataFreshness?.finance
+        coordinator.dashboardPayload?.dataFreshness?.finance
     }
 
     var serverInsights: [RankedInsight] {
-        let all = dashboardService.loadCached()?.payload.dailyInsights?.rankedInsights ?? []
+        let all = coordinator.dashboardPayload?.dailyInsights?.rankedInsights ?? []
         return all.filter { insight in
             let t = insight.type.lowercased()
             return t.hasPrefix("spending") || t.hasPrefix("budget") || t.hasPrefix("finance") || t.hasPrefix("pattern")
@@ -58,6 +68,15 @@ class FinanceViewModel: ObservableObject {
                 self?.applyFinanceResponse(response)
             }
             .store(in: &cancellables)
+
+        // Forward coordinator state changes so computed properties
+        // (isLoading, isOffline) trigger view updates.
+        coordinator.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     private func applyFinanceResponse(_ response: FinanceResponse) {
@@ -86,7 +105,7 @@ class FinanceViewModel: ObservableObject {
         }
         if let totalIncome = data.totalIncome {
             summary.totalIncome = abs(totalIncome)
-        } else if let dashboardIncome = dashboardService.loadCached()?.payload.todayFacts.incomeTotal {
+        } else if let dashboardIncome = coordinator.dashboardPayload?.todayFacts?.incomeTotal {
             summary.totalIncome = abs(dashboardIncome)
         }
 
@@ -97,8 +116,7 @@ class FinanceViewModel: ObservableObject {
 
         lastUpdated = Date()
         errorMessage = nil
-        isLoading = false
-        isOffline = false
+        operationInProgress = false
     }
 
     private func loadFromCache() {
@@ -112,16 +130,13 @@ class FinanceViewModel: ObservableObject {
     }
 
     func loadFinanceSummary() {
-        isLoading = true
-        // Delegate to coordinator — the Combine subscription handles the response
+        // Delegate to coordinator — the Combine subscription handles the response.
+        // isLoading is computed from coordinator sync state.
         Task {
             await coordinator.sync(.finance)
-            // If coordinator didn't produce a result (e.g. offline), mark offline
             if coordinator.domainStates[.finance]?.lastError != nil {
-                isOffline = true
                 errorMessage = "Could not fetch latest data. Showing cached data."
             }
-            isLoading = false
         }
     }
 
@@ -130,7 +145,7 @@ class FinanceViewModel: ObservableObject {
     func logExpense(_ text: String) async -> Bool {
         guard !text.isEmpty else { return false }
 
-        isLoading = true
+        operationInProgress = true
         errorMessage = nil
 
         do {
@@ -167,32 +182,29 @@ class FinanceViewModel: ObservableObject {
                 // Refresh in background
                 Task { loadFinanceSummary() }
 
-                isLoading = false
+                operationInProgress = false
                 return true
             } else {
                 errorMessage = response.message ?? "Failed to log expense"
-                isLoading = false
+                operationInProgress = false
                 return false
             }
         } catch {
             errorMessage = "Error: \(error.localizedDescription)"
-            isLoading = false
+            operationInProgress = false
             return false
         }
     }
 
     func refresh() async {
-        isLoading = true
         await coordinator.sync(.finance)
         if coordinator.domainStates[.finance]?.lastError != nil {
-            isOffline = true
             errorMessage = "Could not fetch latest data. Showing cached data."
         }
-        isLoading = false
     }
 
     func triggerSMSImport() async {
-        isLoading = true
+        operationInProgress = true
         errorMessage = nil
 
         do {
@@ -212,14 +224,14 @@ class FinanceViewModel: ObservableObject {
             errorMessage = "Error: \(error.localizedDescription)"
         }
 
-        isLoading = false
+        operationInProgress = false
     }
 
     /// Adds a manual transaction. Returns true on success (including offline queue).
     /// Only sets errorMessage on actual failure, not for offline queue.
     @discardableResult
     func addManualTransaction(merchantName: String, amount: Double, category: String, notes: String?, date: Date) async -> Bool {
-        isLoading = true
+        operationInProgress = true
         errorMessage = nil
 
         do {
@@ -251,22 +263,22 @@ class FinanceViewModel: ObservableObject {
                 // Refresh in background, don't block success
                 Task { loadFinanceSummary() }
 
-                isLoading = false
+                operationInProgress = false
                 return true
             } else {
                 errorMessage = response.message ?? "Failed to add transaction"
-                isLoading = false
+                operationInProgress = false
                 return false
             }
         } catch {
             errorMessage = "Error: \(error.localizedDescription)"
-            isLoading = false
+            operationInProgress = false
             return false
         }
     }
 
     func updateTransaction(id: Int, merchantName: String, amount: Double, category: String, notes: String?, date: Date) async {
-        isLoading = true
+        operationInProgress = true
         errorMessage = nil
 
         do {
@@ -290,11 +302,11 @@ class FinanceViewModel: ObservableObject {
             errorMessage = "Error: \(error.localizedDescription)"
         }
 
-        isLoading = false
+        operationInProgress = false
     }
 
     func deleteTransaction(id: Int) async {
-        isLoading = true
+        operationInProgress = true
         errorMessage = nil
 
         do {
@@ -315,7 +327,7 @@ class FinanceViewModel: ObservableObject {
             errorMessage = "Error: \(error.localizedDescription)"
         }
 
-        isLoading = false
+        operationInProgress = false
     }
 
     // MARK: - Income Tracking
@@ -324,7 +336,7 @@ class FinanceViewModel: ObservableObject {
     /// Income amounts are always stored as positive values.
     @discardableResult
     func addIncome(source: String, amount: Double, category: String, notes: String?, date: Date, isRecurring: Bool) async -> Bool {
-        isLoading = true
+        operationInProgress = true
         errorMessage = nil
 
         // Income is always positive
@@ -350,16 +362,16 @@ class FinanceViewModel: ObservableObject {
                 // Refresh in background, don't block success
                 Task { loadFinanceSummary() }
 
-                isLoading = false
+                operationInProgress = false
                 return true
             } else {
                 errorMessage = response.message ?? "Failed to add income"
-                isLoading = false
+                operationInProgress = false
                 return false
             }
         } catch {
             errorMessage = "Error: \(error.localizedDescription)"
-            isLoading = false
+            operationInProgress = false
             return false
         }
     }
@@ -425,7 +437,7 @@ class FinanceViewModel: ObservableObject {
         reason: CorrectionReason,
         notes: String?
     ) async -> Bool {
-        isLoading = true
+        operationInProgress = true
         errorMessage = nil
 
         let request = CreateCorrectionRequest(
@@ -447,22 +459,22 @@ class FinanceViewModel: ObservableObject {
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
                 await refresh()
-                isLoading = false
+                operationInProgress = false
                 return true
             } else {
                 errorMessage = response.message ?? "Failed to create correction"
-                isLoading = false
+                operationInProgress = false
                 return false
             }
         } catch {
             errorMessage = "Error: \(error.localizedDescription)"
-            isLoading = false
+            operationInProgress = false
             return false
         }
     }
 
     func deactivateCorrection(correctionId: Int) async {
-        isLoading = true
+        operationInProgress = true
         errorMessage = nil
 
         do {
@@ -479,7 +491,7 @@ class FinanceViewModel: ObservableObject {
             errorMessage = "Error: \(error.localizedDescription)"
         }
 
-        isLoading = false
+        operationInProgress = false
     }
 
     // MARK: - Duplicate Detection

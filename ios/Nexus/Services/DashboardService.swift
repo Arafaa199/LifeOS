@@ -6,8 +6,14 @@ class DashboardService {
     private let api = NexusAPI.shared
     private let cache = CacheManager.shared
     private let cacheKey = "dashboard_payload"
+    private let maxCacheAge: TimeInterval = 86400 // 24 hours
 
     private init() {}
+
+    var isCacheExpired: Bool {
+        guard let age = cacheAge() else { return false }
+        return age > maxCacheAge
+    }
 
     // MARK: - Fetch Dashboard
 
@@ -35,10 +41,13 @@ class DashboardService {
         }
     }
 
-    /// Returns cached dashboard data if available.
+    /// Returns cached dashboard data if available and not expired (24h max).
     func loadCached() -> DashboardResult? {
         guard let payload = cache.load(DashboardPayload.self, forKey: cacheKey),
               let timestamp = UserDefaults.standard.object(forKey: "\(cacheKey)_timestamp") as? Date else {
+            return nil
+        }
+        if Date().timeIntervalSince(timestamp) > maxCacheAge {
             return nil
         }
         return DashboardResult(payload: payload, source: .cache, lastUpdated: timestamp)

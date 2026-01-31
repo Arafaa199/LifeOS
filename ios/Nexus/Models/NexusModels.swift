@@ -2,38 +2,61 @@ import Foundation
 
 // MARK: - API Request/Response Models
 
-struct FoodLogRequest: Codable {
+struct FoodLogRequest: Codable, Sendable {
     let text: String
     let source: String = "ios"
 }
 
-struct WaterLogRequest: Codable {
+struct WaterLogRequest: Codable, Sendable {
     let amount_ml: Int
+    
+    init(amount_ml: Int) throws {
+        guard amount_ml > 0, amount_ml <= 10000 else {
+            throw ValidationError.invalidWaterAmount
+        }
+        self.amount_ml = amount_ml
+    }
 }
 
-struct WeightLogRequest: Codable {
+struct WeightLogRequest: Codable, Sendable {
     let weight_kg: Double
+    
+    init(weight_kg: Double) throws {
+        guard weight_kg > 0, weight_kg <= 500 else {
+            throw ValidationError.invalidWeight
+        }
+        self.weight_kg = weight_kg
+    }
 }
 
-struct MoodLogRequest: Codable {
+struct MoodLogRequest: Codable, Sendable {
     let mood: Int
     let energy: Int
     let notes: String?
+    
+    init(mood: Int, energy: Int, notes: String? = nil) throws {
+        guard (1...10).contains(mood), (1...10).contains(energy) else {
+            throw ValidationError.invalidMoodOrEnergy
+        }
+        self.mood = mood
+        self.energy = energy
+        self.notes = notes
+    }
 }
 
-struct UniversalLogRequest: Codable {
+struct UniversalLogRequest: Codable, Sendable {
     let text: String
     let source: String = "ios"
     let context: String = "auto"
 }
 
-struct NexusResponse: Codable {
+struct NexusResponse: Codable, Sendable {
     let success: Bool
     let message: String?
     let data: ResponseData?
 }
 
-struct ResponseData: Codable {
+struct ResponseData: Codable, Sendable {
     let calories: Int?
     let protein: Double?
     let total_water_ml: Int?
@@ -42,13 +65,13 @@ struct ResponseData: Codable {
 
 // MARK: - Sync Status
 
-struct SyncStatusResponse: Codable {
+struct SyncStatusResponse: Codable, Sendable {
     let success: Bool
     let domains: [SyncDomainStatus]?
     let timestamp: String?
 }
 
-struct SyncDomainStatus: Codable, Identifiable {
+struct SyncDomainStatus: Codable, Identifiable, Sendable {
     var id: String { domain }
     let domain: String
     let last_success_at: String?
@@ -104,12 +127,40 @@ enum LogType: String, CaseIterable {
     }
 }
 
-struct DailySummary {
+struct DailySummary: Equatable {
     var totalCalories: Int = 0
     var totalProtein: Double = 0
     var totalWater: Int = 0
     var latestWeight: Double?
-    var weight: Double? // Alias for latestWeight
     var mood: Int?
     var energy: Int?
+    
+    // Computed property for backward compatibility
+    var weight: Double? {
+        get { latestWeight }
+        set { latestWeight = newValue }
+    }
 }
+// MARK: - Validation Errors
+
+enum ValidationError: LocalizedError {
+    case invalidWaterAmount
+    case invalidWeight
+    case invalidMoodOrEnergy
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidWaterAmount:
+            return "Water amount must be between 1 and 10,000 ml"
+        case .invalidWeight:
+            return "Weight must be between 1 and 500 kg"
+        case .invalidMoodOrEnergy:
+            return "Mood and energy must be between 1 and 10"
+        }
+    }
+    
+    var recoverySuggestion: String? {
+        "Please enter a valid value and try again"
+    }
+}
+

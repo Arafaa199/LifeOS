@@ -16,7 +16,7 @@ struct NexusApp: App {
             if newPhase == .background {
                 BackgroundTaskManager.shared.scheduleHealthRefresh()
             } else if newPhase == .active {
-                SyncCoordinator.shared.syncAll()
+                SyncCoordinator.shared.syncAll(force: true)
             }
         }
     }

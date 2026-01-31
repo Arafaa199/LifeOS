@@ -19,7 +19,7 @@ class BackgroundTaskManager {
 
     func scheduleHealthRefresh() {
         let request = BGAppRefreshTaskRequest(identifier: Self.healthRefreshTaskIdentifier)
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60) // 30 minutes
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 30 * 60)
 
         do {
             try BGTaskScheduler.shared.submit(request)
@@ -34,7 +34,7 @@ class BackgroundTaskManager {
     }
 
     private func handleHealthRefresh(task: BGAppRefreshTask) {
-        scheduleHealthRefresh() // Schedule next refresh
+        scheduleHealthRefresh()
 
         let syncTask = Task {
             await performHealthSync()
@@ -52,50 +52,31 @@ class BackgroundTaskManager {
 
     @MainActor
     private func performHealthSync() async {
-        let healthKit = HealthKitManager.shared
+        let coordinator = SyncCoordinator.shared
         let storage = SharedStorage.shared
 
-        guard healthKit.isHealthDataAvailable else {
+        await coordinator.syncForBackground()
+
+        if let payload = coordinator.dashboardPayload,
+           let recovery = payload.todayFacts?.recoveryScore {
+            storage.saveRecoveryData(
+                score: recovery,
+                hrv: payload.todayFacts?.hrv,
+                rhr: payload.todayFacts?.rhr
+            )
+
             #if DEBUG
-            print("[BackgroundTask] HealthKit not available")
+            print("[BackgroundTask] Recovery data updated from coordinator: \(recovery)%")
             #endif
-            return
         }
 
-        do {
-            // Sync weight to Nexus backend
-            _ = try await healthKit.syncLatestWeightToNexus()
-            #if DEBUG
-            print("[BackgroundTask] Weight sync completed")
-            #endif
-
-            // Update widget with latest weight
-            if let (weight, _) = try? await healthKit.fetchLatestWeight() {
-                storage.saveDailySummary(
-                    calories: storage.getTodayCalories(),
-                    protein: storage.getTodayProtein(),
-                    water: storage.getTodayWater(),
-                    weight: weight
-                )
-            }
-
-            // Fetch WHOOP data via API and update widget
-            let sleepResponse = try await NexusAPI.shared.fetchSleepData()
-            if let recovery = sleepResponse.data?.recovery,
-               let score = recovery.recoveryScore {
-                storage.saveRecoveryData(
-                    score: score,
-                    hrv: recovery.hrv,
-                    rhr: recovery.rhr
-                )
-                #if DEBUG
-                print("[BackgroundTask] Recovery data updated: \(score)%")
-                #endif
-            }
-        } catch {
-            #if DEBUG
-            print("[BackgroundTask] Health sync failed: \(error)")
-            #endif
+        if let weight = coordinator.dashboardPayload?.todayFacts?.weightKg {
+            storage.saveDailySummary(
+                calories: storage.getTodayCalories(),
+                protein: storage.getTodayProtein(),
+                water: storage.getTodayWater(),
+                weight: weight
+            )
         }
     }
 }

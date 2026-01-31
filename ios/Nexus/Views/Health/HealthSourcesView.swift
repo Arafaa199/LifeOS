@@ -5,6 +5,9 @@ import SwiftUI
 struct HealthSourcesView: View {
     @ObservedObject var viewModel: HealthViewModel
     @State private var isSyncing = false
+    @State private var reauthMessage: String?
+    @State private var showOpenSettings = false
+    @State private var isReauthorizing = false
 
     var body: some View {
         List {
@@ -136,11 +139,69 @@ struct HealthSourcesView: View {
                     }
                 }
 
+                // Reauthorize HealthKit
+                Button {
+                    isReauthorizing = true
+                    reauthMessage = nil
+                    showOpenSettings = false
+                    Task {
+                        do {
+                            let result = try await HealthKitManager.shared.checkAndReauthorize()
+                            switch result {
+                            case .prompted:
+                                reauthMessage = "Authorization requested. Try Sync."
+                            case .alreadyGranted:
+                                reauthMessage = "Already granted. Try Sync."
+                            case .likelyDenied:
+                                reauthMessage = "Permission may be denied."
+                                showOpenSettings = true
+                            }
+                        } catch {
+                            reauthMessage = "HealthKit not available."
+                        }
+                        isReauthorizing = false
+                    }
+                } label: {
+                    HStack {
+                        if isReauthorizing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "lock.rotation")
+                        }
+                        Text("Reauthorize HealthKit")
+                    }
+                }
+                .disabled(isReauthorizing)
+
+                if let message = reauthMessage {
+                    HStack(spacing: 6) {
+                        Image(systemName: showOpenSettings ? "exclamationmark.triangle" : "checkmark.circle")
+                            .font(.caption)
+                            .foregroundColor(showOpenSettings ? .orange : .green)
+                        Text(message)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                if showOpenSettings {
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "gear")
+                            Text("Open Settings")
+                        }
+                    }
+                }
+
                 // All refresh goes through SyncCoordinator.syncAll
                 Button {
                     isSyncing = true
                     SyncCoordinator.shared.syncAll(force: true)
-                    // Reset after brief delay (syncAll is fire-and-forget)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         isSyncing = false
                     }

@@ -2,62 +2,17 @@ import Foundation
 import SwiftUI
 import WidgetKit
 import Combine
-import os
-
-// MARK: - Refresh Reason
-
-enum RefreshReason: String {
-    case foreground
-    case pullToRefresh
-    case force
-}
-
-// MARK: - Refresh Log Entry
-
-struct RefreshLogEntry: Identifiable {
-    let id = UUID()
-    let timestamp: Date
-    let reason: RefreshReason
-    let outcome: Outcome
-    let durationMs: Int
-
-    enum Outcome: String {
-        case success
-        case timeout
-        case error
-        case cancelled
-        case debounced
-    }
-
-    var summary: String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "HH:mm:ss"
-        return "\(fmt.string(from: timestamp)) [\(reason.rawValue)] \(outcome.rawValue) (\(durationMs)ms)"
-    }
-}
 
 @MainActor
 class DashboardViewModel: ObservableObject {
     @Published var summary = DailySummary()
     @Published var recentLogs: [LogEntry] = []
-    @Published var isLoading = false
-    @Published var isRefreshing = false
     @Published var errorMessage: String?
     @Published var lastSyncDate: Date?
 
     @Published var dashboardPayload: DashboardPayload?
     @Published var dataSource: DashboardResult.DataSource?
-    @Published var isDataStale = false
     @Published var lastUpdatedFormatted: String?
-
-    // Foreground refresh state
-    @Published var isForegroundRefreshing = false
-    @Published var foregroundRefreshFailed = false
-    @Published var lastRefreshReason: RefreshReason?
-    @Published private(set) var refreshLog: [RefreshLogEntry] = []
-
-    private let refreshLogger = Logger(subsystem: "com.nexus.lifeos", category: "refresh")
-    private let maxRefreshLogEntries = 20
 
     // Meal confirmations
     @Published var pendingMeals: [InferredMeal] = []
@@ -65,6 +20,24 @@ class DashboardViewModel: ObservableObject {
     private let dashboardService = DashboardService.shared
     private let coordinator = SyncCoordinator.shared
     private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - Computed Sync State (derived from coordinator)
+
+    var isLoading: Bool {
+        coordinator.domainStates[.dashboard]?.isSyncing == true
+    }
+
+    var isForegroundRefreshing: Bool {
+        coordinator.isSyncingAll
+    }
+
+    var foregroundRefreshFailed: Bool {
+        coordinator.domainStates[.dashboard]?.lastError != nil
+    }
+
+    var isDataStale: Bool {
+        coordinator.domainStates[.dashboard]?.staleness != .fresh
+    }
 
     // MARK: - Computed Properties for Legacy View Compatibility
 
@@ -127,6 +100,10 @@ class DashboardViewModel: ObservableObject {
         return isDataStale || foregroundRefreshFailed
     }
 
+    var isRefreshing: Bool {
+        coordinator.isSyncingAll
+    }
+
     private let storage = SharedStorage.shared
 
     init() {
@@ -145,13 +122,12 @@ class DashboardViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Freshness contract: mirror coordinator syncing state immediately.
-        // isSyncingAll is set synchronously in syncAll(), so this fires
-        // within the same run-loop pass — well under 300ms.
-        coordinator.$isSyncingAll
+        // Forward coordinator state changes so computed properties
+        // (isLoading, isForegroundRefreshing, etc.) trigger view updates.
+        coordinator.objectWillChange
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] syncing in
-                self?.isForegroundRefreshing = syncing
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
             }
             .store(in: &cancellables)
     }
@@ -159,10 +135,8 @@ class DashboardViewModel: ObservableObject {
     private func handlePayloadUpdate(_ payload: DashboardPayload) {
         dashboardPayload = payload
         dataSource = .network
-        isDataStale = false
         lastUpdatedFormatted = RelativeDateTimeFormatter().localizedString(for: Date(), relativeTo: Date())
         lastSyncDate = Date()
-        foregroundRefreshFailed = false
 
         mapPayloadToSummary(payload)
 
@@ -182,8 +156,6 @@ class DashboardViewModel: ObservableObject {
 
         saveToStorage()
         errorMessage = nil
-        isLoading = false
-        // isForegroundRefreshing is driven by coordinator.$isSyncingAll subscription
     }
 
     // MARK: - Load Data
@@ -192,7 +164,6 @@ class DashboardViewModel: ObservableObject {
         if let cachedResult = dashboardService.loadCached() {
             dashboardPayload = cachedResult.payload
             dataSource = cachedResult.source
-            isDataStale = cachedResult.isStale
             lastUpdatedFormatted = cachedResult.lastUpdatedFormatted
             lastSyncDate = cachedResult.lastUpdated
 
@@ -226,10 +197,10 @@ class DashboardViewModel: ObservableObject {
     }
 
     private func mapPayloadToSummary(_ payload: DashboardPayload) {
-        summary.totalCalories = payload.todayFacts.caloriesConsumed ?? 0
-        summary.totalWater = payload.todayFacts.waterMl ?? 0
-        summary.latestWeight = payload.todayFacts.weightKg
-        summary.weight = payload.todayFacts.weightKg
+        summary.totalCalories = payload.todayFacts?.caloriesConsumed ?? 0
+        summary.totalWater = payload.todayFacts?.waterMl ?? 0
+        summary.latestWeight = payload.todayFacts?.weightKg
+        summary.weight = payload.todayFacts?.weightKg
     }
 
     private func mapEventTypeToLogType(_ eventType: String) -> LogType {
@@ -262,16 +233,11 @@ class DashboardViewModel: ObservableObject {
     // MARK: - Refresh (delegates to coordinator)
 
     func refresh() async {
-        lastRefreshReason = .pullToRefresh
-        isRefreshing = true
         errorMessage = nil
-        let start = CFAbsoluteTimeGetCurrent()
 
         coordinator.syncAll(force: true)
 
         // Poll coordinator state until sync completes (max 10s).
-        // No arbitrary sleep — pull-to-refresh spinner stays visible
-        // until real work finishes.
         for _ in 0..<100 {
             try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
             if !coordinator.isSyncingAll { break }
@@ -279,47 +245,17 @@ class DashboardViewModel: ObservableObject {
 
         if dashboardPayload != nil {
             await loadPendingMeals()
-            recordRefresh(reason: .pullToRefresh, outcome: .success, start: start)
         } else {
             errorMessage = "Refresh failed - using cached data"
-            recordRefresh(reason: .pullToRefresh, outcome: .error, start: start)
         }
-
-        isRefreshing = false
     }
 
-    func foregroundRefresh(reason: RefreshReason = .foreground) {
-        let start = CFAbsoluteTimeGetCurrent()
-        lastRefreshReason = reason
-        // isForegroundRefreshing is driven by coordinator.$isSyncingAll subscription
-
-        if reason == .force {
-            coordinator.syncAll(force: true)
-        } else {
-            coordinator.syncAll()
-        }
-
-        recordRefresh(reason: reason, outcome: .success, start: start)
+    func foregroundRefresh(force: Bool = false) {
+        coordinator.syncAll(force: force)
     }
 
     func forceRefresh() {
-        foregroundRefresh(reason: .force)
-    }
-
-    // MARK: - Refresh Logging
-
-    private func recordRefresh(reason: RefreshReason, outcome: RefreshLogEntry.Outcome, start: CFAbsoluteTime) {
-        let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
-        recordRefresh(reason: reason, outcome: outcome, durationMs: ms)
-    }
-
-    private func recordRefresh(reason: RefreshReason, outcome: RefreshLogEntry.Outcome, durationMs: Int) {
-        let entry = RefreshLogEntry(timestamp: Date(), reason: reason, outcome: outcome, durationMs: durationMs)
-        refreshLog.append(entry)
-        if refreshLog.count > maxRefreshLogEntries {
-            refreshLog.removeFirst(refreshLog.count - maxRefreshLogEntries)
-        }
-        refreshLogger.info("\(entry.summary)")
+        foregroundRefresh(force: true)
     }
 
     func loadPendingMeals() async {

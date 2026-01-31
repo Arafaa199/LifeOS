@@ -47,33 +47,85 @@ struct HealthView: View {
     }
 }
 
+// MARK: - Timeseries State
+
+enum TimeseriesState: Equatable {
+    case idle
+    case loading
+    case loaded([DailyHealthPoint])
+    case failed(String)
+
+    var data: [DailyHealthPoint] {
+        if case .loaded(let points) = self { return points }
+        return []
+    }
+
+    var hasData: Bool {
+        if case .loaded(let points) = self {
+            return points.filter { ($0.coverage ?? 0) > 0.1 }.count >= 3
+        }
+        return false
+    }
+
+    static func == (lhs: TimeseriesState, rhs: TimeseriesState) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.loading, .loading): return true
+        case (.loaded(let a), .loaded(let b)): return a.count == b.count
+        case (.failed(let a), .failed(let b)): return a == b
+        default: return false
+        }
+    }
+}
+
 // MARK: - Health ViewModel
 
 @MainActor
 class HealthViewModel: ObservableObject {
     @Published var dashboardPayload: DashboardPayload?
-    @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
     @Published var dataSource: DataSourceInfo = .unknown
 
-    // Health timeseries (for trends with daily data points)
-    @Published var healthTimeseries: [DailyHealthPoint] = []
-    @Published var hasTimeseriesData = false
+    // Health timeseries (typed state replaces boolean flags)
+    @Published var timeseriesState: TimeseriesState = .idle
 
     // HealthKit status
     @Published var healthKitAuthorized = false
     @Published var lastHealthKitSync: Date?
     @Published var healthKitSampleCount = 0
 
-    // Error flags for data quality transparency
-    @Published var timeseriesError = false
-    @Published var healthKitSyncError = false
+    // Direct HealthKit readings (local, no server round-trip)
+    @Published var localWeight: Double?
+    @Published var localWeightDate: Date?
+    @Published var localSteps: Int?
 
     private let healthKitManager = HealthKitManager.shared
     private let api = NexusAPI.shared
     private let coordinator = SyncCoordinator.shared
     private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - Computed Sync State (derived from coordinator)
+
+    var isLoading: Bool {
+        timeseriesState == .loading || coordinator.domainStates[.dashboard]?.isSyncing == true
+    }
+
+    var healthTimeseries: [DailyHealthPoint] {
+        timeseriesState.data
+    }
+
+    var hasTimeseriesData: Bool {
+        timeseriesState.hasData
+    }
+
+    var timeseriesError: Bool {
+        if case .failed = timeseriesState { return true }
+        return false
+    }
+
+    var healthKitSyncError: Bool {
+        coordinator.domainStates[.healthKit]?.lastError != nil
+    }
 
     enum DataSourceInfo {
         case network
@@ -129,13 +181,24 @@ class HealthViewModel: ObservableObject {
                 self?.dataSource = .network
             }
             .store(in: &cancellables)
+
+        // Forward coordinator state changes so computed properties
+        // (isLoading, healthKitSyncError) trigger view updates.
+        coordinator.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Data Loading
 
     func loadData() async {
-        isLoading = true
         errorMessage = nil
+
+        // Load local HealthKit data immediately (no server dependency)
+        await fetchLocalHealthKit()
 
         // Load timeseries data (dashboard data comes from coordinator subscription)
         await loadHealthTimeseries(days: 30)
@@ -154,32 +217,42 @@ class HealthViewModel: ObservableObject {
         let syncService = HealthKitSyncService.shared
         lastHealthKitSync = syncService.lastSyncDate
         healthKitSampleCount = syncService.lastSyncSampleCount
+    }
 
-        isLoading = false
+    /// Fetch weight and steps directly from HealthKit for immediate display.
+    func fetchLocalHealthKit() async {
+        guard healthKitManager.isAuthorized else { return }
+
+        if let (weight, date) = try? await healthKitManager.fetchLatestWeight() {
+            localWeight = weight
+            localWeightDate = date
+        }
+
+        if let steps = try? await healthKitManager.fetchTodaysSteps() {
+            localSteps = steps
+        }
     }
 
     func loadHealthTimeseries(days: Int = 30) async {
+        timeseriesState = .loading
         do {
             let response = try await api.fetchHealthTimeseries(days: days)
             if response.success, let data = response.data {
-                healthTimeseries = data
-                let daysWithData = data.filter { ($0.coverage ?? 0) > 0.1 }.count
-                hasTimeseriesData = daysWithData >= 3
-                timeseriesError = false
+                timeseriesState = .loaded(data)
+            } else {
+                timeseriesState = .failed("No timeseries data available")
             }
         } catch {
-            hasTimeseriesData = false
-            timeseriesError = true
+            timeseriesState = .failed(error.localizedDescription)
         }
     }
 
     func refreshHealthKit() async {
-        SyncCoordinator.shared.syncAll(force: true)
+        coordinator.syncAll(force: true)
         // Brief wait for coordinator to process
         try? await Task.sleep(nanoseconds: 500_000_000)
-        let state = SyncCoordinator.shared.domainStates[.healthKit]
-        healthKitSyncError = state?.lastError != nil
-        lastHealthKitSync = state?.lastSyncDate ?? HealthKitSyncService.shared.lastSyncDate
+        lastHealthKitSync = coordinator.domainStates[.healthKit]?.lastSuccessDate
+            ?? HealthKitSyncService.shared.lastSyncDate
         healthKitSampleCount = HealthKitSyncService.shared.lastSyncSampleCount
     }
 

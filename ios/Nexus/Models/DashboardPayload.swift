@@ -6,13 +6,14 @@ import Foundation
 
 struct DashboardPayload: Codable {
     let meta: DashboardMeta
-    let todayFacts: TodayFacts
+    let todayFacts: TodayFacts?
     let trends: [TrendPeriod]
     let feedStatus: [FeedStatus]
     let staleFeeds: [String]
     let recentEvents: [RecentEvent]
     let dailyInsights: DailyInsights?
     let dataFreshness: DataFreshness?
+    let domainsStatus: [DomainStatus]?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -23,6 +24,26 @@ struct DashboardPayload: Codable {
         case recentEvents = "recent_events"
         case dailyInsights = "daily_insights"
         case dataFreshness = "data_freshness"
+        case domainsStatus = "domains_status"
+    }
+}
+
+// MARK: - Domain Status
+
+struct DomainStatus: Codable, Identifiable {
+    var id: String { domain }
+
+    let domain: String
+    let status: String
+    let asOf: String?
+    let lastSuccess: String?
+    let lastError: String?
+
+    enum CodingKeys: String, CodingKey {
+        case domain, status
+        case asOf = "as_of"
+        case lastSuccess = "last_success"
+        case lastError = "last_error"
     }
 }
 
@@ -58,11 +79,30 @@ struct DomainFreshness: Codable {
 
     var lastSyncDate: Date? {
         guard let lastSync else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: lastSync) { return date }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: lastSync)
+        return Self.parseTimestamp(lastSync)
+    }
+
+    static func parseTimestamp(_ string: String) -> Date? {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = iso.date(from: string) { return d }
+        iso.formatOptions = [.withInternetDateTime]
+        if let d = iso.date(from: string) { return d }
+
+        // Fallback: raw Postgres timestamp without timezone (e.g. "2026-01-30T13:00:15.192056")
+        // Treat as UTC
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone(identifier: "UTC")
+        df.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+        if let d = df.date(from: string) { return d }
+        df.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        if let d = df.date(from: string) { return d }
+        // Postgres with space separator
+        df.dateFormat = "yyyy-MM-dd HH:mm:ss.SSSSSS"
+        if let d = df.date(from: string) { return d }
+        df.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return df.date(from: string)
     }
 
     var freshnessLabel: String {
@@ -225,7 +265,7 @@ struct TrendPeriod: Codable, Identifiable {
     let avgRhr: Double?
     let avgSleepMinutes: Double?
     let avgStrain: Double?
-    let avgSteps: Int?
+    let avgSteps: Double?
     let totalSpend: Double?
     let avgDailySpend: Double?
     let weightRange: Double?
