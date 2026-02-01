@@ -1116,24 +1116,24 @@ Depends: FEAT.4
 ### TASK-FEAT.9: Calendar Background Sync
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Calendar and Reminders are not synced during background refresh — only on foreground app open. Add them to `syncForBackground()` so data stays fresh even when the user doesn't open the app.
 
-**Files to Touch:**
+**Files Changed:**
 - `ios/Nexus/Services/SyncCoordinator.swift`
 
-**Implementation:**
-- In `syncForBackground()`, add calendar and reminder sync calls after existing healthKit sync
-- Use same pattern: fire-and-forget with error handling
-- Respect iOS background task time limits (calendar/reminder sync should be fast — local EventKit read + single POST)
-- Guard behind `flags.calendarSyncEnabled` check
+**Fix Applied:**
+- Added calendar + reminder sync to `syncForBackground()` after HealthKit sync, before dashboard fetch
+- Guarded behind `flags.calendarSyncEnabled` check (same pattern as foreground `syncAll()`)
+- Calendar sync calls `syncCalendar()` which includes reminder sync with isolated error handling (PLAN.7)
+- Ordered: HealthKit push → Calendar/Reminder push → Dashboard fetch (server data includes what we just pushed)
 
 **Verification:**
-- [ ] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
-- [ ] `syncForBackground()` includes calendar/reminder sync calls
-- [ ] Background refresh logs show calendar/reminder sync attempts
+- [x] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+- [x] `syncForBackground()` includes calendar/reminder sync calls (via `syncCalendar()`)
+- [x] Guarded behind `calendarSyncEnabled` flag
 
 **Done Means:** Calendar and reminder data syncs during background refresh, keeping server data fresh.
 

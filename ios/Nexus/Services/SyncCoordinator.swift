@@ -151,7 +151,15 @@ class SyncCoordinator: ObservableObject {
 
     func syncForBackground() async {
         logger.info("[background] starting background sync")
+        let flags = AppSettings.shared
+
+        // Push local data first (HealthKit weight, calendar events, reminders)
         await syncHealthKit()
+        if flags.calendarSyncEnabled {
+            await syncCalendar()
+        }
+
+        // Then fetch server data (includes what we just pushed)
         await syncDashboard()
         logger.info("[background] background sync complete")
     }
