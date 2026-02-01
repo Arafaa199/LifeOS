@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-02T01:30:00+04:00
+Last updated: 2026-02-02T02:00:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -151,6 +151,8 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-FEAT.8: Reminder Daily Facts | DONE | Migration 111: Created `life.v_daily_reminder_summary` VIEW (per-day due/completed/overdue/completion_rate). Added `reminders_due` + `reminders_completed` columns to `life.daily_facts`. Wired into `life.refresh_daily_facts()` via LATERAL join on `raw.reminders`. Added `reminder_summary` (due_today, completed_today, overdue_count) to `dashboard.get_payload()`. Schema version 7→8. Dropped stale VARCHAR overload of refresh_daily_facts (caused ambiguity). Fixed pre-existing `facts.daily_nutrition` column name bug (calories vs calories_consumed, date vs day). Down migration tested. `refresh_daily_facts(CURRENT_DATE)` → success. 2 files changed. |
 | TASK-FEAT.9: Calendar Background Sync | DONE | Added calendar + reminder sync to `syncForBackground()` in SyncCoordinator.swift. Guarded behind `calendarSyncEnabled` flag. Order: HealthKit push → Calendar/Reminder push → Dashboard fetch. `syncCalendar()` includes reminder sync with isolated error handling (PLAN.7). iOS build: BUILD SUCCEEDED. 1 file changed (SyncCoordinator.swift, +7/-2). |
 | TASK-FEAT.10: Weekly Insights Email — Calendar + Reminders | DONE | Migration 112: Rewrote `insights.generate_weekly_markdown()` to include Calendar section (meetings, total hours, busiest day from `life.v_daily_calendar_summary`) and Reminders section (due, completed, overdue, completion rate from `life.v_daily_reminder_summary`). Added cross-domain insights: heavy meeting week (>10h) and low task completion (<50%) alerts. Verified: `store_weekly_report('2026-01-27')` → report includes Calendar (5 meetings, 4.0h, busiest Tue 27 Jan) and Reminders (no data yet). Down migration tested. 2 files changed. Commit `c34cc07`. |
+| TASK-PIPE.4: Fix HRV Precision Loss | DONE | Migration 127: Widened 4 HRV columns from NUMERIC(5,1) to NUMERIC(6,2) — `raw.whoop_cycles.hrv`, `normalized.daily_recovery.hrv`, `facts.daily_health.hrv`, `facts.daily_summary.hrv`. Dropped/recreated `facts.v_daily_health_timeseries` (view dependency). Re-triggered propagation + rebuilt facts for all 12 dates. Before: 116.26→116.3 (precision loss). After: 116.26→116.26 (exact match). Parity check: 0 mismatches across full 5-table chain. Down migration tested. 2 files changed. Commit `4c95e2f`. |
+| TASK-PIPE.5: Disable Coder and Signal Auditor Shutdown | DONE | All PIPE.1-4 pipeline fixes complete. Moved coder `.enabled` file to Trash (coder disabled). Created `auditor/.shutdown-after-audit` flag (auditor will shut down after next review cycle). macOS notification sent. Verified: coder `.enabled` absent, auditor shutdown flag present. 0 files changed (ops-only task). |
 
 ### Recent (Feb 1)
 | Task | Status | Summary |

@@ -1332,36 +1332,27 @@ UNION ALL SELECT 'raw_strain', COUNT(*) FROM raw.whoop_strain;
 ### TASK-PIPE.4: Fix HRV Precision Loss in Normalized Layer
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 Depends: PIPE.2
 
 **Objective:** `health.whoop_recovery.hrv_rmssd` is NUMERIC(6,2) (e.g. 116.26) but `normalized.daily_recovery.hrv` and `raw.whoop_cycles.hrv` are NUMERIC(5,1) (e.g. 116.3). This causes rounding on every propagation. Fix column types to match source precision.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/127_fix_hrv_precision.up.sql`
 - `backend/migrations/127_fix_hrv_precision.down.sql`
 
-**Implementation:**
-```sql
-ALTER TABLE raw.whoop_cycles ALTER COLUMN hrv TYPE NUMERIC(6,2);
-ALTER TABLE normalized.daily_recovery ALTER COLUMN hrv TYPE NUMERIC(6,2);
-```
-- Then re-trigger propagation to backfill corrected values:
-```sql
-UPDATE health.whoop_recovery SET hrv_rmssd = hrv_rmssd;
-```
-- Apply on nexus
+**Fix Applied:**
+- Widened 4 columns from NUMERIC(5,1) to NUMERIC(6,2): `raw.whoop_cycles.hrv`, `normalized.daily_recovery.hrv`, `facts.daily_health.hrv`, `facts.daily_summary.hrv`
+- Dropped and recreated `facts.v_daily_health_timeseries` (view dependency on normalized.daily_recovery.hrv)
+- Re-triggered propagation via `UPDATE health.whoop_recovery SET hrv_rmssd = hrv_rmssd`
+- Rebuilt `facts.daily_health` and `life.daily_facts` for all 12 dates with HRV data
 
 **Verification:**
-```sql
--- HRV values should now match exactly
-SELECT wr.date, wr.hrv_rmssd AS legacy, nr.hrv AS norm
-FROM health.whoop_recovery wr
-JOIN normalized.daily_recovery nr ON wr.date = nr.date
-WHERE wr.hrv_rmssd IS DISTINCT FROM nr.hrv;
--- Expected: 0 rows
-```
+- [x] Parity check: `SELECT ... WHERE wr.hrv_rmssd IS DISTINCT FROM nr.hrv` → 0 rows
+- [x] Full chain: all 12 dates match exactly across legacy→raw→normalized→facts→daily_facts (e.g. 116.26 preserved, not 116.3)
+- [x] `facts.v_daily_health_timeseries` works with NUMERIC(6,2) precision
+- [x] Down migration tested (reverts to NUMERIC(5,1), recreates view) and re-applied
 
 **Done Means:** HRV precision preserved end-to-end. No more rounding from 116.26 → 116.3.
 
@@ -1370,7 +1361,7 @@ WHERE wr.hrv_rmssd IS DISTINCT FROM nr.hrv;
 ### TASK-PIPE.5: Disable Coder and Signal Auditor Shutdown
 Priority: P0
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 Depends: PIPE.4
 
@@ -1383,8 +1374,8 @@ Depends: PIPE.4
 4. Log completion in state.md
 
 **Verification:**
-- `[ ! -f /Users/rafa/Cyber/Infrastructure/ClaudeAgents/coder/.enabled ]` — coder disabled
-- `[ -f /Users/rafa/Cyber/Infrastructure/ClaudeAgents/auditor/.shutdown-after-audit ]` — auditor shutdown flag set
+- [x] `[ ! -f /Users/rafa/Cyber/Infrastructure/ClaudeAgents/coder/.enabled ]` — coder disabled
+- [x] `[ -f /Users/rafa/Cyber/Infrastructure/ClaudeAgents/auditor/.shutdown-after-audit ]` — auditor shutdown flag set
 
 **Done Means:** Coder is off. Auditor will run one more cycle to review the pipeline fixes, then auto-disable.
 
