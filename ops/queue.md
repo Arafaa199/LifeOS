@@ -1022,24 +1022,26 @@ Depends: FEAT.4
 ### TASK-FEAT.6: Calendar Month Events Fetch
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** CalendarViewModel.fetchMonthEvents() and fetchYearEvents() call the same `/webhook/nexus-calendar-events` endpoint but with wider date ranges. Verify this works correctly and add a `life.v_monthly_calendar_summary` view for month-level stats.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/109_monthly_calendar_summary.up.sql`
 - `backend/migrations/109_monthly_calendar_summary.down.sql`
 
-**Implementation:**
-- Create `life.v_monthly_calendar_summary` view: for each day in a month, show event_count, meeting_hours, has_events (boolean)
-- This powers the CalendarMonthView grid (dots on days with events, color intensity by meeting hours)
-- Query: aggregate `raw.calendar_events` grouped by `(start_at AT TIME ZONE 'Asia/Dubai')::date`
-- Include: day, event_count, meeting_hours, first_event_time, last_event_time
+**Fix Applied:**
+- Created `life.v_monthly_calendar_summary` VIEW aggregating `raw.calendar_events` by Dubai-timezone date
+- Columns: day, event_count, all_day_count, meeting_hours (non-all-day only), has_events, first_event_time, last_event_time
+- Sparse output (days without events not returned — suitable for month grid dot display)
+- All-day events counted in event_count but excluded from meeting_hours (via FILTER WHERE)
 
 **Verification:**
-- [ ] `SELECT * FROM life.v_monthly_calendar_summary WHERE day >= '2026-01-01' AND day < '2026-02-01';` returns daily stats
-- [ ] Days without events don't appear (sparse, not gap-filled)
+- [x] `SELECT * FROM life.v_monthly_calendar_summary WHERE day >= '2026-01-01' AND day < '2026-02-01';` returns 12 days with stats
+- [x] Days without events don't appear (sparse, not gap-filled)
+- [x] All-day events: meeting_hours is NULL (correct), all_day_count tracks them separately
+- [x] Down migration tested (DROP VIEW + re-CREATE)
 
 **Done Means:** Backend has monthly calendar summary view for future dashboard/iOS consumption.
 
