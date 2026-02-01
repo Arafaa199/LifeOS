@@ -1050,27 +1050,30 @@ Lane: safe_auto
 ### TASK-FEAT.7: Calendar + Productivity Correlation View
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Create an insights view that correlates meeting hours with recovery, GitHub activity, and spending — answering "do heavy meeting days affect my recovery or productivity?"
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/110_calendar_productivity_correlation.up.sql`
 - `backend/migrations/110_calendar_productivity_correlation.down.sql`
 
-**Implementation:**
-- Create `insights.calendar_productivity_correlation` VIEW joining:
-  - `life.v_daily_calendar_summary` (meeting_count, meeting_hours)
-  - `life.daily_facts` (recovery_score, sleep_hours, strain, spend_total)
-  - `life.daily_productivity` (commits, prs, reviews)
-- Columns: day, meeting_count, meeting_hours, recovery_score, sleep_hours_prev_night, github_events, spend_total
-- Add `insights.calendar_pattern_summary` function: avg recovery on heavy-meeting vs light-meeting days, avg spend on meeting vs non-meeting days
-- Heavy meeting day = > 2 hours of meetings
+**Fix Applied:**
+- Created `insights.calendar_productivity_correlation` VIEW joining calendar, health, productivity, and finance data
+  - Columns: day, meeting_count/hours, recovery, sleep, HRV, strain, spend_total, GitHub metrics, prev/next day recovery, meeting_intensity classification
+  - Meeting intensity: none (0h), light (0-2h), heavy (2-4h), very_heavy (4h+)
+  - 90-day rolling window
+- Created `insights.calendar_pattern_summary()` function returning 4 metrics:
+  - same_day_recovery, next_day_recovery, same_day_spending, github_productivity
+  - Compares heavy vs light vs no meeting days with significance findings
+- Fixed `insights.meetings_hrv_correlation` VIEW — was returning NULL meeting_count/hours (now wired to real calendar data)
 
 **Verification:**
-- [ ] View returns rows joining calendar + health + productivity data
-- [ ] Pattern summary shows meaningful differences (or nulls if insufficient data)
+- [x] View returns 8 rows joining calendar + health + productivity data
+- [x] Pattern summary returns 4 metrics (currently "insufficient data" for heavy — correct, only light meeting days exist)
+- [x] meetings_hrv_correlation now shows real meeting_count and meeting_hours
+- [x] Down migration tested (reverts meetings_hrv to NULL pattern, drops new objects)
 
 **Done Means:** Cross-domain insight: "Heavy meeting days correlate with X recovery and Y spending."
 
@@ -1079,29 +1082,32 @@ Lane: safe_auto
 ### TASK-FEAT.8: Reminder-Based Task Completion Tracking
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 Depends: FEAT.4
 
 **Objective:** Track reminder completion rates over time — how many reminders does the user complete vs let expire? Surface as a "task productivity" metric in daily facts.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/111_reminder_daily_facts.up.sql`
 - `backend/migrations/111_reminder_daily_facts.down.sql`
 
-**Implementation:**
-- Create `life.v_daily_reminder_summary` VIEW:
-  - For each day: reminders_due, reminders_completed, reminders_overdue, completion_rate
-  - Due = due_date falls on that day
-  - Completed = is_completed AND completed_date falls on that day
-  - Overdue = due_date < today AND NOT is_completed
-- Add `reminders_due` and `reminders_completed` columns to `life.daily_facts` (ALTER TABLE)
-- Wire into `life.refresh_daily_facts()` to populate from the view
-- Add to `dashboard.get_payload()` as `reminder_summary: { due_today, completed_today, overdue_count }`
+**Fix Applied:**
+- Created `life.v_daily_reminder_summary` VIEW: per-day reminders_due, reminders_completed, reminders_overdue, completion_rate
+- Added `reminders_due` and `reminders_completed` columns to `life.daily_facts` (ALTER TABLE, DEFAULT 0)
+- Rewrote `life.refresh_daily_facts()` to populate reminder columns from `raw.reminders` via LATERAL join
+- Added `reminder_summary` key to `dashboard.get_payload()`: `{ due_today, completed_today, overdue_count }`
+- Schema version bumped 7 → 8
+- Dropped stale VARCHAR overload of `refresh_daily_facts` (caused ambiguity)
+- Fixed pre-existing bug: `facts.daily_nutrition` column `calories` aliased as `calories_consumed`, `date` column (not `day`)
 
 **Verification:**
-- [ ] `SELECT * FROM life.v_daily_reminder_summary ORDER BY day DESC LIMIT 7;` returns data
-- [ ] `dashboard.get_payload()` includes `reminder_summary`
+- [x] `SELECT * FROM life.v_daily_reminder_summary ORDER BY day DESC LIMIT 7;` returns data (0 rows — correct, raw.reminders is empty pending iOS sync)
+- [x] `dashboard.get_payload()` includes `reminder_summary` with `due_today`, `completed_today`, `overdue_count`
+- [x] Schema version = 8
+- [x] `refresh_daily_facts(CURRENT_DATE, 'test-111')` → success, 1 row, 0 errors
+- [x] `life.daily_facts` has `reminders_due` and `reminders_completed` columns (DEFAULT 0)
+- [x] Down migration tested (drops columns, view, restores function without reminder columns)
 
 **Done Means:** Daily facts include reminder completion metrics; dashboard payload surfaces them.
 
