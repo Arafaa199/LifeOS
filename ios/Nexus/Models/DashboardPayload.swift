@@ -16,6 +16,7 @@ struct DashboardPayload: Codable {
     let domainsStatus: [DomainStatus]?
     let githubActivity: GitHubActivityWidget?
     let calendarSummary: CalendarSummary?
+    let reminderSummary: ReminderSummary?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -29,6 +30,7 @@ struct DashboardPayload: Codable {
         case domainsStatus = "domains_status"
         case githubActivity = "github_activity"
         case calendarSummary = "calendar_summary"
+        case reminderSummary = "reminder_summary"
     }
 }
 
@@ -442,9 +444,11 @@ struct RankedInsight: Codable, Identifiable {
     let description: String
     let daysSampled: Int
     let daysWithData: Int
+    let icon: String?
+    let color: String?
 
     enum CodingKeys: String, CodingKey {
-        case type, confidence, description
+        case type, confidence, description, icon, color
         case daysSampled = "days_sampled"
         case daysWithData = "days_with_data"
     }
@@ -529,6 +533,20 @@ struct CalendarSummary: Codable {
         case meetingHours = "meeting_hours"
         case firstMeeting = "first_meeting"
         case lastMeeting = "last_meeting"
+    }
+}
+
+// MARK: - Reminder Summary
+
+struct ReminderSummary: Codable {
+    let dueToday: Int
+    let completedToday: Int
+    let overdueCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case dueToday = "due_today"
+        case completedToday = "completed_today"
+        case overdueCount = "overdue_count"
     }
 }
 
