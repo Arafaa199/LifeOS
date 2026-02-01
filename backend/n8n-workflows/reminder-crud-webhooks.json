@@ -1,0 +1,316 @@
+{
+  "name": "Nexus: Reminder CRUD Webhooks",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-reminders-sync-state",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "sync-state-wh",
+      "name": "Sync State Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 100],
+      "webhookId": "nexus-reminders-sync-state",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, reminder_id, title, notes, due_date, is_completed, completed_date, priority, list_name, sync_status, eventkit_modified_at, origin, updated_at FROM raw.reminders WHERE deleted_at IS NULL AND (sync_status IN ('synced', 'pending_push', 'deleted_local')) ORDER BY due_date ASC NULLS LAST;",
+        "options": {}
+      },
+      "id": "fetch-state",
+      "name": "Fetch Sync State",
+      "type": "n8n-nodes-base.postgres",
+      "position": [420, 100],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nreturn { json: { success: true, reminders: rows, count: rows.length } };"
+      },
+      "id": "format-state",
+      "name": "Format State Response",
+      "type": "n8n-nodes-base.code",
+      "position": [640, 100],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond-state",
+      "name": "Respond State",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [860, 100],
+      "typeVersion": 1.1
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-reminder-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "create-wh",
+      "name": "Create Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 350],
+      "webhookId": "nexus-reminder-create",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst esc = (v) => v == null ? null : String(v).replace(/'/g, \"''\");\n\nconst title = body.title ? \"'\" + esc(body.title) + \"'\" : 'NULL';\nconst notes = body.notes ? \"'\" + esc(body.notes) + \"'\" : 'NULL';\nconst dueDate = body.due_date ? \"'\" + esc(body.due_date) + \"'::timestamptz\" : 'NULL';\nconst priority = Number.isInteger(body.priority) ? body.priority : 0;\nconst listName = body.list_name ? \"'\" + esc(body.list_name) + \"'\" : \"'Reminders'\";\nconst origin = body.origin ? \"'\" + esc(body.origin) + \"'\" : \"'nexus'\";\n\nconst sql = `INSERT INTO raw.reminders (\n  reminder_id, title, notes, due_date, priority, list_name,\n  source, origin, sync_status, is_completed\n) VALUES (\n  'nexus-' || gen_random_uuid()::text,\n  ${title}, ${notes}, ${dueDate}, ${priority}, ${listName},\n  'nexus', ${origin}, 'pending_push', false\n) RETURNING id, reminder_id, title, sync_status;`;\n\nreturn { json: { sql } };"
+      },
+      "id": "build-create",
+      "name": "Build Create SQL",
+      "type": "n8n-nodes-base.code",
+      "position": [420, 350],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "exec-create",
+      "name": "Execute Create",
+      "type": "n8n-nodes-base.postgres",
+      "position": [640, 350],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"reminder\": {{ JSON.stringify($json) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-create",
+      "name": "Respond Create",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [860, 350],
+      "typeVersion": 1.1
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-reminder-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "update-wh",
+      "name": "Update Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 600],
+      "webhookId": "nexus-reminder-update",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst esc = (v) => v == null ? null : String(v).replace(/'/g, \"''\");\n\nif (!body.id && !body.reminder_id) {\n  return { json: { sql: 'SELECT 1', error: 'id or reminder_id required' } };\n}\n\nconst sets = [];\nif (body.title !== undefined) sets.push(`title = '${esc(body.title)}'`);\nif (body.notes !== undefined) sets.push(`notes = ${body.notes ? \"'\" + esc(body.notes) + \"'\" : 'NULL'}`);\nif (body.due_date !== undefined) sets.push(`due_date = ${body.due_date ? \"'\" + esc(body.due_date) + \"'::timestamptz\" : 'NULL'}`);\nif (body.is_completed !== undefined) sets.push(`is_completed = ${body.is_completed ? 'true' : 'false'}`);\nif (body.completed_date !== undefined) sets.push(`completed_date = ${body.completed_date ? \"'\" + esc(body.completed_date) + \"'::timestamptz\" : 'NULL'}`);\nif (body.priority !== undefined) sets.push(`priority = ${parseInt(body.priority) || 0}`);\nif (body.list_name !== undefined) sets.push(`list_name = '${esc(body.list_name)}'`);\n\nsets.push(\"sync_status = 'pending_push'\");\n\nconst where = body.id ? `id = ${parseInt(body.id)}` : `reminder_id = '${esc(body.reminder_id)}' AND source = 'ios_eventkit'`;\n\nconst sql = `UPDATE raw.reminders SET ${sets.join(', ')} WHERE ${where} AND deleted_at IS NULL RETURNING id, reminder_id, sync_status;`;\n\nreturn { json: { sql } };"
+      },
+      "id": "build-update",
+      "name": "Build Update SQL",
+      "type": "n8n-nodes-base.code",
+      "position": [420, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "exec-update",
+      "name": "Execute Update",
+      "type": "n8n-nodes-base.postgres",
+      "position": [640, 600],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"updated\": {{ JSON.stringify($json) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-update",
+      "name": "Respond Update",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [860, 600],
+      "typeVersion": 1.1
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-reminder-delete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "delete-wh",
+      "name": "Delete Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 850],
+      "webhookId": "nexus-reminder-delete",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst esc = (v) => v == null ? null : String(v).replace(/'/g, \"''\");\n\nif (!body.id && !body.reminder_id) {\n  return { json: { sql: 'SELECT 1', error: 'id or reminder_id required' } };\n}\n\nconst where = body.id ? `id = ${parseInt(body.id)}` : `reminder_id = '${esc(body.reminder_id)}' AND source = 'ios_eventkit'`;\n\nconst sql = `UPDATE raw.reminders SET sync_status = 'deleted_local', deleted_at = CURRENT_TIMESTAMP WHERE ${where} AND deleted_at IS NULL RETURNING id, reminder_id, sync_status;`;\n\nreturn { json: { sql } };"
+      },
+      "id": "build-delete",
+      "name": "Build Delete SQL",
+      "type": "n8n-nodes-base.code",
+      "position": [420, 850],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "exec-delete",
+      "name": "Execute Delete",
+      "type": "n8n-nodes-base.postgres",
+      "position": [640, 850],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"deleted\": {{ JSON.stringify($json) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-delete",
+      "name": "Respond Delete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [860, 850],
+      "typeVersion": 1.1
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-reminder-confirm-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "confirm-wh",
+      "name": "Confirm Sync Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 1100],
+      "webhookId": "nexus-reminder-confirm-sync",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst confirmations = body.confirmations || [];\nconst esc = (v) => v == null ? null : String(v).replace(/'/g, \"''\");\n\nif (!Array.isArray(confirmations) || confirmations.length === 0) {\n  return { json: { sql: 'SELECT 1', count: 0 } };\n}\n\nconst statements = confirmations.map(c => {\n  if (!c.db_id && !c.db_reminder_id) return null;\n  const sets = [\"sync_status = 'synced'\"];\n  if (c.eventkit_id) sets.push(`reminder_id = '${esc(c.eventkit_id)}'`);\n  if (c.eventkit_modified_at) sets.push(`eventkit_modified_at = '${esc(c.eventkit_modified_at)}'::timestamptz`);\n  sets.push('last_seen_at = CURRENT_TIMESTAMP');\n\n  const where = c.db_id ? `id = ${parseInt(c.db_id)}` : `reminder_id = '${esc(c.db_reminder_id)}'`;\n  return `UPDATE raw.reminders SET ${sets.join(', ')} WHERE ${where};`;\n}).filter(s => s !== null);\n\nconst deletionConfirms = confirmations.filter(c => c.action === 'deleted').map(c => {\n  const where = c.db_id ? `id = ${parseInt(c.db_id)}` : `reminder_id = '${esc(c.db_reminder_id)}'`;\n  return `DELETE FROM raw.reminders WHERE ${where} AND sync_status = 'deleted_local';`;\n});\n\nconst sql = [...statements, ...deletionConfirms].join('\\n');\n\nreturn { json: { sql: sql || 'SELECT 1', count: confirmations.length } };"
+      },
+      "id": "build-confirm",
+      "name": "Build Confirm SQL",
+      "type": "n8n-nodes-base.code",
+      "position": [420, 1100],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "exec-confirm",
+      "name": "Execute Confirm",
+      "type": "n8n-nodes-base.postgres",
+      "position": [640, 1100],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"confirmed\": {{ $('Build Confirm SQL').item.json.count }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "respond-confirm",
+      "name": "Respond Confirm",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [860, 1100],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Sync State Webhook": {
+      "main": [[{ "node": "Fetch Sync State", "type": "main", "index": 0 }]]
+    },
+    "Fetch Sync State": {
+      "main": [[{ "node": "Format State Response", "type": "main", "index": 0 }]]
+    },
+    "Format State Response": {
+      "main": [[{ "node": "Respond State", "type": "main", "index": 0 }]]
+    },
+    "Create Webhook": {
+      "main": [[{ "node": "Build Create SQL", "type": "main", "index": 0 }]]
+    },
+    "Build Create SQL": {
+      "main": [[{ "node": "Execute Create", "type": "main", "index": 0 }]]
+    },
+    "Execute Create": {
+      "main": [[{ "node": "Respond Create", "type": "main", "index": 0 }]]
+    },
+    "Update Webhook": {
+      "main": [[{ "node": "Build Update SQL", "type": "main", "index": 0 }]]
+    },
+    "Build Update SQL": {
+      "main": [[{ "node": "Execute Update", "type": "main", "index": 0 }]]
+    },
+    "Execute Update": {
+      "main": [[{ "node": "Respond Update", "type": "main", "index": 0 }]]
+    },
+    "Delete Webhook": {
+      "main": [[{ "node": "Build Delete SQL", "type": "main", "index": 0 }]]
+    },
+    "Build Delete SQL": {
+      "main": [[{ "node": "Execute Delete", "type": "main", "index": 0 }]]
+    },
+    "Execute Delete": {
+      "main": [[{ "node": "Respond Delete", "type": "main", "index": 0 }]]
+    },
+    "Confirm Sync Webhook": {
+      "main": [[{ "node": "Build Confirm SQL", "type": "main", "index": 0 }]]
+    },
+    "Build Confirm SQL": {
+      "main": [[{ "node": "Execute Confirm", "type": "main", "index": 0 }]]
+    },
+    "Execute Confirm": {
+      "main": [[{ "node": "Respond Confirm", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "nexus" }],
+  "meta": {
+    "notes": "Reminder CRUD + sync confirmation webhooks for bidirectional sync.\n\nEndpoints:\n- GET /webhook/nexus-reminders-sync-state — Returns all active + pending_push reminders\n- POST /webhook/nexus-reminder-create — Create from Nexus/MCP (origin='nexus', sync_status='pending_push')\n- POST /webhook/nexus-reminder-update — Update fields, marks pending_push\n- POST /webhook/nexus-reminder-delete — Soft delete (sync_status='deleted_local')\n- POST /webhook/nexus-reminder-confirm-sync — iOS confirms EventKit write (sets synced + eventkit_modified_at)"
+  }
+}

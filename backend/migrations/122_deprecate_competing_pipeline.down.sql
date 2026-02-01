@@ -1,0 +1,3 @@
+-- Rollback Migration 122: Restore facts.* calls in life.refresh_all()
+-- To fully rollback: re-apply migration 103_fix_daily_finance_refresh.up.sql
+-- (sections 2 and 3 which define both overloads of life.refresh_all).

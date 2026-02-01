@@ -2,12 +2,14 @@ import Foundation
 import EventKit
 import UIKit
 import Combine
+import os
 
 @MainActor
 class ReminderSyncService: ObservableObject {
     static let shared = ReminderSyncService()
 
     private let eventStore = EKEventStore()
+    private let logger = Logger(subsystem: "com.nexus", category: "ReminderSync")
 
     @Published var lastSyncDate: Date?
     @Published var lastSyncReminderCount: Int = 0
@@ -16,6 +18,7 @@ class ReminderSyncService: ObservableObject {
 
     private let userDefaults = UserDefaults.standard
     private let lastSyncKey = "reminders_last_sync_date"
+    private let isoFormatter = ISO8601DateFormatter()
 
     private init() {
         lastSyncDate = userDefaults.object(forKey: lastSyncKey) as? Date
@@ -38,53 +41,119 @@ class ReminderSyncService: ObservableObject {
                 return granted
             }
         } catch {
-            print("[ReminderSync] Access request failed: \(error)")
+            logger.error("[ReminderSync] Access request failed: \(error.localizedDescription)")
             return false
         }
     }
+
+    // MARK: - Main Sync Entry Point (6-step bidirectional diff)
 
     func syncAllData() async throws {
         guard !isSyncing else { return }
 
         updateAuthorizationStatus()
         guard authorizationStatus == .fullAccess || authorizationStatus == .authorized else {
-            print("[ReminderSync] Not authorized to access reminders")
+            logger.warning("[ReminderSync] Not authorized to access reminders")
             return
         }
 
         isSyncing = true
         defer { isSyncing = false }
 
-        let reminders = try await fetchReminders()
-        guard !reminders.isEmpty else {
-            print("[ReminderSync] No reminders to sync")
-            return
+        // Step 1: PULL from EventKit
+        let ekReminders = try await fetchAllReminders()
+        let ekMap = Dictionary(ekReminders.map { ($0.calendarItemIdentifier, $0) }, uniquingKeysWith: { first, _ in first })
+
+        // Step 2: PULL from DB
+        let dbState = try await fetchSyncState()
+        let dbMap = Dictionary(dbState.map { ($0.reminder_id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        var upsertPayloads: [ReminderPayload] = []
+        var confirmations: [SyncConfirmation] = []
+
+        // Step 3: DIFF — compare EK reminders against DB
+        for (ekId, ekReminder) in ekMap {
+            let payload = makePayload(from: ekReminder)
+
+            if let dbRow = dbMap[ekId] {
+                if dbRow.sync_status == "pending_push" {
+                    // Conflict: DB has pending changes. Last-writer-wins by timestamp.
+                    if let ekMod = ekReminder.lastModifiedDate,
+                       let dbMod = dbRow.updated_at,
+                       ekMod > dbMod {
+                        upsertPayloads.append(payload)
+                    }
+                    // else: DB wins, will push in step 5
+                } else if dbRow.sync_status == "synced" {
+                    if let ekMod = ekReminder.lastModifiedDate,
+                       let dbEkMod = dbRow.eventkit_modified_at {
+                        if ekMod > dbEkMod {
+                            upsertPayloads.append(payload)
+                        }
+                        // else: equal = our own echo, skip
+                    } else {
+                        upsertPayloads.append(payload)
+                    }
+                }
+            } else {
+                // New remote reminder, not in DB
+                upsertPayloads.append(payload)
+            }
         }
 
-        let response = try await sendToWebhook(reminders)
-
-        if response.success {
-            lastSyncDate = Date()
-            lastSyncReminderCount = reminders.count
-            userDefaults.set(lastSyncDate, forKey: lastSyncKey)
-            print("[ReminderSync] Synced \(reminders.count) reminders")
+        // Step 3 continued: Send diff-aware upsert to DB (includes absence detection)
+        if !upsertPayloads.isEmpty || !ekMap.isEmpty {
+            try await sendSyncBatch(upsertPayloads)
         }
+
+        // Refresh DB state after upsert for push/delete steps
+        let refreshedState = try await fetchSyncState()
+
+        // Step 5: PUSH — create/update in EventKit for pending_push items
+        for dbRow in refreshedState where dbRow.sync_status == "pending_push" {
+            do {
+                let confirmation = try await pushToEventKit(dbRow, existingReminders: ekMap)
+                confirmations.append(confirmation)
+            } catch {
+                logger.error("[ReminderSync] Push failed for \(dbRow.reminder_id): \(error.localizedDescription)")
+            }
+        }
+
+        // Step 6: DELETE — remove from EventKit for deleted_local items
+        for dbRow in refreshedState where dbRow.sync_status == "deleted_local" {
+            do {
+                let confirmation = try await deleteFromEventKit(dbRow, existingReminders: ekMap)
+                confirmations.append(confirmation)
+            } catch {
+                logger.error("[ReminderSync] Delete failed for \(dbRow.reminder_id): \(error.localizedDescription)")
+            }
+        }
+
+        // Confirm all sync operations back to DB
+        if !confirmations.isEmpty {
+            try await confirmSyncOperations(confirmations)
+        }
+
+        lastSyncDate = Date()
+        lastSyncReminderCount = ekMap.count
+        userDefaults.set(lastSyncDate, forKey: lastSyncKey)
+        logger.info("[ReminderSync] Sync complete: \(ekMap.count) EK, \(upsertPayloads.count) upserted, \(confirmations.count) confirmed")
     }
 
-    private func fetchReminders() async throws -> [ReminderPayload] {
-        let calendar = Calendar.current
-        let startDate = calendar.date(byAdding: .day, value: -30, to: Date())!
-        let endDate = calendar.date(byAdding: .day, value: 7, to: Date())!
-        let isoFormatter = ISO8601DateFormatter()
+    // MARK: - Step 1: Fetch All Reminders from EventKit
 
+    private func fetchAllReminders() async throws -> [EKReminder] {
+        let calendar = Calendar.current
+
+        // Expanded window: ALL incomplete + completed in last 14 days
         let incompletePredicate = eventStore.predicateForIncompleteReminders(
-            withDueDateStarting: startDate,
-            ending: endDate,
+            withDueDateStarting: nil,
+            ending: nil,
             calendars: nil
         )
 
         let completedPredicate = eventStore.predicateForCompletedReminders(
-            withCompletionDateStarting: calendar.date(byAdding: .day, value: -7, to: Date())!,
+            withCompletionDateStarting: calendar.date(byAdding: .day, value: -14, to: Date())!,
             ending: Date(),
             calendars: nil
         )
@@ -112,21 +181,36 @@ class ReminderSyncService: ObservableObject {
             }
         }
 
-        return all.map { reminder in
-            ReminderPayload(
-                reminder_id: reminder.calendarItemIdentifier,
-                title: reminder.title,
-                notes: reminder.notes,
-                due_date: reminder.dueDateComponents?.date.map { isoFormatter.string(from: $0) },
-                is_completed: reminder.isCompleted,
-                completed_date: reminder.completionDate.map { isoFormatter.string(from: $0) },
-                priority: reminder.priority,
-                list_name: reminder.calendar?.title
-            )
-        }
+        return all
     }
 
-    private func sendToWebhook(_ reminders: [ReminderPayload]) async throws -> ReminderSyncResponse {
+    // MARK: - Step 2: Fetch DB Sync State
+
+    private func fetchSyncState() async throws -> [DBReminderState] {
+        let baseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
+        guard let url = URL(string: "\(baseURL)/webhook/nexus-reminders-sync-state") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
+            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.serverError((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+
+        let decoded = try JSONDecoder().decode(SyncStateResponse.self, from: data)
+        return decoded.reminders
+    }
+
+    // MARK: - Step 3: Send Diff-Aware Upsert Batch
+
+    private func sendSyncBatch(_ reminders: [ReminderPayload]) async throws {
         let baseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
         guard let url = URL(string: "\(baseURL)/webhook/nexus-reminders-sync") else {
             throw APIError.invalidURL
@@ -136,7 +220,7 @@ class ReminderSyncService: ObservableObject {
             client_id: UUID().uuidString,
             device: await UIDevice.current.name,
             source: "ios_eventkit",
-            captured_at: ISO8601DateFormatter().string(from: Date()),
+            captured_at: isoFormatter.string(from: Date()),
             reminders: reminders
         )
 
@@ -146,22 +230,141 @@ class ReminderSyncService: ObservableObject {
         if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
-
         request.httpBody = try JSONEncoder().encode(payload)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.serverError((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+    }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
+    // MARK: - Step 5: Push to EventKit
+
+    private func pushToEventKit(_ dbRow: DBReminderState, existingReminders: [String: EKReminder]) async throws -> SyncConfirmation {
+        let isNewReminder = dbRow.reminder_id.hasPrefix("nexus-")
+
+        var ekReminder: EKReminder
+
+        if isNewReminder {
+            ekReminder = EKReminder(eventStore: eventStore)
+            ekReminder.calendar = defaultReminderCalendar(named: dbRow.list_name)
+        } else if let existing = existingReminders[dbRow.reminder_id] {
+            ekReminder = existing
+        } else {
+            // Fallback: try to find by title+list tuple
+            if let match = existingReminders.values.first(where: {
+                $0.title == dbRow.title && $0.calendar?.title == dbRow.list_name && $0.dueDateComponents?.date == dbRow.due_date_parsed
+            }) {
+                ekReminder = match
+            } else {
+                ekReminder = EKReminder(eventStore: eventStore)
+                ekReminder.calendar = defaultReminderCalendar(named: dbRow.list_name)
+            }
         }
 
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
+        ekReminder.title = dbRow.title
+        ekReminder.notes = dbRow.notes
+        ekReminder.priority = dbRow.priority ?? 0
+        ekReminder.isCompleted = dbRow.is_completed ?? false
+
+        if let dueDateStr = dbRow.due_date, let dueDate = parseISO8601(dueDateStr) {
+            ekReminder.dueDateComponents = Calendar.current.dateComponents(
+                [.year, .month, .day, .hour, .minute],
+                from: dueDate
+            )
+        } else {
+            ekReminder.dueDateComponents = nil
         }
 
-        return try JSONDecoder().decode(ReminderSyncResponse.self, from: data)
+        if let completedStr = dbRow.completed_date, let completedDate = parseISO8601(completedStr) {
+            ekReminder.completionDate = completedDate
+        }
+
+        try eventStore.save(ekReminder, commit: true)
+
+        let newModDate = ekReminder.lastModifiedDate ?? Date()
+
+        return SyncConfirmation(
+            db_id: dbRow.id,
+            db_reminder_id: dbRow.reminder_id,
+            eventkit_id: ekReminder.calendarItemIdentifier,
+            eventkit_modified_at: isoFormatter.string(from: newModDate),
+            action: "synced"
+        )
+    }
+
+    // MARK: - Step 6: Delete from EventKit
+
+    private func deleteFromEventKit(_ dbRow: DBReminderState, existingReminders: [String: EKReminder]) async throws -> SyncConfirmation {
+        if let ekReminder = existingReminders[dbRow.reminder_id] {
+            try eventStore.remove(ekReminder, commit: true)
+        }
+
+        return SyncConfirmation(
+            db_id: dbRow.id,
+            db_reminder_id: dbRow.reminder_id,
+            eventkit_id: nil,
+            eventkit_modified_at: nil,
+            action: "deleted"
+        )
+    }
+
+    // MARK: - Confirm Sync Operations
+
+    private func confirmSyncOperations(_ confirmations: [SyncConfirmation]) async throws {
+        let baseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
+        guard let url = URL(string: "\(baseURL)/webhook/nexus-reminder-confirm-sync") else {
+            throw APIError.invalidURL
+        }
+
+        let body = ConfirmSyncPayload(confirmations: confirmations)
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
+            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        }
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.serverError((response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func makePayload(from reminder: EKReminder) -> ReminderPayload {
+        ReminderPayload(
+            reminder_id: reminder.calendarItemIdentifier,
+            title: reminder.title,
+            notes: reminder.notes,
+            due_date: reminder.dueDateComponents?.date.map { isoFormatter.string(from: $0) },
+            is_completed: reminder.isCompleted,
+            completed_date: reminder.completionDate.map { isoFormatter.string(from: $0) },
+            priority: reminder.priority,
+            list_name: reminder.calendar?.title,
+            eventkit_modified_at: reminder.lastModifiedDate.map { isoFormatter.string(from: $0) }
+        )
+    }
+
+    private func defaultReminderCalendar(named name: String?) -> EKCalendar {
+        if let name = name,
+           let cal = eventStore.calendars(for: .reminder).first(where: { $0.title == name }) {
+            return cal
+        }
+        return eventStore.defaultCalendarForNewReminders() ?? eventStore.calendars(for: .reminder).first!
+    }
+
+    private func parseISO8601(_ string: String) -> Date? {
+        isoFormatter.date(from: string)
     }
 }
+
+// MARK: - Models
 
 struct ReminderSyncPayload: Codable {
     let client_id: String
@@ -180,6 +383,21 @@ struct ReminderPayload: Codable {
     let completed_date: String?
     let priority: Int
     let list_name: String?
+    let eventkit_modified_at: String?
+
+    init(reminder_id: String, title: String?, notes: String?, due_date: String?,
+         is_completed: Bool, completed_date: String?, priority: Int, list_name: String?,
+         eventkit_modified_at: String? = nil) {
+        self.reminder_id = reminder_id
+        self.title = title
+        self.notes = notes
+        self.due_date = due_date
+        self.is_completed = is_completed
+        self.completed_date = completed_date
+        self.priority = priority
+        self.list_name = list_name
+        self.eventkit_modified_at = eventkit_modified_at
+    }
 }
 
 struct ReminderSyncResponse: Codable {
@@ -193,4 +411,43 @@ struct ReminderSyncResponse: Codable {
         let updated: Int?
         let total: Int?
     }
+}
+
+struct SyncStateResponse: Codable {
+    let success: Bool
+    let reminders: [DBReminderState]
+    let count: Int
+}
+
+struct DBReminderState: Codable {
+    let id: Int
+    let reminder_id: String
+    let title: String?
+    let notes: String?
+    let due_date: String?
+    let is_completed: Bool?
+    let completed_date: String?
+    let priority: Int?
+    let list_name: String?
+    let sync_status: String?
+    let eventkit_modified_at: Date?
+    let origin: String?
+    let updated_at: Date?
+
+    var due_date_parsed: Date? {
+        guard let d = due_date else { return nil }
+        return ISO8601DateFormatter().date(from: d)
+    }
+}
+
+struct SyncConfirmation: Codable {
+    let db_id: Int
+    let db_reminder_id: String
+    let eventkit_id: String?
+    let eventkit_modified_at: String?
+    let action: String
+}
+
+struct ConfirmSyncPayload: Codable {
+    let confirmations: [SyncConfirmation]
 }

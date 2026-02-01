@@ -58,7 +58,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT json_agg(row_to_json(r.*)) AS reminders FROM (\n  SELECT\n    reminder_id,\n    title,\n    notes,\n    to_char(due_date AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS due_date,\n    is_completed,\n    to_char(completed_date AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS completed_date,\n    priority,\n    list_name\n  FROM raw.reminders\n  WHERE (\n    (due_date IS NOT NULL AND (due_date AT TIME ZONE 'Asia/Dubai')::date\n      BETWEEN '{{ $json.start }}'::date\n      AND '{{ $json.end }}'::date)\n    OR (due_date IS NULL AND is_completed = false)\n  )\n  ORDER BY\n    is_completed ASC,\n    COALESCE(due_date, '9999-12-31'::timestamptz) ASC,\n    priority DESC\n) r;",
+        "query": "=SELECT json_agg(row_to_json(r.*)) AS reminders FROM (\n  SELECT\n    reminder_id,\n    title,\n    notes,\n    to_char(due_date AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS due_date,\n    is_completed,\n    to_char(completed_date AT TIME ZONE 'Asia/Dubai', 'YYYY-MM-DD\"T\"HH24:MI:SS') AS completed_date,\n    priority,\n    list_name\n  FROM life.v_active_reminders\n  WHERE (\n    (due_date IS NOT NULL AND (due_date AT TIME ZONE 'Asia/Dubai')::date\n      BETWEEN '{{ $json.start }}'::date\n      AND '{{ $json.end }}'::date)\n    OR (due_date IS NULL AND is_completed = false)\n  )\n  ORDER BY\n    is_completed ASC,\n    COALESCE(due_date, '9999-12-31'::timestamptz) ASC,\n    priority DESC\n) r;",
         "options": {}
       },
       "id": "fetch-reminders",

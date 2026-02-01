@@ -1,0 +1,164 @@
+{
+  "name": "Nexus: Notes Index Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-notes-index",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "index-wh",
+      "name": "Notes Index Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 300],
+      "webhookId": "nexus-notes-index",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst vault = body.vault || 'RafaVault';\nconst files = body.files || [];\nconst allPaths = body.all_paths || [];\n\nconst esc = (v) => v == null ? null : String(v).replace(/'/g, \"''\");\n\nif (files.length === 0 && allPaths.length === 0) {\n  return { json: { upsertSql: 'SELECT 1', removalSql: 'SELECT 1', count: 0, removed: 0 } };\n}\n\nlet upsertSql = 'SELECT 1';\nif (files.length > 0) {\n  const vals = files.map(f => {\n    const rp = esc(f.relative_path);\n    const title = f.title ? \"'\" + esc(f.title) + \"'\" : 'NULL';\n    const tags = f.tags && f.tags.length > 0\n      ? \"ARRAY[\" + f.tags.map(t => \"'\" + esc(t) + \"'\").join(',') + \"]::text[]\"\n      : 'NULL';\n    const fm = f.frontmatter ? \"'\" + esc(JSON.stringify(f.frontmatter)) + \"'::jsonb\" : 'NULL';\n    const wc = f.word_count != null ? parseInt(f.word_count) : 'NULL';\n    const fma = f.file_modified_at ? \"'\" + esc(f.file_modified_at) + \"'::timestamptz\" : 'NULL';\n    return `('${esc(vault)}', '${rp}', ${title}, ${tags}, ${fm}, ${wc}, ${fma}, CURRENT_TIMESTAMP, NULL)`;\n  });\n\n  upsertSql = `INSERT INTO raw.notes_index (\n    vault, relative_path, title, tags, frontmatter,\n    word_count, file_modified_at, indexed_at, removed_at\n  )\n  VALUES ${vals.join(',\\n')}\n  ON CONFLICT (vault, relative_path) DO UPDATE SET\n    title = EXCLUDED.title,\n    tags = EXCLUDED.tags,\n    frontmatter = EXCLUDED.frontmatter,\n    word_count = EXCLUDED.word_count,\n    file_modified_at = EXCLUDED.file_modified_at,\n    indexed_at = CURRENT_TIMESTAMP,\n    removed_at = NULL;`;\n}\n\nlet removalSql = 'SELECT 0 AS removed';\nif (allPaths.length > 0) {\n  const pathList = allPaths.map(p => \"'\" + esc(p) + \"'\").join(',');\n  removalSql = `UPDATE raw.notes_index SET removed_at = CURRENT_TIMESTAMP\n    WHERE vault = '${esc(vault)}'\n    AND relative_path NOT IN (${pathList})\n    AND removed_at IS NULL;`;\n}\n\nreturn { json: { upsertSql, removalSql, count: files.length } };"
+      },
+      "id": "build-sql",
+      "name": "Build SQL",
+      "type": "n8n-nodes-base.code",
+      "position": [420, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.upsertSql }}",
+        "options": {}
+      },
+      "id": "upsert",
+      "name": "Upsert Notes",
+      "type": "n8n-nodes-base.postgres",
+      "position": [640, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $('Build SQL').item.json.removalSql }}",
+        "options": {}
+      },
+      "id": "removal",
+      "name": "Mark Removed",
+      "type": "n8n-nodes-base.postgres",
+      "position": [860, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"indexed\": {{ $('Build SQL').item.json.count }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1080, 300],
+      "typeVersion": 1.1
+    },
+
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-notes-search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "search-wh",
+      "name": "Notes Search Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 600],
+      "webhookId": "nexus-notes-search",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const q = $input.first().json.query;\nconst tag = q.tag || null;\nconst search = q.q || null;\nconst vault = q.vault || 'RafaVault';\nconst limit = parseInt(q.limit) || 50;\n\nconst esc = (v) => String(v).replace(/'/g, \"''\");\n\nlet where = [`vault = '${esc(vault)}'`, 'removed_at IS NULL'];\n\nif (tag) {\n  where.push(`'${esc(tag)}' = ANY(tags)`);\n}\nif (search) {\n  where.push(`(title ILIKE '%${esc(search)}%' OR relative_path ILIKE '%${esc(search)}%')`);\n}\n\nconst sql = `SELECT relative_path, title, tags, word_count, file_modified_at, indexed_at\n  FROM raw.notes_index\n  WHERE ${where.join(' AND ')}\n  ORDER BY file_modified_at DESC NULLS LAST\n  LIMIT ${limit};`;\n\nreturn { json: { sql } };"
+      },
+      "id": "build-search",
+      "name": "Build Search SQL",
+      "type": "n8n-nodes-base.code",
+      "position": [420, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "exec-search",
+      "name": "Execute Search",
+      "type": "n8n-nodes-base.postgres",
+      "position": [640, 600],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": { "id": "p5cyLWCZ9Db6GiiQ", "name": "Nexus PostgreSQL" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nreturn { json: { success: true, notes: rows, count: rows.length } };"
+      },
+      "id": "format-search",
+      "name": "Format Search Response",
+      "type": "n8n-nodes-base.code",
+      "position": [860, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond-search",
+      "name": "Respond Search",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1080, 600],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Notes Index Webhook": {
+      "main": [[{ "node": "Build SQL", "type": "main", "index": 0 }]]
+    },
+    "Build SQL": {
+      "main": [[{ "node": "Upsert Notes", "type": "main", "index": 0 }]]
+    },
+    "Upsert Notes": {
+      "main": [[{ "node": "Mark Removed", "type": "main", "index": 0 }]]
+    },
+    "Mark Removed": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    },
+    "Notes Search Webhook": {
+      "main": [[{ "node": "Build Search SQL", "type": "main", "index": 0 }]]
+    },
+    "Build Search SQL": {
+      "main": [[{ "node": "Execute Search", "type": "main", "index": 0 }]]
+    },
+    "Execute Search": {
+      "main": [[{ "node": "Format Search Response", "type": "main", "index": 0 }]]
+    },
+    "Format Search Response": {
+      "main": [[{ "node": "Respond Search", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "nexus" }],
+  "meta": {
+    "notes": "Obsidian vault notes indexing + search.\n\nEndpoints:\n- POST /webhook/nexus-notes-index — Upsert note metadata (vault, files[], all_paths[])\n- GET /webhook/nexus-notes-search?tag=X&q=Y&vault=Z&limit=N — Search indexed notes"
+  }
+}

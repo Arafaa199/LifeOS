@@ -36,3 +36,9 @@ _None_
 ---
 
 _Last updated: 2026-01-24_
+
+### Budget Exceeded (2026-02-01 15:18:09)
+- Task: TASK-FX.2
+- Files: 14 (max 8)
+- LOC: 1727 (max 750)
+- Action: Reverted to f2082cad

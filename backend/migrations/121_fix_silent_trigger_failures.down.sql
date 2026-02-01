@@ -1,0 +1,3 @@
+-- Rollback: Restore silent triggers (migration 094 versions)
+-- To fully rollback, re-apply migration 094_reliability_fixes.up.sql trigger sections.
+-- The only change was adding RAISE WARNING — removing it restores silent behavior.
