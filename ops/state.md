@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-01T17:08:00+04:00
+Last updated: 2026-02-02T01:30:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -142,6 +142,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | Task | Status | Summary |
 |------|--------|---------|
 | TASK-PIPE.1: Fix WHOOP Propagation Triggers | DONE | Migration 124: Recreated 3 triggers with `AFTER INSERT OR UPDATE` (was INSERT only). Rewrote 3 trigger functions (`propagate_whoop_recovery/sleep/strain`) with nested BEGIN/EXCEPTION blocks — raw INSERT failure (due to raw.* immutability triggers) no longer blocks normalized layer updates. On raw failure, looks up existing raw_id. Verified: UPDATE on all 3 legacy tables propagates to normalized (updated_at refreshed). 0 trigger errors. Down migration tested (restores INSERT-only + original functions). 2 files changed. Commit `3e6f51f`. |
+| TASK-PIPE.2: Backfill Normalized from Legacy | DONE | Migration 125: Touched all 36 legacy rows (12 recovery + 12 sleep + 12 strain) to re-fire PIPE.1 propagation triggers. Before: recovery 1 mismatch (27 vs 79), sleep 2 mismatches, strain 4 mismatches. After: all 3 parity checks return 0 rows. Rebuilt daily_facts for 397 days (2025-01-01 to 2026-02-01), all succeeded. 2 files changed. |
 | TASK-FEAT.4: Reminders Sync Webhook | DONE | Rewrote `reminders-sync-webhook.json` from 8-node ops.sync_runs pipeline to 4-node batch upsert pattern (matching healthkit-batch). Build SQL Code node constructs single batch INSERT with ON CONFLICT DO UPDATE, single-quote escaping. Removed `ops.start_sync`/`ops.finish_sync` (caused stuck 'running' rows). Handles empty payload gracefully. JSON valid (4 nodes, 3 connections). iOS build: BUILD SUCCEEDED. 1 file changed. Commit `a8f372f`. Note: workflow must be imported into n8n and activated. |
 | TASK-FEAT.5: Reminders GET Endpoint | DONE | Rewrote `reminders-events-webhook.json` from 4-node workflow (no validation) to 7-node workflow with date validation. Added Validate Dates Code node (`/^\d{4}-\d{2}-\d{2}$/` regex), IF Valid branch, Respond Error (400). Postgres reads pre-validated `$json.start`/`$json.end`. Query includes incomplete reminders with no due date. Pattern matches calendar-events-webhook.json exactly. JSON valid (7 nodes, 5 connections). iOS build: BUILD SUCCEEDED. 1 file changed. Commit `acb12e7`. Note: workflow must be imported into n8n and activated. |
 | TASK-FEAT.6: Calendar Month Summary View | DONE | Migration 109: Created `life.v_monthly_calendar_summary` VIEW aggregating `raw.calendar_events` by Dubai-timezone date. Columns: day, event_count, all_day_count, meeting_hours (non-all-day FILTER), has_events, first_event_time, last_event_time. Sparse output (12 days for Jan 2026 from 21 total events). All-day events tracked separately (meeting_hours NULL for all-day-only days). Down migration tested (DROP + re-CREATE). 2 files changed. |

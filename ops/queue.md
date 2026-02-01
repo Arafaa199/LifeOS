@@ -1206,7 +1206,7 @@ Lane: safe_auto
 ### TASK-PIPE.2: Backfill Normalized Tables from Legacy (Fix Stale Data)
 Priority: P0
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 Depends: PIPE.1
 
