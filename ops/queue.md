@@ -1168,6 +1168,217 @@ Depends: FEAT.4, FEAT.7
 
 ---
 
+## PIPELINE FIX TASKS (Added 2026-02-01 — WHOOP Date-Shift Fix)
+
+### TASK-PIPE.1: Fix WHOOP Propagation Triggers to Fire on UPDATE
+Priority: P0
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** WHOOP propagation triggers only fire on INSERT, but n8n does UPSERT (ON CONFLICT date DO UPDATE) on legacy tables. After the initial INSERT fires the trigger, all subsequent updates are invisible to the normalized layer — causing stale/shifted data.
+
+**Root Cause:** `CREATE TRIGGER ... AFTER INSERT ON health.whoop_recovery` — missing `OR UPDATE`. Same for sleep and strain. Additionally, trigger functions had single EXCEPTION block wrapping both raw INSERT and normalized INSERT — when raw.* immutability trigger blocked the raw UPDATE, the entire function rolled back including the normalized write.
+
+**Files Changed:**
+- `backend/migrations/124_fix_whoop_trigger_events.up.sql`
+- `backend/migrations/124_fix_whoop_trigger_events.down.sql`
+
+**Fix Applied:**
+- Recreated all 3 triggers with `AFTER INSERT OR UPDATE`
+- Rewrote all 3 trigger functions with nested BEGIN/EXCEPTION blocks:
+  - Inner block: tries raw INSERT (ON CONFLICT DO UPDATE) — if immutability blocks it, catches error and looks up existing raw_id
+  - Outer block: always writes to normalized regardless of raw outcome
+- This ensures normalized layer stays in sync even when raw.* tables are immutable
+
+**Verification:**
+- [x] `SELECT trigger_name, event_manipulation FROM information_schema.triggers WHERE trigger_schema = 'health' AND trigger_name LIKE 'propagate_%';` — 6 rows (3 INSERT + 3 UPDATE)
+- [x] `UPDATE health.whoop_recovery SET recovery_score = recovery_score WHERE date = '2026-01-31';` → normalized.daily_recovery.updated_at refreshed (was_updated = true)
+- [x] Sleep UPDATE propagation → normalized.daily_sleep.updated_at refreshed (was_updated = true)
+- [x] Strain UPDATE propagation → normalized.daily_strain.updated_at refreshed (was_updated = true)
+- [x] 0 trigger errors after all 3 tests
+- [x] Down migration tested (restores INSERT-only triggers + original functions)
+
+**Done Means:** WHOOP data updates in legacy tables automatically propagate to normalized layer. No more stale/shifted data.
+
+---
+
+### TASK-PIPE.2: Backfill Normalized Tables from Legacy (Fix Stale Data)
+Priority: P0
+Owner: coder
+Status: READY
+Lane: safe_auto
+Depends: PIPE.1
+
+**Objective:** The normalized tables have stale data from the initial INSERT (before WHOOP finalized the day). Now that triggers fire on UPDATE (PIPE.1), backfill by re-triggering propagation from legacy tables.
+
+**Files to Touch:**
+- `backend/migrations/125_backfill_normalized_from_legacy.up.sql`
+- `backend/migrations/125_backfill_normalized_from_legacy.down.sql`
+
+**Implementation:**
+- For each legacy table, do an UPDATE that triggers the propagation:
+```sql
+-- Recovery: touch all rows to re-fire trigger
+UPDATE health.whoop_recovery SET recovery_score = recovery_score;
+-- Sleep: touch all rows
+UPDATE health.whoop_sleep SET time_in_bed_min = time_in_bed_min;
+-- Strain: touch all rows
+UPDATE health.whoop_strain SET day_strain = day_strain;
+```
+- Then rebuild daily_facts:
+```sql
+SELECT * FROM life.rebuild_daily_facts('2025-01-01', '2025-12-31');
+SELECT * FROM life.rebuild_daily_facts('2026-01-01', life.dubai_today());
+```
+- Apply on nexus
+
+**Verification:**
+```sql
+-- Recovery parity check (should return 0 rows)
+SELECT wr.date, wr.recovery_score AS legacy, nr.recovery_score AS norm
+FROM health.whoop_recovery wr
+JOIN normalized.daily_recovery nr ON wr.date = nr.date
+WHERE wr.recovery_score IS DISTINCT FROM nr.recovery_score;
+
+-- Sleep parity (should return 0 rows)
+SELECT ws.date, ws.time_in_bed_min AS legacy, ns.time_in_bed_min AS norm
+FROM health.whoop_sleep ws
+JOIN normalized.daily_sleep ns ON ws.date = ns.date
+WHERE ws.time_in_bed_min IS DISTINCT FROM ns.time_in_bed_min;
+
+-- Strain parity (should return 0 rows)
+SELECT wst.date, wst.day_strain AS legacy, nst.day_strain AS norm
+FROM health.whoop_strain wst
+JOIN normalized.daily_strain nst ON wst.date = nst.date
+WHERE wst.day_strain IS DISTINCT FROM nst.day_strain;
+```
+
+**Done Means:** All normalized health tables match legacy tables exactly. Verification queries return 0 rows.
+
+---
+
+### TASK-PIPE.3: Deduplicate Raw WHOOP Tables
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+Depends: PIPE.2
+
+**Objective:** Raw tables have massive duplication (raw.whoop_cycles: 469 rows for 12 days = 39x bloat). The trigger uses `NEW.id` (auto-increment) as `cycle_id`, so each poll creates a new raw row. Clean up duplicates keeping only the latest per date.
+
+**Files to Touch:**
+- `backend/migrations/126_dedup_raw_whoop.up.sql`
+- `backend/migrations/126_dedup_raw_whoop.down.sql`
+
+**Implementation:**
+- For each raw table, delete duplicates keeping the row with the highest `id` per `date`:
+```sql
+-- raw.whoop_cycles: keep latest per date
+DELETE FROM raw.whoop_cycles
+WHERE id NOT IN (
+    SELECT MAX(id) FROM raw.whoop_cycles GROUP BY date
+);
+
+-- raw.whoop_sleep: keep latest per date
+DELETE FROM raw.whoop_sleep
+WHERE id NOT IN (
+    SELECT MAX(id) FROM raw.whoop_sleep GROUP BY date
+);
+
+-- raw.whoop_strain: keep latest per date
+DELETE FROM raw.whoop_strain
+WHERE id NOT IN (
+    SELECT MAX(id) FROM raw.whoop_strain GROUP BY date
+);
+```
+- Log row counts before and after for audit trail
+- Add a COMMENT explaining the dedup was needed because `NEW.id` was used as the conflict key
+- Apply on nexus
+
+**Verification:**
+```sql
+-- Check for duplicates (should all return 0)
+SELECT 'whoop_cycles' AS tbl, COUNT(*) - COUNT(DISTINCT date) AS duplicates FROM raw.whoop_cycles
+UNION ALL
+SELECT 'whoop_sleep', COUNT(*) - COUNT(DISTINCT date) FROM raw.whoop_sleep
+UNION ALL
+SELECT 'whoop_strain', COUNT(*) - COUNT(DISTINCT date) FROM raw.whoop_strain;
+
+-- Verify row counts match legacy
+SELECT 'recovery' AS domain, COUNT(*) AS legacy FROM health.whoop_recovery
+UNION ALL SELECT 'sleep', COUNT(*) FROM health.whoop_sleep
+UNION ALL SELECT 'strain', COUNT(*) FROM health.whoop_strain
+UNION ALL SELECT 'raw_cycles', COUNT(*) FROM raw.whoop_cycles
+UNION ALL SELECT 'raw_sleep', COUNT(*) FROM raw.whoop_sleep
+UNION ALL SELECT 'raw_strain', COUNT(*) FROM raw.whoop_strain;
+```
+
+**Done Means:** Raw tables have exactly one row per date. No more 39x bloat.
+
+---
+
+### TASK-PIPE.4: Fix HRV Precision Loss in Normalized Layer
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+Depends: PIPE.2
+
+**Objective:** `health.whoop_recovery.hrv_rmssd` is NUMERIC(6,2) (e.g. 116.26) but `normalized.daily_recovery.hrv` and `raw.whoop_cycles.hrv` are NUMERIC(5,1) (e.g. 116.3). This causes rounding on every propagation. Fix column types to match source precision.
+
+**Files to Touch:**
+- `backend/migrations/127_fix_hrv_precision.up.sql`
+- `backend/migrations/127_fix_hrv_precision.down.sql`
+
+**Implementation:**
+```sql
+ALTER TABLE raw.whoop_cycles ALTER COLUMN hrv TYPE NUMERIC(6,2);
+ALTER TABLE normalized.daily_recovery ALTER COLUMN hrv TYPE NUMERIC(6,2);
+```
+- Then re-trigger propagation to backfill corrected values:
+```sql
+UPDATE health.whoop_recovery SET hrv_rmssd = hrv_rmssd;
+```
+- Apply on nexus
+
+**Verification:**
+```sql
+-- HRV values should now match exactly
+SELECT wr.date, wr.hrv_rmssd AS legacy, nr.hrv AS norm
+FROM health.whoop_recovery wr
+JOIN normalized.daily_recovery nr ON wr.date = nr.date
+WHERE wr.hrv_rmssd IS DISTINCT FROM nr.hrv;
+-- Expected: 0 rows
+```
+
+**Done Means:** HRV precision preserved end-to-end. No more rounding from 116.26 → 116.3.
+
+---
+
+### TASK-PIPE.5: Disable Coder and Signal Auditor Shutdown
+Priority: P0
+Owner: coder
+Status: READY
+Lane: safe_auto
+Depends: PIPE.4
+
+**Objective:** All pipeline fix tasks are complete. Disable the coder agent and signal the auditor to shut down after its next review cycle.
+
+**Implementation:**
+1. Remove the coder enabled file: `rm -f /Users/rafa/Cyber/Infrastructure/ClaudeAgents/coder/.enabled`
+2. Create auditor shutdown flag: `touch /Users/rafa/Cyber/Infrastructure/ClaudeAgents/auditor/.shutdown-after-audit`
+3. Send macOS notification: "Pipeline fixes complete. Coder disabled. Auditor will shut down after next review."
+4. Log completion in state.md
+
+**Verification:**
+- `[ ! -f /Users/rafa/Cyber/Infrastructure/ClaudeAgents/coder/.enabled ]` — coder disabled
+- `[ -f /Users/rafa/Cyber/Infrastructure/ClaudeAgents/auditor/.shutdown-after-audit ]` — auditor shutdown flag set
+
+**Done Means:** Coder is off. Auditor will run one more cycle to review the pipeline fixes, then auto-disable.
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)
