@@ -1,0 +1,99 @@
+{
+  "name": "Nexus: Reminders Sync Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-reminders-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Reminders Sync Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [200, 300],
+      "webhookId": "nexus-reminders-sync",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst source = body.source || 'ios_eventkit';\nconst clientId = body.client_id || null;\nconst reminders = body.reminders || [];\n\nif (!Array.isArray(reminders) || reminders.length === 0) {\n  return { json: { sql: 'SELECT 1', count: 0, error: null } };\n}\n\nconst esc = (v) => v == null ? null : String(v).replace(/'/g, \"''\");\n\nconst vals = reminders.map(r => {\n  const rid = esc(r.reminder_id);\n  if (!rid) return null;\n  const title = r.title != null ? \"'\" + esc(r.title) + \"'\" : 'NULL';\n  const notes = r.notes != null ? \"'\" + esc(r.notes) + \"'\" : 'NULL';\n  const dueDate = r.due_date ? \"'\" + esc(r.due_date) + \"'::timestamptz\" : 'NULL';\n  const isCompleted = r.is_completed ? 'true' : 'false';\n  const completedDate = r.completed_date ? \"'\" + esc(r.completed_date) + \"'::timestamptz\" : 'NULL';\n  const priority = Number.isInteger(r.priority) ? r.priority : 0;\n  const listName = r.list_name != null ? \"'\" + esc(r.list_name) + \"'\" : 'NULL';\n  const cid = clientId ? \"'\" + esc(clientId) + \"'::uuid\" : 'NULL';\n  const src = \"'\" + esc(source) + \"'\";\n  return `('${rid}', ${title}, ${notes}, ${dueDate}, ${isCompleted}, ${completedDate}, ${priority}, ${listName}, ${cid}, ${src})`;\n}).filter(v => v !== null);\n\nif (vals.length === 0) {\n  return { json: { sql: 'SELECT 1', count: 0, error: null } };\n}\n\nconst sql = `INSERT INTO raw.reminders (\n  reminder_id, title, notes, due_date, is_completed,\n  completed_date, priority, list_name, client_id, source\n)\nVALUES ${vals.join(',\\n')}\nON CONFLICT (reminder_id, source) DO UPDATE SET\n  title = EXCLUDED.title,\n  notes = EXCLUDED.notes,\n  due_date = EXCLUDED.due_date,\n  is_completed = EXCLUDED.is_completed,\n  completed_date = EXCLUDED.completed_date,\n  priority = EXCLUDED.priority,\n  list_name = EXCLUDED.list_name;`;\n\nreturn { json: { sql, count: vals.length, error: null } };"
+      },
+      "id": "build-sql",
+      "name": "Build SQL",
+      "type": "n8n-nodes-base.code",
+      "position": [420, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "upsert",
+      "name": "Upsert Reminders",
+      "type": "n8n-nodes-base.postgres",
+      "position": [640, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"inserted\": {\n    \"reminders\": {{ $('Build SQL').item.json.count }}\n  },\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [860, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Reminders Sync Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build SQL": {
+      "main": [
+        [
+          {
+            "node": "Upsert Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Reminders": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "nexus" }],
+  "meta": {
+    "notes": "Reminders sync webhook — batch upsert pattern (like healthkit-batch).\nEndpoint: POST /webhook/nexus-reminders-sync\nPayload: { client_id, source, reminders: [{reminder_id, title, notes, due_date, is_completed, completed_date, priority, list_name}] }\nUpserts into raw.reminders ON CONFLICT (reminder_id, source) DO UPDATE."
+  }
+}
