@@ -193,10 +193,44 @@ struct TodayView: View {
                 Spacer()
                 budgetIndicator
             }
+
+            // Reminder indicator
+            if let reminders = viewModel.dashboardPayload?.reminderSummary,
+               reminders.dueToday > 0 || reminders.overdueCount > 0 {
+                reminderRow(reminders)
+            }
         }
         .padding(20)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(16)
+    }
+
+    private func reminderRow(_ reminders: ReminderSummary) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "bell.fill")
+                .font(.caption)
+                .foregroundColor(reminders.overdueCount > 0 ? .red : .secondary)
+
+            if reminders.dueToday > 0 {
+                Text("\(reminders.dueToday) due today")
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.secondary)
+            }
+
+            if reminders.dueToday > 0 && reminders.overdueCount > 0 {
+                Text("\u{00B7}")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            if reminders.overdueCount > 0 {
+                Text("\(reminders.overdueCount) overdue")
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.red)
+            }
+
+            Spacer()
+        }
     }
 
     private var recoveryIndicator: some View {
