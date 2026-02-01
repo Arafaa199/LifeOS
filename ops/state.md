@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-02T01:00:00+04:00
+Last updated: 2026-02-02T02:00:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -10,8 +10,8 @@ Control Mode: Autonomous (Human-in-the-loop on alerts only)
 **System Version:** Operational v1
 **Operational Start Date:** 2026-01-25
 **TRUST-LOCKIN:** PASSED (verified 2026-01-25T16:02+04)
-**Coder:** DISABLED (stopped 2026-01-27 — queue empty, no actionable tasks)
-**Auditor:** DISABLED (stopped 2026-01-27 — no code changes to review)
+**Coder:** ENABLED (queue restocked 2026-02-01 — FEAT.4-10: Reminders integration, Calendar improvements, Productivity correlations)
+**Auditor:** ENABLED (reviewing new feature work)
 
 ### Current State
 - Finance ingestion validated and complete
@@ -137,6 +137,11 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ---
 
 ## COMPLETED TASKS (Summary)
+
+### Recent (Feb 2)
+| Task | Status | Summary |
+|------|--------|---------|
+| TASK-FEAT.4: Reminders Sync Webhook | DONE | Rewrote `reminders-sync-webhook.json` from 8-node ops.sync_runs pipeline to 4-node batch upsert pattern (matching healthkit-batch). Build SQL Code node constructs single batch INSERT with ON CONFLICT DO UPDATE, single-quote escaping. Removed `ops.start_sync`/`ops.finish_sync` (caused stuck 'running' rows). Handles empty payload gracefully. JSON valid (4 nodes, 3 connections). iOS build: BUILD SUCCEEDED. 1 file changed. Commit `a8f372f`. Note: workflow must be imported into n8n and activated. |
 
 ### Recent (Feb 1)
 | Task | Status | Summary |

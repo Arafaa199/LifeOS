@@ -20,8 +20,8 @@ SMS ingestion is FROZEN (no changes to parsing logic).
 All launchd services running (exit 0). WHOOP → normalized pipeline wired.
 DB host changed from Tailscale IP to LAN IP (10.0.0.11) for all scripts.
 
-**Current Phase:** P2 Fixes + Feature Resumption
-**Goal:** Complete remaining P2 items, then resume feature work
+**Current Phase:** Feature Development (Calendar + Reminders + Correlations)
+**Goal:** Wire Reminders into backend, improve Calendar views, add cross-domain correlations
 
 **Audit Report:** `ops/logs/auditor/audit-2026-01-26.md`
 
@@ -29,10 +29,10 @@ DB host changed from Tailscale IP to LAN IP (10.0.0.11) for all scripts.
 
 ## CODER INSTRUCTIONS
 
-All P0 and P1 fixes are complete. Remaining P2 tasks are optional improvements.
-Resume feature work from the ROADMAP section below.
+Execute tasks from the ACTIVE FEATURE TASKS section below in order (FEAT.4 first).
+Tasks marked READY are unblocked. Tasks with Depends must wait.
 
-**Remaining action for user:** Restart Tailscale on nexus (`sudo systemctl restart tailscaled`) and grant Full Disk Access to Terminal for SMS import.
+**Remaining user actions:** Restart Tailscale on nexus (`sudo systemctl restart tailscaled`) and grant Full Disk Access to Terminal for SMS import.
 
 ---
 
@@ -949,18 +949,226 @@ Lane: safe_auto
 
 ---
 
+## ACTIVE FEATURE TASKS (Added 2026-02-01)
+
+### TASK-FEAT.4: Reminders n8n Sync Webhook
+Priority: P1
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** Create the n8n webhook that receives iOS reminder syncs and inserts into `raw.reminders`. The iOS app already sends POST to `/webhook/nexus-reminders-sync` but the backend webhook doesn't process correctly — `raw.reminders` has 0 rows despite the table and iOS service both existing.
+
+**Root Cause:** Previous workflow used 8-node pipeline with `ops.start_sync`/`ops.finish_sync` bookending. When any node errored mid-pipeline, sync runs got stuck in `running` status forever. Per-item upsert approach (Parse returns N items → Upsert runs N times) was fragile with n8n expression interpolation.
+
+**Files Changed:**
+- `backend/n8n-workflows/reminders-sync-webhook.json` (rewritten)
+
+**Fix Applied:**
+- Rewrote from 8-node ops.sync_runs pipeline to 4-node batch pattern (matching healthkit-batch-webhook)
+- Build SQL Code node: constructs single batch INSERT with all reminders, single-quote escaping via `esc()` helper
+- ON CONFLICT (reminder_id, source) DO UPDATE for title, notes, due_date, is_completed, completed_date, priority, list_name
+- Handles empty payload gracefully (returns count: 0, runs `SELECT 1`)
+- Removed `ops.start_sync`/`ops.finish_sync` (caused stuck 'running' rows on mid-pipeline errors)
+- Filters out reminders with null/missing reminder_id
+
+**Verification:**
+- [x] Workflow JSON valid: 4 nodes, 3 connections
+- [x] iOS build: BUILD SUCCEEDED
+- [ ] `ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c \"SELECT COUNT(*) FROM raw.reminders;\""` > 0 after iOS sync (requires n8n import + activation)
+- [ ] Duplicate reminder_id from same source → upsert (requires n8n import + activation)
+
+**Done Means:** iOS reminder syncs successfully persist to `raw.reminders` table.
+
+**Note:** Workflow JSON must be imported into n8n and activated (toggle off/on to register webhook). Old workflow (if imported) should be deactivated first.
+
+---
+
+### TASK-FEAT.5: Reminders GET Endpoint
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+Depends: FEAT.4
+
+**Objective:** Create n8n webhook that serves reminders for the iOS CalendarViewModel to display alongside events. iOS already calls GET `/webhook/nexus-reminders?start=YYYY-MM-DD&end=YYYY-MM-DD` but gets no data.
+
+**Context:**
+- Existing file: `backend/n8n-workflows/reminders-events-webhook.json` — likely broken or never imported
+- CalendarViewModel.fetchReminders() expects: `{ success: true, reminders: [...], count: N }`
+- Each reminder: `{ reminder_id, title, notes, due_date, is_completed, completed_date, priority, list_name }`
+
+**Files to Touch:**
+- `backend/n8n-workflows/reminders-events-webhook.json`
+
+**Implementation:**
+- Create/fix n8n webhook: GET `/webhook/nexus-reminders`
+- Accept query params: `start`, `end` (YYYY-MM-DD)
+- Add date validation Code node (same pattern as calendar-events-webhook.json)
+- Query `raw.reminders WHERE due_date BETWEEN start AND end OR (due_date IS NULL AND is_completed = false)`
+- Include incomplete reminders with no due date (they're always relevant)
+- Return `{ success: true, reminders: [...], count: N }`
+
+**Verification:**
+- [ ] `curl "https://n8n.rfanw/webhook/nexus-reminders?start=2026-01-01&end=2026-02-28"` returns reminders
+- [ ] Invalid dates return 400 error
+
+**Done Means:** iOS CalendarView displays reminders alongside calendar events.
+
+**Note:** Workflow JSON must be imported into n8n and activated.
+
+---
+
+### TASK-FEAT.6: Calendar Month Events Fetch
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** CalendarViewModel.fetchMonthEvents() and fetchYearEvents() call the same `/webhook/nexus-calendar-events` endpoint but with wider date ranges. Verify this works correctly and add a `life.v_monthly_calendar_summary` view for month-level stats.
+
+**Files to Touch:**
+- `backend/migrations/109_monthly_calendar_summary.up.sql`
+- `backend/migrations/109_monthly_calendar_summary.down.sql`
+
+**Implementation:**
+- Create `life.v_monthly_calendar_summary` view: for each day in a month, show event_count, meeting_hours, has_events (boolean)
+- This powers the CalendarMonthView grid (dots on days with events, color intensity by meeting hours)
+- Query: aggregate `raw.calendar_events` grouped by `(start_at AT TIME ZONE 'Asia/Dubai')::date`
+- Include: day, event_count, meeting_hours, first_event_time, last_event_time
+
+**Verification:**
+- [ ] `SELECT * FROM life.v_monthly_calendar_summary WHERE day >= '2026-01-01' AND day < '2026-02-01';` returns daily stats
+- [ ] Days without events don't appear (sparse, not gap-filled)
+
+**Done Means:** Backend has monthly calendar summary view for future dashboard/iOS consumption.
+
+---
+
+### TASK-FEAT.7: Calendar + Productivity Correlation View
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Create an insights view that correlates meeting hours with recovery, GitHub activity, and spending — answering "do heavy meeting days affect my recovery or productivity?"
+
+**Files to Touch:**
+- `backend/migrations/110_calendar_productivity_correlation.up.sql`
+- `backend/migrations/110_calendar_productivity_correlation.down.sql`
+
+**Implementation:**
+- Create `insights.calendar_productivity_correlation` VIEW joining:
+  - `life.v_daily_calendar_summary` (meeting_count, meeting_hours)
+  - `life.daily_facts` (recovery_score, sleep_hours, strain, spend_total)
+  - `life.daily_productivity` (commits, prs, reviews)
+- Columns: day, meeting_count, meeting_hours, recovery_score, sleep_hours_prev_night, github_events, spend_total
+- Add `insights.calendar_pattern_summary` function: avg recovery on heavy-meeting vs light-meeting days, avg spend on meeting vs non-meeting days
+- Heavy meeting day = > 2 hours of meetings
+
+**Verification:**
+- [ ] View returns rows joining calendar + health + productivity data
+- [ ] Pattern summary shows meaningful differences (or nulls if insufficient data)
+
+**Done Means:** Cross-domain insight: "Heavy meeting days correlate with X recovery and Y spending."
+
+---
+
+### TASK-FEAT.8: Reminder-Based Task Completion Tracking
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+Depends: FEAT.4
+
+**Objective:** Track reminder completion rates over time — how many reminders does the user complete vs let expire? Surface as a "task productivity" metric in daily facts.
+
+**Files to Touch:**
+- `backend/migrations/111_reminder_daily_facts.up.sql`
+- `backend/migrations/111_reminder_daily_facts.down.sql`
+
+**Implementation:**
+- Create `life.v_daily_reminder_summary` VIEW:
+  - For each day: reminders_due, reminders_completed, reminders_overdue, completion_rate
+  - Due = due_date falls on that day
+  - Completed = is_completed AND completed_date falls on that day
+  - Overdue = due_date < today AND NOT is_completed
+- Add `reminders_due` and `reminders_completed` columns to `life.daily_facts` (ALTER TABLE)
+- Wire into `life.refresh_daily_facts()` to populate from the view
+- Add to `dashboard.get_payload()` as `reminder_summary: { due_today, completed_today, overdue_count }`
+
+**Verification:**
+- [ ] `SELECT * FROM life.v_daily_reminder_summary ORDER BY day DESC LIMIT 7;` returns data
+- [ ] `dashboard.get_payload()` includes `reminder_summary`
+
+**Done Means:** Daily facts include reminder completion metrics; dashboard payload surfaces them.
+
+---
+
+### TASK-FEAT.9: Calendar Background Sync
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Calendar and Reminders are not synced during background refresh — only on foreground app open. Add them to `syncForBackground()` so data stays fresh even when the user doesn't open the app.
+
+**Files to Touch:**
+- `ios/Nexus/Services/SyncCoordinator.swift`
+
+**Implementation:**
+- In `syncForBackground()`, add calendar and reminder sync calls after existing healthKit sync
+- Use same pattern: fire-and-forget with error handling
+- Respect iOS background task time limits (calendar/reminder sync should be fast — local EventKit read + single POST)
+- Guard behind `flags.calendarSyncEnabled` check
+
+**Verification:**
+- [ ] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+- [ ] `syncForBackground()` includes calendar/reminder sync calls
+- [ ] Background refresh logs show calendar/reminder sync attempts
+
+**Done Means:** Calendar and reminder data syncs during background refresh, keeping server data fresh.
+
+---
+
+### TASK-FEAT.10: Weekly Insights Email — Calendar + Reminders Section
+Priority: P3
+Owner: coder
+Status: READY
+Lane: safe_auto
+Depends: FEAT.4, FEAT.7
+
+**Objective:** Enhance the weekly insights email (n8n workflow, Sunday 8am) to include calendar and reminder stats: total meetings, total meeting hours, busiest day, reminder completion rate.
+
+**Files to Touch:**
+- `backend/n8n-workflows/weekly-insights-report.json` (or equivalent)
+
+**Implementation:**
+- Add SQL queries for weekly calendar stats from `life.v_daily_calendar_summary`
+- Add SQL queries for weekly reminder stats from `life.v_daily_reminder_summary`
+- Format into email HTML section: "This week: X meetings (Y hours), busiest day was Z. Completed N/M reminders (P%)"
+- Insert after existing health/finance sections
+
+**Verification:**
+- [ ] Workflow JSON is valid
+- [ ] Test run produces email with calendar + reminder sections
+
+**Done Means:** Weekly insights email includes calendar and reminder productivity data.
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)
 1. Screen Time iOS Integration (DEFERRED - needs App Store)
 2. ~~GitHub Activity Dashboard Widget~~ DONE ✓ (TASK-FEAT.1)
-3. Weekly Insights Email Enhancement
+3. Weekly Insights Email Enhancement → TASK-FEAT.10
 4. iOS Widget Improvements
 
 ### Phase: Data Quality
 1. Improve receipt→nutrition matching (currently 49.1%)
 2. Add more merchants to auto-categorization rules
-3. Calendar → productivity correlation views
+3. Calendar → productivity correlation views → TASK-FEAT.7
 
 ---
 
