@@ -13,6 +13,7 @@ class CalendarViewModel: ObservableObject {
     @Published var monthReminders: [String: [ReminderDisplayItem]] = [:]
     @Published var selectedDate: Date?
     @Published var yearEventCounts: [String: Int] = [:]
+    @Published var yearReminderCounts: [String: Int] = [:]
 
     private let api = NexusAPI.shared
     private let coordinator = SyncCoordinator.shared
@@ -182,22 +183,45 @@ class CalendarViewModel: ObservableObject {
         let startStr = "\(year)-01-01"
         let endStr = "\(year)-12-31"
 
-        do {
-            let response: CalendarDisplayEventsResponse = try await api.get(
-                "/webhook/nexus-calendar-events?start=\(startStr)&end=\(endStr)"
-            )
-            if response.success {
-                var counts: [String: Int] = [:]
-                for event in response.events ?? [] {
-                    let dayKey = String(event.startAt.prefix(10))
-                    counts[dayKey, default: 0] += 1
+        async let eventsTask: Void = {
+            do {
+                let response: CalendarDisplayEventsResponse = try await self.api.get(
+                    "/webhook/nexus-calendar-events?start=\(startStr)&end=\(endStr)"
+                )
+                if response.success {
+                    var counts: [String: Int] = [:]
+                    for event in response.events ?? [] {
+                        let dayKey = String(event.startAt.prefix(10))
+                        counts[dayKey, default: 0] += 1
+                    }
+                    await MainActor.run { self.yearEventCounts = counts }
                 }
-                yearEventCounts = counts
+            } catch {
+                print("[CalendarVM] Failed to fetch year events: \(error)")
             }
-        } catch {
-            print("[CalendarVM] Failed to fetch year events: \(error)")
-        }
+        }()
 
+        async let remindersTask: Void = {
+            do {
+                let response: RemindersDisplayResponse = try await self.api.get(
+                    "/webhook/nexus-reminders?start=\(startStr)&end=\(endStr)"
+                )
+                if response.success {
+                    var counts: [String: Int] = [:]
+                    for reminder in response.reminders ?? [] {
+                        if let dueDate = reminder.dueDate {
+                            let dayKey = String(dueDate.prefix(10))
+                            counts[dayKey, default: 0] += 1
+                        }
+                    }
+                    await MainActor.run { self.yearReminderCounts = counts }
+                }
+            } catch {
+                print("[CalendarVM] Failed to fetch year reminders: \(error)")
+            }
+        }()
+
+        _ = await (eventsTask, remindersTask)
         isLoadingEvents = false
     }
 
