@@ -142,6 +142,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | Task | Status | Summary |
 |------|--------|---------|
 | TASK-FEAT.4: Reminders Sync Webhook | DONE | Rewrote `reminders-sync-webhook.json` from 8-node ops.sync_runs pipeline to 4-node batch upsert pattern (matching healthkit-batch). Build SQL Code node constructs single batch INSERT with ON CONFLICT DO UPDATE, single-quote escaping. Removed `ops.start_sync`/`ops.finish_sync` (caused stuck 'running' rows). Handles empty payload gracefully. JSON valid (4 nodes, 3 connections). iOS build: BUILD SUCCEEDED. 1 file changed. Commit `a8f372f`. Note: workflow must be imported into n8n and activated. |
+| TASK-FEAT.5: Reminders GET Endpoint | DONE | Rewrote `reminders-events-webhook.json` from 4-node workflow (no validation) to 7-node workflow with date validation. Added Validate Dates Code node (`/^\d{4}-\d{2}-\d{2}$/` regex), IF Valid branch, Respond Error (400). Postgres reads pre-validated `$json.start`/`$json.end`. Query includes incomplete reminders with no due date. Pattern matches calendar-events-webhook.json exactly. JSON valid (7 nodes, 5 connections). iOS build: BUILD SUCCEEDED. 1 file changed. Commit `acb12e7`. Note: workflow must be imported into n8n and activated. |
 
 ### Recent (Feb 1)
 | Task | Status | Summary |
