@@ -1142,24 +1142,27 @@ Lane: safe_auto
 ### TASK-FEAT.10: Weekly Insights Email — Calendar + Reminders Section
 Priority: P3
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 Depends: FEAT.4, FEAT.7
 
 **Objective:** Enhance the weekly insights email (n8n workflow, Sunday 8am) to include calendar and reminder stats: total meetings, total meeting hours, busiest day, reminder completion rate.
 
-**Files to Touch:**
-- `backend/n8n-workflows/weekly-insights-report.json` (or equivalent)
+**Files Changed:**
+- `backend/migrations/112_weekly_report_calendar_reminders.up.sql`
+- `backend/migrations/112_weekly_report_calendar_reminders.down.sql`
 
-**Implementation:**
-- Add SQL queries for weekly calendar stats from `life.v_daily_calendar_summary`
-- Add SQL queries for weekly reminder stats from `life.v_daily_reminder_summary`
-- Format into email HTML section: "This week: X meetings (Y hours), busiest day was Z. Completed N/M reminders (P%)"
-- Insert after existing health/finance sections
+**Fix Applied:**
+- Rewrote `insights.generate_weekly_markdown()` to include Calendar and Reminders sections
+- Calendar section: meetings count, total hours, busiest day (from `life.v_daily_calendar_summary`)
+- Reminders section: due, completed, overdue, completion rate (from `life.v_daily_reminder_summary`)
+- Cross-domain insights: heavy meeting week (>10h) and low task completion (<50%) alerts
+- Formatted as markdown tables matching existing Health/Finance section style
 
 **Verification:**
-- [ ] Workflow JSON is valid
-- [ ] Test run produces email with calendar + reminder sections
+- [x] Migration applied and function deployed on nexus
+- [x] `store_weekly_report('2026-01-27')` → report includes Calendar (5 meetings, 4.0h, busiest Tue 27 Jan) and Reminders (no data yet — pending iOS sync)
+- [x] Down migration tested (reverts to original function without calendar/reminders)
 
 **Done Means:** Weekly insights email includes calendar and reminder productivity data.
 
