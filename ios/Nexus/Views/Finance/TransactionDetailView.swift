@@ -65,6 +65,56 @@ struct TransactionDetailView: View {
                     }
                 }
 
+                // FX Conversion section (only for non-AED transactions)
+                if transaction.currency.uppercased() != "AED" {
+                    Section("FX Conversion") {
+                        if let originalText = transaction.originalAmountText {
+                            DetailRow(label: "Original Amount", value: originalText)
+                        }
+
+                        if let preferred = transaction.amountPreferred {
+                            DetailRow(label: "Converted Amount", value: String(format: "AED %.2f", abs(preferred)))
+                        }
+
+                        if let rate = transaction.fxRateUsed {
+                            HStack {
+                                Text("Rate")
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text(String(format: "1 %@ = %.4f AED", transaction.currency, rate))
+                                if transaction.fxIsEstimate == true {
+                                    Text("~ Est.")
+                                        .font(.caption2)
+                                        .foregroundColor(.orange)
+                                        .padding(.horizontal, 4)
+                                        .padding(.vertical, 2)
+                                        .background(Color.orange.opacity(0.15))
+                                        .cornerRadius(4)
+                                }
+                            }
+                        }
+
+                        if let source = transaction.fxSource, source != "missing" {
+                            DetailRow(label: "Source", value: source.capitalized)
+                        }
+
+                        if transaction.fxSource == "missing" {
+                            HStack {
+                                Text("Status")
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text("Rate unavailable")
+                                    .foregroundColor(.red)
+                                    .font(.subheadline)
+                            }
+                        }
+
+                        if let rateDate = transaction.fxRateDate {
+                            DetailRow(label: "Rate Date", value: rateDate)
+                        }
+                    }
+                }
+
                 // Original values section (only if corrected)
                 if transaction.hasCorrection {
                     Section("Original Values") {
