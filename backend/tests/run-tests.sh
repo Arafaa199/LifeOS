@@ -6,7 +6,7 @@
 #   ./run-tests.sh 011          # Run only timezone tests
 #   ./run-tests.sh timezone     # Run tests matching "timezone"
 
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DB_HOST="${NEXUS_DB_HOST:-nexus}"
