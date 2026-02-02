@@ -17,7 +17,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get today's spending totals\nSELECT \n  COALESCE(SUM(ABS(amount)), 0) as total_spent,\n  COALESCE(SUM(CASE WHEN is_grocery THEN ABS(amount) ELSE 0 END), 0) as grocery_spent,\n  COALESCE(SUM(CASE WHEN is_restaurant THEN ABS(amount) ELSE 0 END), 0) as eating_out_spent,\n  MAX(currency) as currency\nFROM finance.transactions\nWHERE date = CURRENT_DATE;",
+        "query": "-- Get today's spending totals\nSELECT \n  COALESCE(SUM(ABS(amount)), 0) as total_spent,\n  COALESCE(SUM(CASE WHEN is_grocery THEN ABS(amount) ELSE 0 END), 0) as grocery_spent,\n  COALESCE(SUM(CASE WHEN is_restaurant THEN ABS(amount) ELSE 0 END), 0) as eating_out_spent,\n  MAX(currency) as currency\nFROM finance.transactions\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date;",
         "options": {}
       },
       "name": "Get Daily Totals",
@@ -34,7 +34,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get recent transactions (last 30 days)\nSELECT \n  id,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  subcategory,\n  is_grocery,\n  is_restaurant,\n  notes,\n  tags\nFROM finance.transactions\nWHERE date >= CURRENT_DATE - INTERVAL '30 days'\nORDER BY date DESC, id DESC\nLIMIT 100;",
+        "query": "-- Get recent transactions (last 30 days)\nSELECT \n  id,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  subcategory,\n  is_grocery,\n  is_restaurant,\n  notes,\n  tags\nFROM finance.transactions\nWHERE date >= (NOW() AT TIME ZONE 'Asia/Dubai')::date - INTERVAL '30 days'\nORDER BY date DESC, id DESC\nLIMIT 100;",
         "options": {}
       },
       "name": "Get Recent Transactions",
@@ -51,7 +51,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get budgets for current month with spending\nSELECT \n  b.id,\n  b.month,\n  b.category,\n  b.budget_amount,\n  COALESCE(SUM(ABS(t.amount)), 0) as spent,\n  b.budget_amount - COALESCE(SUM(ABS(t.amount)), 0) as remaining\nFROM finance.budgets b\nLEFT JOIN finance.transactions t ON \n  t.category = b.category \n  AND DATE_TRUNC('month', t.date) = b.month\nWHERE b.month = DATE_TRUNC('month', CURRENT_DATE)\nGROUP BY b.id, b.month, b.category, b.budget_amount\nORDER BY b.category;",
+        "query": "-- Get budgets for current month with spending\nSELECT \n  b.id,\n  b.month,\n  b.category,\n  b.budget_amount,\n  COALESCE(SUM(ABS(t.amount)), 0) as spent,\n  b.budget_amount - COALESCE(SUM(ABS(t.amount)), 0) as remaining\nFROM finance.budgets b\nLEFT JOIN finance.transactions t ON \n  t.category = b.category \n  AND DATE_TRUNC('month', t.date) = b.month\nWHERE b.month = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Dubai')::date)\nGROUP BY b.id, b.month, b.category, b.budget_amount\nORDER BY b.category;",
         "options": {}
       },
       "name": "Get Budgets",
@@ -68,7 +68,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get category breakdown for current month\nSELECT \n  category,\n  SUM(ABS(amount)) as total\nFROM finance.transactions\nWHERE TO_CHAR(date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')\n  AND category IS NOT NULL\nGROUP BY category\nORDER BY total DESC;",
+        "query": "-- Get category breakdown for current month\nSELECT \n  category,\n  SUM(ABS(amount)) as total\nFROM finance.transactions\nWHERE TO_CHAR(date, 'YYYY-MM') = TO_CHAR((NOW() AT TIME ZONE 'Asia/Dubai')::date, 'YYYY-MM')\n  AND category IS NOT NULL\nGROUP BY category\nORDER BY total DESC;",
         "options": {}
       },
       "name": "Get Category Breakdown",

@@ -64,7 +64,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get today's totals\nSELECT \n  COALESCE(SUM(amount), 0) as total_spent,\n  COALESCE(SUM(CASE WHEN is_grocery THEN amount ELSE 0 END), 0) as grocery_spent,\n  COALESCE(SUM(CASE WHEN is_restaurant THEN amount ELSE 0 END), 0) as eating_out_spent,\n  COALESCE(SUM(CASE WHEN category = '{{ $json.category }}' THEN amount ELSE 0 END), 0) as category_spent\nFROM finance.transactions\nWHERE date = CURRENT_DATE",
+        "query": "-- Get today's totals\nSELECT \n  COALESCE(SUM(amount), 0) as total_spent,\n  COALESCE(SUM(CASE WHEN is_grocery THEN amount ELSE 0 END), 0) as grocery_spent,\n  COALESCE(SUM(CASE WHEN is_restaurant THEN amount ELSE 0 END), 0) as eating_out_spent,\n  COALESCE(SUM(CASE WHEN category = '{{ $json.category }}' THEN amount ELSE 0 END), 0) as category_spent\nFROM finance.transactions\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date",
         "options": {}
       },
       "name": "Get Daily Summary",

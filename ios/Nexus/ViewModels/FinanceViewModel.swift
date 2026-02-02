@@ -470,7 +470,7 @@ class FinanceViewModel: ObservableObject {
             currency: nil,
             category: category,
             merchantName: merchantName,
-            date: date.map { ISO8601DateFormatter().string(from: $0) },
+            date: date.map { Constants.Dubai.iso8601String(from: $0) },
             reason: reason.rawValue,
             notes: notes,
             createdBy: "ios"

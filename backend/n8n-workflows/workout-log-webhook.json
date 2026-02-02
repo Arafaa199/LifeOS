@@ -45,7 +45,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  COUNT(*) as workouts_this_week,\n  COALESCE(SUM(duration_min), 0) as total_duration_min,\n  COALESCE(SUM(calories_burned), 0) as total_calories_burned\nFROM health.workouts\nWHERE date >= CURRENT_DATE - INTERVAL '7 days';",
+        "query": "SELECT \n  COUNT(*) as workouts_this_week,\n  COALESCE(SUM(duration_min), 0) as total_duration_min,\n  COALESCE(SUM(calories_burned), 0) as total_calories_burned\nFROM health.workouts\nWHERE date >= (NOW() AT TIME ZONE 'Asia/Dubai')::date - INTERVAL '7 days';",
         "options": {}
       },
       "id": "get-weekly-stats",

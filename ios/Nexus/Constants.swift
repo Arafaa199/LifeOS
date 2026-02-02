@@ -63,6 +63,34 @@ enum Constants {
         static let springDuration: Foundation.TimeInterval = 0.5
     }
 
+    // MARK: - Dubai Timezone
+    enum Dubai {
+        static let timeZone = TimeZone(identifier: "Asia/Dubai")!
+
+        static var calendar: Calendar {
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = timeZone
+            return cal
+        }
+
+        static func iso8601String(from date: Date) -> String {
+            let formatter = ISO8601DateFormatter()
+            formatter.timeZone = timeZone
+            return formatter.string(from: date)
+        }
+
+        static func dateString(from date: Date) -> String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = timeZone
+            return formatter.string(from: date)
+        }
+
+        static func isDateInToday(_ date: Date) -> Bool {
+            calendar.isDateInToday(date)
+        }
+    }
+
     // MARK: - Health Data
     enum Health {
         static let weightHistoryDays = 30

@@ -44,7 +44,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  COUNT(*) FILTER (WHERE date = CURRENT_DATE) as new_today,\n  SUM(amount) FILTER (WHERE date = CURRENT_DATE AND amount < 0) as spent_today,\n  MAX(created_at) as last_import\nFROM finance.transactions\nWHERE created_at > NOW() - INTERVAL '5 minutes'",
+        "query": "SELECT \n  COUNT(*) FILTER (WHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date) as new_today,\n  SUM(amount) FILTER (WHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date AND amount < 0) as spent_today,\n  MAX(created_at) as last_import\nFROM finance.transactions\nWHERE created_at > NOW() - INTERVAL '5 minutes'",
         "options": {}
       },
       "name": "Get New Transactions",

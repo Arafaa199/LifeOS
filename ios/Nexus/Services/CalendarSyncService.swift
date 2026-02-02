@@ -76,7 +76,7 @@ class CalendarSyncService: ObservableObject {
     }
 
     private func fetchEvents() -> [CalendarEvent] {
-        let calendar = Calendar.current
+        let calendar = Constants.Dubai.calendar
 
         let startDate = calendar.date(byAdding: .day, value: -30, to: Date())!
         let endDate = calendar.date(byAdding: .day, value: 7, to: Date())!
@@ -93,8 +93,8 @@ class CalendarSyncService: ObservableObject {
             CalendarEvent(
                 event_id: event.eventIdentifier,
                 title: event.title,
-                start_at: ISO8601DateFormatter().string(from: event.startDate),
-                end_at: ISO8601DateFormatter().string(from: event.endDate),
+                start_at: Constants.Dubai.iso8601String(from: event.startDate),
+                end_at: Constants.Dubai.iso8601String(from: event.endDate),
                 is_all_day: event.isAllDay,
                 calendar_name: event.calendar.title,
                 location: event.location,
@@ -114,7 +114,7 @@ class CalendarSyncService: ObservableObject {
             client_id: UUID().uuidString,
             device: await UIDevice.current.name,
             source: "ios_eventkit",
-            captured_at: ISO8601DateFormatter().string(from: Date()),
+            captured_at: Constants.Dubai.iso8601String(from: Date()),
             events: events
         )
 

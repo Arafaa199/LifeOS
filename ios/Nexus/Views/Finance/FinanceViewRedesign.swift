@@ -178,8 +178,9 @@ struct FinanceViewRedesign: View {
                                 .foregroundColor(.secondary)
                         }
                     } else {
-                        let daysRemaining = Calendar.current.range(of: .day, in: .month, for: Date())!.count -
-                                           Calendar.current.component(.day, from: Date())
+                        let dubaiCal = Constants.Dubai.calendar
+                        let daysRemaining = dubaiCal.range(of: .day, in: .month, for: Date())!.count -
+                                           dubaiCal.component(.day, from: Date())
                         VStack(spacing: 2) {
                             Text("\(daysRemaining)")
                                 .font(.title2.weight(.bold))

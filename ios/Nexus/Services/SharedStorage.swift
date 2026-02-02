@@ -192,7 +192,7 @@ class SharedStorage {
 
     private func isRecoveryDataCurrent() -> Bool {
         guard let recoveryDate = getRecoveryDate() else { return false }
-        return Calendar.current.isDateInToday(recoveryDate)
+        return Constants.Dubai.isDateInToday(recoveryDate)
     }
 
     // MARK: - Reset Methods
@@ -211,8 +211,7 @@ class SharedStorage {
             return
         }
 
-        let calendar = Calendar.current
-        if !calendar.isDateInToday(lastUpdate) {
+        if !Constants.Dubai.isDateInToday(lastUpdate) {
             resetDailyStats()
         }
     }

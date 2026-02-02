@@ -73,7 +73,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO nutrition.food_log (date, meal_time, description, calories, protein_g, carbs_g, fat_g, source, confidence)\nVALUES (CURRENT_DATE, '{{ $json.data.meal_time || 'snack' }}', '{{ $json.data.description }}', {{ $json.data.calories || 'NULL' }}, {{ $json.data.protein_g || 'NULL' }}, {{ $json.data.carbs_g || 'NULL' }}, {{ $json.data.fat_g || 'NULL' }}, 'siri', '{{ $json.data.confidence || 'medium' }}')\nRETURNING id;",
+        "query": "=INSERT INTO nutrition.food_log (date, meal_time, description, calories, protein_g, carbs_g, fat_g, source, confidence)\nVALUES ((NOW() AT TIME ZONE 'Asia/Dubai')::date, '{{ $json.data.meal_time || 'snack' }}', '{{ $json.data.description }}', {{ $json.data.calories || 'NULL' }}, {{ $json.data.protein_g || 'NULL' }}, {{ $json.data.carbs_g || 'NULL' }}, {{ $json.data.fat_g || 'NULL' }}, 'siri', '{{ $json.data.confidence || 'medium' }}')\nRETURNING id;",
         "options": {}
       },
       "id": "insert-food",
@@ -91,7 +91,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO nutrition.water_log (date, amount_ml, source)\nVALUES (CURRENT_DATE, {{ $json.data.amount_ml || 250 }}, 'siri');",
+        "query": "=INSERT INTO nutrition.water_log (date, amount_ml, source)\nVALUES ((NOW() AT TIME ZONE 'Asia/Dubai')::date, {{ $json.data.amount_ml || 250 }}, 'siri');",
         "options": {}
       },
       "id": "insert-water",
@@ -109,7 +109,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES (NOW(), CURRENT_DATE, 'siri', 'weight', {{ $json.data.weight_kg }}, 'kg');",
+        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES (NOW(), (NOW() AT TIME ZONE 'Asia/Dubai')::date, 'siri', 'weight', {{ $json.data.weight_kg }}, 'kg');",
         "options": {}
       },
       "id": "insert-weight",
@@ -127,7 +127,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO core.daily_journal (date, mood_score, energy_score, stress_score, evening_note)\nVALUES (CURRENT_DATE, {{ $json.data.mood_score || 'NULL' }}, {{ $json.data.energy_score || 'NULL' }}, {{ $json.data.stress_score || 'NULL' }}, '{{ $json.data.notes || '' }}')\nON CONFLICT (date) DO UPDATE SET\n  mood_score = COALESCE(EXCLUDED.mood_score, core.daily_journal.mood_score),\n  energy_score = COALESCE(EXCLUDED.energy_score, core.daily_journal.energy_score),\n  stress_score = COALESCE(EXCLUDED.stress_score, core.daily_journal.stress_score),\n  evening_note = COALESCE(EXCLUDED.evening_note, core.daily_journal.evening_note);",
+        "query": "=INSERT INTO core.daily_journal (date, mood_score, energy_score, stress_score, evening_note)\nVALUES ((NOW() AT TIME ZONE 'Asia/Dubai')::date, {{ $json.data.mood_score || 'NULL' }}, {{ $json.data.energy_score || 'NULL' }}, {{ $json.data.stress_score || 'NULL' }}, '{{ $json.data.notes || '' }}')\nON CONFLICT (date) DO UPDATE SET\n  mood_score = COALESCE(EXCLUDED.mood_score, core.daily_journal.mood_score),\n  energy_score = COALESCE(EXCLUDED.energy_score, core.daily_journal.energy_score),\n  stress_score = COALESCE(EXCLUDED.stress_score, core.daily_journal.stress_score),\n  evening_note = COALESCE(EXCLUDED.evening_note, core.daily_journal.evening_note);",
         "options": {}
       },
       "id": "insert-mood",
@@ -145,7 +145,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO activity.habit_log (habit_id, date, completed)\nSELECT id, CURRENT_DATE, TRUE\nFROM activity.habits\nWHERE LOWER(name) LIKE LOWER('%{{ $json.data.habit_name }}%')\n  AND is_active = TRUE\nLIMIT 1\nON CONFLICT (habit_id, date) DO UPDATE SET completed = TRUE;",
+        "query": "=INSERT INTO activity.habit_log (habit_id, date, completed)\nSELECT id, (NOW() AT TIME ZONE 'Asia/Dubai')::date, TRUE\nFROM activity.habits\nWHERE LOWER(name) LIKE LOWER('%{{ $json.data.habit_name }}%')\n  AND is_active = TRUE\nLIMIT 1\nON CONFLICT (habit_id, date) DO UPDATE SET completed = TRUE;",
         "options": {}
       },
       "id": "insert-habit",

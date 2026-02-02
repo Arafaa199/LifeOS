@@ -18,7 +18,11 @@ class ReminderSyncService: ObservableObject {
 
     private let userDefaults = UserDefaults.standard
     private let lastSyncKey = "reminders_last_sync_date"
-    private let isoFormatter = ISO8601DateFormatter()
+    private let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.timeZone = Constants.Dubai.timeZone
+        return f
+    }()
 
     private init() {
         lastSyncDate = userDefaults.object(forKey: lastSyncKey) as? Date
@@ -143,7 +147,7 @@ class ReminderSyncService: ObservableObject {
     // MARK: - Step 1: Fetch All Reminders from EventKit
 
     private func fetchAllReminders() async throws -> [EKReminder] {
-        let calendar = Calendar.current
+        let calendar = Constants.Dubai.calendar
 
         // Expanded window: ALL incomplete + completed in last 14 days
         let incompletePredicate = eventStore.predicateForIncompleteReminders(
@@ -269,7 +273,7 @@ class ReminderSyncService: ObservableObject {
         ekReminder.isCompleted = dbRow.is_completed ?? false
 
         if let dueDateStr = dbRow.due_date, let dueDate = parseISO8601(dueDateStr) {
-            ekReminder.dueDateComponents = Calendar.current.dateComponents(
+            ekReminder.dueDateComponents = Constants.Dubai.calendar.dateComponents(
                 [.year, .month, .day, .hour, .minute],
                 from: dueDate
             )
@@ -355,6 +359,16 @@ class ReminderSyncService: ObservableObject {
         if let name = name,
            let cal = eventStore.calendars(for: .reminder).first(where: { $0.title == name }) {
             return cal
+        }
+        if let name = name {
+            let newCal = EKCalendar(for: .reminder, eventStore: eventStore)
+            newCal.title = name
+            newCal.source = eventStore.defaultCalendarForNewReminders()?.source
+                ?? eventStore.sources.first(where: { $0.sourceType == .local })
+            if let _ = try? eventStore.saveCalendar(newCal, commit: true) {
+                logger.info("[ReminderSync] Created calendar: \(name)")
+                return newCal
+            }
         }
         return eventStore.defaultCalendarForNewReminders() ?? eventStore.calendars(for: .reminder).first!
     }

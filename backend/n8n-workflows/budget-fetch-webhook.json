@@ -17,7 +17,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get all budgets for current month with spending data\nSELECT \n  b.id,\n  b.month,\n  b.category,\n  b.budget_amount,\n  COALESCE(SUM(ABS(t.amount)), 0) as spent,\n  b.budget_amount - COALESCE(SUM(ABS(t.amount)), 0) as remaining\nFROM finance.budgets b\nLEFT JOIN finance.transactions t ON \n  t.category = b.category \n  AND DATE_TRUNC('month', t.date) = b.month\nWHERE b.month = DATE_TRUNC('month', CURRENT_DATE)\nGROUP BY b.id, b.month, b.category, b.budget_amount\nORDER BY b.category;",
+        "query": "-- Get all budgets for current month with spending data\nSELECT \n  b.id,\n  b.month,\n  b.category,\n  b.budget_amount,\n  COALESCE(SUM(ABS(t.amount)), 0) as spent,\n  b.budget_amount - COALESCE(SUM(ABS(t.amount)), 0) as remaining\nFROM finance.budgets b\nLEFT JOIN finance.transactions t ON \n  t.category = b.category \n  AND DATE_TRUNC('month', t.date) = b.month\nWHERE b.month = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Dubai')::date)\nGROUP BY b.id, b.month, b.category, b.budget_amount\nORDER BY b.category;",
         "options": {}
       },
       "name": "Get Budgets",

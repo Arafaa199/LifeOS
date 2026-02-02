@@ -1,107 +1,68 @@
 {
+  "updatedAt": "2026-01-19T21:51:47.134Z",
+  "createdAt": "2026-01-19T21:51:47.134Z",
+  "id": "w7ENqkmdhbxL2Ez1",
   "name": "Nexus: Weight Log Webhook",
+  "description": null,
+  "active": true,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "nexus-weight",
-        "options": {
-          "responseMode": "responseNode"
-        }
+        "responseMode": "responseNode",
+        "options": {}
       },
       "id": "webhook",
-      "name": "Weight Webhook",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "nexus-weight",
       "typeVersion": 2
     },
     {
       "parameters": {
-        "jsCode": "// Parse weight from various sources (Health Export, iOS app, etc.)\nconst input = $input.first().json.body || $input.first().json;\n\n// Support multiple input formats\nlet weightKg = null;\nlet source = input.source || 'webhook';\nlet recordedAt = input.recorded_at || input.timestamp || new Date().toISOString();\nlet date = input.date || new Date().toISOString().split('T')[0];\n\n// Try different field names for weight\nif (input.weight_kg !== undefined) {\n  weightKg = parseFloat(input.weight_kg);\n} else if (input.weight !== undefined) {\n  weightKg = parseFloat(input.weight);\n} else if (input.value !== undefined) {\n  weightKg = parseFloat(input.value);\n} else if (input.qty !== undefined) {\n  // Health Export format\n  weightKg = parseFloat(input.qty);\n  source = 'health_export';\n  if (input.date) {\n    recordedAt = input.date;\n    date = input.date.split('T')[0];\n  }\n}\n\n// Validate weight\nif (!weightKg || isNaN(weightKg)) {\n  throw new Error('Invalid weight value. Provide weight_kg, weight, value, or qty.');\n}\n\n// Sanity check (10-300 kg range)\nif (weightKg < 10 || weightKg > 300) {\n  throw new Error(`Weight ${weightKg} kg seems invalid. Expected 10-300 kg.`);\n}\n\nreturn {\n  weight_kg: weightKg,\n  source: source,\n  recorded_at: recordedAt,\n  date: date,\n  metadata: input.metadata || null\n};"
-      },
-      "id": "parse-input",
-      "name": "Parse Weight",
-      "type": "n8n-nodes-base.code",
-      "position": [460, 300],
-      "typeVersion": 2
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit, metadata)\nVALUES (\n  '{{ $json.recorded_at }}'::timestamp,\n  '{{ $json.date }}'::date,\n  '{{ $json.source }}',\n  'weight',\n  {{ $json.weight_kg }},\n  'kg',\n  {{ $json.metadata ? \"'\" + JSON.stringify($json.metadata).replace(/'/g, \"''\") + \"'::jsonb\" : 'NULL' }}\n)\nON CONFLICT (recorded_at, source, metric_type) \nDO UPDATE SET value = EXCLUDED.value, created_at = NOW()\nRETURNING id, date, value as weight_kg;",
+        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES (NOW(), (NOW() AT TIME ZONE 'Asia/Dubai')::date, '{{ $json.body.source || \"webhook\" }}', 'weight', {{ $json.body.weight_kg }}, 'kg')\nON CONFLICT (date, metric_type, source) DO UPDATE SET value = EXCLUDED.value, recorded_at = NOW()\nRETURNING id;",
         "options": {}
       },
       "id": "insert-weight",
       "name": "Insert Weight",
       "type": "n8n-nodes-base.postgres",
-      "position": [680, 300],
+      "position": [
+        460,
+        300
+      ],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  value as latest_weight,\n  date as latest_date,\n  (SELECT value FROM health.metrics WHERE metric_type = 'weight' AND date < CURRENT_DATE ORDER BY date DESC LIMIT 1) as previous_weight\nFROM health.metrics \nWHERE metric_type = 'weight' \nORDER BY date DESC, recorded_at DESC \nLIMIT 1;",
-        "options": {}
-      },
-      "id": "get-trend",
-      "name": "Get Weight Trend",
-      "type": "n8n-nodes-base.postgres",
-      "position": [900, 300],
-      "typeVersion": 2.5,
-      "credentials": {
-        "postgres": {
-          "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Weight logged: {{ $('Parse Weight').item.json.weight_kg }} kg\",\n  \"data\": {\n    \"id\": {{ $('Insert Weight').item.json.id }},\n    \"weight_kg\": {{ $('Parse Weight').item.json.weight_kg }},\n    \"date\": \"{{ $('Insert Weight').item.json.date }}\",\n    \"trend\": {\n      \"latest\": {{ $json.latest_weight || 'null' }},\n      \"previous\": {{ $json.previous_weight || 'null' }},\n      \"change\": {{ ($json.latest_weight && $json.previous_weight) ? ($json.latest_weight - $json.previous_weight).toFixed(2) : 'null' }}\n    }\n  }\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Weight logged successfully\"\n}",
         "options": {}
       },
-      "id": "respond-success",
-      "name": "Respond Success",
+      "id": "respond",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [1120, 300],
-      "typeVersion": 1.1
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"{{ $json.message || 'Failed to log weight' }}\"\n}",
-        "options": {
-          "responseCode": 400
-        }
-      },
-      "id": "respond-error",
-      "name": "Respond Error",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "position": [680, 500],
+      "position": [
+        680,
+        300
+      ],
       "typeVersion": 1.1
     }
   ],
   "connections": {
-    "Weight Webhook": {
-      "main": [
-        [
-          {
-            "node": "Parse Weight",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Weight": {
+    "Webhook": {
       "main": [
         [
           {
@@ -116,18 +77,7 @@
       "main": [
         [
           {
-            "node": "Get Weight Trend",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Weight Trend": {
-      "main": [
-        [
-          {
-            "node": "Respond Success",
+            "node": "Respond",
             "type": "main",
             "index": 0
           }
@@ -136,11 +86,35 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
-  "tags": [
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "f7b627bc-b87b-4741-82ae-7c71c872c748",
+  "activeVersionId": "f7b627bc-b87b-4741-82ae-7c71c872c748",
+  "versionCounter": 226,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
     {
-      "name": "nexus"
+      "updatedAt": "2026-01-19T21:51:47.137Z",
+      "createdAt": "2026-01-19T21:51:47.137Z",
+      "role": "workflow:owner",
+      "workflowId": "w7ENqkmdhbxL2Ez1",
+      "projectId": "22AdcA5nOuNzxaWv",
+      "project": {
+        "updatedAt": "2026-01-16T12:45:07.892Z",
+        "createdAt": "2026-01-16T12:19:29.617Z",
+        "id": "22AdcA5nOuNzxaWv",
+        "name": "Ahmed Arafa <arafa.uwl19@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "6e352323-f0d8-4767-9f6d-163557aaa469"
+      }
     }
   ]
 }

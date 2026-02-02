@@ -528,21 +528,16 @@ class NexusAPI: ObservableObject {
         return try decoder.decode(T.self, from: data)
     }
 
-    // MARK: - Dubai Timezone Helpers
+    // MARK: - Dubai Timezone Helpers (delegates to Constants.Dubai)
 
-    static let dubaiTimeZone = TimeZone(identifier: "Asia/Dubai")!
+    static let dubaiTimeZone = Constants.Dubai.timeZone
 
     static func dubaiISO8601String(from date: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.timeZone = dubaiTimeZone
-        return formatter.string(from: date)
+        Constants.Dubai.iso8601String(from: date)
     }
 
     static func dubaiDateString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = dubaiTimeZone
-        return formatter.string(from: date)
+        Constants.Dubai.dateString(from: date)
     }
 
     private static var financeDateDecoder: JSONDecoder {

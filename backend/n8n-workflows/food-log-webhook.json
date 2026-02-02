@@ -102,7 +102,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  COALESCE(SUM(calories), 0) as total_calories,\n  COALESCE(SUM(protein_g), 0) as total_protein,\n  COUNT(*) as meals_today\nFROM nutrition.food_log\nWHERE date = CURRENT_DATE;",
+        "query": "SELECT \n  COALESCE(SUM(calories), 0) as total_calories,\n  COALESCE(SUM(protein_g), 0) as total_protein,\n  COUNT(*) as meals_today\nFROM nutrition.food_log\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date;",
         "options": {}
       },
       "id": "get-daily-totals",

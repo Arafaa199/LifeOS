@@ -41,7 +41,7 @@ class HealthKitSyncService: ObservableObject {
         }
 
         // Fetch samples from the last sync date or last 7 days
-        let startDate = lastSyncDate ?? Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+        let startDate = lastSyncDate ?? Constants.Dubai.calendar.date(byAdding: .day, value: -7, to: Date())!
 
         // Fetch each category independently — one failure shouldn't block others
         var quantitySamples: [HealthKitSample] = []
@@ -68,7 +68,7 @@ class HealthKitSyncService: ObservableObject {
                 client_id: UUID().uuidString,
                 device: await UIDevice.current.name,
                 source_bundle_id: Bundle.main.bundleIdentifier ?? "com.rfanw.nexus",
-                captured_at: ISO8601DateFormatter().string(from: Date()),
+                captured_at: Constants.Dubai.iso8601String(from: Date()),
                 samples: quantitySamples,
                 workouts: workoutSamples,
                 sleep: sleepSamples
@@ -168,8 +168,8 @@ class HealthKitSyncService: ObservableObject {
                         type: identifier,
                         value: sample.quantity.doubleValue(for: unit),
                         unit: unit.unitString,
-                        start_date: ISO8601DateFormatter().string(from: sample.startDate),
-                        end_date: ISO8601DateFormatter().string(from: sample.endDate)
+                        start_date: Constants.Dubai.iso8601String(from: sample.startDate),
+                        end_date: Constants.Dubai.iso8601String(from: sample.endDate)
                     )
                 } ?? []
 
@@ -203,8 +203,8 @@ class HealthKitSyncService: ObservableObject {
                     return HealthKitSleepSample(
                         sleep_id: sample.uuid.uuidString,
                         stage: stage,
-                        start_date: ISO8601DateFormatter().string(from: sample.startDate),
-                        end_date: ISO8601DateFormatter().string(from: sample.endDate)
+                        start_date: Constants.Dubai.iso8601String(from: sample.startDate),
+                        end_date: Constants.Dubai.iso8601String(from: sample.endDate)
                     )
                 } ?? []
 
@@ -242,8 +242,8 @@ class HealthKitSyncService: ObservableObject {
                         duration_min: workout.duration / 60.0,
                         calories: calories,
                         distance_m: workout.totalDistance?.doubleValue(for: .meter()),
-                        start_date: ISO8601DateFormatter().string(from: workout.startDate),
-                        end_date: ISO8601DateFormatter().string(from: workout.endDate)
+                        start_date: Constants.Dubai.iso8601String(from: workout.startDate),
+                        end_date: Constants.Dubai.iso8601String(from: workout.endDate)
                     )
                 } ?? []
 

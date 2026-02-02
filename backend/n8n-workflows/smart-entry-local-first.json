@@ -106,7 +106,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO nutrition.food_log (date, meal_time, description, calories, protein_g, source, confidence)\nVALUES (CURRENT_DATE,\n  CASE WHEN EXTRACT(HOUR FROM NOW()) < 10 THEN 'breakfast'\n       WHEN EXTRACT(HOUR FROM NOW()) < 14 THEN 'lunch'\n       WHEN EXTRACT(HOUR FROM NOW()) < 17 THEN 'snack'\n       ELSE 'dinner' END,\n  '{{ $json.data.description }}',\n  {{ $json.data.calories || 'NULL' }},\n  {{ $json.data.protein_g || 'NULL' }},\n  '{{ $json.source }}',\n  '{{ $json.usedClaude ? \"medium\" : \"high\" }}'\n) RETURNING id, calories, protein_g;",
+        "query": "=INSERT INTO nutrition.food_log (date, meal_time, description, calories, protein_g, source, confidence)\nVALUES ((NOW() AT TIME ZONE 'Asia/Dubai')::date,\n  CASE WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'Asia/Dubai') < 10 THEN 'breakfast'\n       WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'Asia/Dubai') < 14 THEN 'lunch'\n       WHEN EXTRACT(HOUR FROM NOW() AT TIME ZONE 'Asia/Dubai') < 17 THEN 'snack'\n       ELSE 'dinner' END,\n  '{{ $json.data.description }}',\n  {{ $json.data.calories || 'NULL' }},\n  {{ $json.data.protein_g || 'NULL' }},\n  '{{ $json.source }}',\n  '{{ $json.usedClaude ? \"medium\" : \"high\" }}'\n) RETURNING id, calories, protein_g;",
         "options": {}
       },
       "id": "insert-food",
@@ -119,7 +119,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO nutrition.water_log (date, amount_ml, source) VALUES (CURRENT_DATE, {{ $json.data.amount_ml }}, '{{ $json.source }}');",
+        "query": "=INSERT INTO nutrition.water_log (date, amount_ml, source) VALUES ((NOW() AT TIME ZONE 'Asia/Dubai')::date, {{ $json.data.amount_ml }}, '{{ $json.source }}');",
         "options": {}
       },
       "id": "insert-water",
@@ -132,7 +132,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES (NOW(), CURRENT_DATE, '{{ $json.source }}', 'weight', {{ $json.data.weight_kg }}, 'kg');",
+        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES (NOW(), (NOW() AT TIME ZONE 'Asia/Dubai')::date, '{{ $json.source }}', 'weight', {{ $json.data.weight_kg }}, 'kg');",
         "options": {}
       },
       "id": "insert-weight",
@@ -145,7 +145,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO core.daily_journal (date, mood_score, energy_score)\nVALUES (CURRENT_DATE, {{ $json.data.mood || 'NULL' }}, {{ $json.data.energy || 'NULL' }})\nON CONFLICT (date) DO UPDATE SET\n  mood_score = COALESCE(EXCLUDED.mood_score, core.daily_journal.mood_score),\n  energy_score = COALESCE(EXCLUDED.energy_score, core.daily_journal.energy_score);",
+        "query": "=INSERT INTO core.daily_journal (date, mood_score, energy_score)\nVALUES ((NOW() AT TIME ZONE 'Asia/Dubai')::date, {{ $json.data.mood || 'NULL' }}, {{ $json.data.energy || 'NULL' }})\nON CONFLICT (date) DO UPDATE SET\n  mood_score = COALESCE(EXCLUDED.mood_score, core.daily_journal.mood_score),\n  energy_score = COALESCE(EXCLUDED.energy_score, core.daily_journal.energy_score);",
         "options": {}
       },
       "id": "insert-mood",
@@ -158,7 +158,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO activity.habit_log (habit_id, date, completed)\nSELECT id, CURRENT_DATE, TRUE FROM activity.habits\nWHERE LOWER(name) LIKE LOWER('%{{ $json.data.habit_name }}%') AND is_active = TRUE\nLIMIT 1\nON CONFLICT (habit_id, date) DO UPDATE SET completed = TRUE;",
+        "query": "=INSERT INTO activity.habit_log (habit_id, date, completed)\nSELECT id, (NOW() AT TIME ZONE 'Asia/Dubai')::date, TRUE FROM activity.habits\nWHERE LOWER(name) LIKE LOWER('%{{ $json.data.habit_name }}%') AND is_active = TRUE\nLIMIT 1\nON CONFLICT (habit_id, date) DO UPDATE SET completed = TRUE;",
         "options": {}
       },
       "id": "insert-habit",

@@ -21,7 +21,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT core.update_daily_summary(CURRENT_DATE - INTERVAL '1 day');\nSELECT core.update_daily_summary(CURRENT_DATE);",
+        "query": "SELECT core.update_daily_summary((NOW() AT TIME ZONE 'Asia/Dubai')::date - INTERVAL '1 day');\nSELECT core.update_daily_summary((NOW() AT TIME ZONE 'Asia/Dubai')::date);",
         "options": {}
       },
       "id": "update-summary",
@@ -39,7 +39,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  date,\n  weight_kg,\n  recovery_score,\n  calories_consumed,\n  protein_g,\n  total_spent\nFROM core.daily_summary\nWHERE date >= CURRENT_DATE - INTERVAL '7 days'\nORDER BY date DESC;",
+        "query": "SELECT \n  date,\n  weight_kg,\n  recovery_score,\n  calories_consumed,\n  protein_g,\n  total_spent\nFROM core.daily_summary\nWHERE date >= (NOW() AT TIME ZONE 'Asia/Dubai')::date - INTERVAL '7 days'\nORDER BY date DESC;",
         "options": {}
       },
       "id": "get-recent",

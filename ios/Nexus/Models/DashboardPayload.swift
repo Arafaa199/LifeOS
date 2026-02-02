@@ -121,7 +121,7 @@ struct DomainFreshness: Codable {
     var syncTimeLabel: String {
         guard let date = lastSyncDate else { return "No sync" }
         let formatter = DateFormatter()
-        if Calendar.current.isDateInToday(date) {
+        if Constants.Dubai.isDateInToday(date) {
             formatter.dateFormat = "HH:mm"
         } else {
             formatter.dateFormat = "MMM d, HH:mm"

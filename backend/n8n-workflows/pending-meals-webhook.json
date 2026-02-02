@@ -17,7 +17,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT * FROM life.get_pending_meal_confirmations(\n  COALESCE('{{ $json.query.date }}'::DATE, CURRENT_DATE)\n)",
+        "query": "=SELECT * FROM life.get_pending_meal_confirmations(\n  COALESCE('{{ $json.query.date }}'::DATE, (NOW() AT TIME ZONE 'Asia/Dubai')::date)\n)",
         "options": {}
       },
       "id": "postgres-query",

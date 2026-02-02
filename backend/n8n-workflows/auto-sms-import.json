@@ -47,7 +47,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get latest transactions count\nSELECT \n  COUNT(*) as total_transactions,\n  COUNT(*) FILTER (WHERE date = CURRENT_DATE) as today_count,\n  SUM(amount) FILTER (WHERE date = CURRENT_DATE AND amount < 0) as today_spent,\n  MAX(created_at) as last_import\nFROM finance.transactions",
+        "query": "-- Get latest transactions count\nSELECT \n  COUNT(*) as total_transactions,\n  COUNT(*) FILTER (WHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date) as today_count,\n  SUM(amount) FILTER (WHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date AND amount < 0) as today_spent,\n  MAX(created_at) as last_import\nFROM finance.transactions",
         "options": {}
       },
       "name": "Get Import Stats",

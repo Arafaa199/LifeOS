@@ -17,7 +17,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Upsert budget (insert or update if exists)\nINSERT INTO finance.budgets (month, category, budget_amount)\nVALUES (\n  DATE_TRUNC('month', CURRENT_DATE),\n  '{{ $json.body.category }}',\n  {{ $json.body.amount }}\n)\nON CONFLICT (month, category) \nDO UPDATE SET \n  budget_amount = {{ $json.body.amount }}\nRETURNING id, month, category, budget_amount;",
+        "query": "-- Upsert budget (insert or update if exists)\nINSERT INTO finance.budgets (month, category, budget_amount)\nVALUES (\n  DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Dubai')::date),\n  '{{ $json.body.category }}',\n  {{ $json.body.amount }}\n)\nON CONFLICT (month, category) \nDO UPDATE SET \n  budget_amount = {{ $json.body.amount }}\nRETURNING id, month, category, budget_amount;",
         "options": {}
       },
       "name": "Upsert Budget",
@@ -34,7 +34,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get current month's spending for this category\nSELECT \n  COALESCE(SUM(ABS(amount)), 0) as spent\nFROM finance.transactions\nWHERE TO_CHAR(date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')\n  AND category = '{{ $json.category }}'",
+        "query": "-- Get current month's spending for this category\nSELECT \n  COALESCE(SUM(ABS(amount)), 0) as spent\nFROM finance.transactions\nWHERE TO_CHAR(date, 'YYYY-MM') = TO_CHAR((NOW() AT TIME ZONE 'Asia/Dubai')::date, 'YYYY-MM')\n  AND category = '{{ $json.category }}'",
         "options": {}
       },
       "name": "Get Category Spending",
