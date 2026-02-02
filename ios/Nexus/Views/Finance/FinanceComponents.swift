@@ -119,9 +119,13 @@ struct StatItem: View {
 struct TransactionRow: View {
     let transaction: Transaction
 
-    private var formattedTime: String {
+    private var formattedDate: String {
+        if Constants.Dubai.isDateInToday(transaction.date) {
+            return "Today"
+        }
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
+        formatter.dateFormat = "MMM d"
+        formatter.timeZone = Constants.Dubai.timeZone
         return formatter.string(from: transaction.date)
     }
 
@@ -152,7 +156,7 @@ struct TransactionRow: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    Text(formattedTime)
+                    Text(formattedDate)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

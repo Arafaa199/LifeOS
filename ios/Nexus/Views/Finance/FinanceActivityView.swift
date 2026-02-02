@@ -267,8 +267,12 @@ struct ActivityTransactionRow: View {
     let transaction: Transaction
 
     private var formattedDateTime: String {
+        if Constants.Dubai.isDateInToday(transaction.date) {
+            return "Today"
+        }
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
+        formatter.dateFormat = "MMM d"
+        formatter.timeZone = Constants.Dubai.timeZone
         return formatter.string(from: transaction.date)
     }
 

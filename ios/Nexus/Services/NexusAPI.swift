@@ -559,6 +559,7 @@ class NexusAPI: ObservableObject {
 
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = Constants.Dubai.timeZone
             if let date = formatter.date(from: dateString) {
                 return date
             }

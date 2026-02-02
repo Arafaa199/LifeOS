@@ -485,7 +485,12 @@ private struct RecentTransactionRow: View {
                     Text("•")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(transaction.date, style: .time)
+                    Text(Constants.Dubai.isDateInToday(transaction.date) ? "Today" : {
+                        let f = DateFormatter()
+                        f.dateFormat = "MMM d"
+                        f.timeZone = Constants.Dubai.timeZone
+                        return f.string(from: transaction.date)
+                    }())
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
