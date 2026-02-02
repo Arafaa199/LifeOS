@@ -49,20 +49,21 @@ Nexus-setup/
 
 ## Database Schema
 
-Single-pipeline architecture: **Source → raw → normalized → life.daily_facts**
+Single-pipeline architecture: **Source → raw → life.daily_facts**
 
 ```
 nexus/
-├── raw/            → whoop_recovery, whoop_sleep, bank_sms, calendar_events, reminders, notes_index
-├── normalized/     → daily_recovery, daily_sleep, daily_strain, body_metrics, food_log, v_daily_finance (VIEW)
+├── raw/            → whoop_cycles, whoop_sleep, whoop_strain, healthkit_samples, calendar_events, reminders, notes_index
 ├── life/           → daily_facts (canonical dashboard), documents, document_reminders, behavioral_events, locations
-├── finance/        → transactions, categories (16), recurring_items, merchant_rules (120+), budgets, mv_monthly_spend
-├── health/         → whoop_recovery, whoop_sleep, whoop_strain, metrics (trigger → raw → normalized)
+├── finance/        → transactions, categories (16), recurring_items, merchant_rules (120+), budgets, v_daily_finance (VIEW)
+├── health/         → whoop_recovery, whoop_sleep, whoop_strain (legacy, trigger source → raw)
 ├── nutrition/      → foods (2.4M rows), food_log, daily_targets
-├── ops/            → refresh_log, rebuild_runs, trigger_errors
+├── ops/            → refresh_log, rebuild_runs, trigger_errors, schema_migrations
 ├── insights/       → correlations, anomalies, pattern_detector
 └── dashboard/      → (views for aggregated display)
 ```
+
+> **Note:** The `normalized` schema was removed in migration 135. All pipelines now read directly from `raw.*` tables.
 
 See `LifeOS_Technical_Documentation.md` at the repo root for full details.
 
@@ -157,7 +158,27 @@ WHERE date = life.dubai_today();
 SELECT * FROM nutrition.search_foods('chicken breast', 10);
 ```
 
-## Migration
+## Database Migrations
+
+Migrations are tracked in `ops.schema_migrations`. Use `migrate.sh` to manage them:
+
+```bash
+# Show status (applied vs pending)
+./migrate.sh status
+
+# Run all pending migrations
+./migrate.sh
+
+# Run a specific migration
+./migrate.sh run 136_schema_migrations_table.up.sql
+
+# First-time setup: mark all existing migrations as applied
+./migrate.sh baseline
+```
+
+Migration files are in `migrations/` with the naming convention `NNN_description.up.sql` and `.down.sql` for rollback.
+
+## Machine Migration
 
 See [MIGRATION.md](MIGRATION.md) for moving to a new machine.
 
@@ -170,4 +191,5 @@ scp backups/nexus_backup_*.sql.gz newmachine:/tmp/
 # On new machine
 sudo ./setup.sh
 sudo ./restore.sh /tmp/nexus_backup_*.sql.gz
+./migrate.sh baseline  # Mark all migrations as applied
 ```

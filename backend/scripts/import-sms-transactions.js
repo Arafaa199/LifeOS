@@ -319,7 +319,7 @@ async function importTransactions(daysBack = 365, verbose = false) {
         cleanMerchantName(result.merchant),
         result.amount,
         currency,
-        result.category || txType,
+        result.category || 'Uncategorized',
         'sms',
         JSON.stringify({
           sender: msg.sender,

@@ -110,8 +110,10 @@ SettingsView       ─── observes ─────── $domainStates (Sync 
 ### raw.calendar_events — STABLE
 - IMMUTABLE, `(event_id, source)` UNIQUE
 
-### normalized.* — EXPERIMENTAL
-- May be deprecated in favor of direct raw.* → life.daily_facts pipeline
+### normalized.* — DEPRECATED (Migration 135)
+- Schema dropped. Pipeline is now: raw.whoop_* → life.daily_facts (direct)
+- finance.v_daily_finance moved to finance schema
+- Triggers write to raw only, no intermediate layer
 
 ### nutrition.* — EXPERIMENTAL
 - Manual-entry only, low usage

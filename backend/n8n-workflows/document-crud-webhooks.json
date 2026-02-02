@@ -1,0 +1,577 @@
+{
+  "name": "Nexus: Document CRUD",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-documents",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "get-documents",
+      "name": "GET Documents",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 100],
+      "webhookId": "nexus-documents-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM life.v_documents_with_status;",
+        "options": {}
+      },
+      "id": "fetch-documents",
+      "name": "Fetch Documents",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 100],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, documents: $input.all().map(i => i.json), count: $input.all().length }) }}"
+      },
+      "id": "respond-documents",
+      "name": "Respond Documents",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 100],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-document",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "post-document",
+      "name": "POST Document",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-document-post",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\n\nif (!input.label || !input.expiry_date || !input.doc_type) {\n  throw new Error('label, doc_type, and expiry_date are required');\n}\n\nreturn {\n  client_id: input.client_id || null,\n  doc_type: input.doc_type,\n  label: input.label,\n  issuer: input.issuer || null,\n  issuing_country: input.issuing_country || null,\n  doc_number: input.doc_number || null,\n  issue_date: input.issue_date || null,\n  expiry_date: input.expiry_date,\n  notes: input.notes || null,\n  reminders_enabled: input.reminders_enabled !== false\n};"
+      },
+      "id": "parse-create",
+      "name": "Parse Create",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO life.documents (client_id, doc_type, label, issuer, issuing_country, doc_number, issue_date, expiry_date, notes, reminders_enabled)\nVALUES (\n  {{ $json.client_id ? \"'\" + $json.client_id + \"'\" : 'NULL' }},\n  '{{ $json.doc_type.replace(/'/g, \"''\") }}',\n  '{{ $json.label.replace(/'/g, \"''\") }}',\n  {{ $json.issuer ? \"'\" + $json.issuer.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.issuing_country ? \"'\" + $json.issuing_country.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.doc_number ? \"'\" + $json.doc_number.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.issue_date ? \"'\" + $json.issue_date + \"'\" : 'NULL' }},\n  '{{ $json.expiry_date }}',\n  {{ $json.notes ? \"'\" + $json.notes.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.reminders_enabled }}\n)\nON CONFLICT (client_id) DO NOTHING\nRETURNING id;",
+        "options": {}
+      },
+      "id": "insert-document",
+      "name": "Insert Document",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const docId = $input.first().json.id;\nif (!docId) {\n  return { id: null, reminders_created: 0, duplicate: true };\n}\nreturn { id: docId };"
+      },
+      "id": "placeholder-reminders",
+      "name": "Got ID",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT life.create_document_reminders({{ $json.id }}) as reminders_created;",
+        "options": {}
+      },
+      "id": "create-reminders",
+      "name": "Create Reminders",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM life.v_documents_with_status WHERE id = {{ $('Got ID').item.json.id }};",
+        "options": {}
+      },
+      "id": "fetch-created-doc",
+      "name": "Fetch Created Doc",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1340, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, document: $json, reminders_created: $('Create Reminders').item.json.reminders_created } }}"
+      },
+      "id": "respond-created",
+      "name": "Respond Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1560, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-document-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "post-update",
+      "name": "POST Update",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 600],
+      "webhookId": "nexus-document-update",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\n\nif (!input.id) {\n  throw new Error('id is required');\n}\n\nconst sets = [];\nconst fields = ['doc_type', 'label', 'issuer', 'issuing_country', 'doc_number', 'issue_date', 'expiry_date', 'notes', 'reminders_enabled', 'status'];\n\nfor (const f of fields) {\n  if (input[f] !== undefined) {\n    if (input[f] === null) {\n      sets.push(`${f} = NULL`);\n    } else if (typeof input[f] === 'boolean') {\n      sets.push(`${f} = ${input[f]}`);\n    } else {\n      sets.push(`${f} = '${String(input[f]).replace(/'/g, \"''\")}'`);\n    }\n  }\n}\n\nif (sets.length === 0) {\n  throw new Error('No fields to update');\n}\n\nreturn {\n  id: input.id,\n  sql: `UPDATE life.documents SET ${sets.join(', ')} WHERE id = ${input.id} AND deleted_at IS NULL RETURNING id, expiry_date;`,\n  expiry_changed: input.expiry_date !== undefined\n};"
+      },
+      "id": "parse-update",
+      "name": "Parse Update",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "execute-update",
+      "name": "Execute Update",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 600],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Parse Update').item.json.expiry_changed }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-expiry-changed",
+      "name": "Expiry Changed?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT life.clear_document_reminders({{ $('Parse Update').item.json.id }}); SELECT life.create_document_reminders({{ $('Parse Update').item.json.id }}) as reminders_created;",
+        "options": {}
+      },
+      "id": "recreate-reminders-update",
+      "name": "Recreate Reminders",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM life.v_documents_with_status WHERE id = {{ $('Parse Update').item.json.id }};",
+        "options": {}
+      },
+      "id": "fetch-updated-doc",
+      "name": "Fetch Updated Doc",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1340, 600],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, document: $json } }}"
+      },
+      "id": "respond-updated",
+      "name": "Respond Updated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1560, 600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "nexus-document",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "delete-document",
+      "name": "DELETE Document",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 900],
+      "webhookId": "nexus-document-delete",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst id = input.query?.id || input.body?.id;\nif (!id) throw new Error('id is required (query param or body)');\nreturn { id: parseInt(id) };"
+      },
+      "id": "parse-delete",
+      "name": "Parse Delete",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 900],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT life.clear_document_reminders({{ $json.id }}); UPDATE life.documents SET deleted_at = NOW(), status = 'expired' WHERE id = {{ $json.id }} AND deleted_at IS NULL RETURNING id;",
+        "options": {}
+      },
+      "id": "soft-delete-doc",
+      "name": "Soft Delete Doc",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 900],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Document deleted' } }}"
+      },
+      "id": "respond-deleted",
+      "name": "Respond Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 900],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-document-renew",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "post-renew",
+      "name": "POST Renew",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 1200],
+      "webhookId": "nexus-document-renew",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\nif (!input.id || !input.new_expiry_date) {\n  throw new Error('id and new_expiry_date are required');\n}\nreturn {\n  id: input.id,\n  new_expiry_date: input.new_expiry_date,\n  new_doc_number: input.new_doc_number || null,\n  notes: input.notes || null\n};"
+      },
+      "id": "parse-renew",
+      "name": "Parse Renew",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 1200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM life.renew_document(\n  {{ $json.id }},\n  '{{ $json.new_expiry_date }}'::date,\n  {{ $json.new_doc_number ? \"'\" + $json.new_doc_number.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.notes ? \"'\" + $json.notes.replace(/'/g, \"''\") + \"'\" : 'NULL' }}\n);",
+        "options": {}
+      },
+      "id": "execute-renew",
+      "name": "Execute Renew",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 1200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM life.v_documents_with_status WHERE id = {{ $('Parse Renew').item.json.id }};",
+        "options": {}
+      },
+      "id": "fetch-renewed-doc",
+      "name": "Fetch Renewed Doc",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 1200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, document: $json } }}"
+      },
+      "id": "respond-renewed",
+      "name": "Respond Renewed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1120, 1200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-document-recreate-reminders",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "post-recreate-reminders",
+      "name": "POST Recreate Reminders",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 1500],
+      "webhookId": "nexus-document-recreate-reminders",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\nif (!input.id) throw new Error('id is required');\nreturn { id: parseInt(input.id) };"
+      },
+      "id": "parse-recreate",
+      "name": "Parse Recreate",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 1500],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT life.clear_document_reminders({{ $json.id }}); SELECT life.create_document_reminders({{ $json.id }}) as reminders_created;",
+        "options": {}
+      },
+      "id": "execute-recreate",
+      "name": "Execute Recreate",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 1500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, reminders_created: $json.reminders_created } }}"
+      },
+      "id": "respond-recreated",
+      "name": "Respond Recreated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 1500],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-document-renewals",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "get-renewals",
+      "name": "GET Renewals",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 1800],
+      "webhookId": "nexus-document-renewals-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst id = input.query?.id;\nif (!id) throw new Error('id query param is required');\nreturn { id: parseInt(id) };"
+      },
+      "id": "parse-renewals",
+      "name": "Parse Renewals",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 1800],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM life.document_renewals WHERE document_id = {{ $json.id }} ORDER BY renewed_at DESC;",
+        "options": {}
+      },
+      "id": "fetch-renewals",
+      "name": "Fetch Renewals",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 1800],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, renewals: $input.all().map(i => i.json) }) }}"
+      },
+      "id": "respond-renewals",
+      "name": "Respond Renewals",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 1800],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "GET Documents": {
+      "main": [[{"node": "Fetch Documents", "type": "main", "index": 0}]]
+    },
+    "Fetch Documents": {
+      "main": [[{"node": "Respond Documents", "type": "main", "index": 0}]]
+    },
+    "POST Document": {
+      "main": [[{"node": "Parse Create", "type": "main", "index": 0}]]
+    },
+    "Parse Create": {
+      "main": [[{"node": "Insert Document", "type": "main", "index": 0}]]
+    },
+    "Insert Document": {
+      "main": [[{"node": "Got ID", "type": "main", "index": 0}]]
+    },
+    "Got ID": {
+      "main": [[{"node": "Create Reminders", "type": "main", "index": 0}]]
+    },
+    "Create Reminders": {
+      "main": [[{"node": "Fetch Created Doc", "type": "main", "index": 0}]]
+    },
+    "Fetch Created Doc": {
+      "main": [[{"node": "Respond Created", "type": "main", "index": 0}]]
+    },
+    "POST Update": {
+      "main": [[{"node": "Parse Update", "type": "main", "index": 0}]]
+    },
+    "Parse Update": {
+      "main": [[{"node": "Execute Update", "type": "main", "index": 0}]]
+    },
+    "Execute Update": {
+      "main": [[{"node": "Expiry Changed?", "type": "main", "index": 0}]]
+    },
+    "Expiry Changed?": {
+      "main": [
+        [{"node": "Recreate Reminders", "type": "main", "index": 0}],
+        [{"node": "Fetch Updated Doc", "type": "main", "index": 0}]
+      ]
+    },
+    "Recreate Reminders": {
+      "main": [[{"node": "Fetch Updated Doc", "type": "main", "index": 0}]]
+    },
+    "Fetch Updated Doc": {
+      "main": [[{"node": "Respond Updated", "type": "main", "index": 0}]]
+    },
+    "DELETE Document": {
+      "main": [[{"node": "Parse Delete", "type": "main", "index": 0}]]
+    },
+    "Parse Delete": {
+      "main": [[{"node": "Soft Delete Doc", "type": "main", "index": 0}]]
+    },
+    "Soft Delete Doc": {
+      "main": [[{"node": "Respond Deleted", "type": "main", "index": 0}]]
+    },
+    "POST Renew": {
+      "main": [[{"node": "Parse Renew", "type": "main", "index": 0}]]
+    },
+    "Parse Renew": {
+      "main": [[{"node": "Execute Renew", "type": "main", "index": 0}]]
+    },
+    "Execute Renew": {
+      "main": [[{"node": "Fetch Renewed Doc", "type": "main", "index": 0}]]
+    },
+    "Fetch Renewed Doc": {
+      "main": [[{"node": "Respond Renewed", "type": "main", "index": 0}]]
+    },
+    "POST Recreate Reminders": {
+      "main": [[{"node": "Parse Recreate", "type": "main", "index": 0}]]
+    },
+    "Parse Recreate": {
+      "main": [[{"node": "Execute Recreate", "type": "main", "index": 0}]]
+    },
+    "Execute Recreate": {
+      "main": [[{"node": "Respond Recreated", "type": "main", "index": 0}]]
+    },
+    "GET Renewals": {
+      "main": [[{"node": "Parse Renewals", "type": "main", "index": 0}]]
+    },
+    "Parse Renewals": {
+      "main": [[{"node": "Fetch Renewals", "type": "main", "index": 0}]]
+    },
+    "Fetch Renewals": {
+      "main": [[{"node": "Respond Renewals", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{"name": "nexus"}, {"name": "documents"}]
+}

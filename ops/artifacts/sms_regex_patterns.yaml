@@ -602,7 +602,8 @@ careem:
       confidence: 0.95
       regex: 'your order (?P<order>\d+) has been cancelled and (?P<currency>AED|SAR|JOD|USD)\s*(?P<amount>[\d,]+\.?\d*)\s+has been refunded'
       entities: [order, currency, amount]
-      note: "Refund to Careem Wallet, not bank account"
+      never_create_transaction: true
+      note: "Refund to Careem Wallet, not bank account — no bank debit exists"
       sample: "Hi Arafa, your order 145001255 has been cancelled and AED 255.95 has been refunded to your Wallet."
 
 # =============================================================================
