@@ -5,7 +5,7 @@ import Foundation
 /// Protocol defining the API client interface for dependency injection and testing
 protocol APIClientProtocol: Sendable {
     // Health logging
-    func logFood(_ text: String) async throws -> NexusResponse
+    func logFood(_ text: String, foodId: Int?, mealType: String?) async throws -> NexusResponse
     func logWater(amountML: Int) async throws -> NexusResponse
     func logWeight(kg: Double) async throws -> NexusResponse
     func logMood(mood: Int, energy: Int, notes: String?) async throws -> NexusResponse
@@ -37,7 +37,7 @@ actor MockAPIClient: APIClientProtocol {
     var shouldSucceed = true
     var mockDelay: TimeInterval = 0.5
     
-    func logFood(_ text: String) async throws -> NexusResponse {
+    func logFood(_ text: String, foodId: Int?, mealType: String?) async throws -> NexusResponse {
         try await simulateRequest()
         return NexusResponse(
             success: shouldSucceed,
@@ -83,7 +83,7 @@ actor MockAPIClient: APIClientProtocol {
     }
     
     func logFoodOffline(_ text: String) async throws -> NexusResponse {
-        return try await logFood(text)
+        return try await logFood(text, foodId: nil, mealType: nil)
     }
     
     func logWaterOffline(_ amount: Int) async throws -> NexusResponse {

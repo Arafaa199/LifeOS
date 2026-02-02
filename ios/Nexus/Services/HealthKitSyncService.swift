@@ -2,6 +2,9 @@ import Foundation
 import HealthKit
 import Combine
 import UIKit
+import os
+
+private let logger = Logger(subsystem: "com.nexus.app", category: "healthkit-sync")
 
 @MainActor
 class HealthKitSyncService: ObservableObject {
@@ -31,17 +34,28 @@ class HealthKitSyncService: ObservableObject {
 
         // IMPORTANT: Sync weight directly via the working /nexus-weight endpoint
         // The batch endpoint has issues, but weight sync works via individual endpoint
-        if let weightResult = try? await syncLatestWeight() {
-            if weightResult { syncedCount += 1 }
+        do {
+            if try await syncLatestWeight() { syncedCount += 1 }
+        } catch {
+            logger.error("Weight sync failed: \(error.localizedDescription)")
         }
 
         // Fetch samples from the last sync date or last 7 days
         let startDate = lastSyncDate ?? Calendar.current.date(byAdding: .day, value: -7, to: Date())!
 
         // Fetch each category independently — one failure shouldn't block others
-        let quantitySamples = (try? await fetchQuantitySamples(since: startDate)) ?? []
-        let sleepSamples = (try? await fetchSleepSamples(since: startDate)) ?? []
-        let workoutSamples = (try? await fetchWorkoutSamples(since: startDate)) ?? []
+        var quantitySamples: [HealthKitSample] = []
+        var sleepSamples: [HealthKitSleepSample] = []
+        var workoutSamples: [HealthKitWorkoutSample] = []
+
+        do { quantitySamples = try await fetchQuantitySamples(since: startDate) }
+        catch { logger.error("Failed to fetch quantity samples: \(error.localizedDescription)") }
+
+        do { sleepSamples = try await fetchSleepSamples(since: startDate) }
+        catch { logger.error("Failed to fetch sleep samples: \(error.localizedDescription)") }
+
+        do { workoutSamples = try await fetchWorkoutSamples(since: startDate) }
+        catch { logger.error("Failed to fetch workout samples: \(error.localizedDescription)") }
 
         // Any query completing (even with empty results) proves HK access works
         HealthKitManager.shared.markQuerySuccess()
@@ -61,8 +75,15 @@ class HealthKitSyncService: ObservableObject {
             )
 
             // Try batch sync but don't fail if it errors - weight sync is more important
-            if let response = try? await sendToWebhook(payload), response.success {
-                syncedCount += totalCount
+            do {
+                let response = try await sendToWebhook(payload)
+                if response.success {
+                    syncedCount += totalCount
+                } else {
+                    logger.warning("Batch webhook returned success=false, \(totalCount) samples not confirmed")
+                }
+            } catch {
+                logger.error("Batch webhook failed for \(totalCount) samples: \(error.localizedDescription)")
             }
         }
 

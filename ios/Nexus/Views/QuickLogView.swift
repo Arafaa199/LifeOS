@@ -124,6 +124,15 @@ struct QuickLogView: View {
                 .font(.headline)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                NavigationLink(destination: FoodLogView(viewModel: viewModel)) {
+                    NexusQuickActionCard(
+                        title: "Log Food",
+                        icon: "fork.knife",
+                        color: .nexusFood
+                    )
+                }
+                .buttonStyle(PlainButtonStyle())
+
                 NexusQuickActionButton(
                     title: "Water",
                     icon: "drop.fill",

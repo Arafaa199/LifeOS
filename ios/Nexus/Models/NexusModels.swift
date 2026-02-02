@@ -5,6 +5,39 @@ import Foundation
 struct FoodLogRequest: Codable, Sendable {
     let text: String
     let source: String = "ios"
+    let food_id: Int?
+    let meal_type: String?
+
+    init(text: String, food_id: Int? = nil, meal_type: String? = nil) {
+        self.text = text
+        self.food_id = food_id
+        self.meal_type = meal_type
+    }
+}
+
+struct FoodSearchResult: Codable, Identifiable, Sendable {
+    let id: Int
+    let fdc_id: Int?
+    let barcode: String?
+    let name: String
+    let brand: String?
+    let source: String?
+    let calories_per_100g: Double?
+    let protein_per_100g: Double?
+    let carbs_per_100g: Double?
+    let fat_per_100g: Double?
+    let fiber_per_100g: Double?
+    let serving_size_g: Double?
+    let serving_description: String?
+    let category: String?
+    let data_quality: String?
+    let relevance: Double?
+}
+
+struct FoodSearchResponse: Codable, Sendable {
+    let success: Bool
+    let count: Int?
+    let data: [FoodSearchResult]?
 }
 
 struct WaterLogRequest: Codable, Sendable {

@@ -18,6 +18,11 @@ struct FoodLogView: View {
     @State private var capturedImage: UIImage?
     @State private var isProcessingPhoto = false
 
+    // Search + barcode states
+    @State private var showFoodSearch = false
+    @State private var showBarcodeScanner = false
+    @State private var selectedFood: FoodSearchResult?
+
     @StateObject private var speechRecognizer = SpeechRecognizer()
     private let photoLogger = PhotoFoodLogger.shared
     private let api = NexusAPI.shared
@@ -29,47 +34,189 @@ struct FoodLogView: View {
     }
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Meal Type Selector
-                    mealTypeSection
+        ScrollView {
+            VStack(spacing: 24) {
+                // Search + Barcode Section
+                searchSection
 
-                    // Food Description Input
-                    descriptionSection
-
-                    // Photo Capture Section
-                    photoCaptureSection
-
-                    // Quick Food Buttons
-                    quickFoodSection
-
-                    Spacer(minLength: 20)
-
-                    // Submit Button
-                    submitButton
+                // Macro Preview (when food selected from search/barcode)
+                if let food = selectedFood {
+                    macroPreviewCard(food)
                 }
-                .padding()
+
+                // Meal Type Selector
+                mealTypeSection
+
+                // Food Description Input
+                descriptionSection
+
+                // Photo Capture Section
+                photoCaptureSection
+
+                // Quick Food Buttons
+                quickFoodSection
+
+                Spacer(minLength: 20)
+
+                // Submit Button
+                submitButton
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Log Food")
-            .navigationBarTitleDisplayMode(.large)
-            .alert("Food Logged", isPresented: $showSuccess) {
-                Button("OK", role: .cancel) {
-                    foodDescription = ""
-                    capturedImage = nil
+            .padding()
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Log Food")
+        .navigationBarTitleDisplayMode(.large)
+        .alert("Food Logged", isPresented: $showSuccess) {
+            Button("OK", role: .cancel) {
+                foodDescription = ""
+                capturedImage = nil
+                selectedFood = nil
+            }
+        } message: {
+            Text(resultMessage)
+        }
+        .fullScreenCover(isPresented: $showCameraPicker) {
+            PhotoPicker(image: $capturedImage, sourceType: .camera)
+                .ignoresSafeArea()
+        }
+        .sheet(isPresented: $showPhotoPicker) {
+            PhotoPicker(image: $capturedImage, sourceType: .photoLibrary)
+        }
+        .sheet(isPresented: $showFoodSearch) {
+            NavigationView {
+                FoodSearchView { food in
+                    selectFood(food)
                 }
-            } message: {
-                Text(resultMessage)
-            }
-            .fullScreenCover(isPresented: $showCameraPicker) {
-                PhotoPicker(image: $capturedImage, sourceType: .camera)
-                    .ignoresSafeArea()
-            }
-            .sheet(isPresented: $showPhotoPicker) {
-                PhotoPicker(image: $capturedImage, sourceType: .photoLibrary)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showFoodSearch = false }
+                    }
+                }
             }
         }
+        .fullScreenCover(isPresented: $showBarcodeScanner) {
+            BarcodeScannerView(
+                onResult: { food in
+                    selectFood(food)
+                },
+                onManualEntry: { barcode in
+                    foodDescription = "Barcode: \(barcode) — "
+                }
+            )
+        }
+    }
+
+    // MARK: - Search Section
+
+    private var searchSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Find Food")
+                .font(.headline)
+
+            HStack(spacing: 12) {
+                Button(action: { showFoodSearch = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 18, weight: .semibold))
+                        Text("Search Foods")
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.nexusFood)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.nexusFood.opacity(0.12))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                Button(action: { showBarcodeScanner = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "barcode.viewfinder")
+                            .font(.system(size: 18, weight: .semibold))
+                        Text("Scan")
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(.nexusPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.nexusPrimary.opacity(0.12))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .nexusCard()
+    }
+
+    // MARK: - Macro Preview Card
+
+    private func macroPreviewCard(_ food: FoodSearchResult) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(food.name)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(2)
+
+                    if let brand = food.brand, !brand.isEmpty {
+                        Text(brand)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Button(action: { selectedFood = nil; foodDescription = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            HStack(spacing: 0) {
+                macroColumn("Calories", value: food.calories_per_100g, format: "%.0f", unit: "", color: .nexusFood)
+                macroColumn("Protein", value: food.protein_per_100g, format: "%.1f", unit: "g", color: .nexusPrimary)
+                macroColumn("Carbs", value: food.carbs_per_100g, format: "%.1f", unit: "g", color: .orange)
+                macroColumn("Fat", value: food.fat_per_100g, format: "%.1f", unit: "g", color: .yellow)
+            }
+
+            if let serving = food.serving_description, !serving.isEmpty {
+                Text("Per 100g  |  Serving: \(serving)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Per 100g")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .nexusCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.nexusFood.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func macroColumn(_ label: String, value: Double?, format: String, unit: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            if let v = value {
+                Text(String(format: format, v) + unit)
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(color)
+            } else {
+                Text("—")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+            }
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Meal Type Section
@@ -221,7 +368,6 @@ struct FoodLogView: View {
                 .buttonStyle(PlainButtonStyle())
             }
 
-            // Show captured image preview
             if let image = capturedImage {
                 HStack(spacing: 12) {
                     Image(uiImage: image)
@@ -311,6 +457,14 @@ struct FoodLogView: View {
 
     // MARK: - Actions
 
+    private func selectFood(_ food: FoodSearchResult) {
+        selectedFood = food
+        foodDescription = food.name
+        if let brand = food.brand, !brand.isEmpty {
+            foodDescription += " (\(brand))"
+        }
+    }
+
     private func submitFoodLog() {
         guard !foodDescription.isEmpty || capturedImage != nil else { return }
 
@@ -332,7 +486,11 @@ struct FoodLogView: View {
                     response = try await photoLogger.logFoodFromPhoto(imageData, additionalContext: context)
                 } else {
                     let fullDescription = "\(foodDescription) for \(selectedMeal.rawValue.lowercased())"
-                    response = try await api.logFoodOffline(fullDescription)
+                    response = try await api.logFood(
+                        fullDescription,
+                        foodId: selectedFood?.id,
+                        mealType: selectedMeal.rawValue.lowercased()
+                    )
                 }
 
                 await MainActor.run {
@@ -359,6 +517,7 @@ struct FoodLogView: View {
     }
 
     private func addQuickFood(_ food: String) {
+        selectedFood = nil
         if foodDescription.isEmpty {
             foodDescription = food
         } else {
@@ -377,6 +536,7 @@ struct FoodLogView: View {
         } else {
             haptics.impactOccurred()
             foodDescription = ""
+            selectedFood = nil
 
             speechRecognizer.requestAuthorization { authorized in
                 if authorized {
@@ -446,7 +606,6 @@ enum MealType: String, CaseIterable, Identifiable {
     }
 }
 
-// Keep QuickFoodButton for backwards compatibility
 struct QuickFoodButton: View {
     let title: String
     let icon: String
@@ -458,5 +617,7 @@ struct QuickFoodButton: View {
 }
 
 #Preview {
-    FoodLogView(viewModel: DashboardViewModel())
+    NavigationView {
+        FoodLogView(viewModel: DashboardViewModel())
+    }
 }

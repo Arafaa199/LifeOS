@@ -286,10 +286,10 @@ class DashboardViewModel: ObservableObject {
     func updateSummaryAfterLog(type: LogType, response: NexusResponse) {
         if let data = response.data {
             if let calories = data.calories {
-                summary.totalCalories += calories
+                summary.totalCalories = calories
             }
             if let protein = data.protein {
-                summary.totalProtein += protein
+                summary.totalProtein = protein
             }
             if let water = data.total_water_ml {
                 summary.totalWater = water

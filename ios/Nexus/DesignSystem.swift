@@ -384,6 +384,36 @@ struct NexusQuickActionButton: View {
     }
 }
 
+struct NexusQuickActionCard: View {
+    let title: String
+    let icon: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 56, height: 56)
+
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(color)
+            }
+
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+        }
+        .frame(minWidth: 80)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
+        .background(Color.nexusCardBackground)
+        .cornerRadius(16)
+    }
+}
+
 struct NexusSegmentedPicker<T: Hashable>: View {
     let options: [T]
     @Binding var selection: T

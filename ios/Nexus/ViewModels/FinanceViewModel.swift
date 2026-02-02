@@ -257,7 +257,9 @@ class FinanceViewModel: ObservableObject {
             let response = try await api.addTransactionOffline(
                 merchant: merchantName,
                 amount: amount,
-                category: category
+                category: category,
+                notes: notes,
+                date: date
             )
 
             if response.success {
@@ -365,7 +367,10 @@ class FinanceViewModel: ObservableObject {
             let response = try await api.addIncomeOffline(
                 source: source,
                 amount: incomeAmount,
-                category: category
+                category: category,
+                notes: notes,
+                date: date,
+                isRecurring: isRecurring
             )
 
             if response.success {

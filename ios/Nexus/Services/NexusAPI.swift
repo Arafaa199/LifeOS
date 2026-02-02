@@ -31,9 +31,18 @@ class NexusAPI: ObservableObject {
     /// let response = try await api.logFood("2 scrambled eggs and whole wheat toast")
     /// print("Calories: \(response.data?.calories ?? 0)")
     /// ```
-    func logFood(_ text: String) async throws -> NexusResponse {
-        let request = FoodLogRequest(text: text)
-        return try await post("/webhook/nexus-food", body: request)
+    func logFood(_ text: String, foodId: Int? = nil, mealType: String? = nil) async throws -> NexusResponse {
+        let request = FoodLogRequest(text: text, food_id: foodId, meal_type: mealType)
+        return try await post("/webhook/nexus-food-log", body: request)
+    }
+
+    func searchFoods(query: String, limit: Int = 10) async throws -> FoodSearchResponse {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        return try await get("/webhook/nexus-food-search?q=\(encoded)&limit=\(limit)")
+    }
+
+    func lookupBarcode(_ barcode: String) async throws -> FoodSearchResponse {
+        return try await get("/webhook/nexus-food-search?barcode=\(barcode)")
     }
 
     /// Logs water intake in milliliters
@@ -98,7 +107,7 @@ class NexusAPI: ObservableObject {
             amount: amount,
             category: category,
             notes: notes,
-            date: ISO8601DateFormatter().string(from: Date())
+            date: Self.dubaiISO8601String(from: Date())
         )
         return try await postFinance("/webhook/nexus-transaction", body: request)
     }
@@ -110,35 +119,13 @@ class NexusAPI: ObservableObject {
             amount: amount,
             category: category,
             notes: notes,
-            date: ISO8601DateFormatter().string(from: date)
+            date: Self.dubaiISO8601String(from: date)
         )
         return try await postFinance("/webhook/nexus-update-transaction", body: request)
     }
 
     func deleteTransaction(id: Int) async throws -> NexusResponse {
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-delete-transaction?id=\(id)") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        request.timeoutInterval = 30
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(NexusResponse.self, from: data)
+        return try await delete("/webhook/nexus-delete-transaction?id=\(id)")
     }
 
     func addIncome(source: String, amount: Double, category: String, notes: String?, date: Date, isRecurring: Bool) async throws -> FinanceResponse {
@@ -147,7 +134,7 @@ class NexusAPI: ObservableObject {
             amount: amount,
             category: category,
             notes: notes,
-            date: ISO8601DateFormatter().string(from: date),
+            date: Self.dubaiISO8601String(from: date),
             isRecurring: isRecurring
         )
         return try await postFinance("/webhook/nexus-income", body: request)
@@ -167,23 +154,26 @@ class NexusAPI: ObservableObject {
         return try await postFinance("/webhook/nexus-expense", body: request)
     }
 
-    func addTransactionWithClientId(merchant: String, amount: Double, category: String?, clientId: String) async throws -> FinanceResponse {
+    func addTransactionWithClientId(merchant: String, amount: Double, category: String?, notes: String? = nil, date: Date = Date(), clientId: String) async throws -> FinanceResponse {
         let request = AddTransactionRequest(
             merchantName: merchant,
             amount: amount,
             category: category,
-            date: ISO8601DateFormatter().string(from: Date()),
+            notes: notes,
+            date: Self.dubaiISO8601String(from: date),
             clientId: clientId
         )
         return try await postFinance("/webhook/nexus-transaction", body: request)
     }
 
-    func addIncomeWithClientId(source: String, amount: Double, category: String, clientId: String) async throws -> FinanceResponse {
+    func addIncomeWithClientId(source: String, amount: Double, category: String, notes: String? = nil, date: Date = Date(), isRecurring: Bool = false, clientId: String) async throws -> FinanceResponse {
         let request = AddIncomeRequest(
             source: source,
             amount: amount,
             category: category,
-            date: ISO8601DateFormatter().string(from: Date()),
+            notes: notes,
+            date: Self.dubaiISO8601String(from: date),
+            isRecurring: isRecurring,
             clientId: clientId
         )
         return try await postFinance("/webhook/nexus-income", body: request)
@@ -194,30 +184,8 @@ class NexusAPI: ObservableObject {
     }
 
     func triggerSMSImport() async throws -> NexusResponse {
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-trigger-import") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 30
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(NexusResponse.self, from: data)
+        struct EmptyBody: Encodable {}
+        return try await post("/webhook/nexus-trigger-import", body: EmptyBody())
     }
 
     // MARK: - Budget Methods
@@ -232,29 +200,7 @@ class NexusAPI: ObservableObject {
     }
 
     func deleteBudget(id: Int) async throws -> NexusResponse {
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-budget?id=\(id)") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        request.timeoutInterval = 30
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.serverError(httpResponse.statusCode)
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(NexusResponse.self, from: data)
+        return try await delete("/webhook/nexus-budget?id=\(id)")
     }
 
     func getSpendingInsights(summary: String) async throws -> InsightsResponse {
@@ -271,9 +217,7 @@ class NexusAPI: ObservableObject {
     func fetchFinanceDailySummary(date: Date? = nil) async throws -> FinanceDailySummaryResponse {
         var endpoint = "/webhook/nexus-daily-summary"
         if let date = date {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withFullDate]
-            endpoint += "?date=\(formatter.string(from: date))"
+            endpoint += "?date=\(Self.dubaiDateString(from: date))"
         }
         return try await get(endpoint, decoder: Self.financeDateDecoder)
     }
@@ -281,9 +225,7 @@ class NexusAPI: ObservableObject {
     func fetchWeeklyReport(weekStart: Date? = nil) async throws -> WeeklyReportResponse {
         var endpoint = "/webhook/nexus-weekly-report"
         if let weekStart = weekStart {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withFullDate]
-            endpoint += "?week_start=\(formatter.string(from: weekStart))"
+            endpoint += "?week_start=\(Self.dubaiDateString(from: weekStart))"
         }
         return try await get(endpoint, decoder: Self.financeDateDecoder)
     }
@@ -318,9 +260,7 @@ class NexusAPI: ObservableObject {
     func fetchPendingMealConfirmations(date: Date? = nil) async throws -> [InferredMeal] {
         var endpoint = "/webhook/nexus-pending-meals"
         if let date = date {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withFullDate]
-            endpoint += "?date=\(formatter.string(from: date))"
+            endpoint += "?date=\(Self.dubaiDateString(from: date))"
         }
 
         struct Response: Codable {
@@ -588,6 +528,23 @@ class NexusAPI: ObservableObject {
         return try decoder.decode(T.self, from: data)
     }
 
+    // MARK: - Dubai Timezone Helpers
+
+    static let dubaiTimeZone = TimeZone(identifier: "Asia/Dubai")!
+
+    static func dubaiISO8601String(from date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = dubaiTimeZone
+        return formatter.string(from: date)
+    }
+
+    static func dubaiDateString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = dubaiTimeZone
+        return formatter.string(from: date)
+    }
+
     private static var financeDateDecoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
@@ -724,6 +681,7 @@ extension NexusAPI {
     private static var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = dubaiTimeZone
         return formatter
     }
 

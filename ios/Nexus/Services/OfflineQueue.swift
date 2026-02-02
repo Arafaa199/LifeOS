@@ -45,7 +45,7 @@ class OfflineQueue {
 
             var endpoint: String {
                 switch self {
-                case .food: return "/webhook/nexus-food"
+                case .food: return "/webhook/nexus-food-log"
                 case .water: return "/webhook/nexus-water"
                 case .weight: return "/webhook/nexus-weight"
                 case .mood: return "/webhook/nexus-mood"
@@ -221,8 +221,11 @@ class OfflineQueue {
     }
 
     private func saveQueue(_ queue: [QueuedEntry]) {
-        if let data = try? JSONEncoder().encode(queue) {
+        do {
+            let data = try JSONEncoder().encode(queue)
             UserDefaults.standard.set(data, forKey: queueKey)
+        } catch {
+            logger.error("Failed to encode offline queue (\(queue.count) items): \(error.localizedDescription)")
         }
     }
 
@@ -275,7 +278,7 @@ extension NexusAPI {
     func logFoodOffline(_ text: String) async throws -> NexusResponse {
         let request = FoodLogRequest(text: text)
         return try await logWithOfflineSupport(
-            "/webhook/nexus-food",
+            "/webhook/nexus-food-log",
             body: request,
             queueRequest: .food(text: text)
         )
@@ -315,10 +318,10 @@ extension NexusAPI {
         }
     }
 
-    func addTransactionOffline(merchant: String, amount: Double, category: String?) async throws -> FinanceResponse {
+    func addTransactionOffline(merchant: String, amount: Double, category: String?, notes: String? = nil, date: Date = Date()) async throws -> FinanceResponse {
         let clientId = UUID().uuidString
         do {
-            return try await addTransactionWithClientId(merchant: merchant, amount: amount, category: category, clientId: clientId)
+            return try await addTransactionWithClientId(merchant: merchant, amount: amount, category: category, notes: notes, date: date, clientId: clientId)
         } catch {
             OfflineQueue.shared.enqueue(.transaction(merchant: merchant, amount: amount, category: category, clientId: clientId), priority: .normal)
             return FinanceResponse(
@@ -329,10 +332,10 @@ extension NexusAPI {
         }
     }
 
-    func addIncomeOffline(source: String, amount: Double, category: String) async throws -> FinanceResponse {
+    func addIncomeOffline(source: String, amount: Double, category: String, notes: String? = nil, date: Date = Date(), isRecurring: Bool = false) async throws -> FinanceResponse {
         let clientId = UUID().uuidString
         do {
-            return try await addIncomeWithClientId(source: source, amount: amount, category: category, clientId: clientId)
+            return try await addIncomeWithClientId(source: source, amount: amount, category: category, notes: notes, date: date, isRecurring: isRecurring, clientId: clientId)
         } catch {
             OfflineQueue.shared.enqueue(.income(source: source, amount: amount, category: category, clientId: clientId), priority: .normal)
             return FinanceResponse(
