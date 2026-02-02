@@ -83,7 +83,7 @@ enum DateRange: String, CaseIterable {
     }
 
     func getDateRange() -> (start: Date, end: Date) {
-        let calendar = Calendar.current
+        let calendar = Constants.Dubai.calendar
         let now = Date()
 
         switch self {

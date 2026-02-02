@@ -7,7 +7,7 @@ struct FinanceActivityView: View {
     @State private var selectedCategory: String? = nil
     @State private var selectedTransaction: Transaction?
     @State private var selectedDateRange: DateRange = .last30Days
-    @State private var customStartDate = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+    @State private var customStartDate = Constants.Dubai.calendar.date(byAdding: .day, value: -30, to: Date()) ?? Date()
     @State private var customEndDate = Date()
     @State private var showingDateRangePicker = false
     @State private var showingExport = false

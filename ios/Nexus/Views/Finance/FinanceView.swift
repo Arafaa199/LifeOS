@@ -137,6 +137,11 @@ struct FinanceOverviewView: View {
                 // Cashflow Mini
                 cashflowCard
 
+                // Recent Transactions
+                if !viewModel.recentTransactions.isEmpty {
+                    recentTransactionsCard
+                }
+
                 // Monthly Obligations
                 if viewModel.monthlyObligations > 0 {
                     obligationsSummary
@@ -378,6 +383,25 @@ struct FinanceOverviewView: View {
                     Text(formatCurrency(item.amount, currency: item.currency))
                         .font(.subheadline)
                         .fontWeight(.medium)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(16)
+    }
+
+    // MARK: - Recent Transactions
+
+    private var recentTransactionsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Recent")
+                .font(.headline)
+
+            ForEach(viewModel.recentTransactions.prefix(5)) { tx in
+                TransactionRow(transaction: tx)
+                if tx.id != viewModel.recentTransactions.prefix(5).last?.id {
+                    Divider()
                 }
             }
         }
