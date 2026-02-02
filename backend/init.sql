@@ -1,6 +1,14 @@
 -- ============================================================================
 -- NEXUS: Personal Life Data Hub
--- Complete Database Schema
+-- LEGACY BOOTSTRAP SCHEMA (init.sql)
+-- ============================================================================
+-- WARNING: This file is the original bootstrap schema only. It does NOT
+-- reflect the current database state. The source of truth is the migration
+-- files in backend/migrations/ (001 through 134+). After initial bootstrap,
+-- all schema changes are applied via migrations.
+--
+-- Current architecture: raw → normalized → life.daily_facts (single pipeline)
+-- See LifeOS_Technical_Documentation.md for the full current schema.
 -- ============================================================================
 
 -- Create schemas

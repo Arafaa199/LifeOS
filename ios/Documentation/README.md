@@ -38,7 +38,7 @@ Nexus/
 
 | Feature | Files | Backend Webhook |
 |---------|-------|-----------------|
-| Food Logging | `FoodLogView.swift` | `POST /webhook/nexus-food` |
+| Food Logging | `FoodLogView.swift` | `POST /webhook/nexus-food-log` |
 | Finance | `FinanceView.swift`, `FinanceViewModel.swift` | `POST /webhook/nexus-expense` |
 | Health (WHOOP) | `DashboardView.swift` | `GET /webhook/nexus-sleep` |
 | Health (HealthKit) | `HealthKitManager.swift` | `POST /webhook/nexus-weight` |
@@ -78,20 +78,22 @@ rm -rf ~/Library/Developer/Xcode/DerivedData
 
 ## Backend Integration
 
-**n8n Workflows**: `~/Cyber/Infrastructure/Nexus-setup/n8n-workflows/`
+**n8n Workflows**: `backend/n8n-workflows/` (symlinked from `~/Cyber/Infrastructure/Nexus-setup/`)
 **Database**: PostgreSQL on nexus (10.0.0.11:5432)
-**Schemas**: `health`, `nutrition`, `finance`, `core`
+**Pipeline**: Source → raw → normalized → life.daily_facts
+**Schemas**: `raw`, `normalized`, `life`, `finance`, `health`, `nutrition`, `ops`, `insights`
+**Timezone**: All dates use Dubai time (Asia/Dubai, UTC+4). See `Constants.Dubai` in iOS, `life.dubai_today()` in SQL.
+
+See `LifeOS_Technical_Documentation.md` at the repo root for full schema and API docs.
 
 ## Claude Agent Notes
 
-**State files used by Claude Coder**:
-- `~/Cyber/Infrastructure/ClaudeCoder/state.md` - TODO list
-- `~/Cyber/Dev/Nexus-mobile/state.md` - App state
+**Agents** (`~/Cyber/Infrastructure/ClaudeAgents/`):
+- **Coder** (every 9 min): Executes ONE `ops/queue.md` task, commits to main
+- **Auditor** (every 35 min): Reviews commits, PASS/BLOCK
+- **SysAdmin** (daily 22:15): Read-only health check
 
-**Rules**:
-- ONE small change per session
-- Commits directly to main
-- Don't touch: `DesignSystem.swift`, working views
+**State**: `ops/state.md`, `ops/queue.md`, `ops/decisions.md`, `ops/alerts.md`
 
 ## Archived Docs
 

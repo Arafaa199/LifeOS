@@ -49,15 +49,22 @@ Nexus-setup/
 
 ## Database Schema
 
+Single-pipeline architecture: **Source → raw → normalized → life.daily_facts**
+
 ```
 nexus/
-├── core/       → daily_summary, settings, tags
-├── health/     → metrics, workouts, metric_types
-├── nutrition/  → ingredients, meals, meal_ingredients, food_log, water_log
-├── finance/    → accounts, transactions, grocery_items, merchant_rules, budgets
-├── notes/      → entries (Obsidian metadata index)
-└── home/       → device_snapshots, kitchen_events
+├── raw/            → whoop_recovery, whoop_sleep, bank_sms, calendar_events, reminders, notes_index
+├── normalized/     → daily_recovery, daily_sleep, daily_strain, body_metrics, food_log, v_daily_finance (VIEW)
+├── life/           → daily_facts (canonical dashboard), documents, document_reminders, behavioral_events, locations
+├── finance/        → transactions, categories (16), recurring_items, merchant_rules (120+), budgets, mv_monthly_spend
+├── health/         → whoop_recovery, whoop_sleep, whoop_strain, metrics (trigger → raw → normalized)
+├── nutrition/      → foods (2.4M rows), food_log, daily_targets
+├── ops/            → refresh_log, rebuild_runs, trigger_errors
+├── insights/       → correlations, anomalies, pattern_detector
+└── dashboard/      → (views for aggregated display)
 ```
+
+See `LifeOS_Technical_Documentation.md` at the repo root for full details.
 
 ## Commands
 
@@ -133,28 +140,21 @@ REMOTE_BACKUP_PATH=/Volume2/Backups/nexus
 ## Example Queries
 
 ```sql
--- Today's nutrition
-SELECT * FROM nutrition.get_daily_totals(CURRENT_DATE);
+-- Today's dashboard facts (Dubai timezone)
+SELECT * FROM life.daily_facts WHERE date = life.dubai_today();
 
 -- Weekly health trends
-SELECT date, weight_kg, recovery_score, calories_consumed, protein_g
-FROM core.daily_summary
-WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+SELECT date, recovery_score, sleep_score, hrv_avg, rhr_avg, weight_kg
+FROM life.daily_facts
+WHERE date >= life.dubai_today() - INTERVAL '7 days'
 ORDER BY date DESC;
 
--- Cost per gram of protein
-SELECT item_name, total_price,
-  ROUND((total_price / (protein_per_100g * quantity / 100))::numeric, 2) as cost_per_g_protein
-FROM finance.grocery_items gi
-JOIN nutrition.ingredients i ON gi.ingredient_id = i.id
-WHERE protein_per_100g > 10
-ORDER BY cost_per_g_protein;
+-- Today's finance summary
+SELECT * FROM finance.v_timeline
+WHERE date = life.dubai_today();
 
--- Batch meals with portions remaining
-SELECT name, portions_remaining, calories_per_portion, expiry_date
-FROM nutrition.meals
-WHERE portions_remaining > 0
-ORDER BY expiry_date;
+-- Search foods (2.4M rows, trigram search)
+SELECT * FROM nutrition.search_foods('chicken breast', 10);
 ```
 
 ## Migration

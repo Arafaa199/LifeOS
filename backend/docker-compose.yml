@@ -48,7 +48,7 @@ services:
   # NocoDB - Spreadsheet UI for Database
   # ---------------------------------------------------------------------------
   nocodb:
-    image: nocodb/nocodb:latest
+    image: nocodb/nocodb:0.301.1
     container_name: nexus-ui
     restart: unless-stopped
     environment:
@@ -84,7 +84,7 @@ services:
   # Start with: docker compose --profile admin up -d
   # ---------------------------------------------------------------------------
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:8.14
     container_name: nexus-pgadmin
     restart: unless-stopped
     profiles:
@@ -111,7 +111,7 @@ services:
   # Runs daily at 3 AM, keeps last 7 backups
   # ---------------------------------------------------------------------------
   backup-scheduler:
-    image: mcuadros/ofelia:latest
+    image: mcuadros/ofelia:0.3.13
     container_name: nexus-backup-scheduler
     restart: unless-stopped
     profiles:
