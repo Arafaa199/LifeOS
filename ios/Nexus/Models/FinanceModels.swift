@@ -26,6 +26,18 @@ struct Transaction: Identifiable, Codable {
     let originalDate: Date?
     let source: String?  // sms, manual, receipt, import
 
+    // FX conversion fields (populated when currency != AED)
+    let amountPreferred: Double?
+    let fxRateUsed: Double?
+    let fxIsEstimate: Bool?
+    let fxSource: String?
+    let fxRateDate: String?
+
+    var originalAmountText: String? {
+        guard currency.uppercased() != "AED" else { return nil }
+        return String(format: "%@ %.2f", currency, abs(amount))
+    }
+
     enum CodingKeys: String, CodingKey {
         case id
         case date
@@ -47,6 +59,11 @@ struct Transaction: Identifiable, Codable {
         case originalMerchantName = "original_merchant_name"
         case originalDate = "original_date"
         case source
+        case amountPreferred = "amount_preferred"
+        case fxRateUsed = "fx_rate_used"
+        case fxIsEstimate = "fx_is_estimate"
+        case fxSource = "fx_source"
+        case fxRateDate = "fx_rate_date"
     }
 
     init(from decoder: Decoder) throws {
@@ -71,9 +88,14 @@ struct Transaction: Identifiable, Codable {
         originalMerchantName = try container.decodeIfPresent(String.self, forKey: .originalMerchantName)
         originalDate = try container.decodeIfPresent(Date.self, forKey: .originalDate)
         source = try container.decodeIfPresent(String.self, forKey: .source)
+        amountPreferred = try container.decodeIfPresent(Double.self, forKey: .amountPreferred)
+        fxRateUsed = try container.decodeIfPresent(Double.self, forKey: .fxRateUsed)
+        fxIsEstimate = try container.decodeIfPresent(Bool.self, forKey: .fxIsEstimate)
+        fxSource = try container.decodeIfPresent(String.self, forKey: .fxSource)
+        fxRateDate = try container.decodeIfPresent(String.self, forKey: .fxRateDate)
     }
 
-    init(id: Int?, date: Date, merchantName: String, amount: Double, currency: String, category: String?, subcategory: String?, isGrocery: Bool, isRestaurant: Bool, notes: String?, tags: [String]?, isCorrected: Bool?, correctionId: Int?, correctionReason: String?, correctionNotes: String?, originalAmount: Double?, originalCategory: String?, originalMerchantName: String?, originalDate: Date?, source: String?) {
+    init(id: Int?, date: Date, merchantName: String, amount: Double, currency: String, category: String?, subcategory: String?, isGrocery: Bool, isRestaurant: Bool, notes: String?, tags: [String]?, isCorrected: Bool?, correctionId: Int?, correctionReason: String?, correctionNotes: String?, originalAmount: Double?, originalCategory: String?, originalMerchantName: String?, originalDate: Date?, source: String?, amountPreferred: Double? = nil, fxRateUsed: Double? = nil, fxIsEstimate: Bool? = nil, fxSource: String? = nil, fxRateDate: String? = nil) {
         self.id = id
         self.date = date
         self.merchantName = merchantName
@@ -94,6 +116,11 @@ struct Transaction: Identifiable, Codable {
         self.originalMerchantName = originalMerchantName
         self.originalDate = originalDate
         self.source = source
+        self.amountPreferred = amountPreferred
+        self.fxRateUsed = fxRateUsed
+        self.fxIsEstimate = fxIsEstimate
+        self.fxSource = fxSource
+        self.fxRateDate = fxRateDate
     }
 
     var displayAmount: String {
@@ -130,7 +157,12 @@ struct Transaction: Identifiable, Codable {
             originalCategory: originalCategory,
             originalMerchantName: originalMerchantName,
             originalDate: originalDate,
-            source: source
+            source: source,
+            amountPreferred: amountPreferred,
+            fxRateUsed: fxRateUsed,
+            fxIsEstimate: fxIsEstimate,
+            fxSource: fxSource,
+            fxRateDate: fxRateDate
         )
     }
 
@@ -727,6 +759,25 @@ struct RecurringItem: Identifiable, Codable {
         guard let days = daysUntilDue else { return false }
         return days < 0
     }
+
+    var monthlyEquivalent: Double {
+        switch cadence {
+        case "daily": return amount * 30
+        case "weekly": return amount * 4.33
+        case "biweekly": return amount * 2.17
+        case "monthly": return amount
+        case "quarterly": return amount / 3
+        case "yearly": return amount / 12
+        default: return amount
+        }
+    }
+
+    var dueDateFormatted: String? {
+        guard let date = nextDueDate else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
 }
 
 struct MatchingRule: Identifiable, Codable {
@@ -806,6 +857,25 @@ struct CreateRecurringItemRequest: Codable {
         case categoryId = "category_id"
         case merchantPattern = "merchant_pattern"
         case autoCreate = "auto_create"
+    }
+}
+
+struct UpdateRecurringItemRequest: Codable {
+    let id: Int
+    let name: String?
+    let amount: Double?
+    let type: String?
+    let cadence: String?
+    let dayOfMonth: Int?
+    let nextDueDate: String?
+    let merchantPattern: String?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, amount, type, cadence, notes
+        case dayOfMonth = "day_of_month"
+        case nextDueDate = "next_due_date"
+        case merchantPattern = "merchant_pattern"
     }
 }
 

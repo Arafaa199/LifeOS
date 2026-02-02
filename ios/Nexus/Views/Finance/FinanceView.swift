@@ -15,7 +15,7 @@ struct FinanceView: View {
                 Picker("", selection: $selectedSegment) {
                     Text("Overview").tag(0)
                     Text("Activity").tag(1)
-                    Text("Budgets").tag(2)
+                    Text("Plan").tag(2)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -34,7 +34,7 @@ struct FinanceView: View {
                     FinanceActivityView(viewModel: viewModel)
                         .tag(1)
 
-                    FinanceBudgetsView(viewModel: viewModel)
+                    FinancePlanView(viewModel: viewModel)
                         .tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
@@ -136,6 +136,16 @@ struct FinanceOverviewView: View {
 
                 // Cashflow Mini
                 cashflowCard
+
+                // Monthly Obligations
+                if viewModel.monthlyObligations > 0 {
+                    obligationsSummary
+                }
+
+                // Upcoming Bills
+                if !viewModel.upcomingBills.isEmpty {
+                    upcomingBillsCard
+                }
 
                 // Action Row
                 actionRow
@@ -313,6 +323,62 @@ struct FinanceOverviewView: View {
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(net >= 0 ? .green : .red)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(16)
+    }
+
+    // MARK: - Monthly Obligations Summary
+
+    private var obligationsSummary: some View {
+        HStack {
+            Image(systemName: "repeat.circle.fill")
+                .foregroundColor(.orange)
+            Text("Monthly obligations")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(formatCurrency(viewModel.monthlyObligations, currency: AppSettings.shared.defaultCurrency))
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.orange)
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+    }
+
+    // MARK: - Upcoming Bills Card
+
+    private var upcomingBillsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Upcoming Bills")
+                    .font(.headline)
+                Spacer()
+                Text("\(viewModel.upcomingBills.prefix(5).count) of \(viewModel.upcomingBills.count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            ForEach(Array(viewModel.upcomingBills.prefix(5))) { item in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name)
+                            .font(.subheadline)
+                        if let date = item.dueDateFormatted {
+                            Text(date)
+                                .font(.caption)
+                                .foregroundColor(item.isOverdue ? .red : item.isDueSoon ? .orange : .secondary)
+                        }
+                    }
+                    Spacer()
+                    Text(formatCurrency(item.amount, currency: item.currency))
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
             }
         }
         .padding()

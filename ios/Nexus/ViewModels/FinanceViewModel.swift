@@ -6,6 +6,7 @@ import Combine
 class FinanceViewModel: ObservableObject {
     @Published var summary = FinanceSummary()
     @Published var recentTransactions: [Transaction] = []
+    @Published var recurringItems: [RecurringItem] = []
     @Published var errorMessage: String?
     @Published var queuedCount = 0
     @Published var lastUpdated: Date?
@@ -42,6 +43,23 @@ class FinanceViewModel: ObservableObject {
             let t = insight.type.lowercased()
             return t.hasPrefix("spending") || t.hasPrefix("budget") || t.hasPrefix("finance") || t.hasPrefix("pattern")
         }
+    }
+
+    var monthlyObligations: Double {
+        recurringItems
+            .filter { $0.isExpense && $0.isActive }
+            .reduce(0) { $0 + $1.monthlyEquivalent }
+    }
+
+    var upcomingBills: [RecurringItem] {
+        recurringItems
+            .filter { $0.isExpense && $0.isActive }
+            .sorted { ($0.nextDueDate ?? .distantFuture) < ($1.nextDueDate ?? .distantFuture) }
+    }
+
+    var recurringIncome: [RecurringItem] {
+        recurringItems
+            .filter { $0.isIncome && $0.isActive }
     }
 
     init() {
@@ -138,6 +156,7 @@ class FinanceViewModel: ObservableObject {
                 errorMessage = "Could not fetch latest data. Showing cached data."
             }
         }
+        loadRecurringItems()
     }
 
     /// Logs a quick expense from natural language. Returns true on success.
@@ -492,6 +511,57 @@ class FinanceViewModel: ObservableObject {
         }
 
         operationInProgress = false
+    }
+
+    // MARK: - Recurring Items
+
+    func loadRecurringItems() {
+        Task {
+            do {
+                let response = try await api.fetchRecurringItems()
+                if response.success, let items = response.data {
+                    recurringItems = items
+                }
+            } catch {
+                // Non-critical — don't surface error for this
+            }
+        }
+    }
+
+    @discardableResult
+    func createRecurringItem(_ request: CreateRecurringItemRequest) async -> Bool {
+        do {
+            let response = try await api.createRecurringItem(request)
+            if response.success {
+                loadRecurringItems()
+                return true
+            }
+        } catch {}
+        return false
+    }
+
+    @discardableResult
+    func updateRecurringItem(_ request: UpdateRecurringItemRequest) async -> Bool {
+        do {
+            let response = try await api.updateRecurringItem(request)
+            if response.success {
+                loadRecurringItems()
+                return true
+            }
+        } catch {}
+        return false
+    }
+
+    @discardableResult
+    func deleteRecurringItem(id: Int) async -> Bool {
+        do {
+            let response = try await api.deleteRecurringItem(id: id)
+            if response.success {
+                recurringItems.removeAll { $0.id == id }
+                return true
+            }
+        } catch {}
+        return false
     }
 
     // MARK: - Duplicate Detection

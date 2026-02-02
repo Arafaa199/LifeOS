@@ -514,37 +514,6 @@ struct RecurringItemsListView: View {
     }
 }
 
-struct RecurringItemRow: View {
-    let item: RecurringItem
-
-    var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.name)
-                    .font(.body)
-                HStack(spacing: 8) {
-                    Text(item.cadenceDisplay)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    if let daysUntil = item.daysUntilDue {
-                        Text(daysUntil == 0 ? "Due today" : daysUntil > 0 ? "Due in \(daysUntil)d" : "\(-daysUntil)d overdue")
-                            .font(.caption)
-                            .foregroundColor(item.isOverdue ? .red : item.isDueSoon ? .orange : .secondary)
-                    }
-                }
-            }
-
-            Spacer()
-
-            Text(String(format: "%@ %.0f", item.currency, item.amount))
-                .font(.headline)
-                .foregroundColor(item.isExpense ? .red : .green)
-        }
-        .padding(.vertical, 4)
-    }
-}
-
 // MARK: - Add Recurring Item
 
 struct AddRecurringItemView: View {

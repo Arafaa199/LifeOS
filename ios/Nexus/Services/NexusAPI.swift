@@ -371,6 +371,10 @@ class NexusAPI: ObservableObject {
         return try await post("/webhook/nexus-recurring", body: request, decoder: Self.financeDateDecoder)
     }
 
+    func updateRecurringItem(_ request: UpdateRecurringItemRequest) async throws -> SingleItemResponse<RecurringItem> {
+        return try await post("/webhook/nexus-recurring-update", body: request, decoder: Self.financeDateDecoder)
+    }
+
     func deleteRecurringItem(id: Int) async throws -> DeleteResponse {
         return try await delete("/webhook/nexus-recurring?id=\(id)")
     }
@@ -469,7 +473,7 @@ class NexusAPI: ObservableObject {
     #endif
 
     /// Generic POST method for all API calls
-    private func post<Body: Encodable, Response: Decodable>(
+    func post<Body: Encodable, Response: Decodable>(
         _ endpoint: String,
         body: Body,
         decoder: JSONDecoder = JSONDecoder()

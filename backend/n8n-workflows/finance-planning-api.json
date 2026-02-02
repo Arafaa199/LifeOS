@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "GET",
         "path": "nexus-categories",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "get-categories",
@@ -17,7 +18,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, name, type, icon, color, keywords, is_active, display_order FROM finance.categories WHERE is_active = true ORDER BY type, display_order;",
+        "query": "SELECT json_build_object('success', true, 'data', json_build_object('categories', COALESCE(json_agg(sub), '[]'::json))) as result FROM (SELECT id, name, type, icon, color, keywords, is_active, display_order FROM finance.categories WHERE is_active = true ORDER BY type, display_order) sub;",
         "options": {}
       },
       "id": "fetch-categories",
@@ -35,7 +36,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, data: { categories: $json } } }}"
+        "responseBody": "={{ $json.result }}"
       },
       "id": "respond-categories",
       "name": "Respond Categories",
@@ -47,6 +48,7 @@
       "parameters": {
         "httpMethod": "GET",
         "path": "nexus-budgets",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "get-budgets",
@@ -59,7 +61,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM finance.budget_status ORDER BY month DESC, category;",
+        "query": "SELECT json_build_object('success', true, 'data', json_build_object('budgets', COALESCE(json_agg(sub), '[]'::json))) as result FROM (SELECT * FROM finance.budget_status ORDER BY month DESC, category) sub;",
         "options": {}
       },
       "id": "fetch-budgets",
@@ -77,7 +79,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, data: { budgets: $json } } }}"
+        "responseBody": "={{ $json.result }}"
       },
       "id": "respond-budgets",
       "name": "Respond Budgets",
@@ -89,6 +91,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "nexus-budget",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "post-budget",
@@ -119,7 +122,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, message: 'Budget saved', data: { budget: $json[0] } } }}"
+        "responseBody": "={{ { success: true, message: 'Budget saved', data: { budget: $json } } }}"
       },
       "id": "respond-budget-saved",
       "name": "Respond Budget Saved",
@@ -131,6 +134,7 @@
       "parameters": {
         "httpMethod": "GET",
         "path": "nexus-recurring",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "get-recurring",
@@ -143,7 +147,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT * FROM finance.upcoming_recurring ORDER BY next_due_date;",
+        "query": "SELECT json_build_object('success', true, 'data', json_build_object('recurring_items', COALESCE(json_agg(sub), '[]'::json))) as result FROM (SELECT * FROM finance.upcoming_recurring ORDER BY next_due_date) sub;",
         "options": {}
       },
       "id": "fetch-recurring",
@@ -161,7 +165,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, data: { recurring_items: $json } } }}"
+        "responseBody": "={{ $json.result }}"
       },
       "id": "respond-recurring",
       "name": "Respond Recurring",
@@ -173,6 +177,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "nexus-recurring",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "post-recurring",
@@ -203,7 +208,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, message: 'Recurring item created', data: { recurring: $json[0] } } }}"
+        "responseBody": "={{ { success: true, message: 'Recurring item created', data: { recurring: $json } } }}"
       },
       "id": "respond-recurring-created",
       "name": "Respond Recurring Created",
@@ -215,6 +220,7 @@
       "parameters": {
         "httpMethod": "GET",
         "path": "nexus-rules",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "get-rules",
@@ -227,7 +233,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT r.*, c.name as category_name, c.icon as category_icon\nFROM finance.merchant_rules r\nLEFT JOIN finance.categories c ON c.id = r.category_id\nWHERE r.is_active = true\nORDER BY r.priority DESC, r.match_count DESC;",
+        "query": "SELECT json_build_object('success', true, 'data', json_build_object('rules', COALESCE(json_agg(sub), '[]'::json))) as result FROM (SELECT r.*, c.name as category_name, c.icon as category_icon FROM finance.merchant_rules r LEFT JOIN finance.categories c ON c.id = r.category_id WHERE r.is_active = true ORDER BY r.priority DESC, r.match_count DESC) sub;",
         "options": {}
       },
       "id": "fetch-rules",
@@ -245,7 +251,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, data: { rules: $json } } }}"
+        "responseBody": "={{ $json.result }}"
       },
       "id": "respond-rules",
       "name": "Respond Rules",
@@ -257,6 +263,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "nexus-rule",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "post-rule",
@@ -287,7 +294,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, message: 'Rule created', data: { rule: $json[0] } } }}"
+        "responseBody": "={{ { success: true, message: 'Rule created', data: { rule: $json } } }}"
       },
       "id": "respond-rule-created",
       "name": "Respond Rule Created",
@@ -297,8 +304,52 @@
     },
     {
       "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-recurring-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "put-recurring",
+      "name": "PUT Recurring",
+      "type": "n8n-nodes-base.webhook",
+      "position": [900, 700],
+      "webhookId": "nexus-recurring-put",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE finance.recurring_items SET\n  name = COALESCE({{ $json.body.name ? \"'\" + $json.body.name + \"'\" : 'NULL' }}, name),\n  amount = COALESCE({{ $json.body.amount || 'NULL' }}, amount),\n  type = COALESCE({{ $json.body.type ? \"'\" + $json.body.type + \"'\" : 'NULL' }}, type),\n  cadence = COALESCE({{ $json.body.cadence ? \"'\" + $json.body.cadence + \"'\" : 'NULL' }}, cadence),\n  day_of_month = COALESCE({{ $json.body.day_of_month || 'NULL' }}, day_of_month),\n  next_due_date = COALESCE({{ $json.body.next_due_date ? \"'\" + $json.body.next_due_date + \"'\" : 'NULL' }}, next_due_date),\n  merchant_pattern = COALESCE({{ $json.body.merchant_pattern ? \"'\" + $json.body.merchant_pattern + \"'\" : 'NULL' }}, merchant_pattern),\n  notes = COALESCE({{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : 'NULL' }}, notes),\n  updated_at = NOW()\nWHERE id = {{ $json.body.id }} AND is_active = true\nRETURNING *;",
+        "options": {}
+      },
+      "id": "update-recurring",
+      "name": "Update Recurring",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 700],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, message: 'Recurring item updated', data: { recurring: $json } } }}"
+      },
+      "id": "respond-recurring-updated",
+      "name": "Respond Recurring Updated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1340, 700],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
         "httpMethod": "DELETE",
         "path": "nexus-recurring/:id",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "delete-recurring",
@@ -341,6 +392,7 @@
       "parameters": {
         "httpMethod": "DELETE",
         "path": "nexus-rule/:id",
+        "responseMode": "responseNode",
         "options": {}
       },
       "id": "delete-rule",
@@ -422,6 +474,12 @@
     },
     "Insert Rule": {
       "main": [[{"node": "Respond Rule Created", "type": "main", "index": 0}]]
+    },
+    "PUT Recurring": {
+      "main": [[{"node": "Update Recurring", "type": "main", "index": 0}]]
+    },
+    "Update Recurring": {
+      "main": [[{"node": "Respond Recurring Updated", "type": "main", "index": 0}]]
     },
     "DELETE Recurring": {
       "main": [[{"node": "Soft Delete Recurring", "type": "main", "index": 0}]]
