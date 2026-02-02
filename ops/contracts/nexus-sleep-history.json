@@ -1,0 +1,10 @@
+{
+  "endpoint": "/webhook/nexus-sleep-history",
+  "method": "GET",
+  "query_params": "days=7",
+  "required_keys": [
+    {"path": ".success", "type": "boolean"},
+    {"path": ".data", "type": "array"}
+  ],
+  "version": "2026-02-02"
+}

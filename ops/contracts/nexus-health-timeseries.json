@@ -1,0 +1,11 @@
+{
+  "endpoint": "/webhook/nexus-health-timeseries",
+  "method": "GET",
+  "query_params": "days=30",
+  "required_keys": [
+    {"path": ".success", "type": "boolean"},
+    {"path": ".data", "type": "array"},
+    {"path": ".count", "type": "number"}
+  ],
+  "version": "2026-02-02"
+}

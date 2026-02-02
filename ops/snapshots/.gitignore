@@ -1,0 +1,3 @@
+# Schema snapshots are generated nightly — don't commit them
+schema-*.sql
+schema-diff-*.txt

@@ -1,0 +1,11 @@
+{
+  "endpoint": "/webhook/nexus-document-renewals",
+  "method": "GET",
+  "query_params": "id=N",
+  "note": "Workflow may be inactive",
+  "required_keys": [
+    {"path": ".success", "type": "boolean"},
+    {"path": ".data", "type": "array"}
+  ],
+  "version": "2026-02-02"
+}

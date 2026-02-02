@@ -1,0 +1,10 @@
+{
+  "endpoint": "/webhook/nexus-budgets",
+  "method": "GET",
+  "required_keys": [
+    {"path": ".success", "type": "boolean"},
+    {"path": ".data", "type": "object"},
+    {"path": ".data.budgets", "type": "array"}
+  ],
+  "version": "2026-02-02"
+}

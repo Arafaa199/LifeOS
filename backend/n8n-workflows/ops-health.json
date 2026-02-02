@@ -1,0 +1,61 @@
+{
+  "name": "LifeOS - Ops Health",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "ops-health",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "ops-health"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH raw_checks AS (\n  SELECT\n    EXTRACT(EPOCH FROM (NOW() - (SELECT MAX(transaction_at) FROM finance.transactions))) / 3600 AS tx_age_hours,\n    (SELECT COUNT(*) FROM finance.transactions) AS tx_count,\n    EXTRACT(EPOCH FROM (NOW() - (SELECT MAX(created_at) FROM health.whoop_recovery))) / 3600 AS whoop_age_hours,\n    (SELECT COUNT(*) FROM finance.recurring_items WHERE is_active = true) AS recurring_active,\n    pg_database_size('nexus') AS db_size_bytes,\n    EXTRACT(EPOCH FROM (NOW() - (SELECT MAX(computed_at) FROM life.daily_facts))) / 3600 AS facts_age_hours\n)\nSELECT json_build_object(\n  'status', CASE\n    WHEN tx_age_hours > 48 OR whoop_age_hours > 4 OR facts_age_hours > 6 THEN 'critical'\n    WHEN tx_age_hours > 24 OR whoop_age_hours > 1 OR facts_age_hours > 2 THEN 'stale'\n    ELSE 'healthy'\n  END,\n  'checks', json_build_object(\n    'transactions', json_build_object('age_hours', ROUND(tx_age_hours::numeric, 1), 'count', tx_count, 'status', CASE WHEN tx_age_hours < 24 THEN 'healthy' WHEN tx_age_hours < 48 THEN 'stale' ELSE 'critical' END),\n    'whoop', json_build_object('age_hours', ROUND(whoop_age_hours::numeric, 1), 'status', CASE WHEN whoop_age_hours < 1 THEN 'healthy' WHEN whoop_age_hours < 4 THEN 'stale' ELSE 'critical' END),\n    'recurring_items', json_build_object('active_count', recurring_active, 'status', CASE WHEN recurring_active > 0 THEN 'healthy' ELSE 'stale' END),\n    'daily_facts', json_build_object('age_hours', ROUND(facts_age_hours::numeric, 1), 'status', CASE WHEN facts_age_hours < 2 THEN 'healthy' WHEN facts_age_hours < 6 THEN 'stale' ELSE 'critical' END),\n    'database', json_build_object('size_mb', ROUND(db_size_bytes / 1048576.0), 'status', 'healthy')\n  ),\n  'timestamp', NOW()\n) AS result\nFROM raw_checks;",
+        "options": {}
+      },
+      "name": "Health Checks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.result }}",
+        "options": {}
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{"node": "Health Checks", "type": "main", "index": 0}]
+      ]
+    },
+    "Health Checks": {
+      "main": [
+        [{"node": "Response", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

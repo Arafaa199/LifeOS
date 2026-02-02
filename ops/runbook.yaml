@@ -1,0 +1,47 @@
+version: "2026-02-02"
+
+# Nightly runbook — iterated by ops/nightly.sh
+# Each entry defines a check with its script, artifact, and failure handling.
+# Status enum: healthy | stale | critical | unknown
+
+checks:
+  smoke-tests:
+    description: "Endpoint contracts + infrastructure reachability"
+    script: "ops/check.sh"
+    args: ["--json"]
+    artifact: "ops/reports/ops-report-{date}.json"
+    timeout_seconds: 300
+    on_failure: notify
+    critical: true
+
+  schema-snapshot:
+    description: "pg_dump schema diff against previous day"
+    script: "ops/schema_snapshot.sh"
+    args: ["--quiet"]
+    artifact: "ops/snapshots/schema-{date}.sql"
+    timeout_seconds: 120
+    on_failure: log
+    critical: false
+
+  sms-replay:
+    description: "SMS classifier regression tests"
+    script: "ops/test/replay/finance.sh"
+    args: []
+    artifact: "ops/reports/replay-finance-{date}.json"
+    timeout_seconds: 60
+    on_failure: notify
+    critical: false
+
+  ops-health-probe:
+    description: "Query ops-health endpoint for subsystem staleness"
+    script: "ops/lib/probe-ops-health.sh"
+    args: []
+    artifact: "ops/reports/ops-health-{date}.json"
+    timeout_seconds: 30
+    on_failure: notify
+    critical: true
+
+notification:
+  method: "osascript"
+  title: "LifeOS Ops"
+  subtitle: "Nightly Report"

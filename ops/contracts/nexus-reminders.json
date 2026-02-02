@@ -1,0 +1,11 @@
+{
+  "endpoint": "/webhook/nexus-reminders",
+  "method": "GET",
+  "query_params": "start=YYYY-MM-DD&end=YYYY-MM-DD",
+  "required_keys": [
+    {"path": ".success", "type": "boolean"},
+    {"path": ".reminders", "type": "array"},
+    {"path": ".count", "type": "number"}
+  ],
+  "version": "2026-02-02"
+}

@@ -1,0 +1,246 @@
+version: "2026-02-02"
+status_enum: [healthy, stale, critical, unknown]
+
+domains:
+  finance:
+    owner: "coder"
+    source_of_truth: "finance.transactions"
+    freshness_signal:
+      table: "finance.transactions"
+      column: "transaction_at"
+      max_age_hours: 24
+    ingestion_trigger: "fswatch on chat.db → sms-classifier → INSERT"
+    idempotency_key: "client_id UUID + content_hash SHA256"
+    replayable: true
+    known_failure_modes:
+      - "SMS watcher launchd not loaded → no new transactions"
+      - "sms-classifier regex miss → FIN_INFO_ONLY instead of FIN_TXN_APPROVED"
+      - "Duplicate merchant_rules patterns → wrong category assignment"
+      - "n8n webhook inactive → 404 on POST endpoints"
+    endpoints:
+      - nexus-finance-summary
+      - nexus-budgets
+      - nexus-recurring
+      - nexus-categories
+      - nexus-rules
+      - nexus-expense
+      - nexus-transaction
+      - nexus-income
+      - nexus-monthly-trends
+      - nexus-receipt-ingest
+      - nexus-refresh-summary
+      - nexus-update-transaction
+      - nexus-delete-transaction
+    ios_views:
+      - FinanceView
+      - FinancePlanView
+      - FinancePlanningView
+      - FinanceActivityView
+      - FinanceOverviewView
+      - AddExpenseView
+      - IncomeView
+      - RecurringItemFormView
+    db_tables:
+      - finance.transactions
+      - finance.categories
+      - finance.recurring_items
+      - finance.merchant_rules
+      - finance.budgets
+      - finance.receipts
+      - finance.receipt_items
+    frozen_files:
+      - backend/scripts/sms-classifier.js
+      - backend/scripts/import-sms-transactions.js
+    pipelines:
+      - sms-import
+      - sms-watcher
+      - receipt-ingest
+      - carrefour-gmail
+      - careem-email
+
+  health:
+    owner: "coder"
+    source_of_truth: "health.metrics + health.whoop_*"
+    freshness_signal:
+      table: "health.whoop_recovery"
+      column: "created_at"
+      max_age_hours: 1
+    ingestion_trigger: "n8n 15-min poll from Home Assistant WHOOP entities"
+    idempotency_key: "external_id per WHOOP cycle"
+    replayable: true
+    known_failure_modes:
+      - "WHOOP HA integration offline → stale recovery/HRV"
+      - "HealthKit permission revoked on iOS → no weight/steps sync"
+      - "n8n health-metrics-sync workflow inactive → no propagation to normalized"
+    endpoints:
+      - nexus-sleep
+      - nexus-sleep-history
+      - nexus-health-timeseries
+      - nexus-weight
+      - nexus-mood
+      - nexus-workout
+    ios_views:
+      - HealthView
+      - SleepView
+    db_tables:
+      - health.metrics
+      - health.whoop_recovery
+      - health.whoop_sleep
+      - health.whoop_strain
+    frozen_files: []
+    pipelines:
+      - whoop-ha-sync
+      - healthkit-batch
+
+  dashboard:
+    owner: "coder"
+    source_of_truth: "life.daily_facts"
+    freshness_signal:
+      table: "life.daily_facts"
+      column: "computed_at"
+      max_age_hours: 2
+    ingestion_trigger: "life.refresh_daily_facts() called by life.refresh_all()"
+    idempotency_key: "date PK in life.daily_facts (DELETE+recompute)"
+    replayable: true
+    known_failure_modes:
+      - "Upstream stale → daily_facts computed from old data"
+      - "life.refresh_all() not called → facts_age_hours drifts"
+    endpoints:
+      - nexus-dashboard-today
+    ios_views:
+      - TodayView
+    db_tables:
+      - life.daily_facts
+    frozen_files:
+      - ios/Nexus/Views/Dashboard/TodayView.swift
+    pipelines: []
+
+  calendar:
+    owner: "coder"
+    source_of_truth: "raw.reminders"
+    freshness_signal:
+      table: "raw.reminders"
+      column: "updated_at"
+      max_age_hours: 24
+    ingestion_trigger: "iOS ReminderSyncService bidirectional diff on app open"
+    idempotency_key: "reminder_id (EventKit) + eventkit_modified_at echo-back"
+    replayable: false
+    known_failure_modes:
+      - "iOS Reminders permission revoked → sync silently stops"
+      - "Loop detection failure → infinite sync cycle"
+      - "EventKit modified_at not echoed → stale overwrite"
+    endpoints:
+      - nexus-reminders-sync
+      - nexus-reminders
+      - nexus-reminders-sync-state
+      - nexus-reminder-create
+      - nexus-reminder-update
+      - nexus-reminder-delete
+      - nexus-reminder-confirm-sync
+    ios_views:
+      - CalendarView
+    db_tables:
+      - raw.reminders
+      - raw.calendar_events
+    frozen_files: []
+    pipelines:
+      - reminder-bidirectional-sync
+
+  documents:
+    owner: "coder"
+    source_of_truth: "core.documents"
+    freshness_signal:
+      table: "core.documents"
+      column: "updated_at"
+      max_age_hours: 168
+    ingestion_trigger: "manual via iOS app or MCP"
+    idempotency_key: "client_id UUID"
+    replayable: false
+    known_failure_modes:
+      - "Reminder recreation fails silently → expired doc not flagged"
+      - "Soft-delete not cascading to reminders"
+    endpoints:
+      - nexus-documents
+      - nexus-document
+      - nexus-document-update
+      - nexus-document-renew
+      - nexus-document-recreate-reminders
+      - nexus-document-renewals
+    ios_views:
+      - DocumentsListView
+    db_tables:
+      - core.documents
+    frozen_files: []
+    pipelines: []
+
+  notes:
+    owner: "coder"
+    source_of_truth: "raw.notes_index"
+    freshness_signal:
+      table: "raw.notes_index"
+      column: "indexed_at"
+      max_age_hours: 24
+    ingestion_trigger: "obsidian-indexer script (manual or scheduled)"
+    idempotency_key: "vault + relative_path UNIQUE"
+    replayable: true
+    known_failure_modes:
+      - "Vault path changed → indexer finds zero notes"
+      - "Frontmatter YAML parse error → note skipped silently"
+    endpoints:
+      - nexus-notes-index
+      - nexus-notes-search
+    ios_views: []
+    db_tables:
+      - raw.notes_index
+    frozen_files: []
+    pipelines:
+      - obsidian-indexer
+
+  behavioral:
+    owner: "coder"
+    source_of_truth: "life.behavioral_events + life.locations"
+    freshness_signal:
+      table: "life.behavioral_events"
+      column: "created_at"
+      max_age_hours: 12
+    ingestion_trigger: "Home Assistant automations → n8n webhooks"
+    idempotency_key: "event_type + timestamp window dedup"
+    replayable: false
+    known_failure_modes:
+      - "HA automation disabled → no events"
+      - "Motion sensor battery dead → false sleep_detected"
+      - "TV entity unavailable → missed tv_session events"
+    endpoints:
+      - nexus-location
+      - nexus-behavioral-event
+    ios_views: []
+    db_tables:
+      - life.locations
+      - life.behavioral_events
+    frozen_files: []
+    pipelines:
+      - ha-location-automations
+      - ha-behavioral-automations
+
+  ops:
+    owner: "coder"
+    source_of_truth: "ops-health endpoint + ops/check.sh"
+    freshness_signal:
+      table: "ops.refresh_log"
+      column: "refreshed_at"
+      max_age_hours: 24
+    ingestion_trigger: "nightly launchd job (23:30)"
+    idempotency_key: "date-based report files"
+    replayable: true
+    known_failure_modes:
+      - "SSH to pivpn/nexus timeout → all checks fail"
+      - "n8n down → all webhook checks fail"
+      - "jq not installed → contract validation broken"
+    endpoints:
+      - ops-health
+    ios_views: []
+    db_tables: []
+    frozen_files:
+      - ops/contracts/*.json
+    pipelines:
+      - ops-nightly
