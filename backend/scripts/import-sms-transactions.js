@@ -39,12 +39,17 @@ const ACCOUNT_MAP = {
   'jkb': { account_id: 3, default_currency: 'JOD' },
   'careem': { account_id: null, default_currency: 'AED' }, // Wallet refund, no bank account
   'amazon': { account_id: null, default_currency: 'SAR' }, // Refund notification only
+  'tabby': { account_id: null, default_currency: 'AED' },  // Tabby Card spending
+  'ad-tabby': { account_id: null, default_currency: 'AED' },
+  'tabby-ad': { account_id: null, default_currency: 'AED' },
+  'tasheel fin': { account_id: null, default_currency: 'SAR' },
 };
 
 // BNPL providers (separate handling)
 const BNPL_PROVIDERS = {
   'tabby': { installments: 4, interval_days: 14 },
   'tabby-ad': { installments: 4, interval_days: 14 },
+  'ad-tabby': { installments: 4, interval_days: 14 },
 };
 
 /**
@@ -146,6 +151,49 @@ function intentToType(intent, patternName) {
 }
 
 /**
+ * Find an unlinked transaction from the same sender with opposite subtype
+ * for FX pairing (e.g. TASHEEL confirmed↔notification).
+ */
+async function findPairCandidate(nexusPool, { sender, merchantClean, transactionAt, lookingForSuffix }) {
+  const result = await nexusPool.query(`
+    SELECT id, amount, currency, raw_data
+    FROM finance.transactions
+    WHERE raw_data->>'sender' = $1
+      AND LOWER(merchant_name_clean) = LOWER($2)
+      AND raw_data->>'pattern' LIKE $3
+      AND paired_transaction_id IS NULL
+      AND pairing_role IS NULL
+      AND ABS(EXTRACT(EPOCH FROM (transaction_at - $4::timestamptz))) < 21600
+    ORDER BY ABS(EXTRACT(EPOCH FROM (transaction_at - $4::timestamptz))) ASC
+    LIMIT 1
+  `, [sender, merchantClean, `%${lookingForSuffix}`, transactionAt]);
+  return result.rows[0] || null;
+}
+
+/**
+ * Link two transactions as an FX pair.
+ * confirmedId = primary (ledger), notificationId = fx_metadata
+ */
+async function linkFxPair(nexusPool, confirmedId, notificationId, notificationAmount, notificationCurrency) {
+  await nexusPool.query(`
+    UPDATE finance.transactions
+    SET paired_transaction_id = $1, pairing_role = 'fx_metadata'
+    WHERE id = $2
+  `, [confirmedId, notificationId]);
+
+  await nexusPool.query(`
+    UPDATE finance.transactions
+    SET pairing_role = 'primary',
+        raw_data = raw_data || jsonb_build_object(
+          'fx_amount', $2::text,
+          'fx_currency', $3,
+          'fx_paired_id', $4
+        )
+    WHERE id = $1
+  `, [confirmedId, notificationAmount, notificationCurrency, notificationId]);
+}
+
+/**
  * Import transactions from SMS
  */
 async function importTransactions(daysBack = 365, verbose = false) {
@@ -206,8 +254,10 @@ async function importTransactions(daysBack = 365, verbose = false) {
     try {
       const senderLower = msg.sender.toLowerCase();
 
-      // Skip BNPL for now (handled separately)
-      if (bnplSenders.includes(senderLower)) {
+      // Skip pure BNPL senders (handled by importBNPLPurchases)
+      // Tabby is excluded: spending messages go through main pipeline,
+      // BNPL confirmations are skipped via never_create_transaction flag
+      if (bnplSenders.includes(senderLower) && !ACCOUNT_MAP[senderLower]) {
         continue;
       }
 
@@ -241,10 +291,9 @@ async function importTransactions(daysBack = 365, verbose = false) {
 
       // Get account info
       const account = ACCOUNT_MAP[senderLower];
-      if (!account || !account.account_id) {
-        // Some senders (like Amazon refund notifications) don't map to accounts
+      if (!account) {
         stats.no_account++;
-        if (verbose) console.log(`  No account for sender: ${msg.sender}`);
+        if (verbose) console.log(`  No account mapping for sender: ${msg.sender}`);
         continue;
       }
 
@@ -258,8 +307,8 @@ async function importTransactions(daysBack = 365, verbose = false) {
       const insertResult = await nexusPool.query(`
         INSERT INTO finance.transactions
           (external_id, account_id, transaction_at, date, merchant_name, merchant_name_clean,
-           amount, currency, category, raw_data)
-        VALUES ($1, $2, $3::timestamptz, finance.to_business_date($3::timestamptz), $4, $5, $6, $7, $8, $9)
+           amount, currency, category, source, raw_data)
+        VALUES ($1, $2, $3::timestamptz, finance.to_business_date($3::timestamptz), $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (external_id) DO NOTHING
         RETURNING id
       `, [
@@ -271,10 +320,12 @@ async function importTransactions(daysBack = 365, verbose = false) {
         result.amount,
         currency,
         result.category || txType,
+        'sms',
         JSON.stringify({
           sender: msg.sender,
           pattern: result.pattern_name,
           intent: result.intent,
+          subtype: result.subtype || undefined,
           entities: result.entities,
           confidence: result.confidence,
           original_text: body,
@@ -283,32 +334,64 @@ async function importTransactions(daysBack = 365, verbose = false) {
 
       if (insertResult.rowCount > 0) {
         const txId = insertResult.rows[0].id;
+        let markedFxMetadata = false;
 
-        // Apply merchant rules for categorization
-        await nexusPool.query(`
-          UPDATE finance.transactions t
-          SET
-            category = COALESCE(r.category, t.category),
-            subcategory = COALESCE(r.subcategory, t.subcategory),
-            is_grocery = COALESCE(r.is_grocery, t.is_grocery),
-            is_restaurant = COALESCE(r.is_restaurant, t.is_restaurant),
-            is_food_related = COALESCE(r.is_food_related, t.is_food_related),
-            store_name = COALESCE(r.store_name, t.store_name),
-            match_rule_id = r.id
-          FROM (
-            SELECT * FROM finance.merchant_rules
-            WHERE UPPER($2) LIKE UPPER(merchant_pattern)
-            ORDER BY priority DESC
-            LIMIT 1
-          ) r
-          WHERE t.id = $1
-        `, [txId, result.merchant || '']);
+        // FX pairing: if this row has a subtype, try to find its pair
+        if (result.subtype === 'purchase_notification') {
+          const pair = await findPairCandidate(nexusPool, {
+            sender: msg.sender,
+            merchantClean: cleanMerchantName(result.merchant),
+            transactionAt: msg.msg_datetime,
+            lookingForSuffix: '_confirmed',
+          });
+          if (pair) {
+            await linkFxPair(nexusPool, pair.id, txId, Math.abs(result.amount), currency);
+            markedFxMetadata = true;
+            if (verbose) console.log(`  ⚡ Paired notification ${txId} → confirmed ${pair.id}`);
+          }
+        } else if (result.subtype === 'purchase_confirmed') {
+          const pair = await findPairCandidate(nexusPool, {
+            sender: msg.sender,
+            merchantClean: cleanMerchantName(result.merchant),
+            transactionAt: msg.msg_datetime,
+            lookingForSuffix: '_notification',
+          });
+          if (pair) {
+            await linkFxPair(nexusPool, txId, pair.id, Math.abs(pair.amount), pair.currency);
+            markedFxMetadata = false; // this row is the primary
+            if (verbose) console.log(`  ⚡ Paired confirmed ${txId} ← notification ${pair.id}`);
+          }
+        }
+
+        // Apply merchant rules for categorization (skip for fx_metadata)
+        if (!markedFxMetadata) {
+          await nexusPool.query(`
+            UPDATE finance.transactions t
+            SET
+              category = COALESCE(r.category, t.category),
+              subcategory = COALESCE(r.subcategory, t.subcategory),
+              is_grocery = COALESCE(r.is_grocery, t.is_grocery),
+              is_restaurant = COALESCE(r.is_restaurant, t.is_restaurant),
+              is_food_related = COALESCE(r.is_food_related, t.is_food_related),
+              store_name = COALESCE(r.store_name, t.store_name),
+              match_rule_id = r.id,
+              match_reason = 'rule:' || r.id,
+              match_confidence = r.confidence
+            FROM (
+              SELECT * FROM finance.merchant_rules
+              WHERE UPPER($2) LIKE UPPER(merchant_pattern)
+              ORDER BY priority DESC
+              LIMIT 1
+            ) r
+            WHERE t.id = $1
+          `, [txId, result.merchant || '']);
+        }
 
         stats.imported++;
         stats.by_intent[result.intent]++;
 
         if (verbose) {
-          console.log(`  ✓ ${result.pattern_name}: ${currency} ${result.amount} at ${result.merchant || 'N/A'}`);
+          console.log(`  ✓ ${result.pattern_name}: ${currency} ${result.amount} at ${result.merchant || 'N/A'}${markedFxMetadata ? ' [fx_metadata]' : ''}`);
         }
       } else {
         stats.duplicates++;

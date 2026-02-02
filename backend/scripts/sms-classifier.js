@@ -32,7 +32,11 @@ function convertPythonRegex(pattern) {
  */
 function parseAmount(amountStr) {
   if (!amountStr) return null;
-  return parseFloat(amountStr.replace(/,/g, ''));
+  const western = amountStr
+    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/٫/g, '.')
+    .replace(/،/g, ',');
+  return parseFloat(western.replace(/,/g, ''));
 }
 
 /**
@@ -86,7 +90,7 @@ export class SMSClassifier {
 
   compileBankPatterns() {
     const banks = {};
-    const bankSections = ['emiratesnbd', 'alrajhibank', 'jkb', 'careem', 'amazon'];
+    const bankSections = ['emiratesnbd', 'alrajhibank', 'jkb', 'careem', 'amazon', 'tabby', 'tasheel'];
 
     for (const bankKey of bankSections) {
       const bankConfig = this.patterns[bankKey];
@@ -106,6 +110,7 @@ export class SMSClassifier {
             category: pattern.category || null,
             confidence: pattern.confidence || 0.9,
             never_create_transaction: pattern.never_create_transaction || false,
+            subtype: pattern.subtype || null,
           });
         } catch (err) {
           console.error(`Invalid pattern ${bankKey}.${pattern.name}: ${err.message}`);
@@ -216,6 +221,7 @@ export class SMSClassifier {
           category: pattern.category,
           confidence: pattern.confidence,
           never_create_transaction: pattern.never_create_transaction,
+          subtype: pattern.subtype,
           sender: sender,
           date: msgDate,
         };

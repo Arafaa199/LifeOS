@@ -466,6 +466,20 @@ alrajhibank:
         From:4281
         Amount:SAR 500
 
+    # ----- CREDIT TRANSFER LOCAL (INCOMING VIA) -----
+    - name: credit_transfer_local_in_via
+      intent: income
+      confidence: 0.95
+      regex: 'Credit Transfer Local\nVia:(?P<via>\w+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\nTo:(?P<to>\d+)\nFrom:(?P<from>[^\n]+)'
+      entities: [via, currency, amount, to, from]
+      category: "Income"
+      sample: |
+        Credit Transfer Local
+        Via:INMA
+        Amount:SAR 350
+        To:4281
+        From:TARIQ HAITHAM
+
     # ----- CREDIT TRANSFER LOCAL (OUTGOING VIA) -----
     - name: credit_transfer_local_out_via
       intent: transfer
@@ -608,6 +622,137 @@ amazon:
       sample: "Refund Issued: Amount SAR 195.05 (EYSOO Protein Shaker Bottle 20...)."
 
 # =============================================================================
+# TABBY PATTERNS (Tabby Card spending & refunds)
+# =============================================================================
+tabby:
+  senders: ["Tabby", "tabby", "Tabby-AD", "AD-Tabby"]
+
+  patterns:
+    # ----- CARD SPENDING -----
+    - name: tabby_card_spend
+      intent: expense
+      confidence: 0.95
+      regex: 'You spent (?P<amount>[\d,]+\.?\d*)\s*(?P<currency>AED|SAR|USD|EUR|GBP)\s*at\s*(?P<merchant>.+?)\.\s*Your available'
+      entities: [amount, currency, merchant]
+      category: null
+      sample: "You spent 248.83 AED at CAREEM QUIK. Your available Tabby Card limit is now 313.08 AED."
+
+    # ----- REFUND -----
+    - name: tabby_refund
+      intent: refund
+      confidence: 0.95
+      regex: "(?:partially )?refunded your (?P<merchant>.+?) order for (?P<currency>AED|SAR|USD|EUR|GBP)\\s*(?P<amount>[\\d,]+\\.?\\d*)"
+      entities: [merchant, currency, amount]
+      sample: "We've partially refunded your carrefouruae.com order for AED 4.99. To view details, go to https://tabby.ai/sd/Qo9MTc"
+
+    # ----- BNPL PURCHASE CONFIRMED -----
+    - name: tabby_bnpl_purchase
+      intent: expense
+      confidence: 0.95
+      regex: 'Your (?P<currency>AED|SAR|USD|EUR|GBP)\s*(?P<amount>[\d,]+\.?\d*)\s*purchase at (?P<merchant>.+?) is confirmed'
+      entities: [currency, amount, merchant]
+      category: null
+      never_create_transaction: true
+      note: "BNPL purchase - handled separately by importBNPLPurchases"
+      sample: "Your AED 4976.57 purchase at Amazon.ae is confirmed. Track your upcoming payments with the Tabby app"
+
+    # ----- OTP CODE (Do not tell anyone) -----
+    - name: tabby_otp_code
+      intent: ignore
+      confidence: 1.0
+      regex: 'Do not tell anyone this code'
+      entities: []
+      never_create_transaction: true
+
+# =============================================================================
+# TASHEEL FIN PATTERNS (Arabic - BNPL Card Purchases)
+# =============================================================================
+tasheel:
+  senders: ["TASHEEL FIN", "tasheel fin"]
+
+  patterns:
+    # ----- PURCHASE CONFIRMATION (Western digits + ريال) -----
+    - name: tasheel_purchase_confirmed
+      intent: expense
+      confidence: 0.95
+      subtype: purchase_confirmed
+      regex: 'تمت العملية بنجاح بمبلغ\s*(?P<amount>[\d,]+\.?\d*)\s*(?P<currency>ريال|ر\.س|AED|SAR|USD|EUR|GBP|JOD)\s+من\s+(?P<merchant>[^\s].+?)\s+بتاريخ'
+      entities: [amount, currency, merchant]
+      sample: "عزيزي العميل، تمت العملية بنجاح بمبلغ189.52 ريال من carrefouruae.com بتاريخ 22-01-"
+
+    # ----- PURCHASE NOTIFICATION (Arabic numerals + currency code) -----
+    - name: tasheel_purchase_notification
+      intent: expense
+      confidence: 0.95
+      subtype: purchase_notification
+      regex: 'عملية شراء بمبلغ\s*(?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s*(?P<amount>[\d٠-٩،,]+[\.٫][\d٠-٩]+)\s+في\s+(?P<merchant>[^\s].+?)\s+بدولة\s+(?P<country>\w+)'
+      entities: [currency, amount, merchant, country]
+      sample: "عملية شراء بمبلغ AED ١٨٥٫٥٤  في carrefouruae.com بدولة ARE بتاريخ 2026-01-22 20:34:36"
+
+    # ----- REFUND -----
+    - name: tasheel_refund
+      intent: refund
+      confidence: 0.95
+      regex: 'تم إرجاع مبلغ بقيمة\s*(?P<amount>[\d٠-٩،,]+[\.٫]?[\d٠-٩]*)\s*(?P<currency>ريال سعودي|ريال|ر\.س|AED|SAR|USD|EUR|GBP|JOD)'
+      entities: [amount, currency]
+      sample: "عزيزي العميل، تم إرجاع مبلغ بقيمة ٣٩٢٫٤٦ ريال سعودي من بطاقتك الائتما"
+
+    # ----- BNPL PAYMENT (installment paid to بسيطة) -----
+    - name: tasheel_bnpl_payment
+      intent: ignore
+      confidence: 0.95
+      regex: 'تم دفع مبلغ\s+(?P<amount>[\d٠-٩،,]+[\.٫]?[\d٠-٩]*)(?P<currency>ريال سعودي|ريال|ر\.س)\s+لحساب بسيطة'
+      entities: [amount, currency]
+      never_create_transaction: true
+      note: "BNPL installment payment — the bank debit is captured via AlRajhi SMS"
+      sample: "عزيزي العميل، لقد تم دفع مبلغ   ٣٧٢٫٩٤ريال سعودي لحساب بسيطة الخاصة بك"
+
+    # ----- DECLINED ATTEMPT -----
+    - name: tasheel_declined
+      intent: declined
+      confidence: 0.99
+      regex: 'محاولة إتمام العملية بمبلغ\s*\n?\s*(?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s*(?P<amount>[\d٠-٩،,]+[\.٫][\d٠-٩]+)\s+برقم البطاقة'
+      entities: [currency, amount]
+      never_create_transaction: true
+      sample: "عزيزي العميل، محاولة إتمام العملية بمبلغ\nJOD ٥٫٠٠ برقم البطاقة المنته"
+
+    # ----- AUTO-PAYMENT DECLINED (English) -----
+    - name: tasheel_autopay_declined_en
+      intent: declined
+      confidence: 0.99
+      regex: 'Your card ending with (?P<card>\d+) has been declined for auto-payment'
+      entities: [card]
+      never_create_transaction: true
+      sample: "Your card ending with 2273 has been declined for auto-payment and will be tried again tomorrow."
+
+    # ----- STATEMENT ISSUED (informational) -----
+    - name: tasheel_statement
+      intent: ignore
+      confidence: 0.99
+      regex: 'تم إصدار كشف الحساب لبسيطة'
+      entities: []
+      never_create_transaction: true
+      sample: "تم إصدار كشف الحساب لبسيطة. قم بدفع المبلغ المستحق 376  ر.س"
+
+    # ----- EARLY SETTLEMENT (informational) -----
+    - name: tasheel_early_settlement
+      intent: ignore
+      confidence: 0.99
+      regex: 'تم استلام مبلغ السداد المبكر'
+      entities: []
+      never_create_transaction: true
+      sample: "تم استلام مبلغ السداد المبكر لجميع العمليات."
+
+    # ----- PROMO/MARKETING -----
+    - name: tasheel_promo
+      intent: ignore
+      confidence: 0.99
+      regex: 'سدد ورصيدك يرجع لك'
+      entities: []
+      never_create_transaction: true
+      sample: "سدد ورصيدك يرجع لك وتقدر تشتري فيه بأي مكان"
+
+# =============================================================================
 # SUPPORTED CURRENCIES
 # =============================================================================
 currencies:
@@ -617,6 +762,8 @@ currencies:
     "ريال سعودي": SAR
     "درهم إماراتي": AED
     "درهم": AED
+    "ريال": SAR
+    "ر.س": SAR
 
 # =============================================================================
 # INTENT CATEGORIES
