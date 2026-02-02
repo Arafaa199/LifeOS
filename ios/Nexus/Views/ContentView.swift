@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var settings: AppSettings
     @StateObject private var viewModel = DashboardViewModel()
+    @StateObject private var documentsViewModel = DocumentsViewModel()
     @State private var selectedTab = 0
 
     var body: some View {
@@ -41,11 +42,20 @@ struct ContentView: View {
                     }
                     .tag(4)
 
+                NavigationView {
+                    DocumentsListView(viewModel: documentsViewModel)
+                        .navigationTitle("Documents")
+                }
+                .tabItem {
+                    Label("Documents", systemImage: selectedTab == 5 ? "doc.text.fill" : "doc.text")
+                }
+                .tag(5)
+
                 SettingsView()
                     .tabItem {
-                        Label("Settings", systemImage: selectedTab == 5 ? "gearshape.fill" : "gearshape")
+                        Label("Settings", systemImage: selectedTab == 6 ? "gearshape.fill" : "gearshape")
                     }
-                    .tag(5)
+                    .tag(6)
             }
             .tint(.nexusPrimary)
             .environmentObject(viewModel)

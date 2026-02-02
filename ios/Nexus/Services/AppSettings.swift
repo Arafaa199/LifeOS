@@ -27,6 +27,9 @@ class AppSettings: ObservableObject {
     @Published var calendarSyncEnabled: Bool {
         didSet { UserDefaults.standard.set(calendarSyncEnabled, forKey: "calendarSyncEnabled") }
     }
+    @Published var documentsSyncEnabled: Bool {
+        didSet { UserDefaults.standard.set(documentsSyncEnabled, forKey: "documentsSyncEnabled") }
+    }
 
     private init() {
         self.defaultCurrency = UserDefaults.standard.string(forKey: "defaultCurrency") ?? "AED"
@@ -38,6 +41,7 @@ class AppSettings: ObservableObject {
         self.financeSyncEnabled = UserDefaults.standard.object(forKey: "financeSyncEnabled") as? Bool ?? true
         self.healthKitSyncEnabled = UserDefaults.standard.object(forKey: "healthKitSyncEnabled") as? Bool ?? true
         self.calendarSyncEnabled = UserDefaults.standard.object(forKey: "calendarSyncEnabled") as? Bool ?? true
+        self.documentsSyncEnabled = UserDefaults.standard.object(forKey: "documentsSyncEnabled") as? Bool ?? true
     }
 
     // Currency display helpers

@@ -8,7 +8,7 @@ class SyncCoordinator: ObservableObject {
     static let shared = SyncCoordinator()
 
     enum SyncDomain: String, CaseIterable, Identifiable {
-        case dashboard, finance, healthKit, calendar, whoop
+        case dashboard, finance, healthKit, calendar, whoop, documents
 
         var id: String { rawValue }
 
@@ -19,6 +19,7 @@ class SyncCoordinator: ObservableObject {
             case .healthKit: return "HealthKit"
             case .calendar: return "Calendar"
             case .whoop: return "WHOOP"
+            case .documents: return "Documents"
             }
         }
 
@@ -29,6 +30,7 @@ class SyncCoordinator: ObservableObject {
             case .healthKit: return "heart.fill"
             case .calendar: return "calendar"
             case .whoop: return "w.circle.fill"
+            case .documents: return "doc.text"
             }
         }
 
@@ -39,6 +41,7 @@ class SyncCoordinator: ObservableObject {
             case .healthKit: return .red
             case .calendar: return .blue
             case .whoop: return .orange
+            case .documents: return .purple
             }
         }
 
@@ -65,6 +68,7 @@ class SyncCoordinator: ObservableObject {
 
     @Published var dashboardPayload: DashboardPayload?
     @Published var financeSummaryResult: FinanceResponse?
+    @Published var documentsResult: [Document]?
     @Published var isSyncingAll = false
     @Published var whoopDebugInfo: WhoopDebugInfo?
 
@@ -129,6 +133,9 @@ class SyncCoordinator: ObservableObject {
                 if flags.whoopSyncEnabled {
                     group.addTask { await self.syncWHOOP() }
                 }
+                if flags.documentsSyncEnabled {
+                    group.addTask { await self.syncDocuments() }
+                }
             }
 
             isSyncingAll = false
@@ -144,6 +151,8 @@ class SyncCoordinator: ObservableObject {
         case .calendar: await syncCalendar()
         case .whoop:
             await syncWHOOP()
+        case .documents:
+            await syncDocuments()
         }
     }
 
@@ -309,6 +318,30 @@ class SyncCoordinator: ObservableObject {
             domainStates[.calendar]?.markFailed(error.localizedDescription)
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.error("[calendar] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Documents Sync
+
+    private func syncDocuments() async {
+        domainStates[.documents]?.markSyncing()
+        let start = CFAbsoluteTimeGetCurrent()
+        logger.info("[documents] sync started")
+
+        do {
+            let response: DocumentsResponse = try await api.get("/webhook/nexus-documents")
+            documentsResult = response.documents
+            let count = response.documents.count
+            domainStates[.documents]?.markSucceeded(source: "network", itemCount: count)
+
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.info("[documents] sync succeeded items=\(count) duration=\(ms)ms")
+        } catch is CancellationError {
+            domainStates[.documents]?.phase = .idle
+        } catch {
+            domainStates[.documents]?.markFailed(error.localizedDescription)
+            let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            logger.error("[documents] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
         }
     }
 
