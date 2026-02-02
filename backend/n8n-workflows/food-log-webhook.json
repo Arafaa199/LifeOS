@@ -16,12 +16,69 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse and validate incoming food log\nconst input = $input.first().json.body || $input.first().json;\n\n// Set defaults\nconst foodLog = {\n  date: input.date || new Date().toISOString().split('T')[0],\n  meal_time: input.meal_time || 'snack',\n  description: input.description || '',\n  calories: parseInt(input.calories) || null,\n  protein_g: parseFloat(input.protein_g) || null,\n  carbs_g: parseFloat(input.carbs_g) || null,\n  fat_g: parseFloat(input.fat_g) || null,\n  fiber_g: parseFloat(input.fiber_g) || null,\n  source: input.source || 'webhook',\n  confidence: input.confidence || 'medium',\n  meal_id: input.meal_id || null,\n  portion_number: input.portion_number || null,\n  location: input.location || 'home'\n};\n\n// Validate required fields\nif (!foodLog.description && !foodLog.meal_id) {\n  throw new Error('Either description or meal_id is required');\n}\n\nreturn foodLog;"
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\n\nconst foodLog = {\n  date: input.date || new Date().toISOString().split('T')[0],\n  meal_time: input.meal_time || 'snack',\n  description: input.description || '',\n  calories: parseInt(input.calories) || null,\n  protein_g: parseFloat(input.protein_g) || null,\n  carbs_g: parseFloat(input.carbs_g) || null,\n  fat_g: parseFloat(input.fat_g) || null,\n  fiber_g: parseFloat(input.fiber_g) || null,\n  source: input.source || 'webhook',\n  confidence: input.confidence || 'medium',\n  meal_id: input.meal_id || null,\n  portion_number: input.portion_number || null,\n  location: input.location || 'home',\n  needs_lookup: (!input.calories && !input.protein_g && !input.carbs_g && !input.fat_g)\n};\n\nif (!foodLog.description && !foodLog.meal_id) {\n  throw new Error('Either description or meal_id is required');\n}\n\nreturn foodLog;"
       },
       "id": "parse-input",
       "name": "Parse & Validate",
       "type": "n8n-nodes-base.code",
       "position": [460, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "needs-lookup",
+              "leftValue": "={{ $json.needs_lookup }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-needs-lookup",
+      "name": "Needs Macro Lookup?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g, relevance FROM nutrition.search_foods('{{ $('Parse & Validate').item.json.description }}', 1);",
+        "options": {}
+      },
+      "id": "food-lookup",
+      "name": "Food DB Lookup",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('Parse & Validate').item.json;\nconst lookup = $input.first().json;\n\nif (lookup && lookup.relevance > 0.5 && lookup.calories_per_100g) {\n  parsed.calories = Math.round(lookup.calories_per_100g);\n  parsed.protein_g = parseFloat(lookup.protein_per_100g) || null;\n  parsed.carbs_g = parseFloat(lookup.carbs_per_100g) || null;\n  parsed.fat_g = parseFloat(lookup.fat_per_100g) || null;\n  parsed.fiber_g = parseFloat(lookup.fiber_per_100g) || null;\n  parsed.confidence = 'medium';\n  parsed.source = (parsed.source || 'webhook') + '+db_lookup';\n}\n\nreturn parsed;"
+      },
+      "id": "merge-lookup",
+      "name": "Merge Lookup",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 200],
       "typeVersion": 2
     },
     {
@@ -33,7 +90,7 @@
       "id": "insert-log",
       "name": "Insert Food Log",
       "type": "n8n-nodes-base.postgres",
-      "position": [680, 300],
+      "position": [1340, 300],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
@@ -51,7 +108,7 @@
       "id": "get-daily-totals",
       "name": "Get Daily Totals",
       "type": "n8n-nodes-base.postgres",
-      "position": [900, 300],
+      "position": [1560, 300],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
@@ -69,7 +126,7 @@
       "id": "respond",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [1120, 300],
+      "position": [1780, 300],
       "typeVersion": 1.1
     }
   ],
@@ -86,6 +143,46 @@
       ]
     },
     "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Needs Macro Lookup?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Macro Lookup?": {
+      "main": [
+        [
+          {
+            "node": "Food DB Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Food Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Food DB Lookup": {
+      "main": [
+        [
+          {
+            "node": "Merge Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Lookup": {
       "main": [
         [
           {

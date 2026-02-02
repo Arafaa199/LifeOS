@@ -222,6 +222,33 @@ domains:
       - ha-location-automations
       - ha-behavioral-automations
 
+  nutrition:
+    owner: "coder"
+    source_of_truth: "nutrition.foods + nutrition.food_log"
+    freshness_signal:
+      table: "nutrition.foods"
+      column: "created_at"
+      max_age_hours: 8760
+    ingestion_trigger: "batch import via run_import.sh (USDA + OFF)"
+    idempotency_key: "fdc_id UNIQUE (USDA), barcode+source UNIQUE (OFF)"
+    replayable: true
+    known_failure_modes:
+      - "USDA download URL changes → run_import.sh 404"
+      - "OFF CSV schema change → import_openfoodfacts.py column mismatch"
+      - "pg_trgm similarity threshold too high → no search results"
+    endpoints:
+      - nexus-food-search
+      - nexus-food-log
+    ios_views:
+      - FoodLogView
+    db_tables:
+      - nutrition.foods
+      - nutrition.food_log
+      - nutrition.ingredients
+    frozen_files: []
+    pipelines:
+      - nutrition-import
+
   ops:
     owner: "coder"
     source_of_truth: "ops-health endpoint + ops/check.sh"
