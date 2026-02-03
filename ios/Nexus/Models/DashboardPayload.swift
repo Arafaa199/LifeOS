@@ -18,6 +18,7 @@ struct DashboardPayload: Codable {
     let calendarSummary: CalendarSummary?
     let reminderSummary: ReminderSummary?
     let fasting: FastingStatus?
+    let medicationsToday: MedicationsSummary?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -33,6 +34,7 @@ struct DashboardPayload: Codable {
         case calendarSummary = "calendar_summary"
         case reminderSummary = "reminder_summary"
         case fasting
+        case medicationsToday = "medications_today"
     }
 }
 
@@ -549,6 +551,39 @@ struct ReminderSummary: Codable {
         case dueToday = "due_today"
         case completedToday = "completed_today"
         case overdueCount = "overdue_count"
+    }
+}
+
+// MARK: - Medications Summary
+
+struct MedicationsSummary: Codable {
+    let dueToday: Int
+    let takenToday: Int
+    let skippedToday: Int
+    let adherencePct: Double?
+    let medications: [MedicationDose]?
+
+    enum CodingKeys: String, CodingKey {
+        case dueToday = "due_today"
+        case takenToday = "taken_today"
+        case skippedToday = "skipped_today"
+        case adherencePct = "adherence_pct"
+        case medications
+    }
+}
+
+struct MedicationDose: Codable, Identifiable {
+    var id: String { "\(name)-\(scheduledTime ?? "none")" }
+
+    let name: String
+    let status: String
+    let scheduledTime: String?
+    let takenAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name, status
+        case scheduledTime = "scheduled_time"
+        case takenAt = "taken_at"
     }
 }
 

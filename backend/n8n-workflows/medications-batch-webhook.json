@@ -1,0 +1,104 @@
+{
+  "name": "Medications: Batch Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "medications/batch",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-medications-batch",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "medications-batch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst clientId = body.client_id || null;\nconst device = body.device || 'unknown';\nconst sourceBundleId = body.source_bundle_id || 'unknown';\n\nconst medications = body.medications || [];\n\n// Helper to escape single quotes\nconst esc = (s) => (s || '').toString().replace(/'/g, \"''\");\n\n// Build batch SQL for medications\nlet medicationsSql = '';\nif (medications.length > 0) {\n  const vals = medications.map(m => {\n    const medId = esc(m.medication_id || '');\n    const doseEventId = m.dose_event_id ? `'${esc(m.dose_event_id)}'` : 'NULL';\n    const medName = esc(m.medication_name || 'Unknown');\n    const doseQty = m.dose_quantity != null ? parseFloat(m.dose_quantity) : 'NULL';\n    const doseUnit = m.dose_unit ? `'${esc(m.dose_unit)}'` : 'NULL';\n    const schedDate = esc(m.scheduled_date || '');\n    const schedTime = m.scheduled_time ? `'${esc(m.scheduled_time)}'` : 'NULL';\n    const takenAt = m.taken_at ? `'${esc(m.taken_at)}'::timestamptz` : 'NULL';\n    const status = esc(m.status || 'scheduled');\n    return `('${medId}', ${doseEventId}, '${medName}', ${doseQty}, ${doseUnit}, '${schedDate}'::date, ${schedTime}, ${takenAt}, '${status}', 'healthkit')`;\n  }).join(',\\n');\n  medicationsSql = `INSERT INTO health.medications (medication_id, dose_event_id, medication_name, dose_quantity, dose_unit, scheduled_date, scheduled_time, taken_at, status, source)\nVALUES ${vals}\nON CONFLICT (medication_id, scheduled_date, scheduled_time, source) DO UPDATE SET\n  dose_event_id = EXCLUDED.dose_event_id,\n  medication_name = EXCLUDED.medication_name,\n  dose_quantity = EXCLUDED.dose_quantity,\n  dose_unit = EXCLUDED.dose_unit,\n  taken_at = EXCLUDED.taken_at,\n  status = EXCLUDED.status,\n  synced_at = NOW();`;\n}\n\nreturn {\n  json: {\n    medicationsSql: medicationsSql || 'SELECT 1',\n    medicationsCount: medications.length\n  }\n};"
+      },
+      "id": "build-sql",
+      "name": "Build SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.medicationsSql }}",
+        "options": {}
+      },
+      "id": "insert-medications",
+      "name": "Insert Medications",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [700, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"inserted\": {\n    \"medications\": {{ $('Build SQL').item.json.medicationsCount }}\n  },\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [920, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build SQL": {
+      "main": [
+        [
+          {
+            "node": "Insert Medications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Medications": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

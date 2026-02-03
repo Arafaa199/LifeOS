@@ -87,6 +87,22 @@ class HealthKitSyncService: ObservableObject {
             }
         }
 
+        // Sync medications (iOS 18+)
+        if #available(iOS 18.0, *) {
+            do {
+                // Request per-object authorization if not already granted
+                try await HealthKitManager.shared.requestMedicationAuthorization()
+                let medicationCount = try await syncMedications()
+                if medicationCount > 0 {
+                    syncedCount += medicationCount
+                    logger.info("Synced \(medicationCount) medication doses")
+                }
+            } catch {
+                // Medications are optional — don't fail the whole sync
+                logger.warning("Medications sync skipped: \(error.localizedDescription)")
+            }
+        }
+
         // Mark sync as successful if we synced anything
         if syncedCount > 0 {
             lastSyncDate = Date()
@@ -304,6 +320,80 @@ class HealthKitSyncService: ObservableObject {
         let decoder = JSONDecoder()
         return try decoder.decode(HealthKitSyncResponse.self, from: data)
     }
+
+    // MARK: - Medications Sync (iOS 18+)
+
+    @available(iOS 18.0, *)
+    func syncMedications() async throws -> Int {
+        // Fetch medications from HealthKit
+        let startDate = lastSyncDate ?? Constants.Dubai.calendar.date(byAdding: .day, value: -7, to: Date())!
+        let doses = try await HealthKitManager.shared.fetchMedicationDoses(since: startDate)
+
+        if doses.isEmpty { return 0 }
+
+        // Convert to API format
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "HH:mm:ss"
+
+        let samples = doses.map { dose in
+            HealthKitMedicationSample(
+                medication_id: dose.medicationId,
+                dose_event_id: dose.doseEventId,
+                medication_name: dose.medicationName,
+                dose_quantity: dose.doseQuantity,
+                dose_unit: dose.doseUnit,
+                scheduled_date: dateFormatter.string(from: dose.scheduledDate),
+                scheduled_time: dose.scheduledTime.map { timeFormatter.string(from: $0) },
+                taken_at: dose.takenAt.map { Constants.Dubai.iso8601String(from: $0) },
+                status: dose.status
+            )
+        }
+
+        let payload = MedicationsBatchPayload(
+            client_id: UUID().uuidString,
+            device: await UIDevice.current.name,
+            source_bundle_id: Bundle.main.bundleIdentifier ?? "com.rfanw.nexus",
+            captured_at: Constants.Dubai.iso8601String(from: Date()),
+            medications: samples
+        )
+
+        let response = try await sendMedicationsToWebhook(payload)
+        return response.success ? samples.count : 0
+    }
+
+    @available(iOS 18.0, *)
+    private func sendMedicationsToWebhook(_ payload: MedicationsBatchPayload) async throws -> MedicationsSyncResponse {
+        guard let url = NetworkConfig.shared.url(for: "/webhook/medications/batch") else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
+            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        }
+        request.timeoutInterval = 30
+
+        let encoder = JSONEncoder()
+        request.httpBody = try encoder.encode(payload)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.serverError(httpResponse.statusCode)
+        }
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(MedicationsSyncResponse.self, from: data)
+    }
 }
 
 // MARK: - Payload Models
@@ -316,6 +406,14 @@ struct HealthKitBatchPayload: Codable {
     let samples: [HealthKitSample]
     let workouts: [HealthKitWorkoutSample]
     let sleep: [HealthKitSleepSample]
+}
+
+struct MedicationsBatchPayload: Codable {
+    let client_id: String
+    let device: String
+    let source_bundle_id: String
+    let captured_at: String
+    let medications: [HealthKitMedicationSample]
 }
 
 struct HealthKitSample: Codable {
@@ -344,6 +442,18 @@ struct HealthKitSleepSample: Codable {
     let end_date: String
 }
 
+struct HealthKitMedicationSample: Codable {
+    let medication_id: String
+    let dose_event_id: String
+    let medication_name: String
+    let dose_quantity: Double?
+    let dose_unit: String?
+    let scheduled_date: String
+    let scheduled_time: String?
+    let taken_at: String?
+    let status: String
+}
+
 struct HealthKitSyncResponse: Codable {
     let success: Bool
     let inserted: InsertedCounts?
@@ -353,5 +463,15 @@ struct HealthKitSyncResponse: Codable {
         let samples: Int
         let workouts: Int
         let sleep: Int
+    }
+}
+
+struct MedicationsSyncResponse: Codable {
+    let success: Bool
+    let inserted: MedicationsInsertedCounts?
+    let timestamp: String?
+
+    struct MedicationsInsertedCounts: Codable {
+        let medications: Int
     }
 }

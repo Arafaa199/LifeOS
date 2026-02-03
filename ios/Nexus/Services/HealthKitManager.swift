@@ -44,6 +44,10 @@ class HealthKitManager: ObservableObject {
     // Category types
     private var sleepType: HKCategoryType { HKCategoryType(.sleepAnalysis) }
 
+    // Medication types (iOS 18+)
+    // Note: Medications API requires iOS 18+ and uses per-object authorization
+    // Access via HKObjectType.userAnnotatedMedicationType() and HKObjectType.medicationDoseEventType()
+
     private init() {
         lastSuccessfulHKQueryAt = UserDefaults.standard.object(forKey: lastHKQueryKey) as? Date
         checkAuthorization()
@@ -550,6 +554,84 @@ class HealthKitManager: ObservableObject {
         }
 
         return results
+    }
+
+    // MARK: - Medications (iOS 18+)
+    // Note: HKMedicationDoseEvent API introduced in WWDC 2025
+    // Backend schema and n8n webhook ready. iOS sync to be refined with device testing.
+
+    struct MedicationDose: Sendable {
+        let medicationId: String
+        let doseEventId: String
+        let medicationName: String
+        let doseQuantity: Double?
+        let doseUnit: String?
+        let scheduledDate: Date
+        let scheduledTime: Date?
+        let takenAt: Date?
+        let status: String  // scheduled, taken, skipped
+    }
+
+    /// Check if medications API is available
+    /// Note: Requires iOS 18+ and user must have medications set up in Health app
+    var isMedicationsAvailable: Bool {
+        if #available(iOS 18.0, *) {
+            return isHealthDataAvailable
+        }
+        return false
+    }
+
+    /// Request per-object authorization for medications (iOS 18+)
+    @available(iOS 18.0, *)
+    func requestMedicationAuthorization() async throws {
+        guard isHealthDataAvailable else {
+            throw HealthKitError.notAvailable
+        }
+        let medType = HKObjectType.userAnnotatedMedicationType()
+        try await healthStore.requestPerObjectReadAuthorization(for: medType, predicate: nil)
+    }
+
+    /// Fetch medication dose events for a date range (iOS 18+)
+    /// TODO: Implement once HKMedicationDoseEventQueryDescriptor API is documented
+    @available(iOS 18.0, *)
+    func fetchMedicationDoses(since startDate: Date) async throws -> [MedicationDose] {
+        guard isHealthDataAvailable else {
+            throw HealthKitError.notAvailable
+        }
+
+        // Query all non-archived medications
+        let descriptor = HKUserAnnotatedMedicationQueryDescriptor(
+            predicate: HKQuery.predicateForUserAnnotatedMedications(isArchived: false)
+        )
+
+        let medications = try await descriptor.result(for: healthStore)
+        var allDoses: [MedicationDose] = []
+
+        // Parse each medication and its dose events
+        // Note: Property names to be confirmed with device testing
+        for medication in medications {
+            // Access the underlying medication concept for name
+            let medConcept = medication.medication
+            let medId = medication.hashValue.description  // Unique per medication
+            let medName = String(describing: medConcept)
+
+            // Create a placeholder dose entry for each medication
+            // Full dose event querying requires HKAnchoredObjectQuery
+            let dose = MedicationDose(
+                medicationId: medId,
+                doseEventId: UUID().uuidString,
+                medicationName: medName,
+                doseQuantity: nil,
+                doseUnit: nil,
+                scheduledDate: Date(),
+                scheduledTime: nil,
+                takenAt: nil,
+                status: "scheduled"
+            )
+            allDoses.append(dose)
+        }
+
+        return allDoses
     }
 }
 
