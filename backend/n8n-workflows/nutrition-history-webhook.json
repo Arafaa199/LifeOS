@@ -1,0 +1,102 @@
+{
+  "name": "Nexus: Nutrition History Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-nutrition-history",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Nutrition History Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-nutrition-history",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.query || {};\n\nlet targetDate = input.date;\nif (!targetDate) {\n  const now = new Date();\n  const dubaiOffset = 4 * 60 * 60 * 1000;\n  const dubaiTime = new Date(now.getTime() + dubaiOffset);\n  targetDate = dubaiTime.toISOString().split('T')[0];\n}\n\nreturn { date: targetDate };"
+      },
+      "id": "parse-date",
+      "name": "Parse Date",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH food_data AS (\n  SELECT \n    id,\n    description,\n    meal_time,\n    calories,\n    protein_g,\n    carbs_g,\n    fat_g,\n    source,\n    confidence,\n    logged_at\n  FROM nutrition.food_log\n  WHERE (logged_at AT TIME ZONE 'Asia/Dubai')::date = '{{ $json.date }}'::date\n  ORDER BY logged_at ASC\n),\nwater_data AS (\n  SELECT \n    id,\n    amount_ml,\n    logged_at\n  FROM nutrition.water_log\n  WHERE date = '{{ $json.date }}'::date\n  ORDER BY logged_at ASC\n),\ntotals_data AS (\n  SELECT \n    COALESCE(SUM(calories), 0)::int AS calories,\n    COALESCE(SUM(protein_g), 0)::numeric(6,1) AS protein_g,\n    COALESCE(SUM(carbs_g), 0)::numeric(6,1) AS carbs_g,\n    COALESCE(SUM(fat_g), 0)::numeric(6,1) AS fat_g,\n    COUNT(*)::int AS meals_logged\n  FROM nutrition.food_log\n  WHERE (logged_at AT TIME ZONE 'Asia/Dubai')::date = '{{ $json.date }}'::date\n),\nwater_total AS (\n  SELECT COALESCE(SUM(amount_ml), 0)::int AS water_ml\n  FROM nutrition.water_log\n  WHERE date = '{{ $json.date }}'::date\n)\nSELECT jsonb_build_object(\n  'success', true,\n  'date', '{{ $json.date }}',\n  'food_log', COALESCE((SELECT jsonb_agg(row_to_json(food_data)) FROM food_data), '[]'::jsonb),\n  'water_log', COALESCE((SELECT jsonb_agg(row_to_json(water_data)) FROM water_data), '[]'::jsonb),\n  'totals', jsonb_build_object(\n    'calories', (SELECT calories FROM totals_data),\n    'protein_g', (SELECT protein_g FROM totals_data),\n    'carbs_g', (SELECT carbs_g FROM totals_data),\n    'fat_g', (SELECT fat_g FROM totals_data),\n    'water_ml', (SELECT water_ml FROM water_total),\n    'meals_logged', (SELECT meals_logged FROM totals_data)\n  )\n) AS response;",
+        "options": {}
+      },
+      "id": "fetch-all",
+      "name": "Fetch All Data",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Nutrition History Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Date": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch All Data": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

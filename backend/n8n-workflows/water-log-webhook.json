@@ -1,0 +1,131 @@
+{
+  "name": "Nexus: Water Log Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-water",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Water Log Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-water",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\n\nconst amountMl = parseInt(input.amount_ml) || 250;\n\nif (amountMl < 1 || amountMl > 10000) {\n  throw new Error('Water amount must be between 1 and 10000 ml');\n}\n\nreturn {\n  amount_ml: amountMl,\n  source: input.source || 'ios'\n};"
+      },
+      "id": "parse-input",
+      "name": "Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO nutrition.water_log (date, amount_ml, source)\nVALUES (\n  (NOW() AT TIME ZONE 'Asia/Dubai')::date,\n  {{ $json.amount_ml }},\n  '{{ $json.source }}'\n)\nRETURNING id, date, amount_ml;",
+        "options": {}
+      },
+      "id": "insert-water",
+      "name": "Insert Water Log",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(SUM(amount_ml), 0) as total_water_ml\nFROM nutrition.water_log\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date;",
+        "options": {}
+      },
+      "id": "get-daily-total",
+      "name": "Get Daily Total",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"data\": {\n    \"id\": {{ $('Insert Water Log').item.json.id }},\n    \"amount_ml\": {{ $('Insert Water Log').item.json.amount_ml }},\n    \"total_water_ml\": {{ $json.total_water_ml }}\n  }\n}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1120, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Water Log Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate": {
+      "main": [
+        [
+          {
+            "node": "Insert Water Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Water Log": {
+      "main": [
+        [
+          {
+            "node": "Get Daily Total",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Daily Total": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
+}

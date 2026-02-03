@@ -45,6 +45,14 @@ class NexusAPI: ObservableObject {
         return try await get("/webhook/nexus-food-search?barcode=\(barcode)")
     }
 
+    func fetchNutritionHistory(date: String? = nil) async throws -> NutritionHistoryResponse {
+        var endpoint = "/webhook/nexus-nutrition-history"
+        if let date = date {
+            endpoint += "?date=\(date)"
+        }
+        return try await get(endpoint)
+    }
+
     /// Logs water intake in milliliters
     ///
     /// - Parameter amountML: Amount of water in milliliters (1-10,000)

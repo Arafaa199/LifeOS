@@ -180,7 +180,7 @@ enum ValidationError: LocalizedError {
     case invalidWaterAmount
     case invalidWeight
     case invalidMoodOrEnergy
-    
+
     var errorDescription: String? {
         switch self {
         case .invalidWaterAmount:
@@ -191,9 +191,110 @@ enum ValidationError: LocalizedError {
             return "Mood and energy must be between 1 and 10"
         }
     }
-    
+
     var recoverySuggestion: String? {
         "Please enter a valid value and try again"
     }
+}
+
+// MARK: - Nutrition History Models
+
+struct NutritionHistoryResponse: Codable, Sendable {
+    let success: Bool
+    let date: String
+    let food_log: [FoodLogEntry]
+    let water_log: [WaterLogEntry]
+    let totals: NutritionTotals
+}
+
+struct FoodLogEntry: Codable, Identifiable, Sendable {
+    let id: Int
+    let description: String?
+    let meal_time: String?
+    let calories: Int?
+    let protein_g: Double?
+    let carbs_g: Double?
+    let fat_g: Double?
+    let source: String?
+    let confidence: String?
+    let logged_at: String?
+
+    var mealTypeDisplay: String {
+        guard let mealTime = meal_time else { return "Snack" }
+        return mealTime.capitalized
+    }
+
+    var sourceIcon: String {
+        guard let source = source?.lowercased() else { return "pencil" }
+        if source.contains("voice") { return "mic.fill" }
+        if source.contains("photo") { return "camera.fill" }
+        if source.contains("barcode") { return "barcode.viewfinder" }
+        return "pencil"
+    }
+
+    var formattedTime: String {
+        guard let loggedAt = logged_at else { return "" }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: loggedAt) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: date)
+        }
+        // Try without fractional seconds
+        iso.formatOptions = [.withInternetDateTime]
+        if let date = iso.date(from: loggedAt) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: date)
+        }
+        return ""
+    }
+}
+
+struct WaterLogEntry: Codable, Identifiable, Sendable {
+    let id: Int
+    let amount_ml: Int
+    let logged_at: String?
+
+    var formattedTime: String {
+        guard let loggedAt = logged_at else { return "" }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: loggedAt) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: date)
+        }
+        iso.formatOptions = [.withInternetDateTime]
+        if let date = iso.date(from: loggedAt) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: date)
+        }
+        return ""
+    }
+}
+
+struct NutritionTotals: Codable, Sendable {
+    let calories: Int
+    let protein_g: Double
+    let carbs_g: Double
+    let fat_g: Double
+    let water_ml: Int
+    let meals_logged: Int
+}
+
+// MARK: - Water Log Response
+
+struct WaterLogResponse: Codable, Sendable {
+    let success: Bool
+    let data: WaterLogData?
+}
+
+struct WaterLogData: Codable, Sendable {
+    let id: Int?
+    let amount_ml: Int?
+    let total_water_ml: Int?
 }
 

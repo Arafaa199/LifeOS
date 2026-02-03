@@ -32,6 +32,11 @@ struct TodayView: View {
                         // Top state: Recovery + Budget
                         stateCard
 
+                        // Nutrition card (if data exists)
+                        if hasNutritionData {
+                            nutritionCard
+                        }
+
                         // Insights feed
                         insightsFeed
                     }
@@ -394,6 +399,66 @@ struct TodayView: View {
         case "high": return .green
         case "medium": return .orange
         default: return .secondary
+        }
+    }
+
+    // MARK: - Nutrition Card
+
+    private var hasNutritionData: Bool {
+        let facts = viewModel.dashboardPayload?.todayFacts
+        return (facts?.mealsLogged ?? 0) > 0 || (facts?.waterMl ?? 0) > 0
+    }
+
+    private var nutritionCard: some View {
+        NavigationLink(destination: NutritionHistoryView()) {
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Nutrition")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                HStack(spacing: 16) {
+                    if let calories = viewModel.dashboardPayload?.todayFacts?.caloriesConsumed, calories > 0 {
+                        nutritionItem(value: "\(calories)", label: "cal", icon: "flame.fill", color: .orange)
+                    }
+
+                    if let meals = viewModel.dashboardPayload?.todayFacts?.mealsLogged, meals > 0 {
+                        nutritionItem(value: "\(meals)", label: "meals", icon: "fork.knife", color: .green)
+                    }
+
+                    if let water = viewModel.dashboardPayload?.todayFacts?.waterMl, water > 0 {
+                        nutritionItem(value: "\(water)", label: "ml", icon: "drop.fill", color: .blue)
+                    }
+
+                    Spacer()
+                }
+            }
+            .padding(16)
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func nutritionItem(value: String, label: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(color)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.primary)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 

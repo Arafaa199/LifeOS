@@ -133,13 +133,14 @@ struct QuickLogView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                NexusQuickActionButton(
-                    title: "Water",
-                    icon: "drop.fill",
-                    color: .nexusWater
-                ) {
-                    logQuick("1 glass of water")
+                NavigationLink(destination: WaterLogView()) {
+                    NexusQuickActionCard(
+                        title: "Water",
+                        icon: "drop.fill",
+                        color: .nexusWater
+                    )
                 }
+                .buttonStyle(PlainButtonStyle())
 
                 NexusQuickActionButton(
                     title: "Coffee",
