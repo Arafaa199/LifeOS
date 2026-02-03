@@ -298,3 +298,55 @@ struct WaterLogData: Codable, Sendable {
     let total_water_ml: Int?
 }
 
+// MARK: - Fasting Response
+
+struct FastingResponse: Codable, Sendable {
+    let success: Bool?
+    let sessionId: Int?
+    let startedAt: String?
+    let durationHours: Double?
+    let isActive: Bool?
+    let elapsedHours: Double?
+    let error: String?
+
+    // Handle nested result from Postgres function
+    let result: FastingResult?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case sessionId = "session_id"
+        case startedAt = "started_at"
+        case durationHours = "duration_hours"
+        case isActive = "is_active"
+        case elapsedHours = "elapsed_hours"
+        case error
+        case result
+    }
+
+    // Convenience to get values from either top-level or result
+    var effectiveSuccess: Bool { success ?? result?.success ?? false }
+    var effectiveSessionId: Int? { sessionId ?? result?.sessionId }
+    var effectiveElapsedHours: Double? { elapsedHours ?? result?.elapsedHours }
+    var effectiveDurationHours: Double? { durationHours ?? result?.durationHours }
+}
+
+struct FastingResult: Codable, Sendable {
+    let success: Bool?
+    let sessionId: Int?
+    let startedAt: String?
+    let durationHours: Double?
+    let isActive: Bool?
+    let elapsedHours: Double?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case sessionId = "session_id"
+        case startedAt = "started_at"
+        case durationHours = "duration_hours"
+        case isActive = "is_active"
+        case elapsedHours = "elapsed_hours"
+        case error
+    }
+}
+

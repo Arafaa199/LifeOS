@@ -5,6 +5,7 @@ import SwiftUI
 struct TodayView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @State private var isFastingLoading = false
 
     var body: some View {
         NavigationView {
@@ -36,6 +37,9 @@ struct TodayView: View {
                         if hasNutritionData {
                             nutritionCard
                         }
+
+                        // Fasting card
+                        fastingCard
 
                         // Insights feed
                         insightsFeed
@@ -459,6 +463,76 @@ struct TodayView: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
+        }
+    }
+
+    // MARK: - Fasting Card
+
+    private var fastingCard: some View {
+        let fasting = viewModel.dashboardPayload?.fasting
+
+        return HStack(spacing: 12) {
+            // Timer icon
+            Image(systemName: fasting?.isActive == true ? "timer" : "timer.circle")
+                .font(.title2)
+                .foregroundColor(fasting?.isActive == true ? .orange : .secondary)
+                .symbolEffect(.pulse, isActive: fasting?.isActive == true)
+
+            // Status text
+            VStack(alignment: .leading, spacing: 2) {
+                if fasting?.isActive == true {
+                    Text(fasting?.elapsedFormatted ?? "--:--")
+                        .font(.headline.monospacedDigit())
+                        .foregroundColor(.primary)
+                    Text("Fasting")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Not fasting")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            // Action button
+            Button {
+                toggleFasting()
+            } label: {
+                Text(fasting?.isActive == true ? "Break" : "Start")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(fasting?.isActive == true ? Color.orange : Color.accentColor)
+                    .cornerRadius(8)
+            }
+            .disabled(isFastingLoading)
+            .opacity(isFastingLoading ? 0.6 : 1)
+        }
+        .padding(16)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .cornerRadius(12)
+    }
+
+    private func toggleFasting() {
+        let isActive = viewModel.dashboardPayload?.fasting?.isActive == true
+        isFastingLoading = true
+
+        Task {
+            do {
+                if isActive {
+                    _ = try await NexusAPI.shared.breakFast()
+                } else {
+                    _ = try await NexusAPI.shared.startFast()
+                }
+                // Refresh dashboard to get updated fasting status
+                await viewModel.refresh()
+            } catch {
+                // Silently fail - not critical
+            }
+            isFastingLoading = false
         }
     }
 

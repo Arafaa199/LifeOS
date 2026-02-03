@@ -53,6 +53,22 @@ class NexusAPI: ObservableObject {
         return try await get(endpoint)
     }
 
+    // MARK: - Fasting
+
+    func startFast() async throws -> FastingResponse {
+        struct EmptyBody: Encodable {}
+        return try await post("/webhook/nexus-fast-start", body: EmptyBody())
+    }
+
+    func breakFast() async throws -> FastingResponse {
+        struct EmptyBody: Encodable {}
+        return try await post("/webhook/nexus-fast-break", body: EmptyBody())
+    }
+
+    func getFastingStatus() async throws -> FastingResponse {
+        return try await get("/webhook/nexus-fast-status")
+    }
+
     /// Logs water intake in milliliters
     ///
     /// - Parameter amountML: Amount of water in milliliters (1-10,000)

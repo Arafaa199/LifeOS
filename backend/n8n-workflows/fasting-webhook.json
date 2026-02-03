@@ -1,0 +1,155 @@
+{
+  "name": "Fasting Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-fast-start",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "start-webhook",
+      "name": "Start Fast Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 200],
+      "webhookId": "nexus-fast-start"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-fast-break",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "break-webhook",
+      "name": "Break Fast Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "nexus-fast-break"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-fast-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "status-webhook",
+      "name": "Fasting Status Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 600],
+      "webhookId": "nexus-fast-status"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT health.start_fast() AS result;",
+        "options": {}
+      },
+      "id": "start-fast-db",
+      "name": "Start Fast",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 200],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT health.break_fast() AS result;",
+        "options": {}
+      },
+      "id": "break-fast-db",
+      "name": "Break Fast",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 400],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT health.get_fasting_status() AS result;",
+        "options": {}
+      },
+      "id": "status-db",
+      "name": "Get Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 600],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "start-respond",
+      "name": "Respond Start",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "break-respond",
+      "name": "Respond Break",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "status-respond",
+      "name": "Respond Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 600]
+    }
+  ],
+  "connections": {
+    "Start Fast Webhook": {
+      "main": [[{"node": "Start Fast", "type": "main", "index": 0}]]
+    },
+    "Break Fast Webhook": {
+      "main": [[{"node": "Break Fast", "type": "main", "index": 0}]]
+    },
+    "Fasting Status Webhook": {
+      "main": [[{"node": "Get Status", "type": "main", "index": 0}]]
+    },
+    "Start Fast": {
+      "main": [[{"node": "Respond Start", "type": "main", "index": 0}]]
+    },
+    "Break Fast": {
+      "main": [[{"node": "Respond Break", "type": "main", "index": 0}]]
+    },
+    "Get Status": {
+      "main": [[{"node": "Respond Status", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

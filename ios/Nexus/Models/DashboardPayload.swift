@@ -17,6 +17,7 @@ struct DashboardPayload: Codable {
     let githubActivity: GitHubActivityWidget?
     let calendarSummary: CalendarSummary?
     let reminderSummary: ReminderSummary?
+    let fasting: FastingStatus?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -31,6 +32,7 @@ struct DashboardPayload: Codable {
         case githubActivity = "github_activity"
         case calendarSummary = "calendar_summary"
         case reminderSummary = "reminder_summary"
+        case fasting
     }
 }
 
@@ -547,6 +549,35 @@ struct ReminderSummary: Codable {
         case dueToday = "due_today"
         case completedToday = "completed_today"
         case overdueCount = "overdue_count"
+    }
+}
+
+// MARK: - Fasting Status
+
+struct FastingStatus: Codable {
+    let isActive: Bool
+    let sessionId: Int?
+    let startedAt: String?
+    let elapsedHours: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case isActive = "is_active"
+        case sessionId = "session_id"
+        case startedAt = "started_at"
+        case elapsedHours = "elapsed_hours"
+    }
+
+    var elapsedFormatted: String {
+        guard let hours = elapsedHours else { return "--:--" }
+        let totalMinutes = Int(hours * 60)
+        let h = totalMinutes / 60
+        let m = totalMinutes % 60
+        return String(format: "%d:%02d", h, m)
+    }
+
+    var startedAtDate: Date? {
+        guard let startedAt else { return nil }
+        return DomainFreshness.parseTimestamp(startedAt)
     }
 }
 
