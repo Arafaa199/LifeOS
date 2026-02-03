@@ -32,7 +32,8 @@ struct HealthTrendsView: View {
                         Spacer()
                     }
                     .padding(.horizontal, 4)
-                } else if let lastUpdated = viewModel.lastUpdated {
+                } else if let lastUpdated = viewModel.lastUpdated,
+                          Date().timeIntervalSince(lastUpdated) > 300 || viewModel.dataSource == .cache {
                     freshnessIndicator(lastUpdated: lastUpdated, source: viewModel.dataSource)
                 }
 

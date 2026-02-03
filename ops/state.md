@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-02T02:00:00+04:00
+Last updated: 2026-02-04T15:45:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -10,8 +10,8 @@ Control Mode: Autonomous (Human-in-the-loop on alerts only)
 **System Version:** Operational v1
 **Operational Start Date:** 2026-01-25
 **TRUST-LOCKIN:** PASSED (verified 2026-01-25T16:02+04)
-**Coder:** ENABLED (queue restocked 2026-02-01 — FEAT.4-10: Reminders integration, Calendar improvements, Productivity correlations)
-**Auditor:** ENABLED (reviewing new feature work)
+**Coder:** ENABLED (queue restocked 2026-02-04 — FEAT.11-17: Siri Shortcuts, HealthKit Medications, View Decomposition, Unit Tests, Streaks, Fasting Timer)
+**Auditor:** STANDBY (will review new feature work)
 
 ### Current State
 - Finance ingestion validated and complete
@@ -156,6 +156,12 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-PIPE.4: Fix HRV Precision Loss | DONE | Migration 127: Widened 4 HRV columns from NUMERIC(5,1) to NUMERIC(6,2) — `raw.whoop_cycles.hrv`, `normalized.daily_recovery.hrv`, `facts.daily_health.hrv`, `facts.daily_summary.hrv`. Dropped/recreated `facts.v_daily_health_timeseries` (view dependency). Re-triggered propagation + rebuilt facts for all 12 dates. Before: 116.26→116.3 (precision loss). After: 116.26→116.26 (exact match). Parity check: 0 mismatches across full 5-table chain. Down migration tested. 2 files changed. Commit `4c95e2f`. |
 | TASK-PIPE.5: Disable Coder and Signal Auditor Shutdown | DONE | All PIPE.1-4 pipeline fixes complete. Moved coder `.enabled` file to Trash (coder disabled). Created `auditor/.shutdown-after-audit` flag (auditor will shut down after next review cycle). macOS notification sent. Verified: coder `.enabled` absent, auditor shutdown flag present. 0 files changed (ops-only task). |
 
+### Recent (Feb 4)
+| Task | Status | Summary |
+|------|--------|---------|
+| TASK-FEAT.12: HealthKit Medications | DONE | Migration 140: Created `health.medications` table with idempotency on (medication_id, scheduled_date, scheduled_time, source). Added `health.v_daily_medications` view, `medications_today` to dashboard.get_payload() (schema v9→v10), feed status entry (48h interval). iOS: Added MedicationsSummary/MedicationDose Codable structs to DashboardPayload, MedicationDose struct + fetchMedicationDoses() to HealthKitManager (iOS 18+), syncMedications() to HealthKitSyncService wired into syncAllData(). Created medications-batch-webhook.json (n8n). 6 files changed (+672). iOS build: BUILD SUCCEEDED. Commit `9f32adb`. Note: n8n workflow must be imported and activated. |
+| TASK-FEAT.11: Siri Shortcuts | DONE | Added 5 new App Intents (LogMoodIntent, LogWeightIntent, StartFastIntent, BreakFastIntent, enhanced LogWaterIntent) to `WidgetIntents.swift`. Updated `NexusAppShortcuts` provider with 7 total shortcuts. Replaced placeholder `SiriShortcutsView` with phrase examples UI. All intents use `ProvidesDialog` for confirmation, `openAppWhenRun: Bool = false` for background execution. 2 files changed (+315/-24). iOS build: BUILD SUCCEEDED. Commit `7a78eae`. |
+
 ### Recent (Feb 1)
 | Task | Status | Summary |
 |------|--------|---------|
@@ -284,64 +290,36 @@ ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c \"SELECT day, spend_to
 
 ---
 
-## Auditor Planning Mode (2026-01-31)
+## iOS ARCHITECTURAL IMPROVEMENTS (Completed 2026-02-03)
 
-## Planning Rationale
+### Summary
+Comprehensive iOS architecture audit completed across 3 phases. All critical issues resolved.
 
-### Why these tasks were chosen
+### Phase 1: ViewModel Lifecycle (COMPLETE)
+- **FinanceView ViewModel leak** — Fixed by owning ViewModel in FinanceView instead of FinancePlanningView
+- **API calls in Views** — Moved from HealthView, FinanceView to ViewModels
+- **SyncCoordinator subscriptions** — Added domain-specific Combine publishers
 
-1. **TASK-PLAN.1 (Feed Status Thresholds)** — Highest impact, lowest effort. The dashboard currently shows 5 feeds as "error" and 3 as "stale" — most are false alarms from uniform 1-hour thresholds applied to feeds that update on 6-hour, daily, or event-driven schedules. This directly degrades user trust in the system. Single SQL migration, no iOS changes needed.
+### Phase 2: Data Flow (COMPLETE)
+- **DashboardViewModel polling** — Replaced Task.sleep loop with Combine subscription to coordinator
+- **Dead code removal** — Deleted FinanceViewRedesign.swift, HealthViewRedesign.swift (unused)
+- **NetworkConfig singleton** — Centralized URL/timeout configuration
 
-2. **TASK-PLAN.2 (facts.daily_finance)** — 0 rows in a table that already has refresh functions built. Just needs to be wired into the nightly pipeline. Unlocks per-category historical spending queries and future trend widgets.
+### Phase 3: Testability (COMPLETE)
+- **Dependency Injection** — Added DI to ViewModels via init parameters
+- **APIClientProtocol** — Exists in NexusAPI.swift, MockAPIClient ready for tests
 
-3. **TASK-PLAN.3 (GitHub in Dashboard Payload)** — The backend function already exists (TASK-FEAT.1, 8.3ms). It just needs to be added to the existing payload function. One SQL migration.
-
-4. **TASK-PLAN.4 (iOS GitHub Model)** — Direct follow-on to PLAN.3. Add the Codable struct so the data is available to SwiftUI views. TodayView is frozen, but the data needs to be decodable first before any view can use it.
-
-5. **TASK-PLAN.5 (HealthKit → daily_health)** — 1051 HealthKit samples exist but aren't surfaced in daily facts. Steps and weight from HealthKit should complement WHOOP recovery/sleep/strain. Makes the health dashboard more complete.
-
-6. **TASK-PLAN.6 (Category Velocity Insights)** — The `mv_category_velocity` materialized view already exists and is refreshed nightly. Surfacing it in insights costs one SQL addition and gives the user actionable spending trend alerts.
-
-7. **TASK-PLAN.7 (Feed Counter Reset)** — Simple wiring task. The `reset_feed_events_today()` function exists but isn't called. Without it, `events_today` accumulates across days, making the count meaningless.
-
-8. **TASK-PLAN.8 (Health Timeseries Backfill)** — The health timeseries endpoint exists but `facts.daily_health` only has 30 rows despite more raw data being available. Backfill unlocks richer trend charts.
-
-### What was deliberately excluded
-
-- **iOS TodayView changes** — TodayView is frozen. Didn't generate tasks to add widgets there.
-- **Screen Time Integration** — Deferred per roadmap (needs App Store submission).
-- **New HealthKit sync improvements** — Current sync works; 1051 rows flowing. Not broken, just stale sometimes due to user not opening app.
-- **SMS/Receipt parsing changes** — Frozen pipelines.
-- **Weekly insights email enhancement** — Roadmap item but lower priority than fixing false-alarm feed status and wiring existing unused data.
-- **New n8n workflows** — Focused on wiring existing data/functions rather than building new ingestion.
-- **Behavioral/location pipeline fixes** — These require Home Assistant automations (external system), not code changes.
+### Remaining Tech Debt (P2/P3)
+- TodayView (658 lines) — Extract cards → TASK-FEAT.13
+- SettingsView (774 lines) — Extract sections → TASK-FEAT.14
+- Unit tests foundation → TASK-FEAT.15
 
 ---
 
-## Auditor Planning Mode (2026-02-01)
+## AUDITOR PLANNING HISTORY
 
-## Planning Rationale
+**2026-01-31 Cycle:** 8 PLAN tasks (Feed Status Thresholds, daily_finance, GitHub payload, iOS models, HealthKit daily_health, Category Velocity, Feed Counter Reset, Health Backfill) — ALL COMPLETE
 
-### Why these tasks were chosen
+**2026-02-01 Cycle:** 8 PLAN tasks (Calendar error feedback, SQL sanitization, daily_finance rewrite, GitHub iOS view, Transaction sanitization, GitHub feed threshold, Reminder error attribution, TodayView doc comment) — ALL COMPLETE
 
-1. **TASK-PLAN.1 (CalendarViewModel Silent Failure)** — Highest impact for lowest effort. 2-line fix directly from auditor finding. Users currently see empty calendar with zero feedback on API failure. This is a UX bug that erodes trust.
-
-2. **TASK-PLAN.2 (Calendar Webhook SQL Sanitization)** — Security fix for read-only endpoint. While blast radius is limited (SELECT only), data exfiltration via UNION injection is possible. Simple Code node addition with date regex validation.
-
-3. **TASK-PLAN.3 (Unblock facts.daily_finance)** — This was BLOCKED in the previous planning cycle because `facts.refresh_daily_finance()` reads from `normalized.transactions` (0 rows). The fix is to rewrite it to read from `finance.transactions` (1366 rows). This unblocks PLAN.6 from the previous cycle (category velocity insights) and enables per-category spending analysis.
-
-4. **TASK-PLAN.4 (GitHub Activity iOS View)** — The backend sends github_activity data, iOS decodes it (done in previous PLAN.4), but no view displays it. This is "last mile" wiring — all the data infrastructure exists, just needs a SwiftUI view. Delivers user-visible value from work already completed.
-
-5. **TASK-PLAN.5 (Transaction Update SQL Sanitization)** — Higher risk than calendar endpoint because this is a WRITE operation. Marked `needs_approval` because it modifies an existing workflow that handles financial data, and both standard and with-auth versions need coordinated changes.
-
-6. **TASK-PLAN.6 (GitHub Feed Status)** — GitHub shows `error` in feed status (5 days stale). Either the sync workflow stopped or the threshold is wrong. Low effort diagnostic + fix that removes a false alarm from the dashboard.
-
-### What was deliberately excluded
-
-- **iOS TodayView modifications** — Frozen. Can't add GitHub/calendar widgets there.
-- **Category velocity insights (prev PLAN.6)** — Still blocked until PLAN.3 populates `facts.daily_finance`.
-- **Weekly insights email** — Lower priority than security fixes and data wiring.
-- **Screen time integration** — Deferred per roadmap (needs App Store).
-- **Behavioral/location pipeline** — Requires Home Assistant (external system).
-- **New data sources** — Focus is on wiring existing data (GitHub, calendar, finance categories) into user-visible surfaces.
-- **HealthKit sync improvements** — Working fine (1187 samples), no action needed.
+**2026-02-02 Cycle:** 5 PIPE tasks (WHOOP trigger events, Normalized backfill, Raw dedup, HRV precision, Coder shutdown) — ALL COMPLETE. 7 FEAT tasks (Reminders sync, Reminders GET, Calendar month, Calendar correlation, Reminder facts, Calendar background, Weekly email) — ALL COMPLETE

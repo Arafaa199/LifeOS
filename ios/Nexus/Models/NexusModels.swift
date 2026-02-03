@@ -30,8 +30,45 @@ struct FoodSearchResult: Codable, Identifiable, Sendable {
     let serving_size_g: Double?
     let serving_description: String?
     let category: String?
-    let data_quality: String?
+    let data_quality: Int?
     let relevance: Double?
+
+    // Custom decoder to handle API returning strings for numeric fields
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        fdc_id = try container.decodeIfPresent(Int.self, forKey: .fdc_id)
+        barcode = try container.decodeIfPresent(String.self, forKey: .barcode)
+        name = try container.decode(String.self, forKey: .name)
+        brand = try container.decodeIfPresent(String.self, forKey: .brand)
+        source = try container.decodeIfPresent(String.self, forKey: .source)
+        calories_per_100g = Self.decodeFlexibleDouble(container, forKey: .calories_per_100g)
+        protein_per_100g = Self.decodeFlexibleDouble(container, forKey: .protein_per_100g)
+        carbs_per_100g = Self.decodeFlexibleDouble(container, forKey: .carbs_per_100g)
+        fat_per_100g = Self.decodeFlexibleDouble(container, forKey: .fat_per_100g)
+        fiber_per_100g = Self.decodeFlexibleDouble(container, forKey: .fiber_per_100g)
+        serving_size_g = Self.decodeFlexibleDouble(container, forKey: .serving_size_g)
+        serving_description = try container.decodeIfPresent(String.self, forKey: .serving_description)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        data_quality = try container.decodeIfPresent(Int.self, forKey: .data_quality)
+        relevance = Self.decodeFlexibleDouble(container, forKey: .relevance)
+    }
+
+    private static func decodeFlexibleDouble(_ container: KeyedDecodingContainer<CodingKeys>, forKey key: CodingKeys) -> Double? {
+        if let doubleValue = try? container.decodeIfPresent(Double.self, forKey: key) {
+            return doubleValue
+        }
+        if let stringValue = try? container.decodeIfPresent(String.self, forKey: key) {
+            return Double(stringValue)
+        }
+        return nil
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, fdc_id, barcode, name, brand, source
+        case calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fiber_per_100g
+        case serving_size_g, serving_description, category, data_quality, relevance
+    }
 }
 
 struct FoodSearchResponse: Codable, Sendable {

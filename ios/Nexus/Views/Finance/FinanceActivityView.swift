@@ -76,7 +76,8 @@ struct FinanceActivityView: View {
                         Text(freshness.syncTimeLabel)
                             .font(.caption)
                             .foregroundColor(freshness.isStale ? .orange : .secondary)
-                    } else if let lastUpdated = viewModel.lastUpdated {
+                    } else if let lastUpdated = viewModel.lastUpdated,
+                              Date().timeIntervalSince(lastUpdated) > 300 || viewModel.isOffline {
                         Circle()
                             .fill(viewModel.isOffline ? Color.orange : Color.green)
                             .frame(width: 6, height: 6)

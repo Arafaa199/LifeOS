@@ -121,8 +121,9 @@ struct FinanceOverviewView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Freshness indicator
-                if let lastUpdated = viewModel.lastUpdated {
+                // Freshness indicator - only show if stale (>5 min) or offline
+                if let lastUpdated = viewModel.lastUpdated,
+                   Date().timeIntervalSince(lastUpdated) > 300 || viewModel.isOffline {
                     financeFreshnessIndicator(lastUpdated: lastUpdated, isOffline: viewModel.isOffline)
                 }
 

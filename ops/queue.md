@@ -1381,6 +1381,303 @@ Depends: PIPE.4
 
 ---
 
+## ACTIVE FEATURE TASKS (Added 2026-02-04)
+
+### TASK-FEAT.11: Siri Shortcuts for Universal Logging
+Priority: P1 (High Leverage)
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** Enable "Hey Siri, log mood 7" or "Hey Siri, start my fast" from anywhere without opening app. Uses App Intents framework (iOS 17+).
+
+**Intents Implemented:**
+| Intent | Example Phrase | API Call |
+|--------|----------------|----------|
+| LogWaterIntent | "Log water in Nexus" | `NexusAPI.shared.logWater(amountML:)` |
+| LogMoodIntent | "Log mood in Nexus" | `NexusAPI.shared.logMood(mood:energy:)` |
+| LogWeightIntent | "Log weight in Nexus" | `NexusAPI.shared.logWeight(kg:)` |
+| StartFastIntent | "Start my fast in Nexus" | `NexusAPI.shared.startFast()` |
+| BreakFastIntent | "Break my fast in Nexus" | `NexusAPI.shared.breakFast()` |
+| LogFoodIntent | "Log food in Nexus" | `NexusAPI.shared.logFood(_:)` (pre-existing) |
+| UniversalLogIntent | "Log to Nexus" | `NexusAPI.shared.logUniversal(_:)` (pre-existing) |
+
+**Files Changed:**
+- `ios/Nexus/Widgets/WidgetIntents.swift` — Added LogMoodIntent, LogWeightIntent, StartFastIntent, BreakFastIntent; enhanced LogWaterIntent with validation + ProvidesDialog; updated NexusAppShortcuts provider with 7 shortcuts
+- `ios/Nexus/Views/SettingsView.swift` — Replaced placeholder SiriShortcutsView with phrase examples UI
+
+**Implementation Notes:**
+- Extended existing `WidgetIntents.swift` (LogWaterIntent, LogFoodIntent, UniversalLogIntent already existed)
+- All new intents have `static var openAppWhenRun: Bool = false` for background execution
+- All intents return `ProvidesDialog` with confirmation messages
+- Parameter validation in `perform()` method with user-friendly error messages
+
+**Verification:**
+- [x] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+- [x] `appintentsmetadataprocessor` ran and wrote `Metadata.appintents`
+- [ ] Device test pending (requires physical device with Siri)
+
+**Commit:** `7a78eae`
+
+**Done Means:** User can log water, mood, weight, and control fasting via Siri without opening app.
+
+---
+
+### TASK-FEAT.12: HealthKit Medications Integration
+Priority: P1
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** Pull medication/supplement adherence from Apple Health (iOS 18+ HKMedicationDoseEvent) and surface in dashboard.
+
+**Files Created:**
+- `backend/migrations/140_medications_tracking.up.sql`
+- `backend/migrations/140_medications_tracking.down.sql`
+- `backend/n8n-workflows/medications-batch-webhook.json`
+
+**Files Modified:**
+- `ios/Nexus/Services/HealthKitManager.swift` — Added MedicationDose struct, requestMedicationAuthorization(), fetchMedicationDoses()
+- `ios/Nexus/Services/HealthKitSyncService.swift` — Added syncMedications(), wired into syncAllData() (iOS 18+ check)
+- `ios/Nexus/Models/DashboardPayload.swift` — Added MedicationsSummary, MedicationDose structs
+
+**Database Changes:**
+- `health.medications` table with idempotency on (medication_id, scheduled_date, scheduled_time, source)
+- `health.v_daily_medications` view for adherence summaries
+- `medications_today` added to dashboard.get_payload() (schema v9 → v10)
+- Feed status entry added (48h expected_interval)
+
+**Verification:**
+- [x] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+- [x] `SELECT (dashboard.get_payload())->'medications_today';` → returns JSON with due_today, taken_today, adherence_pct
+- [x] Schema version = 10
+
+**Commit:** `9f32adb`
+
+**Note:** n8n workflow (`medications-batch-webhook.json`) must be imported and activated for data to flow. iOS 18+ required for HealthKit medications API.
+
+**Done Means:** Medication adherence tracked alongside other health metrics in dashboard.
+
+---
+
+### TASK-FEAT.13: View Decomposition — TodayView
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+Estimated Effort: 1-2 coder runs
+
+**Objective:** TodayView.swift is 658 lines — too large to maintain. Extract into focused card components.
+
+**Extract into:**
+| New File | Lines to Extract | Description |
+|----------|------------------|-------------|
+| `Dashboard/Cards/RecoveryCardView.swift` | ~50-100 | Recovery ring, HRV, RHR display |
+| `Dashboard/Cards/BudgetCardView.swift` | ~40-80 | Daily spend, budget progress |
+| `Dashboard/Cards/NutritionCardView.swift` | ~60-100 | Calories, protein, water progress |
+| `Dashboard/Cards/FastingCardView.swift` | ~40-70 | Fasting timer, start/break buttons |
+| `Dashboard/Cards/InsightsFeedView.swift` | ~50-80 | Ranked insights list |
+
+**Rules:**
+- Each extracted view takes only the data it needs as parameters (not full ViewModel)
+- Use `@Binding` for mutable state, plain parameters for read-only
+- TodayView becomes a composition of these cards
+- Final TodayView should be <150 lines
+
+**Pattern:**
+```swift
+// RecoveryCardView.swift
+struct RecoveryCardView: View {
+    let recoveryScore: Int?
+    let hrv: Double?
+    let rhr: Int?
+
+    var body: some View {
+        // ... extracted UI code
+    }
+}
+
+// TodayView.swift
+RecoveryCardView(
+    recoveryScore: viewModel.recoveryMetrics?.recoveryScore,
+    hrv: viewModel.recoveryMetrics?.hrv,
+    rhr: viewModel.recoveryMetrics?.rhr
+)
+```
+
+**Verification:**
+```bash
+xcodebuild -scheme Nexus build
+# Visual: TodayView looks identical before/after
+wc -l ios/Nexus/Views/Dashboard/TodayView.swift
+# Should be < 150 lines
+```
+
+**Done Means:** TodayView is <150 lines, composed of 5 focused card components. UI identical.
+
+---
+
+### TASK-FEAT.14: View Decomposition — SettingsView
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+Estimated Effort: 1-2 coder runs
+
+**Objective:** SettingsView.swift is 774 lines. Extract into focused section components.
+
+**Extract into:**
+| New File | Section | Description |
+|----------|---------|-------------|
+| `Settings/SyncCenterView.swift` | Sync Center | Domain sync states, manual refresh buttons |
+| `Settings/PipelineHealthView.swift` | Pipeline Health | Feed status, data freshness indicators |
+| `Settings/ConfigurationView.swift` | Configuration | API key, notification settings, toggles |
+| `Settings/DeveloperPanelView.swift` | Developer | Debug view link, cache clear, version info |
+
+**Pattern:** Same as FEAT.13 — extract into focused components, SettingsView becomes composition.
+
+**Verification:**
+```bash
+xcodebuild -scheme Nexus build
+wc -l ios/Nexus/Views/SettingsView.swift
+# Should be < 200 lines
+```
+
+**Done Means:** SettingsView is <200 lines, composed of 4 focused section components. UI identical.
+
+---
+
+### TASK-FEAT.15: Unit Tests Foundation
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+Estimated Effort: 2-3 coder runs
+
+**Objective:** Establish unit test infrastructure and add foundational tests for critical services.
+
+**Existing Infrastructure:**
+- `APIClientProtocol` exists in `ios/Nexus/Services/NexusAPI.swift`
+- `MockAPIClient` exists but unused
+- ViewModels now have DI via init parameters (added in previous session)
+
+**Tests to Add:**
+
+**File:** `ios/NexusTests/OfflineQueueTests.swift`
+```swift
+// Test: Queued items preserve clientId across retries
+// Test: Processing flag prevents concurrent processing
+// Test: Network errors trigger retry, auth errors don't
+// Test: Queue persists across app restart
+```
+
+**File:** `ios/NexusTests/FinanceViewModelTests.swift`
+```swift
+// Test: Duplicate detection flags matching transactions
+// Test: Recurring pattern detection identifies subscriptions
+// Test: Category assignment follows merchant rules
+```
+
+**File:** `ios/NexusTests/DashboardViewModelTests.swift`
+```swift
+// Test: Loads from cache on init
+// Test: Subscribes to coordinator updates
+// Test: startFast/breakFast call API correctly
+// Test: Error state set on API failure
+```
+
+**Setup Required:**
+1. Create `ios/NexusTests/` target if not exists
+2. Add test target to Xcode project
+3. Configure MockAPIClient to return test fixtures
+
+**Verification:**
+```bash
+xcodebuild -scheme Nexus test -destination 'platform=iOS Simulator,name=iPhone 15'
+# All tests pass
+```
+
+**Done Means:** 12+ unit tests passing for OfflineQueue, FinanceViewModel, DashboardViewModel.
+
+---
+
+### TASK-FEAT.16: Streak Tracking Widget
+Priority: P3
+Owner: coder
+Status: READY
+Lane: safe_auto
+Estimated Effort: 1 coder run
+
+**Objective:** Track consecutive days of logging (meals, water, weight, mood) to gamify consistency.
+
+**Backend:**
+```sql
+-- Create function in migration
+CREATE OR REPLACE FUNCTION life.get_streaks()
+RETURNS jsonb AS $$
+-- Returns: { water_streak: N, meal_streak: N, weight_streak: N, mood_streak: N, best_overall: N }
+-- Streak = consecutive days where metric > 0
+$$;
+```
+
+**Dashboard Integration:**
+- Add `streaks` key to `dashboard.get_payload()`
+
+**iOS:**
+- Add streak badges to TodayView (after decomposition) or dedicated widget
+
+**Verification:**
+```sql
+SELECT life.get_streaks();
+SELECT (dashboard.get_payload())->'streaks';
+```
+
+**Done Means:** User sees current streaks for each tracking domain in dashboard.
+
+---
+
+### TASK-FEAT.17: Fasting Timer Display
+Priority: P3
+Owner: coder
+Status: READY
+Lane: safe_auto
+Estimated Effort: 1 coder run
+
+**Objective:** Show elapsed time since last food_log entry. Useful for intermittent fasting tracking.
+
+**Backend:**
+```sql
+-- Add to dashboard.get_payload()
+'fasting_hours', EXTRACT(EPOCH FROM (NOW() - (
+    SELECT MAX(logged_at) FROM nutrition.food_log WHERE date = CURRENT_DATE
+))) / 3600
+```
+
+**iOS:**
+- Display in FastingCardView: "16:32 fasted" with optional goal indicator (16h/18h/20h)
+- Show progress ring if goal set
+
+**Verification:**
+```sql
+SELECT (dashboard.get_payload())->'fasting_hours';
+```
+
+**Done Means:** TodayView shows fasting duration since last meal with optional goal progress.
+
+---
+
+## CODER INSTRUCTIONS (Updated 2026-02-04)
+
+Execute tasks from the ACTIVE FEATURE TASKS (2026-02-04) section in order:
+1. ~~TASK-FEAT.11 (Siri Shortcuts)~~ — DONE ✓
+2. ~~TASK-FEAT.12 (Medications)~~ — DONE ✓
+3. TASK-FEAT.13 (TodayView Decomposition) — P2, next
+4. TASK-FEAT.14-17 — P2/P3
+
+All tasks are READY (no dependencies). Follow the file lists and verification steps exactly.
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)
