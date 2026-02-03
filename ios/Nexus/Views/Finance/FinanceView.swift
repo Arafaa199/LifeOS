@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 
 struct FinanceView: View {
-    @StateObject private var viewModel = FinanceViewModel()
+    @ObservedObject var viewModel: FinanceViewModel
     @State private var selectedSegment = 0
     @State private var showingSettings = false
     @State private var showingAddExpense = false
@@ -553,5 +553,5 @@ struct BudgetStatusInfo {
 }
 
 #Preview {
-    FinanceView()
+    FinanceView(viewModel: FinanceViewModel())
 }

@@ -23,16 +23,12 @@ class PhotoFoodLogger: ObservableObject {
         let message: String
     }
 
-    private var baseURL: String {
-        UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
-    }
-
     // Log food from photo data
     func logFoodFromPhoto(_ imageData: Data, additionalContext: String? = nil) async throws -> NexusResponse {
         isProcessing = true
         defer { isProcessing = false }
 
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-photo-food") else {
+        guard let url = NetworkConfig.shared.url(for: "/webhook/nexus-photo-food") else {
             throw APIError.invalidURL
         }
 

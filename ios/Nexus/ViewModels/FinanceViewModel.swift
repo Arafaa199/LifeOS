@@ -14,10 +14,10 @@ class FinanceViewModel: ObservableObject {
     // Tracks in-flight CRUD operations (not sync — sync state comes from coordinator)
     @Published private(set) var operationInProgress = false
 
-    private let api = NexusAPI.shared
-    private let cache = CacheManager.shared
-    private let networkMonitor = NetworkMonitor.shared
-    private let coordinator = SyncCoordinator.shared
+    private let api: NexusAPI
+    private let cache: CacheManager
+    private let networkMonitor: NetworkMonitor
+    private let coordinator: SyncCoordinator
     private var loadTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
 
@@ -62,7 +62,16 @@ class FinanceViewModel: ObservableObject {
             .filter { $0.isIncome && $0.isActive }
     }
 
-    init() {
+    init(
+        api: NexusAPI = .shared,
+        cache: CacheManager = .shared,
+        networkMonitor: NetworkMonitor = .shared,
+        coordinator: SyncCoordinator = .shared
+    ) {
+        self.api = api
+        self.cache = cache
+        self.networkMonitor = networkMonitor
+        self.coordinator = coordinator
         loadFromCache()
         subscribeToCoordinator()
         updateQueuedCount()
@@ -87,9 +96,9 @@ class FinanceViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Forward coordinator state changes so computed properties
+        // Subscribe to finance-specific state changes only
         // (isLoading, isOffline) trigger view updates.
-        coordinator.objectWillChange
+        coordinator.financeStatePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()

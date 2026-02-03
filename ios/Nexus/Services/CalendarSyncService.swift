@@ -105,8 +105,7 @@ class CalendarSyncService: ObservableObject {
     }
 
     private func sendToWebhook(_ events: [CalendarEvent]) async throws -> CalendarSyncResponse {
-        let baseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-calendar-sync") else {
+        guard let url = NetworkConfig.shared.url(for: "/webhook/nexus-calendar-sync") else {
             throw APIError.invalidURL
         }
 

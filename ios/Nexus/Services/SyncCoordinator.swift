@@ -72,6 +72,31 @@ class SyncCoordinator: ObservableObject {
     @Published var isSyncingAll = false
     @Published var whoopDebugInfo: WhoopDebugInfo?
 
+    // MARK: - Domain-Specific Publishers
+
+    private let dashboardStateSubject = PassthroughSubject<Void, Never>()
+    private let financeStateSubject = PassthroughSubject<Void, Never>()
+    private let healthKitStateSubject = PassthroughSubject<Void, Never>()
+    private let calendarStateSubject = PassthroughSubject<Void, Never>()
+    private let documentsStateSubject = PassthroughSubject<Void, Never>()
+
+    var dashboardStatePublisher: AnyPublisher<Void, Never> { dashboardStateSubject.eraseToAnyPublisher() }
+    var financeStatePublisher: AnyPublisher<Void, Never> { financeStateSubject.eraseToAnyPublisher() }
+    var healthKitStatePublisher: AnyPublisher<Void, Never> { healthKitStateSubject.eraseToAnyPublisher() }
+    var calendarStatePublisher: AnyPublisher<Void, Never> { calendarStateSubject.eraseToAnyPublisher() }
+    var documentsStatePublisher: AnyPublisher<Void, Never> { documentsStateSubject.eraseToAnyPublisher() }
+
+    func notifyDomainStateChanged(_ domain: SyncDomain) {
+        switch domain {
+        case .dashboard: dashboardStateSubject.send()
+        case .finance: financeStateSubject.send()
+        case .healthKit: healthKitStateSubject.send()
+        case .calendar: calendarStateSubject.send()
+        case .documents: documentsStateSubject.send()
+        case .whoop: break // WHOOP state is part of dashboard
+        }
+    }
+
     // MARK: - Private
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "sync")
@@ -177,6 +202,7 @@ class SyncCoordinator: ObservableObject {
 
     private func syncDashboard() async {
         domainStates[.dashboard]?.markSyncing()
+        notifyDomainStateChanged(.dashboard)
         let start = CFAbsoluteTimeGetCurrent()
         logger.info("[dashboard] sync started")
 
@@ -185,13 +211,16 @@ class SyncCoordinator: ObservableObject {
             dashboardPayload = result.payload
             let src = result.source == .network ? "network" : "cache"
             domainStates[.dashboard]?.markSucceeded(source: src)
+            notifyDomainStateChanged(.dashboard)
 
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.info("[dashboard] sync succeeded source=\(src) duration=\(ms)ms")
         } catch is CancellationError {
             domainStates[.dashboard]?.phase = .idle
+            notifyDomainStateChanged(.dashboard)
         } catch {
             domainStates[.dashboard]?.markFailed(error.localizedDescription)
+            notifyDomainStateChanged(.dashboard)
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.error("[dashboard] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
         }
@@ -199,6 +228,7 @@ class SyncCoordinator: ObservableObject {
 
     private func syncFinance() async {
         domainStates[.finance]?.markSyncing()
+        notifyDomainStateChanged(.finance)
         let start = CFAbsoluteTimeGetCurrent()
         logger.info("[finance] sync started")
 
@@ -207,13 +237,16 @@ class SyncCoordinator: ObservableObject {
             financeSummaryResult = response
             let count = response.data?.recentTransactions?.count
             domainStates[.finance]?.markSucceeded(source: "network", itemCount: count)
+            notifyDomainStateChanged(.finance)
 
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.info("[finance] sync succeeded items=\(count ?? 0) duration=\(ms)ms")
         } catch is CancellationError {
             domainStates[.finance]?.phase = .idle
+            notifyDomainStateChanged(.finance)
         } catch {
             domainStates[.finance]?.markFailed(error.localizedDescription)
+            notifyDomainStateChanged(.finance)
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.error("[finance] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
         }
@@ -325,6 +358,7 @@ class SyncCoordinator: ObservableObject {
 
     private func syncDocuments() async {
         domainStates[.documents]?.markSyncing()
+        notifyDomainStateChanged(.documents)
         let start = CFAbsoluteTimeGetCurrent()
         logger.info("[documents] sync started")
 
@@ -333,13 +367,16 @@ class SyncCoordinator: ObservableObject {
             documentsResult = response.documents
             let count = response.documents.count
             domainStates[.documents]?.markSucceeded(source: "network", itemCount: count)
+            notifyDomainStateChanged(.documents)
 
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.info("[documents] sync succeeded items=\(count) duration=\(ms)ms")
         } catch is CancellationError {
             domainStates[.documents]?.phase = .idle
+            notifyDomainStateChanged(.documents)
         } catch {
             domainStates[.documents]?.markFailed(error.localizedDescription)
+            notifyDomainStateChanged(.documents)
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.error("[documents] sync failed duration=\(ms)ms error=\(error.localizedDescription)")
         }

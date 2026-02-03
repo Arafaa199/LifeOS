@@ -10,7 +10,6 @@ struct QuickLogView: View {
     @FocusState private var isInputFocused: Bool
 
     @StateObject private var speechRecognizer = SpeechRecognizer()
-    private let api = NexusAPI.shared
     private let haptics = UIImpactFeedbackGenerator(style: .medium)
     private let successHaptics = UINotificationFeedbackGenerator()
 
@@ -201,21 +200,16 @@ struct QuickLogView: View {
 
         Task {
             do {
-                let response = try await api.logUniversalOffline(inputText)
-                await MainActor.run {
-                    isLoading = false
-                    successHaptics.notificationOccurred(.success)
-                    viewModel.updateSummaryAfterLog(type: .note, response: response)
-                    resultMessage = response.message ?? "Logged successfully"
-                    showSuccess = true
-                }
+                let response = try await viewModel.logUniversal(inputText)
+                isLoading = false
+                successHaptics.notificationOccurred(.success)
+                resultMessage = response.message ?? "Logged successfully"
+                showSuccess = true
             } catch {
-                await MainActor.run {
-                    isLoading = false
-                    successHaptics.notificationOccurred(.error)
-                    resultMessage = error.localizedDescription
-                    showSuccess = true
-                }
+                isLoading = false
+                successHaptics.notificationOccurred(.error)
+                resultMessage = error.localizedDescription
+                showSuccess = true
             }
         }
     }

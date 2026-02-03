@@ -56,7 +56,7 @@ struct DebugView: View {
             // Config Section
             Section("Configuration") {
                 LabeledContent("Base URL") {
-                    Text(UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw")
+                    Text(NetworkConfig.shared.baseURL)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

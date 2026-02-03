@@ -191,8 +191,7 @@ class ReminderSyncService: ObservableObject {
     // MARK: - Step 2: Fetch DB Sync State
 
     private func fetchSyncState() async throws -> [DBReminderState] {
-        let baseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-reminders-sync-state") else {
+        guard let url = NetworkConfig.shared.url(for: "/webhook/nexus-reminders-sync-state") else {
             throw APIError.invalidURL
         }
 
@@ -215,8 +214,7 @@ class ReminderSyncService: ObservableObject {
     // MARK: - Step 3: Send Diff-Aware Upsert Batch
 
     private func sendSyncBatch(_ reminders: [ReminderPayload]) async throws {
-        let baseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-reminders-sync") else {
+        guard let url = NetworkConfig.shared.url(for: "/webhook/nexus-reminders-sync") else {
             throw APIError.invalidURL
         }
 
@@ -317,8 +315,7 @@ class ReminderSyncService: ObservableObject {
     // MARK: - Confirm Sync Operations
 
     private func confirmSyncOperations(_ confirmations: [SyncConfirmation]) async throws {
-        let baseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-reminder-confirm-sync") else {
+        guard let url = NetworkConfig.shared.url(for: "/webhook/nexus-reminder-confirm-sync") else {
             throw APIError.invalidURL
         }
 

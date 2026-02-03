@@ -8,7 +8,7 @@ class NexusAPI: ObservableObject {
     static let shared = NexusAPI()
 
     private var baseURL: String {
-        UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
+        NetworkConfig.shared.baseURL
     }
 
     private var apiKey: String? {
@@ -564,34 +564,34 @@ class NexusAPI: ObservableObject {
         Constants.Dubai.dateString(from: date)
     }
 
-    private static var financeDateDecoder: JSONDecoder {
+    private static let financeDateDecoder: JSONDecoder = {
         let decoder = JSONDecoder()
+        let iso8601WithFractional = ISO8601DateFormatter()
+        iso8601WithFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let iso8601Standard = ISO8601DateFormatter()
+        iso8601Standard.formatOptions = [.withInternetDateTime]
+        let dateOnlyFormatter = DateFormatter()
+        dateOnlyFormatter.dateFormat = "yyyy-MM-dd"
+        dateOnlyFormatter.timeZone = Constants.Dubai.timeZone
+
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let dateString = try container.decode(String.self)
 
-            let iso8601 = ISO8601DateFormatter()
-            iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = iso8601.date(from: dateString) {
+            if let date = iso8601WithFractional.date(from: dateString) {
                 return date
             }
-
-            iso8601.formatOptions = [.withInternetDateTime]
-            if let date = iso8601.date(from: dateString) {
+            if let date = iso8601Standard.date(from: dateString) {
                 return date
             }
-
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            formatter.timeZone = Constants.Dubai.timeZone
-            if let date = formatter.date(from: dateString) {
+            if let date = dateOnlyFormatter.date(from: dateString) {
                 return date
             }
 
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
         }
         return decoder
-    }
+    }()
 }
 
 enum APIError: LocalizedError {

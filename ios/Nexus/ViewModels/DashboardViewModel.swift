@@ -17,8 +17,9 @@ class DashboardViewModel: ObservableObject {
     // Meal confirmations
     @Published var pendingMeals: [InferredMeal] = []
 
-    private let dashboardService = DashboardService.shared
-    private let coordinator = SyncCoordinator.shared
+    private let dashboardService: DashboardService
+    private let coordinator: SyncCoordinator
+    private let api: NexusAPI
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Computed Sync State (derived from coordinator)
@@ -106,7 +107,14 @@ class DashboardViewModel: ObservableObject {
 
     private let storage = SharedStorage.shared
 
-    init() {
+    init(
+        dashboardService: DashboardService = .shared,
+        coordinator: SyncCoordinator = .shared,
+        api: NexusAPI = .shared
+    ) {
+        self.dashboardService = dashboardService
+        self.coordinator = coordinator
+        self.api = api
         loadFromCache()
         subscribeToCoordinator()
     }
@@ -122,9 +130,18 @@ class DashboardViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Forward coordinator state changes so computed properties
+        // Subscribe to dashboard-specific state changes only
         // (isLoading, isForegroundRefreshing, etc.) trigger view updates.
-        coordinator.objectWillChange
+        coordinator.dashboardStatePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+
+        // Also subscribe to isSyncingAll changes for foreground refresh indicator
+        coordinator.$isSyncingAll
+            .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
@@ -237,10 +254,32 @@ class DashboardViewModel: ObservableObject {
 
         coordinator.syncAll(force: true)
 
-        // Poll coordinator state until sync completes (max 10s).
-        for _ in 0..<100 {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            if !coordinator.isSyncingAll { break }
+        // Wait for sync completion using Combine with timeout
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var cancellable: AnyCancellable?
+            var resumed = false
+
+            // Timeout after 15 seconds
+            let timeoutTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                if !resumed {
+                    resumed = true
+                    cancellable?.cancel()
+                    continuation.resume()
+                }
+            }
+
+            cancellable = coordinator.$isSyncingAll
+                .filter { !$0 }
+                .first()
+                .receive(on: DispatchQueue.main)
+                .sink { _ in
+                    if !resumed {
+                        resumed = true
+                        timeoutTask.cancel()
+                        continuation.resume()
+                    }
+                }
         }
 
         if dashboardPayload != nil {
@@ -260,7 +299,7 @@ class DashboardViewModel: ObservableObject {
 
     func loadPendingMeals() async {
         do {
-            pendingMeals = try await NexusAPI.shared.fetchPendingMealConfirmations()
+            pendingMeals = try await api.fetchPendingMealConfirmations()
         } catch {
             pendingMeals = []
         }
@@ -268,7 +307,7 @@ class DashboardViewModel: ObservableObject {
 
     func confirmMeal(_ meal: InferredMeal, action: String) async {
         do {
-            _ = try await NexusAPI.shared.confirmMeal(
+            _ = try await api.confirmMeal(
                 mealDate: meal.mealDate,
                 mealTime: meal.mealTime,
                 mealType: meal.mealType,
@@ -279,6 +318,26 @@ class DashboardViewModel: ObservableObject {
         } catch {
             errorMessage = "Failed to save meal confirmation"
         }
+    }
+
+    // MARK: - Fasting
+
+    func startFast() async throws {
+        _ = try await api.startFast()
+        await refresh()
+    }
+
+    func breakFast() async throws {
+        _ = try await api.breakFast()
+        await refresh()
+    }
+
+    // MARK: - Universal Logging
+
+    func logUniversal(_ text: String) async throws -> NexusResponse {
+        let response = try await api.logUniversalOffline(text)
+        updateSummaryAfterLog(type: .note, response: response)
+        return response
     }
 
     // MARK: - Update After Logging

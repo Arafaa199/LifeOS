@@ -276,8 +276,7 @@ class HealthKitSyncService: ObservableObject {
     }
 
     private func sendToWebhook(_ payload: HealthKitBatchPayload) async throws -> HealthKitSyncResponse {
-        let baseURL = UserDefaults.standard.string(forKey: "webhookBaseURL") ?? "https://n8n.rfanw"
-        guard let url = URL(string: "\(baseURL)/webhook/healthkit/batch") else {
+        guard let url = NetworkConfig.shared.url(for: "/webhook/healthkit/batch") else {
             throw APIError.invalidURL
         }
 

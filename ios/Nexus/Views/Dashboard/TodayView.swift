@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 /// Canonical "Today" screen - frozen design, no customization
 /// Shows: Recovery + Budget status, up to 3 ranked insights
@@ -546,12 +547,10 @@ struct TodayView: View {
         Task {
             do {
                 if isActive {
-                    _ = try await NexusAPI.shared.breakFast()
+                    try await viewModel.breakFast()
                 } else {
-                    _ = try await NexusAPI.shared.startFast()
+                    try await viewModel.startFast()
                 }
-                // Refresh dashboard to get updated fasting status
-                await viewModel.refresh()
             } catch {
                 // Silently fail - not critical
             }

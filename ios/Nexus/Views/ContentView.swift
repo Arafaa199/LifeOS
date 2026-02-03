@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var settings: AppSettings
     @StateObject private var viewModel = DashboardViewModel()
+    @StateObject private var financeViewModel = FinanceViewModel()
     @StateObject private var documentsViewModel = DocumentsViewModel()
     @State private var selectedTab = 0
 
@@ -30,7 +31,7 @@ struct ContentView: View {
                     }
                     .tag(2)
 
-                FinanceView()
+                FinanceView(viewModel: financeViewModel)
                     .tabItem {
                         Label("Finance", systemImage: selectedTab == 3 ? "chart.pie.fill" : "chart.pie")
                     }
