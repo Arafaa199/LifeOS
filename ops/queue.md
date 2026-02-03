@@ -1396,6 +1396,140 @@ Depends: PIPE.4
 
 ---
 
+## BACKLOG — Future Features (Added 2026-02-03)
+
+### FEAT-BACKLOG.1: Siri Intents for Universal Logging
+Priority: P1 (High Leverage)
+Owner: unassigned
+Status: BACKLOG
+
+**Objective:** Enable "Hey Siri, log 2 eggs for breakfast" or "Hey Siri, log mood 7" from anywhere without opening app.
+
+**Implementation:**
+- Use App Intents framework (iOS 16+)
+- Create intents: LogFoodIntent, LogWaterIntent, LogMoodIntent, LogWeightIntent, LogUniversalIntent
+- Wire to existing NexusAPI methods
+- Add Siri Shortcuts donation for common phrases
+- Add to SiriShortcutsView (currently placeholder)
+
+**Files to Touch:**
+- `ios/Nexus/Intents/` (new directory)
+- `ios/Nexus/Views/SettingsView.swift` (SiriShortcutsView)
+- `ios/Nexus/Info.plist` (intent declarations)
+
+**Done Means:** User can log food, water, mood, weight via Siri without opening app.
+
+---
+
+### FEAT-BACKLOG.2: HealthKit Medications Integration
+Priority: P1
+Owner: unassigned
+Status: BACKLOG
+
+**Objective:** Pull medication/supplement adherence from Apple Health (iOS 16+ HKClinicalType).
+
+**Implementation:**
+- Extend HealthKitManager to request medication authorization
+- Query HKMedicationDoseEvent for dose times and adherence
+- Create `health.medications` table (medication_id, name, dose_time, taken_at, skipped)
+- Add to HealthKitSyncService batch upload
+- Surface in daily_facts: `medications_taken`, `medications_due`, `adherence_pct`
+
+**Files to Touch:**
+- `ios/Nexus/Services/HealthKitManager.swift`
+- `ios/Nexus/Services/HealthKitSyncService.swift`
+- `backend/migrations/XXX_medications_table.up.sql`
+- n8n webhook for medications batch
+
+**Done Means:** Medication adherence tracked alongside other health metrics.
+
+---
+
+### FEAT-BACKLOG.3: Subscription Monitoring Dashboard
+Priority: P2
+Owner: unassigned
+Status: BACKLOG
+
+**Objective:** Surface recurring subscriptions (Netflix, Spotify, etc.) with upcoming renewals and monthly burn rate.
+
+**Implementation:**
+- Already have `finance.recurring_items` table
+- Add `is_subscription BOOLEAN DEFAULT false` column
+- Create `finance.v_subscription_summary` VIEW: active subs, monthly total, next renewals
+- Add to dashboard payload or dedicated iOS view
+- Could auto-detect from transaction patterns (merchant + ~same amount monthly)
+
+**Files to Touch:**
+- `backend/migrations/XXX_subscription_view.up.sql`
+- `ios/Nexus/Views/Finance/SubscriptionsView.swift` (new)
+
+**Done Means:** User sees all subscriptions, monthly burn, and upcoming renewal dates.
+
+---
+
+### FEAT-BACKLOG.4: Fasting Timer
+Priority: P2 (Low Effort)
+Owner: unassigned
+Status: BACKLOG
+
+**Objective:** Show elapsed time since last food_log entry. Useful for intermittent fasting tracking.
+
+**Implementation:**
+- Query: `SELECT NOW() - MAX(logged_at) FROM nutrition.food_log`
+- Add to dashboard payload: `fasting_hours`
+- iOS: Small card on TodayView showing "16:32 fasted" with optional goal (16h/18h/20h)
+- No new tables needed
+
+**Files to Touch:**
+- `backend/migrations/XXX_fasting_dashboard.up.sql` (add to get_payload)
+- `ios/Nexus/Views/Dashboard/TodayView.swift` (fasting card)
+
+**Done Means:** TodayView shows fasting duration since last meal.
+
+---
+
+### FEAT-BACKLOG.5: Streak Tracking Widget
+Priority: P2 (Low Effort)
+Owner: unassigned
+Status: BACKLOG
+
+**Objective:** Track consecutive days of logging (meals, water, weight, mood) to gamify consistency.
+
+**Implementation:**
+- Query daily_facts for consecutive days where metric > 0
+- Create `life.get_streaks()` function returning: water_streak, meal_streak, weight_streak, mood_streak, best_overall
+- Add to dashboard payload
+- iOS: Streak badges on TodayView or dedicated widget
+
+**Files to Touch:**
+- `backend/migrations/XXX_streak_function.up.sql`
+- `ios/Nexus/Views/Dashboard/TodayView.swift` (streak badges)
+
+**Done Means:** User sees current streaks for each tracking domain.
+
+---
+
+### FEAT-BACKLOG.6: Smart Hydration Reminders
+Priority: P3 (Low Effort)
+Owner: unassigned
+Status: BACKLOG
+
+**Objective:** Push notification if no water logged in 4 hours during waking hours.
+
+**Implementation:**
+- n8n cron (every hour, 8am-10pm Dubai)
+- Query: `SELECT MAX(logged_at) FROM nutrition.water_log WHERE date = CURRENT_DATE`
+- If > 4 hours ago and recovery_score shows awake, trigger HA notification
+- Respect DND/sleep (check WHOOP sleep state)
+
+**Files to Touch:**
+- `backend/n8n-workflows/hydration-reminder.json` (new)
+- HA automation for iOS push
+
+**Done Means:** User gets gentle reminder to drink water if they've gone 4+ hours without logging.
+
+---
+
 ## FROZEN (No Changes)
 - SMS parsing patterns (FROZEN 2026-01-25)
 - Receipt parsing patterns
