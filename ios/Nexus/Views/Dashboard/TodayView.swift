@@ -6,6 +6,9 @@ struct TodayView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var isFastingLoading = false
+    @State private var fastingElapsed: String = "--:--"
+
+    private let fastingTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         NavigationView {
@@ -78,7 +81,27 @@ struct TodayView: View {
                     }
                 }
             }
+            .onReceive(fastingTimer) { _ in
+                updateFastingElapsed()
+            }
+            .onAppear {
+                updateFastingElapsed()
+            }
         }
+    }
+
+    private func updateFastingElapsed() {
+        guard let fasting = viewModel.dashboardPayload?.fasting,
+              fasting.isActive,
+              let startDate = fasting.startedAtDate else {
+            fastingElapsed = "--:--"
+            return
+        }
+        let elapsed = Date().timeIntervalSince(startDate)
+        let totalMinutes = Int(elapsed / 60)
+        let h = totalMinutes / 60
+        let m = totalMinutes % 60
+        fastingElapsed = String(format: "%d:%02d", h, m)
     }
 
     // MARK: - Meal Confirmation Section
@@ -481,7 +504,7 @@ struct TodayView: View {
             // Status text
             VStack(alignment: .leading, spacing: 2) {
                 if fasting?.isActive == true {
-                    Text(fasting?.elapsedFormatted ?? "--:--")
+                    Text(fastingElapsed)
                         .font(.headline.monospacedDigit())
                         .foregroundColor(.primary)
                     Text("Fasting")
