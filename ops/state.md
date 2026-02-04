@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-04T22:15:00+04:00
+Last updated: 2026-02-04T18:25:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -14,12 +14,13 @@ Control Mode: Autonomous (Human-in-the-loop on alerts only)
 **Auditor:** STANDBY (will review new feature work)
 
 ### Current State
-- Finance ingestion validated and complete
-- SMS ingestion FROZEN (no changes to parsing logic since 2026-01-25)
+- Finance ingestion validated and complete (reimported 2026-02-04)
+- SMS ingestion FIXED (intent-aware merchant extraction, 2026-02-04)
 - All launchd services running (exit 0)
 - WHOOP → normalized pipeline wired (migration 085)
 - DB host: LAN IP (10.0.0.11) for all scripts
 - iOS app: SyncCoordinator refactor complete (2026-01-27)
+- n8n workflows deployed: reminders-sync, medications-batch, refresh-summary (2026-02-04)
 
 ### Verification Results (TRUST-LOCKIN)
 - Replay Determinism: PASS
@@ -122,7 +123,7 @@ SettingsView       ─── observes ─────── $domainStates (Sync 
 
 ## SMS INGESTION ARCHITECTURE
 
-**Status:** FROZEN (no changes since 2026-01-25)
+**Status:** ACTIVE (reimported 2026-02-04)
 
 ```
 ~/Library/Messages/chat.db
@@ -130,11 +131,11 @@ SettingsView       ─── observes ─────── $domainStates (Sync 
     └── [cron] com.nexus.sms-import (every 15 min)
         └── import-sms-transactions.js
             ├── Reads: chat.db → filters bank senders
-            ├── Classifies: sms-classifier.js + sms_regex_patterns.yaml
+            ├── Classifies: sms-classifier.js + sms_regex_patterns.yaml (intent-aware)
             └── Writes: finance.transactions (DIRECT — bypasses raw layer)
 ```
 
-SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE on finance.transactions. Pattern coverage: 99% (343 SMS), capture rate: 92.9%.
+SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE on finance.transactions. Current stats (2026-02-04): 1336 transactions, 70.7% categorized, 4.6% missing merchant names. Merchant rules: 149 total.
 
 ---
 
@@ -166,7 +167,8 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-UI.1: Settings Reorganization | DONE | **Health Sources:** Moved toolbar button from HealthView to Settings "Data Sources" section (alongside GitHub Activity). **Finance refresh:** Removed redundant refresh button from FinanceView toolbar (pull-to-refresh already exists). **Debug section:** Added comprehensive Debug section to Settings with: API Debug Panel (existing), Dashboard Payload disclosure (meta, todayFacts, feed counts, insights), WHOOP Debug disclosure (raw sync timestamps, parsed dates, server status), Sync State disclosure (per-domain status, errors, staleness). Helper views: `dashboardDebugContent`, `syncStateDebugContent`, `debugRow`. 4 files changed (SettingsView +105, HealthView -7, FinanceView -6). iOS build: BUILD SUCCEEDED. |
 | P1/P2 Trust Fixes | DONE | **P1-1:** Fixed DataSource always showing "network" in HealthViewModel and DashboardViewModel — now checks coordinator domain state for actual source. **P1-2:** Added `isFromCache` and `sourceLabel` computed properties to DomainState. **P1-3:** Created TodayCachedBanner component showing cache age. **P1-4:** Added "Cached" badge to Sync Center domain rows in SettingsView. **P2-1:** Added `isForToday` (Dubai timezone-aware day comparison) and `isDataOld` (>5 min threshold) to DashboardMeta. **Documents fix:** Separated POST success from refresh failure in create/update/renew. 11 iOS files changed. Commit `7fde022`. |
 | SMS Parsing Improvements | DONE | **BER encoding fix:** Fixed `extractTextFromAttributedBody` to handle 0x81/0x82 length prefixes (long messages). **New patterns:** Added `funds_transfer_out_en` for outgoing fund transfers ("has been made using your Debit Card"), `salary_deposit_en` for English salary notifications with `category: "Salary"`. 2 files changed (import-sms-transactions.js, sms_regex_patterns.yaml). Commit `7fde022`. |
-| Event-Driven Refresh | DONE | **Migration 141:** `trigger_refresh_on_write()` function for immediate daily_facts refresh. MVP on whoop_recovery. **Migration 142:** Coalescing queue pattern — `life.refresh_queue` table with (date, txid) key, `queue_refresh_on_write()` row trigger coalesces duplicates via ON CONFLICT, `process_refresh_queue()` statement trigger processes once per transaction. Applied to 5 source tables (whoop_recovery, whoop_sleep, whoop_strain, health.metrics, finance.transactions). Benefits: dashboard shows fresh data immediately, 100 rows = 1 refresh, exception-safe. 4 migration files + n8n workflow. Commit `9bb7e7d`. Note: migrations need to be applied on nexus. |
+| Event-Driven Refresh | DONE | **Migration 141:** `trigger_refresh_on_write()` function for immediate daily_facts refresh. MVP on whoop_recovery. **Migration 142:** Coalescing queue pattern — `life.refresh_queue` table with (date, txid) key, `queue_refresh_on_write()` row trigger coalesces duplicates via ON CONFLICT, `process_refresh_queue()` statement trigger processes once per transaction. Applied to 5 source tables (whoop_recovery, whoop_sleep, whoop_strain, health.metrics, finance.transactions). Benefits: dashboard shows fresh data immediately, 100 rows = 1 refresh, exception-safe. 4 migration files + n8n workflow. Commit `9bb7e7d`. Migrations applied on nexus. |
+| SMS Intent-Aware Merchant Fix | DONE | **Root cause:** `credit_transfer_local_in_via` pattern captured account number (To:4281) as merchant instead of sender name (From:SENDER). **Fix:** sms-classifier.js now uses intent-aware merchant extraction — income uses `from` field, expense uses `to/merchant`. Also fixed `online_purchase` pattern missing `At:` capture (243 transactions), `refund_pos` missing `At:` capture (9 transactions), classifier now uses `service`/`provider`/`biller` fields. Added 27 merchant rules for common patterns (subscriptions, groceries, BNPL, etc.). **Results:** Reimported 1336 SMS transactions, categorization rate improved from 39% → 70.7%. Data validated clean. 2 files changed. Commit `d6d6b66`. |
 
 ### Recent (Feb 1)
 | Task | Status | Summary |
