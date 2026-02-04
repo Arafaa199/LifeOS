@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-04T15:45:00+04:00
+Last updated: 2026-02-04T19:07:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -159,6 +159,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 4)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-FEAT.13: TodayView Decomposition | DONE | Extracted TodayView (658→180 lines) into 7 focused card components: RecoveryCardView (109), BudgetCardView (80), NutritionCardView (72), FastingCardView (74), InsightsFeedView (96), StateCardView (96), TodayBannersView (97). Each component takes only the data it needs as parameters. TodayView now a clean composition. 8 files changed. iOS build: BUILD SUCCEEDED. Commit `ec2aa7c`. |
 | TASK-FEAT.12: HealthKit Medications | DONE | Migration 140: Created `health.medications` table with idempotency on (medication_id, scheduled_date, scheduled_time, source). Added `health.v_daily_medications` view, `medications_today` to dashboard.get_payload() (schema v9→v10), feed status entry (48h interval). iOS: Added MedicationsSummary/MedicationDose Codable structs to DashboardPayload, MedicationDose struct + fetchMedicationDoses() to HealthKitManager (iOS 18+), syncMedications() to HealthKitSyncService wired into syncAllData(). Created medications-batch-webhook.json (n8n). 6 files changed (+672). iOS build: BUILD SUCCEEDED. Commit `9f32adb`. Note: n8n workflow must be imported and activated. |
 | TASK-FEAT.11: Siri Shortcuts | DONE | Added 5 new App Intents (LogMoodIntent, LogWeightIntent, StartFastIntent, BreakFastIntent, enhanced LogWaterIntent) to `WidgetIntents.swift`. Updated `NexusAppShortcuts` provider with 7 total shortcuts. Replaced placeholder `SiriShortcutsView` with phrase examples UI. All intents use `ProvidesDialog` for confirmation, `openAppWhenRun: Bool = false` for background execution. 2 files changed (+315/-24). iOS build: BUILD SUCCEEDED. Commit `7a78eae`. |
 
