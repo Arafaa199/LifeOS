@@ -1536,54 +1536,36 @@ Lane: safe_auto
 ### TASK-FEAT.15: Unit Tests Foundation
 Priority: P2
 Owner: coder
-Status: READY
+Status: IN PROGRESS
 Lane: safe_auto
-Estimated Effort: 2-3 coder runs
 
 **Objective:** Establish unit test infrastructure and add foundational tests for critical services.
 
 **Existing Infrastructure:**
-- `APIClientProtocol` exists in `ios/Nexus/Services/NexusAPI.swift`
-- `MockAPIClient` exists but unused
-- ViewModels now have DI via init parameters (added in previous session)
+- `APIClientProtocol` exists in `ios/Nexus/Models/APIClientProtocol.swift`
+- `MockAPIClient` exists with full protocol implementation
+- `ErrorClassificationTests.swift` already exists (19 tests)
+- ViewModels have DI via init parameters
 
-**Tests to Add:**
+**Test Files Created:**
+- `ios/NexusTests/ErrorClassificationTests.swift` — 19 tests (existing)
+- `ios/NexusTests/OfflineQueueTests.swift` — 12 tests (NEW)
+- `ios/NexusTests/DashboardViewModelTests.swift` — 5 tests (NEW)
+- `ios/NexusTests/FinanceViewModelTests.swift` — 9 tests (NEW)
 
-**File:** `ios/NexusTests/OfflineQueueTests.swift`
-```swift
-// Test: Queued items preserve clientId across retries
-// Test: Processing flag prevents concurrent processing
-// Test: Network errors trigger retry, auth errors don't
-// Test: Queue persists across app restart
-```
+**Remaining Setup:**
+1. Add NexusTests target to Xcode project (requires Xcode GUI or xcodeproj manipulation)
+2. Configure test scheme
 
-**File:** `ios/NexusTests/FinanceViewModelTests.swift`
-```swift
-// Test: Duplicate detection flags matching transactions
-// Test: Recurring pattern detection identifies subscriptions
-// Test: Category assignment follows merchant rules
-```
-
-**File:** `ios/NexusTests/DashboardViewModelTests.swift`
-```swift
-// Test: Loads from cache on init
-// Test: Subscribes to coordinator updates
-// Test: startFast/breakFast call API correctly
-// Test: Error state set on API failure
-```
-
-**Setup Required:**
-1. Create `ios/NexusTests/` target if not exists
-2. Add test target to Xcode project
-3. Configure MockAPIClient to return test fixtures
+**User Action Required:**
+Open Xcode → File → New → Target → Unit Testing Bundle → Name: "NexusTests" → Add existing test files
 
 **Verification:**
 ```bash
-xcodebuild -scheme Nexus test -destination 'platform=iOS Simulator,name=iPhone 15'
-# All tests pass
+xcodebuild -scheme NexusTests test -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-**Done Means:** 12+ unit tests passing for OfflineQueue, FinanceViewModel, DashboardViewModel.
+**Done Means:** 45 unit tests passing (19 existing + 26 new).
 
 ---
 
@@ -1654,14 +1636,19 @@ SELECT (dashboard.get_payload())->'fasting_hours';
 
 ## CODER INSTRUCTIONS (Updated 2026-02-04)
 
-Execute tasks from the ACTIVE FEATURE TASKS (2026-02-04) section in order:
+**Completed this session:**
 1. ~~TASK-FEAT.11 (Siri Shortcuts)~~ — DONE ✓
 2. ~~TASK-FEAT.12 (Medications)~~ — DONE ✓
 3. ~~TASK-FEAT.13 (TodayView Decomposition)~~ — DONE ✓
 4. ~~TASK-FEAT.14 (SettingsView Decomposition)~~ — DONE ✓
-5. TASK-FEAT.15-17 — P2/P3, next
+5. TASK-FEAT.15 (Unit Tests) — IN PROGRESS (test files written, needs Xcode target setup)
 
-All tasks are READY (no dependencies). Follow the file lists and verification steps exactly.
+**Next recommended from SUGGESTED UPCOMING TASKS:**
+1. SUGG-01: Fasting Timer Display — Quick win
+2. SUGG-02: Streak Tracking Widget — Gamification
+3. TASK-FEAT.16/17 if prefer existing queue items
+
+**User action needed for FEAT.15:** Add test target in Xcode (File → New → Target → Unit Testing Bundle).
 
 ---
 
@@ -1677,6 +1664,74 @@ All tasks are READY (no dependencies). Follow the file lists and verification st
 1. Improve receipt→nutrition matching (currently 49.1%)
 2. Add more merchants to auto-categorization rules
 3. Calendar → productivity correlation views → TASK-FEAT.7
+
+---
+
+## SUGGESTED UPCOMING TASKS (Generated 2026-02-04)
+
+### Tier 1: High-Impact Quick Wins (1-2 sessions each)
+
+| ID | Task | Priority | Effort | Description |
+|----|------|----------|--------|-------------|
+| SUGG-01 | Fasting Timer Display | P2 | Low | Show elapsed hours since last food_log in FastingCardView with optional 16/18/20h goal ring |
+| SUGG-02 | Streak Tracking Widget | P2 | Low | Track consecutive days of logging (water, meals, weight, mood), gamify consistency |
+| SUGG-03 | Subscription Monitor View | P2 | Medium | Surface recurring_items as "Subscriptions" with next renewal dates and monthly burn rate |
+| SUGG-04 | Budget Alert Notifications | P2 | Medium | Push notification when daily/weekly spend exceeds 80% of budget threshold |
+| SUGG-05 | Health Score Composite | P3 | Medium | Single 0-100 score combining recovery, sleep quality, HRV trend, activity strain |
+
+### Tier 2: Data Quality & Insights (2-3 sessions each)
+
+| ID | Task | Priority | Effort | Description |
+|----|------|----------|--------|-------------|
+| SUGG-06 | Receipt→Nutrition Matching | P2 | High | Improve 49% match rate by fuzzy-matching Carrefour items to nutrition.foods |
+| SUGG-07 | Merchant Rule Learning | P2 | Medium | Auto-suggest new merchant_rules from uncategorized transactions (pattern detection) |
+| SUGG-08 | Sleep Quality Factors | P2 | Medium | Correlate sleep metrics with previous day (caffeine timing, screen time, exercise) |
+| SUGG-09 | Weekly Spending Patterns | P3 | Low | Identify day-of-week spending patterns (e.g., "You spend 40% more on Fridays") |
+| SUGG-10 | Food Timing Insights | P3 | Medium | Analyze meal timing patterns vs energy/mood correlation |
+
+### Tier 3: iOS App Enhancements (2-4 sessions each)
+
+| ID | Task | Priority | Effort | Description |
+|----|------|----------|--------|-------------|
+| SUGG-11 | Widget Gallery Expansion | P2 | Medium | Add widgets: Water Progress, Fasting Timer, Budget Remaining, Next Reminder |
+| SUGG-12 | Quick Actions Menu | P2 | Low | 3D Touch / long-press app icon → Log Water, Log Mood, Start Fast |
+| SUGG-13 | Watch App MVP | P3 | High | Basic Apple Watch companion: view recovery, log water, see next reminder |
+| SUGG-14 | Offline Mode Indicator | P2 | Low | Visual badge when offline + queue count, auto-clear on sync success |
+| SUGG-15 | Transaction Search | P2 | Medium | Full-text search across transactions with filters (date, category, amount range) |
+
+### Tier 4: Backend & Pipeline (1-3 sessions each)
+
+| ID | Task | Priority | Effort | Description |
+|----|------|----------|--------|-------------|
+| SUGG-16 | Anomaly Detection Alerts | P2 | Medium | Alert on unusual patterns: spending spike, missed logging streaks, HRV drop |
+| SUGG-17 | Data Export API | P3 | Medium | GET endpoint for CSV/JSON export of user data (GDPR-style) |
+| SUGG-18 | Nightly Digest Email | P3 | Low | Optional daily email summary at 10pm with day's stats |
+| SUGG-19 | Calendar Conflict Detection | P3 | Medium | Warn when scheduling overlap detected in synced calendars |
+| SUGG-20 | API Rate Limiting | P2 | Low | Add rate limiting to n8n webhooks to prevent abuse |
+
+### Tier 5: Technical Debt & Quality (Ongoing)
+
+| ID | Task | Priority | Effort | Description |
+|----|------|----------|--------|-------------|
+| SUGG-21 | Test Coverage 50%+ | P2 | High | Expand unit tests to cover SyncCoordinator, HealthKitManager, CalendarSyncService |
+| SUGG-22 | Error Boundary Views | P2 | Medium | Graceful error states for all views instead of blank screens |
+| SUGG-23 | Performance Profiling | P3 | Medium | Profile app launch time, identify slow queries, optimize hot paths |
+| SUGG-24 | Documentation Refresh | P3 | Medium | Update ARCHITECTURE.md, add API endpoint docs, sync CLAUDE.md |
+| SUGG-25 | Accessibility Audit | P3 | Medium | VoiceOver support, Dynamic Type, color contrast compliance |
+
+---
+
+### Recommended Next Sprint (5-7 tasks)
+
+Based on impact vs effort, suggested order:
+
+1. **SUGG-01: Fasting Timer** — Quick win, high user value, low effort
+2. **SUGG-02: Streak Tracking** — Gamification drives engagement
+3. **SUGG-14: Offline Mode Indicator** — Transparency on queue status
+4. **SUGG-12: Quick Actions Menu** — iOS polish, 30-min task
+5. **SUGG-04: Budget Alert Notifications** — Proactive value delivery
+6. **SUGG-03: Subscription Monitor** — User requested, data already exists
+7. **SUGG-07: Merchant Rule Learning** — Reduces manual categorization work
 
 ---
 
