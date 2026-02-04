@@ -150,6 +150,9 @@ class DashboardViewModel: ObservableObject {
     }
 
     private func handlePayloadUpdate(_ payload: DashboardPayload) {
+        // Debug: Log what we received
+        print("[DashboardVM] handlePayloadUpdate: todayFacts=\(payload.todayFacts != nil ? "present" : "nil"), recovery=\(payload.todayFacts?.recoveryScore ?? -1)")
+
         dashboardPayload = payload
         dataSource = .network
         lastUpdatedFormatted = RelativeDateTimeFormatter().localizedString(for: Date(), relativeTo: Date())
@@ -335,9 +338,19 @@ class DashboardViewModel: ObservableObject {
     // MARK: - Universal Logging
 
     func logUniversal(_ text: String) async throws -> NexusResponse {
-        let response = try await api.logUniversalOffline(text)
-        updateSummaryAfterLog(type: .note, response: response)
-        return response
+        let (response, result) = await api.logUniversalOffline(text)
+
+        if case .failed(let error) = result {
+            throw error
+        }
+
+        if let response = response {
+            updateSummaryAfterLog(type: .note, response: response)
+            return response
+        }
+
+        // Queued for offline sync
+        return NexusResponse(success: true, message: "Queued for sync", data: nil)
     }
 
     // MARK: - Update After Logging

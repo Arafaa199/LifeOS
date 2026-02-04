@@ -12,7 +12,7 @@ class NexusAPI: ObservableObject {
     }
 
     private var apiKey: String? {
-        UserDefaults.standard.string(forKey: "nexusAPIKey")
+        KeychainManager.shared.apiKey
     }
 
     // MARK: - Logging Methods

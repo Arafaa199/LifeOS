@@ -197,7 +197,7 @@ class ReminderSyncService: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
+        if let apiKey = KeychainManager.shared.apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
 
@@ -229,7 +229,7 @@ class ReminderSyncService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
+        if let apiKey = KeychainManager.shared.apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
         request.httpBody = try JSONEncoder().encode(payload)
@@ -324,7 +324,7 @@ class ReminderSyncService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
+        if let apiKey = KeychainManager.shared.apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
         request.httpBody = try JSONEncoder().encode(body)

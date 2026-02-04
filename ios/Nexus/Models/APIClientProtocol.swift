@@ -11,10 +11,10 @@ protocol APIClientProtocol: Sendable {
     func logMood(mood: Int, energy: Int, notes: String?) async throws -> NexusResponse
     func logUniversal(_ text: String) async throws -> NexusResponse
     
-    // Offline support
-    func logFoodOffline(_ text: String) async throws -> NexusResponse
-    func logWaterOffline(_ amount: Int) async throws -> NexusResponse
-    func logUniversalOffline(_ text: String) async throws -> NexusResponse
+    // Offline support (returns result tuple with classification)
+    func logFoodOffline(_ text: String) async -> (response: NexusResponse?, result: OfflineOperationResult)
+    func logWaterOffline(_ amount: Int) async -> (response: NexusResponse?, result: OfflineOperationResult)
+    func logUniversalOffline(_ text: String) async -> (response: NexusResponse?, result: OfflineOperationResult)
     
     // Finance
     func logExpense(_ text: String) async throws -> FinanceResponse
@@ -82,16 +82,31 @@ actor MockAPIClient: APIClientProtocol {
         )
     }
     
-    func logFoodOffline(_ text: String) async throws -> NexusResponse {
-        return try await logFood(text, foodId: nil, mealType: nil)
+    func logFoodOffline(_ text: String) async -> (response: NexusResponse?, result: OfflineOperationResult) {
+        do {
+            let response = try await logFood(text, foodId: nil, mealType: nil)
+            return (response, .success)
+        } catch {
+            return (nil, .failed(error))
+        }
     }
-    
-    func logWaterOffline(_ amount: Int) async throws -> NexusResponse {
-        return try await logWater(amountML: amount)
+
+    func logWaterOffline(_ amount: Int) async -> (response: NexusResponse?, result: OfflineOperationResult) {
+        do {
+            let response = try await logWater(amountML: amount)
+            return (response, .success)
+        } catch {
+            return (nil, .failed(error))
+        }
     }
-    
-    func logUniversalOffline(_ text: String) async throws -> NexusResponse {
-        return try await logUniversal(text)
+
+    func logUniversalOffline(_ text: String) async -> (response: NexusResponse?, result: OfflineOperationResult) {
+        do {
+            let response = try await logUniversal(text)
+            return (response, .success)
+        } catch {
+            return (nil, .failed(error))
+        }
     }
     
     func logExpense(_ text: String) async throws -> FinanceResponse {

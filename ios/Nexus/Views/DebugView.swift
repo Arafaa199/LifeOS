@@ -62,8 +62,8 @@ struct DebugView: View {
                 }
 
                 LabeledContent("API Key Set") {
-                    Image(systemName: UserDefaults.standard.string(forKey: "nexusAPIKey") != nil ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundColor(UserDefaults.standard.string(forKey: "nexusAPIKey") != nil ? .green : .red)
+                    Image(systemName: KeychainManager.shared.hasAPIKey ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(KeychainManager.shared.hasAPIKey ? .green : .red)
                 }
             }
 

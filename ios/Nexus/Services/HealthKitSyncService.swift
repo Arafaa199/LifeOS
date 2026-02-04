@@ -299,7 +299,7 @@ class HealthKitSyncService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
+        if let apiKey = KeychainManager.shared.apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
 
@@ -373,7 +373,7 @@ class HealthKitSyncService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = UserDefaults.standard.string(forKey: "nexusAPIKey") {
+        if let apiKey = KeychainManager.shared.apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
         }
         request.timeoutInterval = 30

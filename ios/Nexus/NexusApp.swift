@@ -27,6 +27,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Migrate API key from UserDefaults to Keychain (one-time)
+        KeychainManager.shared.migrateFromUserDefaultsIfNeeded()
+
         BackgroundTaskManager.shared.registerBackgroundTasks()
         return true
     }

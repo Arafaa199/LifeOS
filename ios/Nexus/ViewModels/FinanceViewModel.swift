@@ -8,6 +8,7 @@ class FinanceViewModel: ObservableObject {
     @Published var recentTransactions: [Transaction] = []
     @Published var recurringItems: [RecurringItem] = []
     @Published var errorMessage: String?
+    @Published var pendingMessage: String?  // Shows when item queued locally but not synced
     @Published var queuedCount = 0
     @Published var lastUpdated: Date?
 
@@ -176,52 +177,55 @@ class FinanceViewModel: ObservableObject {
         operationInProgress = true
         errorMessage = nil
 
-        do {
-            let response = try await api.logExpenseOffline(text)
+        let (response, result) = await api.logExpenseOffline(text)
 
-            if response.success {
-                // Queued offline is still a success
-                if response.message?.contains("Queued offline") == true {
-                    updateQueuedCount()
-                    // Note: NOT setting errorMessage - this is a success state
-                } else if let data = response.data {
-                    if let totalSpent = data.totalSpent {
-                        summary.totalSpent = totalSpent
-                    }
-                    if let transaction = data.transaction {
-                        let normalizedTransaction = transaction.normalized()
-                        recentTransactions.insert(normalizedTransaction, at: 0)
-                        if recentTransactions.count > 20 {
-                            recentTransactions = Array(recentTransactions.prefix(20))
-                        }
-
-                        if normalizedTransaction.isGrocery {
-                            summary.grocerySpent += abs(normalizedTransaction.amount)
-                        }
-                        if normalizedTransaction.isRestaurant {
-                            summary.eatingOutSpent += abs(normalizedTransaction.amount)
-                        }
-                    }
-                }
-
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-
-                // Refresh in background
-                Task { loadFinanceSummary() }
-
-                operationInProgress = false
-                return true
-            } else {
-                errorMessage = response.message ?? "Failed to log expense"
-                operationInProgress = false
-                return false
-            }
-        } catch {
+        if case .failed(let error) = result {
             errorMessage = "Error: \(error.localizedDescription)"
             operationInProgress = false
             return false
         }
+
+        let generator = UINotificationFeedbackGenerator()
+
+        if case .queued = result {
+            // Item queued locally - NOT confirmed on server yet
+            // Don't update totals, don't show success haptic
+            updateQueuedCount()
+            generator.notificationOccurred(.warning)  // Different haptic for "pending"
+            pendingMessage = "Saved locally - will sync when online"
+            operationInProgress = false
+            return true  // Form can dismiss, but user knows it's pending
+        }
+
+        // Only update UI totals when server confirms
+        if let response = response, response.success {
+            if let data = response.data {
+                if let totalSpent = data.totalSpent {
+                    summary.totalSpent = totalSpent
+                }
+                if let transaction = data.transaction {
+                    let normalizedTransaction = transaction.normalized()
+                    recentTransactions.insert(normalizedTransaction, at: 0)
+                    if recentTransactions.count > 20 {
+                        recentTransactions = Array(recentTransactions.prefix(20))
+                    }
+
+                    if normalizedTransaction.isGrocery {
+                        summary.grocerySpent += abs(normalizedTransaction.amount)
+                    }
+                    if normalizedTransaction.isRestaurant {
+                        summary.eatingOutSpent += abs(normalizedTransaction.amount)
+                    }
+                }
+            }
+            generator.notificationOccurred(.success)  // Success haptic only for confirmed
+        }
+
+        // Refresh in background
+        Task { loadFinanceSummary() }
+
+        operationInProgress = false
+        return true
     }
 
     func refresh() async {
@@ -262,49 +266,47 @@ class FinanceViewModel: ObservableObject {
         operationInProgress = true
         errorMessage = nil
 
-        do {
-            let response = try await api.addTransactionOffline(
-                merchant: merchantName,
-                amount: amount,
-                category: category,
-                notes: notes,
-                date: date
-            )
+        let (response, result) = await api.addTransactionOffline(
+            merchant: merchantName,
+            amount: amount,
+            category: category,
+            notes: notes,
+            date: date
+        )
 
-            if response.success {
-                // Queued offline is still a success - don't set errorMessage
-                if response.message?.contains("Queued offline") == true {
-                    updateQueuedCount()
-                    // Note: NOT setting errorMessage - this is a success state
-                } else {
-                    // Update summary with absolute value (expenses are stored negative)
-                    let spentAmount = abs(amount)
-                    summary.totalSpent += spentAmount
-                    if category == "Grocery" {
-                        summary.grocerySpent += spentAmount
-                    } else if category == "Restaurant" {
-                        summary.eatingOutSpent += spentAmount
-                    }
-                }
-
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-
-                // Refresh in background, don't block success
-                Task { loadFinanceSummary() }
-
-                operationInProgress = false
-                return true
-            } else {
-                errorMessage = response.message ?? "Failed to add transaction"
-                operationInProgress = false
-                return false
-            }
-        } catch {
+        if case .failed(let error) = result {
             errorMessage = "Error: \(error.localizedDescription)"
             operationInProgress = false
             return false
         }
+
+        let generator = UINotificationFeedbackGenerator()
+
+        if case .queued = result {
+            // Item queued locally - NOT confirmed on server yet
+            updateQueuedCount()
+            generator.notificationOccurred(.warning)  // Different haptic for "pending"
+            pendingMessage = "Saved locally - will sync when online"
+            operationInProgress = false
+            return true
+        }
+
+        // Only update summary when server confirms
+        let spentAmount = abs(amount)
+        summary.totalSpent += spentAmount
+        if category == "Grocery" {
+            summary.grocerySpent += spentAmount
+        } else if category == "Restaurant" {
+            summary.eatingOutSpent += spentAmount
+        }
+
+        generator.notificationOccurred(.success)
+
+        // Refresh in background, don't block success
+        Task { loadFinanceSummary() }
+
+        operationInProgress = false
+        return true
     }
 
     func updateTransaction(id: Int, merchantName: String, amount: Double, category: String, notes: String?, date: Date) async {
@@ -372,41 +374,39 @@ class FinanceViewModel: ObservableObject {
         // Income is always positive
         let incomeAmount = abs(amount)
 
-        do {
-            let response = try await api.addIncomeOffline(
-                source: source,
-                amount: incomeAmount,
-                category: category,
-                notes: notes,
-                date: date,
-                isRecurring: isRecurring
-            )
+        let (_, result) = await api.addIncomeOffline(
+            source: source,
+            amount: incomeAmount,
+            category: category,
+            notes: notes,
+            date: date,
+            isRecurring: isRecurring
+        )
 
-            if response.success {
-                // Queued offline is still a success
-                if response.message?.contains("Queued offline") == true {
-                    updateQueuedCount()
-                    // Note: NOT setting errorMessage - this is a success state
-                }
-
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-
-                // Refresh in background, don't block success
-                Task { loadFinanceSummary() }
-
-                operationInProgress = false
-                return true
-            } else {
-                errorMessage = response.message ?? "Failed to add income"
-                operationInProgress = false
-                return false
-            }
-        } catch {
+        if case .failed(let error) = result {
             errorMessage = "Error: \(error.localizedDescription)"
             operationInProgress = false
             return false
         }
+
+        let generator = UINotificationFeedbackGenerator()
+
+        if case .queued = result {
+            // Item queued locally - NOT confirmed on server yet
+            updateQueuedCount()
+            generator.notificationOccurred(.warning)  // Different haptic for "pending"
+            pendingMessage = "Saved locally - will sync when online"
+            operationInProgress = false
+            return true
+        }
+
+        generator.notificationOccurred(.success)
+
+        // Refresh in background, don't block success
+        Task { loadFinanceSummary() }
+
+        operationInProgress = false
+        return true
     }
 
     // MARK: - Recurring Transactions Detection

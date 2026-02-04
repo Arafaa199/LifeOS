@@ -7,11 +7,16 @@ struct ContentView: View {
     @StateObject private var documentsViewModel = DocumentsViewModel()
     @State private var selectedTab = 0
 
+    // Failed item alert state
+    @State private var showingFailedItemAlert = false
+    @State private var failedItemDescription = ""
+    @State private var failedItemError = ""
+
     var body: some View {
         VStack(spacing: 0) {
             // Offline indicator at the top
             OfflineBannerView()
-            
+
             TabView(selection: $selectedTab) {
                 TodayView(viewModel: viewModel)
                 .tabItem {
@@ -60,6 +65,22 @@ struct ContentView: View {
             }
             .tint(.nexusPrimary)
             .environmentObject(viewModel)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .offlineItemPermanentlyFailed)) { notification in
+            if let description = notification.userInfo?["description"] as? String,
+               let error = notification.userInfo?["error"] as? String {
+                failedItemDescription = description
+                failedItemError = error
+                showingFailedItemAlert = true
+            }
+        }
+        .alert("Sync Failed", isPresented: $showingFailedItemAlert) {
+            Button("View in Settings") {
+                selectedTab = 6  // Settings tab
+            }
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("\"\(failedItemDescription)\" could not be synced after multiple attempts.\n\nError: \(failedItemError)\n\nGo to Settings → Sync Issues to retry or discard.")
         }
     }
 }
