@@ -57,6 +57,22 @@ struct DomainState: Equatable {
     var detail: String?
     var itemCount: Int?
 
+    /// True if data was loaded from cache rather than network
+    var isFromCache: Bool {
+        source == "cache"
+    }
+
+    /// Display label for the data source
+    var sourceLabel: String {
+        switch source {
+        case "network": return "Live"
+        case "cache": return "Cached"
+        case "healthkit", "eventkit": return "Local"
+        case "feed_status", "server": return "Server"
+        default: return ""
+        }
+    }
+
     var staleness: Staleness {
         switch phase {
         case .idle:

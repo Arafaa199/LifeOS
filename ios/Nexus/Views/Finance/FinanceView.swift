@@ -48,21 +48,6 @@ struct FinanceView: View {
                             .foregroundColor(.nexusFinance)
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        Task {
-                            await viewModel.triggerSMSImport()
-                        }
-                    }) {
-                        if viewModel.isLoading {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .foregroundColor(.nexusFinance)
-                        }
-                    }
-                    .disabled(viewModel.isLoading)
-                }
             }
             .sheet(isPresented: $showingSettings) {
                 FinancePlanningView()

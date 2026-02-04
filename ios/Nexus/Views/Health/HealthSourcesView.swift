@@ -265,7 +265,7 @@ struct HealthSourcesView: View {
 
     private func statusColor(_ status: FeedHealthStatus) -> Color {
         switch status {
-        case .healthy: return .green
+        case .healthy, .ok: return .green
         case .stale: return .orange
         case .critical: return .red
         case .unknown: return .gray

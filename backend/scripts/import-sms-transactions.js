@@ -56,18 +56,45 @@ const BNPL_PROVIDERS = {
  * Extract plain text from NSAttributedString blob (attributedBody column).
  * Modern iOS stores SMS body in attributedBody instead of text column.
  * The blob is NSKeyedArchiver-encoded. The plain text follows a '+' (0x2B) marker
- * with a length prefix, or can be found as the longest readable ASCII segment.
+ * with a variable-length prefix (BER-style encoding).
  */
 function extractTextFromAttributedBody(buffer) {
   if (!buffer || buffer.length === 0) return null;
 
   // Method 1: Find text after the '+' marker (0x01 0x2B <length> <text>)
-  // NSAttributedString stores: 0x01 0x2B, then 1 byte = text length, then UTF-8 text
-  for (let i = 0; i < buffer.length - 3; i++) {
+  // NSKeyedArchiver uses BER-style length encoding:
+  //   - 0x00-0x7F: single byte length
+  //   - 0x81: length in next 1 byte
+  //   - 0x82: length in next 2 bytes (big-endian)
+  for (let i = 0; i < buffer.length - 4; i++) {
     if (buffer[i] === 0x01 && buffer[i + 1] === 0x2B) {
-      const textLen = buffer[i + 2];
-      const textStart = i + 3;
-      if (textStart + textLen <= buffer.length) {
+      let textLen, textStart;
+      const lenByte = buffer[i + 2];
+
+      if (lenByte < 0x80) {
+        // Simple single-byte length
+        textLen = lenByte;
+        textStart = i + 3;
+      } else if (lenByte === 0x81) {
+        // Length in next 1 byte
+        textLen = buffer[i + 3];
+        textStart = i + 4;
+      } else if (lenByte === 0x82) {
+        // Length in next 2 bytes (big-endian)
+        textLen = (buffer[i + 3] << 8) | buffer[i + 4];
+        textStart = i + 5;
+      } else {
+        // Unknown encoding, skip
+        continue;
+      }
+
+      // Skip any null bytes before the actual text
+      while (textStart < buffer.length && buffer[textStart] === 0x00) {
+        textStart++;
+        textLen--;
+      }
+
+      if (textLen > 0 && textStart + textLen <= buffer.length) {
         const text = buffer.slice(textStart, textStart + textLen).toString('utf-8');
         const cleaned = cleanExtractedText(text);
         if (cleaned && cleaned.length > 10) return cleaned;

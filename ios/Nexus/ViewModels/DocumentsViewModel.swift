@@ -98,9 +98,21 @@ class DocumentsViewModel: ObservableObject {
             remindersEnabled: remindersEnabled
         )
         do {
-            let _: SingleDocumentResponse = try await api.post("/webhook/nexus-document", body: request, decoder: JSONDecoder())
-            await loadDocuments()
-            return true
+            let response: SingleDocumentResponse = try await api.post("/webhook/nexus-document", body: request, decoder: JSONDecoder())
+            print("[Documents] POST succeeded, document id=\(response.document?.id ?? -1)")
+
+            // POST succeeded - add document optimistically if returned
+            if let newDoc = response.document {
+                documents.append(newDoc)
+            }
+
+            // Try refresh, but don't fail the create if refresh fails
+            do {
+                await loadDocuments()
+            } catch {
+                print("[Documents] Refresh after create failed (item saved): \(error)")
+            }
+            return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription
             return false
@@ -135,9 +147,22 @@ class DocumentsViewModel: ObservableObject {
             status: nil
         )
         do {
-            let _: SingleDocumentResponse = try await api.post("/webhook/nexus-document-update", body: request, decoder: JSONDecoder())
-            await loadDocuments()
-            return true
+            let response: SingleDocumentResponse = try await api.post("/webhook/nexus-document-update", body: request, decoder: JSONDecoder())
+            print("[Documents] Update succeeded, document id=\(response.document?.id ?? id)")
+
+            // Update succeeded - update local optimistically
+            if let updatedDoc = response.document,
+               let index = documents.firstIndex(where: { $0.id == id }) {
+                documents[index] = updatedDoc
+            }
+
+            // Try refresh, but don't fail the update if refresh fails
+            do {
+                await loadDocuments()
+            } catch {
+                print("[Documents] Refresh after update failed (item saved): \(error)")
+            }
+            return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription
             return false
@@ -167,9 +192,22 @@ class DocumentsViewModel: ObservableObject {
             notes: notes?.isEmpty == true ? nil : notes
         )
         do {
-            let _: SingleDocumentResponse = try await api.post("/webhook/nexus-document-renew", body: request, decoder: JSONDecoder())
-            await loadDocuments()
-            return true
+            let response: SingleDocumentResponse = try await api.post("/webhook/nexus-document-renew", body: request, decoder: JSONDecoder())
+            print("[Documents] Renew succeeded, document id=\(response.document?.id ?? id)")
+
+            // Renew succeeded - update local optimistically
+            if let renewedDoc = response.document,
+               let index = documents.firstIndex(where: { $0.id == id }) {
+                documents[index] = renewedDoc
+            }
+
+            // Try refresh, but don't fail the renew if refresh fails
+            do {
+                await loadDocuments()
+            } catch {
+                print("[Documents] Refresh after renew failed (item saved): \(error)")
+            }
+            return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription
             return false

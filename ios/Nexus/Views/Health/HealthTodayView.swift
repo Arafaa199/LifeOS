@@ -230,19 +230,38 @@ struct HealthTodayView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "heart.slash")
+            Image(systemName: emptyStateIcon)
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
 
-            Text("No health data available")
+            Text(emptyStateTitle)
                 .font(.headline)
 
-            Text("Connect WHOOP or Apple Health to see your metrics")
+            Text(emptyStateMessage)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.vertical, 60)
+    }
+
+    private var hasHealthSourceConnected: Bool {
+        viewModel.healthFreshness != nil || viewModel.healthKitAuthorized
+    }
+
+    private var emptyStateIcon: String {
+        hasHealthSourceConnected ? "heart.text.square" : "heart.slash"
+    }
+
+    private var emptyStateTitle: String {
+        hasHealthSourceConnected ? "No data yet today" : "No health data available"
+    }
+
+    private var emptyStateMessage: String {
+        if hasHealthSourceConnected {
+            return "Health data will appear once synced from your devices"
+        }
+        return "Connect WHOOP or Apple Health to see your metrics"
     }
 
     private func notAvailableView(_ message: String) -> some View {

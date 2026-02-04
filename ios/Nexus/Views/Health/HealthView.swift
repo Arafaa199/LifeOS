@@ -32,14 +32,6 @@ struct HealthView: View {
             }
             .navigationTitle("Health")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: HealthSourcesView(viewModel: viewModel)) {
-                        Image(systemName: "antenna.radiowaves.left.and.right")
-                            .foregroundColor(.nexusHealth)
-                    }
-                }
-            }
         }
         .task {
             await viewModel.loadData()
@@ -175,10 +167,18 @@ class HealthViewModel: ObservableObject {
         coordinator.$dashboardPayload
             .compactMap { $0 }
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] payload in
-                self?.dashboardPayload = payload
-                self?.lastUpdated = Date()
-                self?.dataSource = .network
+            .sink { [weak self] (payload: DashboardPayload) in
+                guard let self = self else { return }
+                self.dashboardPayload = payload
+
+                // Get actual source from coordinator domain state
+                if let domainState = self.coordinator.domainStates[.dashboard] {
+                    self.lastUpdated = domainState.lastSuccessDate ?? Date()
+                    self.dataSource = domainState.isFromCache ? .cache : .network
+                } else {
+                    self.lastUpdated = Date()
+                    self.dataSource = .network
+                }
             }
             .store(in: &cancellables)
 

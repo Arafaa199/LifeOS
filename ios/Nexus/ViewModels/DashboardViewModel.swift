@@ -105,6 +105,38 @@ class DashboardViewModel: ObservableObject {
         coordinator.isSyncingAll
     }
 
+    /// True if dashboard data is from cache (not fresh from network)
+    var isFromCache: Bool {
+        dataSource == .cache
+    }
+
+    /// Label showing data source for UI
+    var dataSourceLabel: String {
+        switch dataSource {
+        case .network: return "Live"
+        case .cache: return "Cached"
+        case .none: return ""
+        }
+    }
+
+    /// True if dashboard data is for a different day than today (Dubai timezone)
+    var isDataFromYesterday: Bool {
+        guard let payload = dashboardPayload else { return false }
+        return !payload.meta.isForToday
+    }
+
+    /// Human-readable description of data staleness
+    var dataStalenessDescription: String? {
+        guard let payload = dashboardPayload else { return nil }
+        if !payload.meta.isForToday {
+            return "Data is from \(payload.meta.forDate) (not today)"
+        }
+        if payload.meta.isDataOld && isFromCache {
+            return "Cached data - pull to refresh"
+        }
+        return nil
+    }
+
     private let storage = SharedStorage.shared
 
     init(
@@ -154,9 +186,16 @@ class DashboardViewModel: ObservableObject {
         print("[DashboardVM] handlePayloadUpdate: todayFacts=\(payload.todayFacts != nil ? "present" : "nil"), recovery=\(payload.todayFacts?.recoveryScore ?? -1)")
 
         dashboardPayload = payload
-        dataSource = .network
-        lastUpdatedFormatted = RelativeDateTimeFormatter().localizedString(for: Date(), relativeTo: Date())
-        lastSyncDate = Date()
+
+        // Get actual source from coordinator domain state
+        if let domainState = coordinator.domainStates[SyncCoordinator.SyncDomain.dashboard] {
+            dataSource = domainState.isFromCache ? DashboardResult.DataSource.cache : DashboardResult.DataSource.network
+            lastSyncDate = domainState.lastSuccessDate ?? Date()
+        } else {
+            dataSource = DashboardResult.DataSource.network
+            lastSyncDate = Date()
+        }
+        lastUpdatedFormatted = RelativeDateTimeFormatter().localizedString(for: lastSyncDate ?? Date(), relativeTo: Date())
 
         mapPayloadToSummary(payload)
 

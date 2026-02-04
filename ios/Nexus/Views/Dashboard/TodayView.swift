@@ -17,6 +17,8 @@ struct TodayView: View {
                 VStack(spacing: 20) {
                     if !networkMonitor.isConnected {
                         TodayOfflineBanner()
+                    } else if viewModel.isFromCache && !viewModel.isForegroundRefreshing {
+                        TodayCachedBanner(cacheAge: SyncCoordinator.shared.cacheAgeFormatted)
                     }
 
                     if viewModel.hasAnyStaleData && !viewModel.isForegroundRefreshing {

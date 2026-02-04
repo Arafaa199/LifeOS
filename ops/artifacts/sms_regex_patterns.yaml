@@ -127,13 +127,22 @@ emiratesnbd:
   sender: "EmiratesNBD"
 
   patterns:
-    # ----- SALARY -----
+    # ----- SALARY (Arabic) -----
     - name: salary_deposit
       intent: income
       confidence: 0.99
       regex: 'تم ايداع الراتب\s+(?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)\s+في\s+حسابك'
       entities: [currency, amount]
       sample: "تم ايداع الراتب AED 23,500.00 في  حسابك .101XXX79XXX04 الرصيد المتوفر هو AED 23,514.47"
+
+    # ----- SALARY (English) -----
+    - name: salary_deposit_en
+      intent: income
+      confidence: 0.99
+      regex: 'Salary of (?P<currency>AED|SAR|JOD|USD)\s+(?P<amount>[\d,]+\.?\d*)\s+has been credited into your account'
+      entities: [currency, amount]
+      category: "Salary"
+      sample: "Salary of AED 23,500.00 has been credited into your account 101XXX79XXX04. The available balance is AED 23,514.47"
 
     # ----- DEBIT CARD PURCHASE -----
     - name: debit_purchase
@@ -250,7 +259,7 @@ emiratesnbd:
       never_create_transaction: true
       sample: "Transaction of USD 1.00 on your Card ending 9865 could not be completed. For Details, Please call 600540000"
 
-    # ----- FUNDS TRANSFER TO CARD (ENGLISH) -----
+    # ----- FUNDS TRANSFER TO CARD (ENGLISH - INCOMING) -----
     - name: funds_transfer_in_en
       intent: income
       confidence: 0.90
@@ -258,6 +267,15 @@ emiratesnbd:
       entities: [currency, amount, card]
       category: "Transfer"
       sample: "Funds Transfer of AED 871.94 has been initiated towards your Debit Card ending 8236. The amount will be credited to your account."
+
+    # ----- FUNDS TRANSFER FROM CARD (ENGLISH - OUTGOING) -----
+    - name: funds_transfer_out_en
+      intent: expense
+      confidence: 0.95
+      regex: 'Funds Transfer of (?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s+(?P<amount>[\d,]+\.?\d*)\s+has been made using your Debit Card ending (?P<card>\d+)(?:\s+at\s+(?P<merchant>[^,]+))?'
+      entities: [currency, amount, card, merchant]
+      category: "Transfer"
+      sample: "Funds Transfer of AED 373.75 has been made using your Debit Card ending 8236 at Tabby, 800 82229."
 
     # ----- AUTH CODE / OTP (ENGLISH) -----
     - name: auth_code_en

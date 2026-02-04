@@ -35,6 +35,72 @@ struct DashboardPayload: Codable {
         case reminderSummary = "reminder_summary"
         case fasting
         case medicationsToday = "medications_today"
+        // Top-level flat fields (fallback when meta object is missing)
+        case schemaVersion = "schema_version"
+        case generatedAt = "generated_at"
+        case targetDate = "target_date"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        // Handle meta: nested object OR flat top-level fields
+        if let nestedMeta = try? container.decode(DashboardMeta.self, forKey: .meta) {
+            meta = nestedMeta
+        } else {
+            let schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+            let generatedAt = try container.decodeIfPresent(String.self, forKey: .generatedAt) ?? ""
+            let targetDate = try container.decodeIfPresent(String.self, forKey: .targetDate) ?? ""
+            meta = DashboardMeta(
+                schemaVersion: schemaVersion,
+                generatedAt: generatedAt,
+                forDate: targetDate,
+                timezone: "Asia/Dubai"
+            )
+        }
+
+        // All arrays default to empty if missing
+        todayFacts = try container.decodeIfPresent(TodayFacts.self, forKey: .todayFacts)
+        trends = try container.decodeIfPresent([TrendPeriod].self, forKey: .trends) ?? []
+        feedStatus = try container.decodeIfPresent([FeedStatus].self, forKey: .feedStatus) ?? []
+        staleFeeds = try container.decodeIfPresent([String].self, forKey: .staleFeeds) ?? []
+        recentEvents = try container.decodeIfPresent([RecentEvent].self, forKey: .recentEvents) ?? []
+
+        // Handle daily_insights: backend sends array directly, not wrapped in struct
+        if let insightsStruct = try? container.decode(DailyInsights.self, forKey: .dailyInsights) {
+            dailyInsights = insightsStruct
+        } else if let insightsArray = try? container.decode([RankedInsight].self, forKey: .dailyInsights) {
+            // Backend sends array directly - wrap in DailyInsights struct
+            dailyInsights = DailyInsights(rankedInsights: insightsArray)
+        } else {
+            dailyInsights = nil
+        }
+
+        dataFreshness = try container.decodeIfPresent(DataFreshness.self, forKey: .dataFreshness)
+        domainsStatus = try container.decodeIfPresent([DomainStatus].self, forKey: .domainsStatus)
+        githubActivity = try container.decodeIfPresent(GitHubActivityWidget.self, forKey: .githubActivity)
+        calendarSummary = try container.decodeIfPresent(CalendarSummary.self, forKey: .calendarSummary)
+        reminderSummary = try container.decodeIfPresent(ReminderSummary.self, forKey: .reminderSummary)
+        fasting = try container.decodeIfPresent(FastingStatus.self, forKey: .fasting)
+        medicationsToday = try container.decodeIfPresent(MedicationsSummary.self, forKey: .medicationsToday)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(meta, forKey: .meta)
+        try container.encodeIfPresent(todayFacts, forKey: .todayFacts)
+        try container.encode(trends, forKey: .trends)
+        try container.encode(feedStatus, forKey: .feedStatus)
+        try container.encode(staleFeeds, forKey: .staleFeeds)
+        try container.encode(recentEvents, forKey: .recentEvents)
+        try container.encodeIfPresent(dailyInsights, forKey: .dailyInsights)
+        try container.encodeIfPresent(dataFreshness, forKey: .dataFreshness)
+        try container.encodeIfPresent(domainsStatus, forKey: .domainsStatus)
+        try container.encodeIfPresent(githubActivity, forKey: .githubActivity)
+        try container.encodeIfPresent(calendarSummary, forKey: .calendarSummary)
+        try container.encodeIfPresent(reminderSummary, forKey: .reminderSummary)
+        try container.encodeIfPresent(fasting, forKey: .fasting)
+        try container.encodeIfPresent(medicationsToday, forKey: .medicationsToday)
     }
 }
 
@@ -147,6 +213,27 @@ struct DashboardMeta: Codable {
         case generatedAt = "generated_at"
         case forDate = "for_date"
         case timezone
+    }
+
+    init(schemaVersion: Int, generatedAt: String, forDate: String, timezone: String) {
+        self.schemaVersion = schemaVersion
+        self.generatedAt = generatedAt
+        self.forDate = forDate
+        self.timezone = timezone
+    }
+
+    /// Returns true if this dashboard data is for today in Dubai timezone
+    var isForToday: Bool {
+        let todayString = Constants.Dubai.dateString(from: Date())
+        return forDate == todayString
+    }
+
+    /// Returns true if the data is stale (generated more than 5 minutes ago)
+    var isDataOld: Bool {
+        guard let generatedDate = DomainFreshness.parseTimestamp(generatedAt) else {
+            return true
+        }
+        return Date().timeIntervalSince(generatedDate) > 300
     }
 }
 
@@ -314,14 +401,15 @@ struct FeedStatus: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case feed, status
-        case lastSync = "last_sync"
+        case lastSync  // Backend sends camelCase "lastSync"
         case totalRecords = "total_records"
-        case hoursSinceSync = "hours_since_sync"
+        case hoursSinceSync  // Backend sends camelCase "hoursSinceSync"
     }
 }
 
 enum FeedHealthStatus: String, Codable {
     case healthy
+    case ok  // Backend sends "ok" for healthy status
     case stale
     case critical
     case unknown
@@ -330,6 +418,11 @@ enum FeedHealthStatus: String, Codable {
         let container = try decoder.singleValueContainer()
         let rawValue = try container.decode(String.self)
         self = FeedHealthStatus(rawValue: rawValue) ?? .unknown
+    }
+
+    // Normalize "ok" to be treated same as "healthy"
+    var isHealthy: Bool {
+        self == .healthy || self == .ok
     }
 }
 
@@ -390,6 +483,15 @@ struct DailyInsights: Codable {
         case spendingByRecovery = "spending_by_recovery"
         case todayIs = "today_is"
         case rankedInsights = "ranked_insights"
+    }
+
+    // Convenience init for when backend sends insights array directly
+    init(rankedInsights: [RankedInsight]) {
+        self.alerts = nil
+        self.patterns = nil
+        self.spendingByRecovery = nil
+        self.todayIs = nil
+        self.rankedInsights = rankedInsights
     }
 }
 

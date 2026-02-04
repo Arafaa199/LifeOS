@@ -44,6 +44,29 @@ struct TodayStaleBanner: View {
     }
 }
 
+/// Cached data banner for Today view
+struct TodayCachedBanner: View {
+    let cacheAge: String?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "externaldrive")
+                .font(.caption)
+            Text("Using cached data")
+                .font(.caption.weight(.medium))
+            if let age = cacheAge {
+                Text("(\(age))")
+                    .font(.caption)
+            }
+        }
+        .foregroundColor(.blue)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.blue.opacity(0.1))
+        .cornerRadius(8)
+    }
+}
+
 /// No data state for Today view
 struct TodayNoDataView: View {
     let onRefresh: () -> Void

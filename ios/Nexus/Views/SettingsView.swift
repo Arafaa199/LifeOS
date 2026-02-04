@@ -583,6 +583,18 @@ struct SettingsView: View {
 
             Spacer()
 
+            // Source badge (cache vs network)
+            if !state.isSyncing && state.isFromCache {
+                Text("Cached")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(4)
+            }
+
             // Sync time or spinner
             if state.isSyncing {
                 ProgressView()

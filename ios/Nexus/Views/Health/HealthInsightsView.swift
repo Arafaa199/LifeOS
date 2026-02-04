@@ -98,7 +98,7 @@ struct HealthInsightsView: View {
             return .unknown
         }
         switch feed.status {
-        case .healthy: return .healthy
+        case .healthy, .ok: return .healthy
         case .stale: return .stale
         case .critical: return .failed
         case .unknown: return .unknown

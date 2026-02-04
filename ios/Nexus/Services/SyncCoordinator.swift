@@ -213,6 +213,10 @@ class SyncCoordinator: ObservableObject {
             domainStates[.dashboard]?.markSucceeded(source: src)
             notifyDomainStateChanged(.dashboard)
 
+            // Debug: Log payload contents
+            let facts = result.payload.todayFacts
+            logger.info("[dashboard] payload received: todayFacts=\(facts != nil ? "present" : "nil"), recovery=\(facts?.recoveryScore ?? -1), date=\(result.payload.meta.forDate)")
+
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.info("[dashboard] sync succeeded source=\(src) duration=\(ms)ms")
         } catch is CancellationError {

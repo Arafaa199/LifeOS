@@ -24,15 +24,28 @@ class DashboardService {
         do {
             let response: DashboardResponse = try await api.get("/webhook/nexus-dashboard-today")
 
+            print("[DashboardService] Response: success=\(response.success ?? false), data=\(response.data != nil ? "present" : "nil"), error=\(response.error ?? "none")")
+
             if let payload = response.data {
+                print("[DashboardService] Payload: todayFacts=\(payload.todayFacts != nil ? "present" : "nil"), recovery=\(payload.todayFacts?.recoveryScore ?? -1)")
                 cache.save(payload, forKey: cacheKey)
                 return DashboardResult(payload: payload, source: .network, lastUpdated: Date())
             } else if let error = response.error {
+                print("[DashboardService] Server error: \(error)")
                 throw DashboardError.serverError(error)
             } else {
+                print("[DashboardService] Empty response - no payload and no error")
                 throw DashboardError.emptyResponse
             }
+        } catch let decodingError as DecodingError {
+            print("[DashboardService] Decode error: \(decodingError)")
+            // Network failed, try cache
+            if let cached = loadCached() {
+                return cached
+            }
+            throw decodingError
         } catch {
+            print("[DashboardService] Other error: \(error)")
             // Network failed, try cache
             if let cached = loadCached() {
                 return cached
