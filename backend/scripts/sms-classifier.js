@@ -205,8 +205,22 @@ export class SMSClassifier {
           }
         }
 
-        // Extract merchant (from various possible group names)
-        const merchant = groups.merchant || groups.to || groups.from || groups.order || null;
+        // Extract merchant (intent-aware with special field handling)
+        let merchant;
+        if (pattern.intent === 'income' || pattern.intent === 'refund') {
+          // For incoming money, the sender (from) is the "merchant"
+          merchant = groups.merchant || groups.from || groups.order || null;
+        } else {
+          // For outgoing money, check multiple possible merchant fields:
+          // - merchant: standard field
+          // - to: transfer recipient
+          // - service: bill payment service name (e.g., "ZAIN")
+          // - biller: bill payment biller code (fallback)
+          // - provider: MOI payment provider
+          // - at: location/merchant for POS refunds
+          merchant = groups.merchant || groups.to || groups.service ||
+                     groups.biller || groups.provider || groups.at || groups.order || null;
+        }
 
         return {
           matched: true,

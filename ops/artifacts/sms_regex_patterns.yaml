@@ -306,8 +306,8 @@ alrajhibank:
     - name: refund_pos
       intent: refund
       confidence: 0.95
-      regex: 'Refund\s+PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)'
-      entities: [card, method, currency, amount]
+      regex: 'Refund\s+PoS\nBy:(?P<card>\d+);(?P<method>[^\n]+)\nAmount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\n(?:At:(?P<merchant>[^\n]+))?'
+      entities: [card, method, currency, amount, merchant]
       sample: |
         Refund PoS
         By:8308;mada
@@ -343,8 +343,8 @@ alrajhibank:
     - name: online_purchase
       intent: expense
       confidence: 0.95
-      regex: 'Online Purchase\nBy:(?P<card>\d+);(?P<method>[^\n]+)\n(?:From:(?P<from>\d+)\n)?Amount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)'
-      entities: [card, method, from, currency, amount]
+      regex: 'Online Purchase\nBy:(?P<card>\d+);(?P<method>[^\n]+)\n(?:From:(?P<from>\d+)\n)?Amount:(?P<currency>SAR|AED|USD|EUR|GBP|JOD)\s*(?P<amount>[\d,]+\.?\d*)\n(?:At:(?P<merchant>[^\n]+))?'
+      entities: [card, method, from, currency, amount, merchant]
       sample: |
         Online Purchase
         By:8308;mada
