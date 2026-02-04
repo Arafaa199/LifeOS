@@ -42,3 +42,9 @@ _Last updated: 2026-01-24_
 - Files: 14 (max 8)
 - LOC: 1727 (max 750)
 - Action: Reverted to f2082cad
+
+### Budget Exceeded (2026-02-04 13:00:17)
+- Task: TASK-FEAT.14
+- Files: 10 (max 8)
+- LOC: 1599 (max 750)
+- Action: Reverted to 6ef49057

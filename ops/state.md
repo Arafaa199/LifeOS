@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-04T19:07:00+04:00
+Last updated: 2026-02-04T18:30:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -159,9 +159,11 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 4)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-FIX.E2E: iOS End-to-End Sync Bugs | DONE | Fixed 3 interconnected iOS sync bugs plus 3 additional decode issues discovered during debugging. **Issue 1 (Dashboard ❌):** Swift expected `meta` nested object, backend sends flat `schema_version`/`generated_at`/`target_date`. Fix: Added custom `init(from decoder:)` to DashboardPayload that tries nested meta first, falls back to flat fields; added explicit `encode(to:)` for cache serialization. **Issue 2 (Health "no data"):** Cascaded from dashboard decode failure. Fix: Primary via Issue 1; also improved empty state messaging with context-aware icon/title/message (checks healthFreshness OR healthKitAuthorized). **Issue 3 (Documents error toast):** POST succeeded but refresh failed, both used same errorMessage. Fix: Separated POST success from refresh — optimistic local update, refresh in try/catch that logs but doesn't set errorMessage. Applied to createDocument/updateDocument/renewDocument. **Additional fixes found during debug:** (a) FeedHealthStatus: Added `.ok` case — backend sends `"status": "ok"`, Swift only had healthy/stale/critical/unknown. Updated all switch statements in HealthInsightsView, HealthSourcesView, SettingsView. (b) FeedStatus CodingKeys: Backend sends camelCase `lastSync`/`hoursSinceSync`, not snake_case. (c) **ROOT CAUSE** daily_insights type mismatch: Backend sends array `[{type,icon,...}]`, Swift expected struct with nested `rankedInsights`. Fix: Handle both formats in decoder, added DailyInsights convenience init. Evidence: `curl pivpn:5678/webhook/nexus-dashboard-today \| jq 'keys'` confirms flat structure. 5 files changed. iOS build: BUILD SUCCEEDED. |
 | TASK-FEAT.13: TodayView Decomposition | DONE | Extracted TodayView (658→180 lines) into 7 focused card components: RecoveryCardView (109), BudgetCardView (80), NutritionCardView (72), FastingCardView (74), InsightsFeedView (96), StateCardView (96), TodayBannersView (97). Each component takes only the data it needs as parameters. TodayView now a clean composition. 8 files changed. iOS build: BUILD SUCCEEDED. Commit `ec2aa7c`. |
 | TASK-FEAT.12: HealthKit Medications | DONE | Migration 140: Created `health.medications` table with idempotency on (medication_id, scheduled_date, scheduled_time, source). Added `health.v_daily_medications` view, `medications_today` to dashboard.get_payload() (schema v9→v10), feed status entry (48h interval). iOS: Added MedicationsSummary/MedicationDose Codable structs to DashboardPayload, MedicationDose struct + fetchMedicationDoses() to HealthKitManager (iOS 18+), syncMedications() to HealthKitSyncService wired into syncAllData(). Created medications-batch-webhook.json (n8n). 6 files changed (+672). iOS build: BUILD SUCCEEDED. Commit `9f32adb`. Note: n8n workflow must be imported and activated. |
 | TASK-FEAT.11: Siri Shortcuts | DONE | Added 5 new App Intents (LogMoodIntent, LogWeightIntent, StartFastIntent, BreakFastIntent, enhanced LogWaterIntent) to `WidgetIntents.swift`. Updated `NexusAppShortcuts` provider with 7 total shortcuts. Replaced placeholder `SiriShortcutsView` with phrase examples UI. All intents use `ProvidesDialog` for confirmation, `openAppWhenRun: Bool = false` for background execution. 2 files changed (+315/-24). iOS build: BUILD SUCCEEDED. Commit `7a78eae`. |
+| TASK-UI.1: Settings Reorganization | DONE | **Health Sources:** Moved toolbar button from HealthView to Settings "Data Sources" section (alongside GitHub Activity). **Finance refresh:** Removed redundant refresh button from FinanceView toolbar (pull-to-refresh already exists). **Debug section:** Added comprehensive Debug section to Settings with: API Debug Panel (existing), Dashboard Payload disclosure (meta, todayFacts, feed counts, insights), WHOOP Debug disclosure (raw sync timestamps, parsed dates, server status), Sync State disclosure (per-domain status, errors, staleness). Helper views: `dashboardDebugContent`, `syncStateDebugContent`, `debugRow`. 4 files changed (SettingsView +105, HealthView -7, FinanceView -6). iOS build: BUILD SUCCEEDED. |
 
 ### Recent (Feb 1)
 | Task | Status | Summary |
@@ -288,6 +290,7 @@ ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c \"SELECT day, spend_to
 - WHOOP sensor mappings
 - Core transaction schema
 - TodayView.swift (dashboard UI)
+- DashboardPayload.swift decode logic (2026-02-04) — handles flat meta, camelCase FeedStatus, array daily_insights
 
 ---
 
