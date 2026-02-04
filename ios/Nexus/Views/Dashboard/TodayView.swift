@@ -15,38 +15,54 @@ struct TodayView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Offline indicator (minimal)
                     if !networkMonitor.isConnected {
-                        offlineBanner
+                        TodayOfflineBanner()
                     }
 
-                    // Stale data banner
                     if viewModel.hasAnyStaleData && !viewModel.isForegroundRefreshing {
-                        staleBanner
+                        TodayStaleBanner(text: staleBannerText, onRefresh: viewModel.forceRefresh)
                     }
 
-                    // No data state
                     if viewModel.dashboardPayload == nil && !viewModel.isLoading {
-                        noDataView
+                        TodayNoDataView(onRefresh: viewModel.forceRefresh)
                     } else {
-                        // Pending meal confirmations
                         if let pendingMeal = viewModel.pendingMeals.first {
                             mealConfirmationSection(meal: pendingMeal)
                         }
 
-                        // Top state: Recovery + Budget
-                        stateCard
+                        StateCardView(
+                            recoveryScore: viewModel.dashboardPayload?.todayFacts?.recoveryScore,
+                            sleepMinutes: viewModel.dashboardPayload?.todayFacts?.sleepMinutes,
+                            healthStatus: viewModel.dashboardPayload?.dataFreshness?.health?.status,
+                            healthFreshness: viewModel.healthFreshness,
+                            spendTotal: viewModel.dashboardPayload?.todayFacts?.spendTotal,
+                            spendVs7d: viewModel.dashboardPayload?.todayFacts?.spendVs7d,
+                            spendUnusual: viewModel.dashboardPayload?.todayFacts?.spendUnusual,
+                            financeFreshness: viewModel.financeFreshness,
+                            hasData: viewModel.dashboardPayload != nil,
+                            currency: AppSettings.shared.defaultCurrency,
+                            reminderSummary: viewModel.dashboardPayload?.reminderSummary
+                        )
 
-                        // Nutrition card (if data exists)
                         if hasNutritionData {
-                            nutritionCard
+                            NutritionCardView(
+                                caloriesConsumed: viewModel.dashboardPayload?.todayFacts?.caloriesConsumed,
+                                mealsLogged: viewModel.dashboardPayload?.todayFacts?.mealsLogged,
+                                waterMl: viewModel.dashboardPayload?.todayFacts?.waterMl
+                            )
                         }
 
-                        // Fasting card
-                        fastingCard
+                        FastingCardView(
+                            fasting: viewModel.dashboardPayload?.fasting,
+                            fastingElapsed: fastingElapsed,
+                            isLoading: isFastingLoading,
+                            onToggle: toggleFasting
+                        )
 
-                        // Insights feed
-                        insightsFeed
+                        InsightsFeedView(
+                            insights: viewModel.dashboardPayload?.dailyInsights?.rankedInsights ?? [],
+                            fallbackInsight: fallbackInsight
+                        )
                     }
 
                     Spacer(minLength: 40)
@@ -55,41 +71,51 @@ struct TodayView: View {
             }
             .overlay(alignment: .top) {
                 if viewModel.isForegroundRefreshing {
-                    HStack(spacing: 6) {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                        Text("Refreshing...")
-                            .font(.caption.weight(.medium))
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(20)
-                    .padding(.top, 8)
+                    refreshingOverlay
                 }
             }
             .background(Color(UIColor.systemGroupedBackground))
-            .refreshable {
-                await viewModel.refresh()
-            }
+            .refreshable { await viewModel.refresh() }
             .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if viewModel.isLoading {
-                        ProgressView()
-                            .scaleEffect(0.8)
+                        ProgressView().scaleEffect(0.8)
                     }
                 }
             }
-            .onReceive(fastingTimer) { _ in
-                updateFastingElapsed()
-            }
-            .onAppear {
-                updateFastingElapsed()
-            }
+            .onReceive(fastingTimer) { _ in updateFastingElapsed() }
+            .onAppear { updateFastingElapsed() }
         }
     }
+
+    // MARK: - Subviews
+
+    private var refreshingOverlay: some View {
+        HStack(spacing: 6) {
+            ProgressView().scaleEffect(0.7)
+            Text("Refreshing...").font(.caption.weight(.medium))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .cornerRadius(20)
+        .padding(.top, 8)
+    }
+
+    private func mealConfirmationSection(meal: InferredMeal) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Confirm Meal").font(.headline).foregroundColor(.primary)
+            MealConfirmationView(
+                meal: meal,
+                onConfirm: { Task { await viewModel.confirmMeal(meal, action: "confirmed") } },
+                onSkip: { Task { await viewModel.confirmMeal(meal, action: "skipped") } }
+            )
+        }
+    }
+
+    // MARK: - Fasting
 
     private func updateFastingElapsed() {
         guard let fasting = viewModel.dashboardPayload?.fasting,
@@ -100,72 +126,26 @@ struct TodayView: View {
         }
         let elapsed = Date().timeIntervalSince(startDate)
         let totalMinutes = Int(elapsed / 60)
-        let h = totalMinutes / 60
-        let m = totalMinutes % 60
-        fastingElapsed = String(format: "%d:%02d", h, m)
+        fastingElapsed = String(format: "%d:%02d", totalMinutes / 60, totalMinutes % 60)
     }
 
-    // MARK: - Meal Confirmation Section
-
-    private func mealConfirmationSection(meal: InferredMeal) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Confirm Meal")
-                .font(.headline)
-                .foregroundColor(.primary)
-
-            MealConfirmationView(
-                meal: meal,
-                onConfirm: {
-                    Task {
-                        await viewModel.confirmMeal(meal, action: "confirmed")
-                    }
-                },
-                onSkip: {
-                    Task {
-                        await viewModel.confirmMeal(meal, action: "skipped")
-                    }
-                }
-            )
+    private func toggleFasting() {
+        let isActive = viewModel.dashboardPayload?.fasting?.isActive == true
+        isFastingLoading = true
+        Task {
+            do {
+                if isActive { try await viewModel.breakFast() }
+                else { try await viewModel.startFast() }
+            } catch {}
+            isFastingLoading = false
         }
     }
 
-    // MARK: - Offline Banner (minimal)
+    // MARK: - Computed Properties
 
-    private var offlineBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "wifi.slash")
-                .font(.caption)
-            Text("Offline")
-                .font(.caption.weight(.medium))
-        }
-        .foregroundColor(.secondary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color(UIColor.tertiarySystemGroupedBackground))
-        .cornerRadius(8)
-    }
-
-    // MARK: - Stale Data Banner
-
-    private var staleBanner: some View {
-        Button {
-            viewModel.forceRefresh()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.caption)
-                Text(staleBannerText)
-                    .font(.caption.weight(.medium))
-                Image(systemName: "arrow.clockwise")
-                    .font(.caption2)
-            }
-            .foregroundColor(.orange)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.orange.opacity(0.12))
-            .cornerRadius(8)
-        }
-        .buttonStyle(.plain)
+    private var hasNutritionData: Bool {
+        let facts = viewModel.dashboardPayload?.todayFacts
+        return (facts?.mealsLogged ?? 0) > 0 || (facts?.waterMl ?? 0) > 0
     }
 
     private var staleBannerText: String {
@@ -176,479 +156,22 @@ struct TodayView: View {
         var staleNames: [String] = []
         if freshness?.health?.isStale == true { staleNames.append("Health") }
         if freshness?.finance?.isStale == true { staleNames.append("Finance") }
-        if !staleNames.isEmpty {
-            return "\(staleNames.joined(separator: " & ")) data delayed"
-        }
+        if !staleNames.isEmpty { return "\(staleNames.joined(separator: " & ")) data delayed" }
         return "Data may be outdated"
-    }
-
-    // MARK: - No Data View
-
-    private var noDataView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 40))
-                .foregroundColor(.secondary)
-
-            Text("Waiting for data")
-                .font(.headline)
-
-            Text("Pull down to refresh, or check Settings > Sync Center")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button {
-                viewModel.forceRefresh()
-            } label: {
-                HStack {
-                    Image(systemName: "arrow.clockwise")
-                    Text("Sync Now")
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(Color.accentColor)
-                .cornerRadius(10)
-            }
-        }
-        .padding(.vertical, 60)
-    }
-
-    // MARK: - State Card (Recovery + Budget)
-
-    private var stateCard: some View {
-        VStack(spacing: 16) {
-            // Recovery row
-            HStack {
-                recoveryIndicator
-                Spacer()
-                budgetIndicator
-            }
-
-            // Reminder indicator
-            if let reminders = viewModel.dashboardPayload?.reminderSummary,
-               reminders.dueToday > 0 || reminders.overdueCount > 0 {
-                reminderRow(reminders)
-            }
-        }
-        .padding(20)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(16)
-    }
-
-    private func reminderRow(_ reminders: ReminderSummary) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bell.fill")
-                .font(.caption)
-                .foregroundColor(reminders.overdueCount > 0 ? .red : .secondary)
-
-            if reminders.dueToday > 0 {
-                Text("\(reminders.dueToday) due today")
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(.secondary)
-            }
-
-            if reminders.dueToday > 0 && reminders.overdueCount > 0 {
-                Text("\u{00B7}")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            if reminders.overdueCount > 0 {
-                Text("\(reminders.overdueCount) overdue")
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(.red)
-            }
-
-            Spacer()
-        }
-    }
-
-    private var recoveryIndicator: some View {
-        HStack(spacing: 12) {
-            // Recovery ring
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 6)
-                    .frame(width: 56, height: 56)
-
-                Circle()
-                    .trim(from: 0, to: recoveryProgress)
-                    .stroke(recoveryColor, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                    .frame(width: 56, height: 56)
-                    .rotationEffect(.degrees(-90))
-
-                Text(recoveryText)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(recoveryColor)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Recovery")
-                    .font(.subheadline.weight(.medium))
-
-                if recoveryScore == nil {
-                    let healthStatus = viewModel.dashboardPayload?.dataFreshness?.health?.status
-                    if healthStatus == "healthy" || healthStatus == nil {
-                        Text("Pending")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                if let sleep = viewModel.dashboardPayload?.todayFacts?.sleepMinutes {
-                    Text(formatSleep(sleep))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                if let freshness = viewModel.healthFreshness {
-                    Text(freshness.syncTimeLabel)
-                        .font(.caption2)
-                        .foregroundColor(freshness.isStale ? .orange : .secondary)
-                }
-            }
-        }
-    }
-
-    private var budgetIndicator: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            Text(budgetStatusText)
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(budgetStatusColor)
-
-            Text(spentTodayText)
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            if let freshness = viewModel.financeFreshness {
-                Text(freshness.syncTimeLabel)
-                    .font(.caption2)
-                    .foregroundColor(freshness.isStale ? .orange : .secondary)
-            }
-        }
-    }
-
-    // MARK: - Insights Feed
-
-    @ViewBuilder
-    private var insightsFeed: some View {
-        let insights = viewModel.dashboardPayload?.dailyInsights?.rankedInsights ?? []
-
-        if insights.isEmpty {
-            if let fallback = fallbackInsight {
-                insightRow(
-                    icon: "lightbulb.fill",
-                    color: .yellow,
-                    text: fallback,
-                    confidence: nil,
-                    days: nil
-                )
-            }
-        } else {
-            VStack(spacing: 10) {
-                ForEach(insights) { insight in
-                    insightRow(
-                        icon: insight.icon ?? "lightbulb.fill",
-                        color: insightColor(insight.color),
-                        text: insight.description,
-                        confidence: insight.confidence,
-                        days: insight.daysSampled
-                    )
-                }
-            }
-        }
-    }
-
-    private func insightRow(icon: String, color: Color, text: String, confidence: String?, days: Int?) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .font(.title3)
-                .frame(width: 28)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
-
-                if let confidence, let days {
-                    HStack(spacing: 6) {
-                        Text(confidence)
-                            .font(.caption2.weight(.medium))
-                            .foregroundColor(confidenceColor(confidence))
-                        Text("\u{2022}")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        Text("\(days)d sample")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-
-            Spacer()
-        }
-        .padding(16)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(12)
     }
 
     private var fallbackInsight: String? {
         let facts = viewModel.dashboardPayload?.todayFacts
+        let spentToday = facts?.spendTotal ?? 0
         if facts?.spendUnusual == true {
             return "Unusual spending: " + formatCurrency(spentToday, currency: AppSettings.shared.defaultCurrency) + " today"
         }
-        if let score = recoveryScore, score < 34 { return "Low recovery — consider a rest day" }
-        if let score = recoveryScore, score >= 67 { return "High recovery — good day for intensity" }
+        if let score = facts?.recoveryScore, score < 34 { return "Low recovery — consider a rest day" }
+        if let score = facts?.recoveryScore, score >= 67 { return "High recovery — good day for intensity" }
         if let vsAvg = facts?.spendVs7d, vsAvg > 50 {
             return "Spending \(Int(vsAvg))% above your 7-day average"
         }
         return nil
-    }
-
-    private func insightColor(_ hint: String?) -> Color {
-        switch hint {
-        case "red": return .red
-        case "orange": return .orange
-        case "blue": return .blue
-        case "purple": return .purple
-        case "indigo": return .indigo
-        case "green": return .green
-        case "yellow": return .yellow
-        default: return .yellow
-        }
-    }
-
-    private func confidenceColor(_ confidence: String) -> Color {
-        switch confidence {
-        case "high": return .green
-        case "medium": return .orange
-        default: return .secondary
-        }
-    }
-
-    // MARK: - Nutrition Card
-
-    private var hasNutritionData: Bool {
-        let facts = viewModel.dashboardPayload?.todayFacts
-        return (facts?.mealsLogged ?? 0) > 0 || (facts?.waterMl ?? 0) > 0
-    }
-
-    private var nutritionCard: some View {
-        NavigationLink(destination: NutritionHistoryView()) {
-            VStack(spacing: 12) {
-                HStack {
-                    Text("Nutrition")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                HStack(spacing: 16) {
-                    if let calories = viewModel.dashboardPayload?.todayFacts?.caloriesConsumed, calories > 0 {
-                        nutritionItem(value: "\(calories)", label: "cal", icon: "flame.fill", color: .orange)
-                    }
-
-                    if let meals = viewModel.dashboardPayload?.todayFacts?.mealsLogged, meals > 0 {
-                        nutritionItem(value: "\(meals)", label: "meals", icon: "fork.knife", color: .green)
-                    }
-
-                    if let water = viewModel.dashboardPayload?.todayFacts?.waterMl, water > 0 {
-                        nutritionItem(value: "\(water)", label: "ml", icon: "drop.fill", color: .blue)
-                    }
-
-                    Spacer()
-                }
-            }
-            .padding(16)
-            .background(Color(UIColor.secondarySystemGroupedBackground))
-            .cornerRadius(12)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func nutritionItem(value: String, label: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundColor(color)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
-                Text(label)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-
-    // MARK: - Fasting Card
-
-    private var fastingCard: some View {
-        let fasting = viewModel.dashboardPayload?.fasting
-
-        return HStack(spacing: 12) {
-            // Timer icon
-            Image(systemName: fasting?.isActive == true ? "timer" : "timer.circle")
-                .font(.title2)
-                .foregroundColor(fasting?.isActive == true ? .orange : .secondary)
-                .symbolEffect(.pulse, isActive: fasting?.isActive == true)
-
-            // Status text
-            VStack(alignment: .leading, spacing: 2) {
-                if fasting?.isActive == true {
-                    Text(fastingElapsed)
-                        .font(.headline.monospacedDigit())
-                        .foregroundColor(.primary)
-                    Text("Fasting")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text("Not fasting")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
-
-            // Action button
-            Button {
-                toggleFasting()
-            } label: {
-                Text(fasting?.isActive == true ? "Break" : "Start")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(fasting?.isActive == true ? Color.orange : Color.accentColor)
-                    .cornerRadius(8)
-            }
-            .disabled(isFastingLoading)
-            .opacity(isFastingLoading ? 0.6 : 1)
-        }
-        .padding(16)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(12)
-    }
-
-    private func toggleFasting() {
-        let isActive = viewModel.dashboardPayload?.fasting?.isActive == true
-        isFastingLoading = true
-
-        Task {
-            do {
-                if isActive {
-                    try await viewModel.breakFast()
-                } else {
-                    try await viewModel.startFast()
-                }
-            } catch {
-                // Silently fail - not critical
-            }
-            isFastingLoading = false
-        }
-    }
-
-    // MARK: - Computed Properties
-
-    private var recoveryScore: Int? {
-        viewModel.dashboardPayload?.todayFacts?.recoveryScore
-    }
-
-    private var recoveryProgress: CGFloat {
-        guard let score = recoveryScore else { return 0 }
-        return CGFloat(score) / 100.0
-    }
-
-    private var recoveryText: String {
-        guard let score = recoveryScore else {
-            // If health feed is healthy, cycle just hasn't closed yet
-            let healthStatus = viewModel.dashboardPayload?.dataFreshness?.health?.status
-            if healthStatus == "healthy" || healthStatus == nil {
-                return "..."
-            }
-            return "--"
-        }
-        return "\(score)%"
-    }
-
-    private var recoveryColor: Color {
-        guard let score = recoveryScore else {
-            let healthStatus = viewModel.dashboardPayload?.dataFreshness?.health?.status
-            if healthStatus == "healthy" || healthStatus == nil {
-                return .secondary
-            }
-            return .gray
-        }
-        switch score {
-        case 67...100: return .green
-        case 34...66: return .yellow
-        default: return .red
-        }
-    }
-
-    private var spentToday: Double {
-        viewModel.dashboardPayload?.todayFacts?.spendTotal ?? 0
-    }
-
-    private var spentTodayText: String {
-        if spentToday == 0 {
-            return "No spending today"
-        }
-        return formatCurrency(abs(spentToday), currency: AppSettings.shared.defaultCurrency) + " today"
-    }
-
-    private var budgetStatusText: String {
-        guard viewModel.dashboardPayload != nil else { return "No data" }
-        let facts = viewModel.dashboardPayload?.todayFacts
-
-        // Check for unusual spending flag
-        if facts?.spendUnusual == true {
-            return "Unusual spending"
-        }
-
-        // Check vs 7-day average (spendVs7d is percentage change)
-        if let vsAvg = facts?.spendVs7d, vsAvg > 50 {
-            return "High spend day"
-        }
-
-        if spentToday == 0 {
-            return "No spend"
-        }
-
-        return "Normal"
-    }
-
-    private var budgetStatusColor: Color {
-        guard viewModel.dashboardPayload != nil else { return .gray }
-        let facts = viewModel.dashboardPayload?.todayFacts
-
-        if facts?.spendUnusual == true { return .red }
-        if let vsAvg = facts?.spendVs7d, vsAvg > 50 { return .orange }
-        return .green
-    }
-
-
-    // MARK: - Helpers
-
-    private func formatSleep(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let mins = minutes % 60
-        if hours > 0 && mins > 0 {
-            return "\(hours)h \(mins)m sleep"
-        } else if hours > 0 {
-            return "\(hours)h sleep"
-        }
-        return "\(mins)m sleep"
     }
 }
 
