@@ -49,7 +49,24 @@ class DocumentsViewModel: ObservableObject {
         do {
             let response: DocumentsResponse = try await api.get("/webhook/nexus-documents")
             documents = response.documents
+            print("[Documents] Decode OK, count=\(response.documents.count)")
+        } catch let decodingError as DecodingError {
+            // Temporary logging for decode errors
+            switch decodingError {
+            case .typeMismatch(let type, let context):
+                print("[Documents] TypeMismatch: expected \(type), path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")), desc: \(context.debugDescription)")
+            case .keyNotFound(let key, let context):
+                print("[Documents] KeyNotFound: \(key.stringValue), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
+            case .valueNotFound(let type, let context):
+                print("[Documents] ValueNotFound: \(type), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
+            case .dataCorrupted(let context):
+                print("[Documents] DataCorrupted: \(context.debugDescription)")
+            @unknown default:
+                print("[Documents] Unknown DecodingError: \(decodingError)")
+            }
+            errorMessage = decodingError.localizedDescription
         } catch {
+            print("[Documents] Other error: \(error)")
             errorMessage = error.localizedDescription
         }
         isLoading = false

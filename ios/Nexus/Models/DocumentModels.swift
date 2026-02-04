@@ -57,7 +57,15 @@ struct Document: Identifiable, Codable {
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
         daysUntilExpiry = try container.decodeIfPresent(Int.self, forKey: .daysUntilExpiry) ?? 0
         urgency = try container.decodeIfPresent(String.self, forKey: .urgency) ?? "ok"
-        renewalCount = try container.decodeIfPresent(Int.self, forKey: .renewalCount) ?? 0
+        // renewalCount: backend sends STRING "0", not Int
+        if let intValue = try? container.decode(Int.self, forKey: .renewalCount) {
+            renewalCount = intValue
+        } else if let stringValue = try? container.decode(String.self, forKey: .renewalCount),
+                  let parsed = Int(stringValue) {
+            renewalCount = parsed
+        } else {
+            renewalCount = 0
+        }
     }
 
     var docTypeIcon: String {
