@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-04T18:25:00+04:00
+Last updated: 2026-02-04T18:45:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -73,7 +73,7 @@ SettingsView       ─── observes ─────── $domainStates (Sync 
 | `ViewModels/FinanceViewModel.swift` | Routes `loadFinanceSummary()` through coordinator |
 | `NexusApp.swift` | Replaced HealthKit/Calendar fire-and-forget with `SyncCoordinator.shared.syncAll()` |
 | `Views/ContentView.swift` | Removed redundant `.onChange(of: scenePhase)` block |
-| `Views/SettingsView.swift` | Replaced scattered sync sections with unified Sync Center UI |
+| `Views/SettingsView.swift` | Decomposed from 482→212 lines; Sync Center, Debug, Config as separate files (2026-02-04) |
 
 **Commit:** `732ae70 a basic redesign`
 
@@ -169,6 +169,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | SMS Parsing Improvements | DONE | **BER encoding fix:** Fixed `extractTextFromAttributedBody` to handle 0x81/0x82 length prefixes (long messages). **New patterns:** Added `funds_transfer_out_en` for outgoing fund transfers ("has been made using your Debit Card"), `salary_deposit_en` for English salary notifications with `category: "Salary"`. 2 files changed (import-sms-transactions.js, sms_regex_patterns.yaml). Commit `7fde022`. |
 | Event-Driven Refresh | DONE | **Migration 141:** `trigger_refresh_on_write()` function for immediate daily_facts refresh. MVP on whoop_recovery. **Migration 142:** Coalescing queue pattern — `life.refresh_queue` table with (date, txid) key, `queue_refresh_on_write()` row trigger coalesces duplicates via ON CONFLICT, `process_refresh_queue()` statement trigger processes once per transaction. Applied to 5 source tables (whoop_recovery, whoop_sleep, whoop_strain, health.metrics, finance.transactions). Benefits: dashboard shows fresh data immediately, 100 rows = 1 refresh, exception-safe. 4 migration files + n8n workflow. Commit `9bb7e7d`. Migrations applied on nexus. |
 | SMS Intent-Aware Merchant Fix | DONE | **Root cause:** `credit_transfer_local_in_via` pattern captured account number (To:4281) as merchant instead of sender name (From:SENDER). **Fix:** sms-classifier.js now uses intent-aware merchant extraction — income uses `from` field, expense uses `to/merchant`. Also fixed `online_purchase` pattern missing `At:` capture (243 transactions), `refund_pos` missing `At:` capture (9 transactions), classifier now uses `service`/`provider`/`biller` fields. Added 27 merchant rules for common patterns (subscriptions, groceries, BNPL, etc.). **Results:** Reimported 1336 SMS transactions, categorization rate improved from 39% → 70.7%. Data validated clean. 2 files changed. Commit `d6d6b66`. |
+| TASK-FEAT.14: SettingsView Decomposition | DONE | Extracted SettingsView (482→212 lines) into 10 focused section components: SyncStatusSection (103), PipelineHealthSection (135), DomainTogglesSection (29), SyncIssuesSection (52), ConfigurationSection (59), DebugSection (199), SettingsRow (50), TestConnectionView (129), SiriShortcutsView (76), WidgetSettingsView (16). Per user instruction: NO manual refresh buttons on non-dev tabs — pull-to-refresh handles sync, Force Sync only in Debug section. SettingsView now a clean composition. 11 files changed (10 new + 1 modified). iOS build: BUILD SUCCEEDED. |
 
 ### Recent (Feb 1)
 | Task | Status | Summary |
