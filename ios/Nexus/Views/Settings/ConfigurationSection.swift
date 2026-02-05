@@ -18,7 +18,7 @@ struct ConfigurationSection: View {
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
                     .padding(12)
-                    .background(Color(.systemGray6))
+                    .background(Color.nexusCardBackground)
                     .cornerRadius(10)
             }
             .padding(.vertical, 4)
@@ -32,7 +32,7 @@ struct ConfigurationSection: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .padding(12)
-                    .background(Color(.systemGray6))
+                    .background(Color.nexusCardBackground)
                     .cornerRadius(10)
             }
             .padding(.vertical, 4)
@@ -48,7 +48,7 @@ struct ConfigurationSection: View {
             }
             .buttonStyle(PlainButtonStyle())
             .foregroundColor(.white)
-            .background(webhookURL.isEmpty ? Color.gray : Color.nexusPrimary)
+            .background(webhookURL.isEmpty ? Color.nexusPrimary.opacity(0.4) : Color.nexusPrimary)
             .cornerRadius(10)
             .disabled(webhookURL.isEmpty)
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))

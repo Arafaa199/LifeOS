@@ -43,7 +43,7 @@ struct TestConnectionView: View {
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color(.systemGray6))
+                        .background(Color.nexusCardBackground)
                         .cornerRadius(8)
                 }
             }

@@ -15,10 +15,10 @@ struct PipelineHealthSection: View {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
                         Text("Stale: \(stale.joined(separator: ", "))")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
                     }
                     .padding(.vertical, 2)
                 }
@@ -71,14 +71,16 @@ struct PipelineHealthSection: View {
                 .foregroundColor(feedStatusColor(feed.status))
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(feedDisplayName(feed.feed)), \(feed.status.rawValue)")
     }
 
     private func feedStatusColor(_ status: FeedHealthStatus) -> Color {
         switch status {
-        case .healthy, .ok: return .green
-        case .stale: return .orange
-        case .critical: return .red
-        case .unknown: return .gray
+        case .healthy, .ok: return .nexusSuccess
+        case .stale: return .nexusWarning
+        case .critical: return .nexusError
+        case .unknown: return .secondary
         }
     }
 
