@@ -10,19 +10,29 @@ struct BudgetCardView: View {
     let currency: String
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            Text(budgetStatusText)
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(budgetStatusColor)
-
+        VStack(alignment: .trailing, spacing: 6) {
+            // Spend amount as primary number
             Text(spentTodayText)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(.primary)
+
+            // Status chip
+            HStack(spacing: 4) {
+                Image(systemName: budgetStatusIcon)
+                    .font(.system(size: 9))
+                Text(budgetStatusText)
+                    .font(.caption2.weight(.medium))
+            }
+            .foregroundColor(budgetStatusColor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(budgetStatusColor.opacity(0.12))
+            .cornerRadius(6)
 
             if let freshness {
                 Text(freshness.syncTimeLabel)
                     .font(.caption2)
-                    .foregroundColor(freshness.isStale ? .orange : .secondary)
+                    .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
             }
         }
     }
@@ -35,9 +45,17 @@ struct BudgetCardView: View {
 
     private var spentTodayText: String {
         if spentToday == 0 {
-            return "No spending today"
+            return "No spend"
         }
-        return formatCurrency(abs(spentToday), currency: currency) + " today"
+        return formatCurrency(abs(spentToday), currency: currency)
+    }
+
+    private var budgetStatusIcon: String {
+        guard hasData else { return "minus.circle" }
+        if spendUnusual == true { return "exclamationmark.triangle.fill" }
+        if let vsAvg = spendVs7d, vsAvg > 50 { return "arrow.up.circle.fill" }
+        if spentToday == 0 { return "checkmark.circle.fill" }
+        return "checkmark.circle.fill"
     }
 
     private var budgetStatusText: String {
@@ -61,9 +79,9 @@ struct BudgetCardView: View {
     private var budgetStatusColor: Color {
         guard hasData else { return .gray }
 
-        if spendUnusual == true { return .red }
-        if let vsAvg = spendVs7d, vsAvg > 50 { return .orange }
-        return .green
+        if spendUnusual == true { return .nexusError }
+        if let vsAvg = spendVs7d, vsAvg > 50 { return .nexusWarning }
+        return .nexusSuccess
     }
 }
 

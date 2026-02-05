@@ -12,7 +12,7 @@ struct RecoveryCardView: View {
             // Recovery ring
             ZStack {
                 Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 6)
+                    .stroke(Color.gray.opacity(0.15), lineWidth: 6)
                     .frame(width: 56, height: 56)
 
                 Circle()
@@ -20,19 +20,25 @@ struct RecoveryCardView: View {
                     .stroke(recoveryColor, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                     .frame(width: 56, height: 56)
                     .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.8), value: recoveryProgress)
 
                 Text(recoveryText)
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(recoveryColor)
             }
+            .accessibilityLabel("Recovery \(recoveryText)")
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("Recovery")
                     .font(.subheadline.weight(.medium))
 
                 if recoveryScore == nil {
                     if healthStatus == "healthy" || healthStatus == nil {
-                        Text("Pending")
+                        Text("Pending...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Unavailable")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -47,7 +53,7 @@ struct RecoveryCardView: View {
                 if let freshness {
                     Text(freshness.syncTimeLabel)
                         .font(.caption2)
-                        .foregroundColor(freshness.isStale ? .orange : .secondary)
+                        .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
                 }
             }
         }
@@ -78,9 +84,9 @@ struct RecoveryCardView: View {
             return .gray
         }
         switch score {
-        case 67...100: return .green
-        case 34...66: return .yellow
-        default: return .red
+        case 67...100: return .nexusSuccess
+        case 34...66: return .nexusWarning
+        default: return .nexusError
         }
     }
 

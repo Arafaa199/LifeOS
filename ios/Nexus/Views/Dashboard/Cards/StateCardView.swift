@@ -20,15 +20,23 @@ struct StateCardView: View {
     let reminderSummary: ReminderSummary?
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack {
+        VStack(spacing: 14) {
+            HStack(spacing: 0) {
                 RecoveryCardView(
                     recoveryScore: recoveryScore,
                     sleepMinutes: sleepMinutes,
                     healthStatus: healthStatus,
                     freshness: healthFreshness
                 )
-                Spacer()
+
+                Spacer(minLength: 12)
+
+                Divider()
+                    .frame(height: 50)
+                    .padding(.horizontal, 4)
+
+                Spacer(minLength: 12)
+
                 BudgetCardView(
                     spendTotal: spendTotal,
                     spendVs7d: spendVs7d,
@@ -41,11 +49,12 @@ struct StateCardView: View {
 
             if let reminders = reminderSummary,
                reminders.dueToday > 0 || reminders.overdueCount > 0 {
+                Divider()
                 reminderRow(reminders)
             }
         }
         .padding(20)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
@@ -53,7 +62,7 @@ struct StateCardView: View {
         HStack(spacing: 6) {
             Image(systemName: "bell.fill")
                 .font(.caption)
-                .foregroundColor(reminders.overdueCount > 0 ? .red : .secondary)
+                .foregroundColor(reminders.overdueCount > 0 ? .nexusError : .secondary)
 
             if reminders.dueToday > 0 {
                 Text("\(reminders.dueToday) due today")
@@ -70,7 +79,7 @@ struct StateCardView: View {
             if reminders.overdueCount > 0 {
                 Text("\(reminders.overdueCount) overdue")
                     .font(.caption.weight(.medium))
-                    .foregroundColor(.red)
+                    .foregroundColor(.nexusError)
             }
 
             Spacer()
