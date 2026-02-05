@@ -8,15 +8,27 @@ struct FinancePlanView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                snapshotCard
+                SpendLimitCard(viewModel: viewModel)
+
+                if !viewModel.activeDebts.isEmpty {
+                    debtsCard
+                }
+
                 obligationsSection
                 budgetsSection
                 projectionSection
+
+                if viewModel.wishlistItems.contains(where: { $0.status == "wanted" || $0.status == "saving" }) {
+                    wishlistPreview
+                }
             }
             .padding()
         }
         .refreshable {
             await viewModel.refresh()
             viewModel.loadRecurringItems()
+            viewModel.loadFinancialPlanning()
         }
         .sheet(isPresented: $showingAddRecurring) {
             RecurringItemFormView(viewModel: viewModel, editingItem: nil)
@@ -24,6 +36,101 @@ struct FinancePlanView: View {
         .sheet(item: $editingItem) { item in
             RecurringItemFormView(viewModel: viewModel, editingItem: item)
         }
+        .onAppear {
+            viewModel.loadFinancialPlanning()
+        }
+    }
+
+    // MARK: - Financial Snapshot
+
+    private var snapshotCard: some View {
+        let income = viewModel.summary.totalIncome
+        let fixed = viewModel.monthlyObligations
+        let debtPayments = viewModel.monthlyDebtPayments
+        let available = income - fixed - debtPayments
+
+        return VStack(spacing: 12) {
+            HStack {
+                Text("Financial Snapshot")
+                    .font(.headline)
+                Spacer()
+            }
+
+            HStack(spacing: 0) {
+                snapshotStat("Income", value: income, color: .nexusSuccess)
+                Spacer()
+                snapshotStat("Fixed", value: fixed, color: .nexusWarning)
+                Spacer()
+                snapshotStat("Debt", value: debtPayments, color: .nexusError)
+                Spacer()
+                snapshotStat("Available", value: available, color: available >= 0 ? .nexusPrimary : .nexusError)
+            }
+        }
+        .padding()
+        .background(Color.nexusCardBackground)
+        .cornerRadius(16)
+    }
+
+    private func snapshotStat(_ label: String, value: Double, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(formatCompact(value))
+                .font(.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: - Debts Summary Card
+
+    private var debtsCard: some View {
+        NavigationLink(destination: DebtsListView(viewModel: viewModel)) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "creditcard.fill")
+                        .foregroundColor(.nexusMood)
+                    Text("Debts & Payments")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(formatCurrency(viewModel.totalDebtRemaining, currency: AppSettings.shared.defaultCurrency))
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                        Text("\(viewModel.activeDebts.count) active")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    if let next = viewModel.nextDebtDue {
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text(next.name)
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                            if let date = next.nextDueDate {
+                                Text(formatShortDate(date))
+                                    .font(.caption)
+                                    .foregroundColor(next.isOverdue ? .nexusError : next.isDueSoon ? .nexusWarning : .secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding()
+            .background(Color.nexusCardBackground)
+            .cornerRadius(16)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Monthly Obligations
@@ -37,7 +144,7 @@ struct FinancePlanView: View {
                     Text(formatCurrency(viewModel.monthlyObligations, currency: AppSettings.shared.defaultCurrency))
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.red)
+                        .foregroundColor(.nexusError)
                 }
                 Spacer()
                 Button(action: { showingAddRecurring = true }) {
@@ -80,7 +187,7 @@ struct FinancePlanView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
@@ -105,16 +212,22 @@ struct FinancePlanView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
-    // MARK: - Cashflow Projection
+    // MARK: - Cashflow Outlook
 
     private var projectionSection: some View {
         let totalIncome = viewModel.summary.totalIncome
         let totalSpent = viewModel.summary.totalSpent
         let remaining = totalIncome - totalSpent
+        let debtPaymentsRemaining = viewModel.activeDebts
+            .filter { debt in
+                guard let date = debt.nextDueDate else { return false }
+                return date > Date() && Calendar.current.isDate(date, equalTo: Date(), toGranularity: .month)
+            }
+            .reduce(0.0) { $0 + $1.monthlyPayment }
 
         let calendar = Calendar.current
         let today = Date()
@@ -132,11 +245,23 @@ struct FinancePlanView: View {
             }
             .reduce(0.0) { $0 + $1.amount }
 
-        let projectedNet = remaining - upcomingObligations
+        let projectedNet = remaining - upcomingObligations - debtPaymentsRemaining
 
         return VStack(alignment: .leading, spacing: 12) {
-            Text("Rest of Month")
-                .font(.headline)
+            HStack {
+                Text("Cashflow Outlook")
+                    .font(.headline)
+                Spacer()
+                NavigationLink(destination: CashflowProjectionView(viewModel: viewModel)) {
+                    HStack(spacing: 4) {
+                        Text("Full Projection")
+                            .font(.caption)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.nexusFinance)
+                }
+            }
 
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -146,7 +271,7 @@ struct FinancePlanView: View {
                     Text(formatCurrency(remaining, currency: AppSettings.shared.defaultCurrency))
                         .font(.title3)
                         .fontWeight(.semibold)
-                        .foregroundColor(remaining >= 0 ? .green : .red)
+                        .foregroundColor(remaining >= 0 ? .nexusSuccess : .nexusError)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 4) {
@@ -156,7 +281,12 @@ struct FinancePlanView: View {
                     if upcomingObligations > 0 {
                         Text("- \(formatCurrency(upcomingObligations, currency: AppSettings.shared.defaultCurrency)) bills")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
+                    }
+                    if debtPaymentsRemaining > 0 {
+                        Text("- \(formatCurrency(debtPaymentsRemaining, currency: AppSettings.shared.defaultCurrency)) debts")
+                            .font(.caption)
+                            .foregroundColor(.nexusError)
                     }
                 }
             }
@@ -164,19 +294,79 @@ struct FinancePlanView: View {
             Divider()
 
             HStack {
-                Text("After obligations")
+                Text("After obligations + debts")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Spacer()
-                Text((projectedNet >= 0 ? "" : "") + formatCurrency(projectedNet, currency: AppSettings.shared.defaultCurrency))
+                Text(formatCurrency(projectedNet, currency: AppSettings.shared.defaultCurrency))
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(projectedNet >= 0 ? .green : .red)
+                    .foregroundColor(projectedNet >= 0 ? .nexusSuccess : .nexusError)
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
+    }
+
+    // MARK: - Wishlist Preview
+
+    private var wishlistPreview: some View {
+        let activeItems = viewModel.wishlistItems
+            .filter { $0.status == "wanted" || $0.status == "saving" }
+            .sorted { $0.priority < $1.priority }
+
+        return NavigationLink(destination: WishlistView(viewModel: viewModel)) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "heart.circle.fill")
+                        .foregroundColor(.nexusMood)
+                    Text("Wishlist")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text("\(activeItems.count) items")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                ForEach(Array(activeItems.prefix(3))) { item in
+                    HStack {
+                        Text(item.name)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Text(formatCurrency(item.estimatedCost, currency: item.currency))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding()
+            .background(Color.nexusCardBackground)
+            .cornerRadius(16)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Helpers
+
+    private func formatShortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
+
+    private func formatCompact(_ value: Double) -> String {
+        let abs = abs(value)
+        let sign = value < 0 ? "-" : ""
+        if abs >= 1000 {
+            return sign + String(format: "%.1fK", abs / 1000)
+        }
+        return sign + String(format: "%.0f", abs)
     }
 }
 
@@ -198,14 +388,14 @@ struct RecurringItemRow: View {
                     if let daysUntil = item.daysUntilDue {
                         Text(dueDateLabel(daysUntil))
                             .font(.caption)
-                            .foregroundColor(item.isOverdue ? .red : item.isDueSoon ? .orange : .secondary)
+                            .foregroundColor(item.isOverdue ? .nexusError : item.isDueSoon ? .nexusWarning : .secondary)
                     }
                 }
             }
             Spacer()
             Text(formatCurrency(item.amount, currency: item.currency))
                 .font(.headline)
-                .foregroundColor(item.isExpense ? .primary : .green)
+                .foregroundColor(item.isExpense ? .primary : .nexusSuccess)
         }
         .padding(.vertical, 4)
     }
@@ -244,7 +434,7 @@ struct BudgetCompactRow: View {
                         .frame(height: 4)
                         .cornerRadius(2)
                     Rectangle()
-                        .fill(pct > 1 ? Color.red : pct > 0.8 ? Color.orange : Color.nexusFinance)
+                        .fill(pct > 1 ? Color.nexusError : pct > 0.8 ? Color.nexusWarning : Color.nexusFinance)
                         .frame(width: geo.size.width * min(pct, 1.0), height: 4)
                         .cornerRadius(2)
                 }

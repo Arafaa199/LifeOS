@@ -320,7 +320,7 @@ struct CategoryRow: View {
         HStack(spacing: 12) {
             Image(systemName: category.displayIcon)
                 .font(.title2)
-                .foregroundColor(category.isExpense ? .red : .green)
+                .foregroundColor(category.isExpense ? .nexusError : .nexusSuccess)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -383,7 +383,7 @@ struct AddCategoryView: View {
                                     .font(.title2)
                                     .foregroundColor(icon == iconName ? .white : .primary)
                                     .frame(width: 44, height: 44)
-                                    .background(icon == iconName ? Color.blue : Color(.tertiarySystemBackground))
+                                    .background(icon == iconName ? Color.nexusPrimary : Color(.tertiarySystemBackground))
                                     .cornerRadius(8)
                             }
                             .buttonStyle(.plain)
@@ -689,8 +689,8 @@ struct MatchingRuleRow: View {
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
-                    .foregroundColor(.blue)
+                    .background(Color.nexusPrimary.opacity(0.1))
+                    .foregroundColor(.nexusPrimary)
                     .cornerRadius(4)
             }
 

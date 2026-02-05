@@ -23,7 +23,7 @@ struct DateRangeFilterView: View {
                                 Spacer()
                                 if selectedRange == range {
                                     Image(systemName: "checkmark")
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(.nexusPrimary)
                                 }
                             }
                         }

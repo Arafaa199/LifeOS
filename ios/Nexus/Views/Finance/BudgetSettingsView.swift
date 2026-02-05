@@ -41,7 +41,7 @@ struct BudgetSettingsView: View {
 
                 if let error = errorMessage {
                     Text(error)
-                        .foregroundColor(.red)
+                        .foregroundColor(.nexusError)
                         .font(.caption)
                 }
             }
@@ -171,7 +171,7 @@ struct BudgetRow: View {
                 Spacer()
                 Text(String(format: "AED %.0f / %.0f", budget.spent, budget.amount))
                     .font(.subheadline)
-                    .foregroundColor(isOverBudget ? .red : .secondary)
+                    .foregroundColor(isOverBudget ? .nexusError : .secondary)
             }
 
             GeometryReader { geometry in
@@ -182,7 +182,7 @@ struct BudgetRow: View {
                         .cornerRadius(4)
 
                     Rectangle()
-                        .fill(isOverBudget ? Color.red : Color.green)
+                        .fill(isOverBudget ? Color.nexusError : Color.nexusFinance)
                         .frame(width: geometry.size.width * progress, height: 8)
                         .cornerRadius(4)
                 }
@@ -194,7 +194,7 @@ struct BudgetRow: View {
                      ? String(format: "AED %.0f over budget", budget.spent - budget.amount)
                      : String(format: "AED %.0f remaining", budget.amount - budget.spent))
                     .font(.caption)
-                    .foregroundColor(isOverBudget ? .red : .secondary)
+                    .foregroundColor(isOverBudget ? .nexusError : .secondary)
 
                 Spacer()
 

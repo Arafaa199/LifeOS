@@ -133,6 +133,11 @@ struct FinanceOverviewView: View {
                     obligationsSummary
                 }
 
+                // Debt Summary
+                if !viewModel.activeDebts.isEmpty {
+                    debtSummaryCard
+                }
+
                 // Upcoming Bills
                 if !viewModel.upcomingBills.isEmpty {
                     upcomingBillsCard
@@ -148,7 +153,7 @@ struct FinanceOverviewView: View {
                 if let error = viewModel.errorMessage {
                     Text(error)
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundColor(.nexusError)
                         .padding()
                 }
             }
@@ -159,23 +164,28 @@ struct FinanceOverviewView: View {
         }
         .onAppear {
             viewModel.loadFinanceSummary()
+            viewModel.loadDebts()
         }
     }
 
     // MARK: - MTD Spend Card
 
     private var mtdSpendCard: some View {
-        VStack(spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Month to Date")
+        VStack(spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Month to Date Spending")
                         .font(.subheadline)
+                        .fontWeight(.medium)
                         .foregroundColor(.secondary)
+                    
                     Text(formatCurrency(mtdSpend, currency: AppSettings.shared.defaultCurrency))
-                        .font(.system(size: 34, weight: .bold))
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                 }
+                
                 Spacer()
+                
                 budgetStatusBadge
             }
 
@@ -184,141 +194,216 @@ struct FinanceOverviewView: View {
                 let totalBudget = viewModel.summary.budgets.reduce(0) { $0 + $1.budgetAmount }
                 let progress = totalBudget > 0 ? min(mtdSpend / totalBudget, 1.0) : 0
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Rectangle()
                                 .fill(Color(.tertiarySystemFill))
-                                .frame(height: 6)
-                                .cornerRadius(3)
+                                .frame(height: 8)
+                                .cornerRadius(4)
 
                             Rectangle()
                                 .fill(Color.nexusFinance)
-                                .frame(width: geo.size.width * progress, height: 6)
-                                .cornerRadius(3)
+                                .frame(width: geo.size.width * progress, height: 8)
+                                .cornerRadius(4)
                         }
                     }
-                    .frame(height: 6)
+                    .frame(height: 8)
 
-                    Text(formatCurrency(totalBudget - mtdSpend, currency: AppSettings.shared.defaultCurrency) + " remaining")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack {
+                        Text(formatCurrency(totalBudget - mtdSpend, currency: AppSettings.shared.defaultCurrency))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                        
+                        Text("remaining of \(formatCurrency(totalBudget, currency: AppSettings.shared.defaultCurrency))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
+        .padding(16)
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
     private var budgetStatusBadge: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             Circle()
                 .fill(budgetStatus.status.color)
                 .frame(width: 8, height: 8)
+            
             Text(budgetStatus.message)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .fontWeight(.medium)
+                .foregroundColor(budgetStatus.status.color)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(budgetStatus.status.color.opacity(0.1))
-        .cornerRadius(12)
+        .background(budgetStatus.status.color.opacity(0.12))
+        .cornerRadius(14)
     }
 
     // MARK: - Top Categories Card
 
     private var topCategoriesCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Top Categories")
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Top Categories This Month")
                 .font(.headline)
+                .fontWeight(.semibold)
 
             ForEach(topCategories, id: \.0) { category, amount in
-                HStack {
-                    Text(category.capitalized)
-                        .font(.subheadline)
+                VStack(spacing: 8) {
+                    HStack {
+                        Text(category.capitalized)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
 
-                    Spacer()
+                        Spacer()
 
-                    Text(formatCurrency(amount, currency: AppSettings.shared.defaultCurrency))
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        Text(formatCurrency(amount, currency: AppSettings.shared.defaultCurrency))
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    }
+
+                    // Mini progress bar
+                    GeometryReader { geo in
+                        let maxAmount = topCategories.first?.1 ?? 1
+                        let progress = maxAmount > 0 ? amount / maxAmount : 0
+
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color(.tertiarySystemFill))
+                                .frame(height: 6)
+                                .cornerRadius(3)
+                            
+                            Rectangle()
+                                .fill(Color.nexusFinance.opacity(0.8))
+                                .frame(width: geo.size.width * progress, height: 6)
+                                .cornerRadius(3)
+                        }
+                    }
+                    .frame(height: 6)
                 }
-
-                // Mini progress bar
-                GeometryReader { geo in
-                    let maxAmount = topCategories.first?.1 ?? 1
-                    let progress = maxAmount > 0 ? amount / maxAmount : 0
-
-                    Rectangle()
-                        .fill(Color.nexusFinance.opacity(0.3))
-                        .frame(width: geo.size.width * progress, height: 4)
-                        .cornerRadius(2)
+                
+                if category != topCategories.last?.0 {
+                    Divider()
+                        .padding(.vertical, 4)
                 }
-                .frame(height: 4)
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
+        .padding(16)
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
     // MARK: - Cashflow Card
 
     private var cashflowCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Cashflow This Month")
                 .font(.headline)
+                .fontWeight(.semibold)
 
-            HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
+            HStack(spacing: 24) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
                         Image(systemName: "arrow.down.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(.nexusSuccess)
+                            .font(.subheadline)
                         Text("Income")
                             .font(.caption)
+                            .fontWeight(.medium)
                             .foregroundColor(.secondary)
                     }
+
                     Text(formatCurrency(mtdIncome, currency: AppSettings.shared.defaultCurrency))
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.green)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.nexusSuccess)
                 }
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Text("Spend")
+                VStack(alignment: .trailing, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Text("Spending")
                             .font(.caption)
+                            .fontWeight(.medium)
                             .foregroundColor(.secondary)
                         Image(systemName: "arrow.up.circle.fill")
-                            .foregroundColor(.red)
+                            .foregroundColor(.nexusError)
+                            .font(.subheadline)
                     }
+
                     Text(formatCurrency(mtdSpend, currency: AppSettings.shared.defaultCurrency))
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.red)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.nexusError)
                 }
             }
 
-            // Net
+            // Net cashflow
             let net = mtdIncome - mtdSpend
+            
             Divider()
-            HStack {
-                Text("Net")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+            
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: net >= 0 ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                    .foregroundColor(net >= 0 ? .nexusSuccess : .nexusWarning)
+                    .font(.title3)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Net Cashflow")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+
+                    Text((net >= 0 ? "+" : "") + formatCurrency(net, currency: AppSettings.shared.defaultCurrency))
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(net >= 0 ? .nexusSuccess : .nexusWarning)
+                }
+                
                 Spacer()
-                Text((net >= 0 ? "+" : "") + formatCurrency(net, currency: AppSettings.shared.defaultCurrency))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(net >= 0 ? .green : .red)
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
+        .padding(16)
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
+    }
+
+    // MARK: - Debt Summary Card
+
+    private var debtSummaryCard: some View {
+        NavigationLink(destination: DebtsListView(viewModel: viewModel)) {
+            HStack {
+                Image(systemName: "creditcard.fill")
+                    .foregroundColor(.nexusMood)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Debts")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                    Text("\(viewModel.activeDebts.count) active")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Text(formatCurrency(viewModel.totalDebtRemaining, currency: AppSettings.shared.defaultCurrency))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.nexusMood)
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color.nexusCardBackground)
+            .cornerRadius(12)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Monthly Obligations Summary
@@ -326,7 +411,7 @@ struct FinanceOverviewView: View {
     private var obligationsSummary: some View {
         HStack {
             Image(systemName: "repeat.circle.fill")
-                .foregroundColor(.orange)
+                .foregroundColor(.nexusWarning)
             Text("Monthly obligations")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -334,46 +419,66 @@ struct FinanceOverviewView: View {
             Text(formatCurrency(viewModel.monthlyObligations, currency: AppSettings.shared.defaultCurrency))
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundColor(.orange)
+                .foregroundColor(.nexusWarning)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(12)
     }
 
     // MARK: - Upcoming Bills Card
 
     private var upcomingBillsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Upcoming Bills")
                     .font(.headline)
+                    .fontWeight(.semibold)
+                
                 Spacer()
-                Text("\(viewModel.upcomingBills.prefix(5).count) of \(viewModel.upcomingBills.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                
+                if viewModel.upcomingBills.count > 5 {
+                    Text("Showing 5 of \(viewModel.upcomingBills.count)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
 
             ForEach(Array(viewModel.upcomingBills.prefix(5))) { item in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 12) {
+                    // Urgency indicator
+                    Circle()
+                        .fill(item.isOverdue ? Color.nexusError : item.isDueSoon ? Color.nexusWarning : Color.nexusPrimary)
+                        .frame(width: 8, height: 8)
+                    
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(item.name)
                             .font(.subheadline)
+                            .fontWeight(.medium)
+                        
                         if let date = item.dueDateFormatted {
                             Text(date)
                                 .font(.caption)
-                                .foregroundColor(item.isOverdue ? .red : item.isDueSoon ? .orange : .secondary)
+                                .foregroundColor(item.isOverdue ? .nexusError : item.isDueSoon ? .nexusWarning : .secondary)
                         }
                     }
+                    
                     Spacer()
+                    
                     Text(formatCurrency(item.amount, currency: item.currency))
                         .font(.subheadline)
-                        .fontWeight(.medium)
+                        .fontWeight(.semibold)
+                }
+                .padding(.vertical, 4)
+                
+                if item.id != viewModel.upcomingBills.prefix(5).last?.id {
+                    Divider()
+                        .padding(.leading, 20)
                 }
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
+        .padding(16)
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
@@ -381,18 +486,29 @@ struct FinanceOverviewView: View {
 
     private var recentTransactionsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recent")
-                .font(.headline)
+            HStack {
+                Text("Recent Transactions")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Text("\(viewModel.recentTransactions.prefix(5).count)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             ForEach(viewModel.recentTransactions.prefix(5)) { tx in
                 TransactionRow(transaction: tx)
+                
                 if tx.id != viewModel.recentTransactions.prefix(5).last?.id {
                     Divider()
+                        .padding(.leading, 40)
                 }
             }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
+        .padding(16)
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
@@ -410,8 +526,8 @@ struct FinanceOverviewView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Color.red.opacity(0.1))
-                .foregroundColor(.red)
+                .background(Color.nexusError.opacity(0.1))
+                .foregroundColor(.nexusError)
                 .cornerRadius(12)
             }
 
@@ -425,8 +541,8 @@ struct FinanceOverviewView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Color.green.opacity(0.1))
-                .foregroundColor(.green)
+                .background(Color.nexusSuccess.opacity(0.1))
+                .foregroundColor(.nexusSuccess)
                 .cornerRadius(12)
             }
         }
@@ -439,27 +555,37 @@ struct FinanceOverviewView: View {
 
         return Group {
             if !insights.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 8) {
                         Image(systemName: "lightbulb.fill")
-                            .foregroundColor(.yellow)
-                        Text("Insights")
+                            .foregroundColor(.nexusFood)
+                            .font(.title3)
+                        Text("Financial Insights")
                             .font(.headline)
+                            .fontWeight(.semibold)
                     }
 
                     ForEach(insights.prefix(2), id: \.self) { insight in
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("•")
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "circle.fill")
+                                .font(.system(size: 6))
                                 .foregroundColor(.secondary)
+                                .padding(.top, 6)
+                            
                             Text(insight)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
-                .padding()
-                .background(Color(.secondarySystemBackground))
+                .padding(16)
+                .background(Color.nexusFood.opacity(0.08))
                 .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.nexusFood.opacity(0.2), lineWidth: 1)
+                )
             }
         }
     }
@@ -489,32 +615,60 @@ struct FinanceOverviewView: View {
     }
 
     private func financeFreshnessIndicator(lastUpdated: Date, isOffline: Bool) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             if let freshness = viewModel.financeFreshness {
+                // Use server-provided freshness data when available
                 Circle()
-                    .fill(freshness.isStale ? Color.orange : Color.green)
-                    .frame(width: 6, height: 6)
-                Text(freshness.syncTimeLabel)
-                    .font(.caption)
-                    .foregroundColor(freshness.isStale ? .orange : .secondary)
-            } else {
-                Circle()
-                    .fill(isOffline ? Color.orange : Color.green)
-                    .frame(width: 6, height: 6)
-                Text("Updated \(lastUpdated, style: .relative) ago")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+                    .fill(freshness.isStale ? Color.nexusWarning : Color.nexusSuccess)
+                    .frame(width: 8, height: 8)
 
-            if isOffline {
-                Text("(Offline)")
-                    .font(.caption)
-                    .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(freshness.isStale ? "Data may be outdated" : "Data is current")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
+                    
+                    Text(freshness.syncTimeLabel)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                // Fallback to client-side staleness detection
+                let age = Date().timeIntervalSince(lastUpdated)
+                let isStale = age > 300 // 5 minutes
+                
+                Circle()
+                    .fill(isOffline ? Color.nexusWarning : isStale ? Color.nexusFood : Color.nexusSuccess)
+                    .frame(width: 8, height: 8)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    if isOffline {
+                        Text("Offline — showing cached data")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.nexusWarning)
+                    } else if isStale {
+                        Text("Last updated \(lastUpdated, style: .relative) ago")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Synced recently")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Text("Pull to refresh")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
 
             Spacer()
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.tertiarySystemBackground))
+        .cornerRadius(10)
     }
 }
 
@@ -526,9 +680,9 @@ struct BudgetStatusInfo {
 
         var color: Color {
             switch self {
-            case .ok: return .green
-            case .warning: return .orange
-            case .over: return .red
+            case .ok: return .nexusSuccess
+            case .warning: return .nexusWarning
+            case .over: return .nexusError
             case .noBudgets: return .gray
             }
         }

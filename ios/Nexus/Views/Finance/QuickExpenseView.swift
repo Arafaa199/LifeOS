@@ -122,7 +122,7 @@ struct QuickExpenseView: View {
 
                 if let error = viewModel.errorMessage {
                     Text(error)
-                        .foregroundColor(.red)
+                        .foregroundColor(.nexusError)
                         .padding()
                 }
             }
@@ -157,19 +157,19 @@ struct QuickExpenseView: View {
                     icon: "cart.fill",
                     label: "Grocery",
                     value: viewModel.summary.formatAmount(viewModel.summary.grocerySpent),
-                    color: .green
+                    color: .nexusSuccess
                 )
 
                 StatItem(
                     icon: "fork.knife",
                     label: "Eating Out",
                     value: viewModel.summary.formatAmount(viewModel.summary.eatingOutSpent),
-                    color: .orange
+                    color: .nexusFood
                 )
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(12)
     }
 
@@ -235,10 +235,10 @@ struct QuickExpenseView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: isOverBudget ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                    .foregroundColor(isOverBudget ? .red : .orange)
+                    .foregroundColor(isOverBudget ? .nexusError : .nexusWarning)
                 Text(isOverBudget ? "Over Budget" : "Budget Warning")
                     .font(.headline)
-                    .foregroundColor(isOverBudget ? .red : .orange)
+                    .foregroundColor(isOverBudget ? .nexusError : .nexusWarning)
                 Spacer()
             }
 
@@ -260,11 +260,11 @@ struct QuickExpenseView: View {
                         }
                     }
                 }
-                .foregroundColor(isOverBudget ? .red : .orange)
+                .foregroundColor(isOverBudget ? .nexusError : .nexusWarning)
             }
         }
         .padding()
-        .background(isOverBudget ? Color.red.opacity(0.1) : Color.orange.opacity(0.1))
+        .background(isOverBudget ? Color.nexusError.opacity(0.1) : Color.nexusWarning.opacity(0.1))
         .cornerRadius(12)
     }
 }

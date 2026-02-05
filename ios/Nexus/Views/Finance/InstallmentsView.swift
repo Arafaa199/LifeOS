@@ -50,7 +50,7 @@ struct InstallmentsView: View {
                 Spacer()
                 Image(systemName: "creditcard.and.123")
                     .font(.system(size: 32))
-                    .foregroundColor(.purple.opacity(0.7))
+                    .foregroundColor(.nexusMood.opacity(0.7))
             }
 
             Divider()
@@ -75,20 +75,20 @@ struct InstallmentsView: View {
             if summary.dueThisWeek > 0 {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.orange)
+                        .foregroundColor(.nexusWarning)
                     Text("\(installments.first?.currency ?? "AED") \(summary.dueThisWeekAmount) due this week")
                         .font(.subheadline)
-                        .foregroundColor(.orange)
+                        .foregroundColor(.nexusWarning)
                     Spacer()
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Color.orange.opacity(0.1))
+                .background(Color.nexusWarning.opacity(0.1))
                 .cornerRadius(8)
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
@@ -96,11 +96,11 @@ struct InstallmentsView: View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundColor(isWarning ? .orange : .purple)
+                .foregroundColor(isWarning ? .nexusWarning : .nexusMood)
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
                     .font(.headline)
-                    .foregroundColor(isWarning ? .orange : .primary)
+                    .foregroundColor(isWarning ? .nexusWarning : .primary)
                 Text(label)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -167,7 +167,7 @@ struct InstallmentsView: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.red)
+                                .background(Color.nexusError)
                                 .cornerRadius(4)
                         } else if plan.isDueSoon {
                             Text("DUE SOON")
@@ -176,7 +176,7 @@ struct InstallmentsView: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.orange)
+                                .background(Color.nexusWarning)
                                 .cornerRadius(4)
                         }
                     }
@@ -217,7 +217,7 @@ struct InstallmentsView: View {
                 .background(Color(.systemGray6))
             }
         }
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(12)
     }
 
@@ -227,7 +227,7 @@ struct InstallmentsView: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.green)
+                .foregroundColor(.nexusSuccess)
 
             Text("No Active Installments")
                 .font(.headline)
@@ -246,7 +246,7 @@ struct InstallmentsView: View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 40))
-                .foregroundColor(.orange)
+                .foregroundColor(.nexusWarning)
 
             Text("Could not load installments")
                 .font(.headline)
@@ -270,9 +270,9 @@ struct InstallmentsView: View {
 
     private func sourceColor(_ source: String) -> Color {
         switch source.lowercased() {
-        case "tabby": return .purple
-        case "tamara": return .blue
-        case "postpay": return .green
+        case "tabby": return .nexusMood
+        case "tamara": return .nexusWater
+        case "postpay": return .nexusSuccess
         default: return .gray
         }
     }

@@ -35,7 +35,7 @@ struct InsightsView: View {
                         Image(systemName: "chevron.right")
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(Color.nexusCardBackground)
                     .cornerRadius(12)
                 }
 
@@ -78,28 +78,28 @@ struct InsightsView: View {
                     title: "Transactions",
                     value: "\(viewModel.recentTransactions.count)",
                     icon: "list.bullet",
-                    color: .blue
+                    color: .nexusPrimary
                 )
 
                 StatCard(
                     title: "Avg/Transaction",
                     value: averageTransactionAmount,
                     icon: "chart.bar",
-                    color: .green
+                    color: .nexusSuccess
                 )
 
                 StatCard(
                     title: "Categories",
                     value: "\(uniqueCategoriesCount)",
                     icon: "folder",
-                    color: .orange
+                    color: .nexusWarning
                 )
 
                 StatCard(
                     title: "This Month",
                     value: viewModel.summary.formatAmount(viewModel.summary.totalSpent),
                     icon: "calendar",
-                    color: .purple
+                    color: .nexusMood
                 )
             }
         }
@@ -199,7 +199,7 @@ struct InsightsView: View {
         .padding()
         .background(
             LinearGradient(
-                gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.purple.opacity(0.1)]),
+                gradient: Gradient(colors: [Color.nexusPrimary.opacity(0.1), Color.nexusMood.opacity(0.1)]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -207,7 +207,7 @@ struct InsightsView: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                .stroke(Color.nexusPrimary.opacity(0.2), lineWidth: 1)
         )
     }
 
@@ -246,9 +246,9 @@ struct InsightsView: View {
     }
 
     private var budgetStatusColor: Color {
-        if budgetPercentage >= 100 { return .red }
-        if budgetPercentage >= 80 { return .orange }
-        return .green
+        if budgetPercentage >= 100 { return .nexusError }
+        if budgetPercentage >= 80 { return .nexusWarning }
+        return .nexusSuccess
     }
 
     private var dailyAverageAmount: String {
@@ -276,17 +276,17 @@ struct InsightsView: View {
         // Determine health based on budget usage and spending patterns
         if let _ = totalBudgetAmount {
             if budgetPercentage >= 100 {
-                return ("Over Budget", .red)
+                return ("Over Budget", .nexusError)
             } else if budgetPercentage >= 80 {
-                return ("Near Limit", .orange)
+                return ("Near Limit", .nexusWarning)
             } else if budgetPercentage >= 50 {
-                return ("On Track", .blue)
+                return ("On Track", .nexusPrimary)
             } else {
-                return ("Under Budget", .green)
+                return ("Under Budget", .nexusSuccess)
             }
         }
         // No budgets set - just show neutral status
-        return ("Tracking", .blue)
+        return ("Tracking", .nexusPrimary)
     }
 
     private var topMerchantsSection: some View {
@@ -312,7 +312,7 @@ struct InsightsView: View {
                         .fontWeight(.semibold)
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(Color.nexusCardBackground)
                 .cornerRadius(8)
             }
         }
@@ -343,7 +343,7 @@ struct InsightsView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .padding()
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color.nexusPrimary.opacity(0.1))
                     .cornerRadius(12)
             } else if !isLoadingInsights {
                 Button(action: {
@@ -357,7 +357,7 @@ struct InsightsView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.blue)
+                    .background(Color.nexusPrimary)
                     .foregroundColor(.white)
                     .cornerRadius(12)
                 }
@@ -375,21 +375,21 @@ struct InsightsView: View {
                     icon: "clock",
                     title: "Most Active Day",
                     value: mostActiveDay,
-                    color: .blue
+                    color: .nexusPrimary
                 )
 
                 PatternCard(
                     icon: "calendar.badge.clock",
                     title: "Average Daily Spend",
                     value: averageDailySpend,
-                    color: .green
+                    color: .nexusSuccess
                 )
 
                 PatternCard(
                     icon: "chart.pie",
                     title: "Largest Category",
                     value: largestCategory,
-                    color: .orange
+                    color: .nexusWarning
                 )
             }
         }
@@ -496,7 +496,7 @@ struct InsightsView: View {
                     }
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(Color.nexusCardBackground)
                 .cornerRadius(8)
             }
         }
@@ -526,7 +526,7 @@ struct InsightsView: View {
     private var duplicatesSectionHeader: some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.orange)
+                .foregroundColor(.nexusWarning)
             Text("Potential Duplicates")
                 .font(.headline)
             Spacer()
@@ -605,7 +605,7 @@ struct StatCard: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(12)
     }
 }
@@ -635,7 +635,7 @@ struct PatternCard: View {
             Spacer()
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(8)
     }
 }
@@ -653,7 +653,7 @@ struct DuplicateGroupRow: View {
                             .fontWeight(.medium)
                         Text("\(group.count) transactions")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
@@ -669,11 +669,11 @@ struct DuplicateGroupRow: View {
                 duplicateDates
             }
             .padding()
-            .background(Color.orange.opacity(0.1))
+            .background(Color.nexusWarning.opacity(0.1))
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.nexusWarning.opacity(0.3), lineWidth: 1)
             )
         }
     }
@@ -685,7 +685,7 @@ struct DuplicateGroupRow: View {
                     .font(.caption2)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.orange.opacity(0.2))
+                    .background(Color.nexusWarning.opacity(0.2))
                     .cornerRadius(4)
             }
             if group.count > 3 {
