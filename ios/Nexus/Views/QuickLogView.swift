@@ -30,7 +30,7 @@ struct QuickLogView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.nexusBackground)
             .navigationTitle("Quick Log")
             .navigationBarTitleDisplayMode(.large)
             .alert("Logged", isPresented: $showSuccess) {

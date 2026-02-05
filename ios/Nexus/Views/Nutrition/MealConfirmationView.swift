@@ -45,9 +45,9 @@ struct MealConfirmationView: View {
                         onSkip()
                     }) {
                         Image(systemName: "xmark")
-                            .foregroundColor(.red)
+                            .foregroundColor(.nexusError)
                             .frame(width: 32, height: 32)
-                            .background(Color.red.opacity(0.1))
+                            .background(Color.nexusError.opacity(0.1))
                             .clipShape(Circle())
                     }
 
@@ -57,9 +57,9 @@ struct MealConfirmationView: View {
                         onConfirm()
                     }) {
                         Image(systemName: "checkmark")
-                            .foregroundColor(.green)
+                            .foregroundColor(.nexusSuccess)
                             .frame(width: 32, height: 32)
-                            .background(Color.green.opacity(0.1))
+                            .background(Color.nexusSuccess.opacity(0.1))
                             .clipShape(Circle())
                     }
                 }
@@ -68,7 +68,7 @@ struct MealConfirmationView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(12)
         .offset(x: offset)
         .gesture(
@@ -145,11 +145,11 @@ struct MealConfirmationView: View {
     private var iconColor: Color {
         switch meal.mealType.lowercased() {
         case "breakfast":
-            return .orange
+            return .nexusWarning
         case "lunch":
             return .yellow
         case "dinner":
-            return .indigo
+            return .nexusMood
         default:
             return .gray
         }
@@ -157,11 +157,11 @@ struct MealConfirmationView: View {
 
     private var confidenceColor: Color {
         if meal.confidence >= 0.7 {
-            return .green
+            return .nexusSuccess
         } else if meal.confidence >= 0.4 {
-            return .orange
+            return .nexusWarning
         } else {
-            return .red
+            return .nexusError
         }
     }
 

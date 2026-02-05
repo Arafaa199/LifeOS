@@ -63,7 +63,7 @@ struct FoodLogView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.nexusBackground)
         .navigationTitle("Log Food")
         .navigationBarTitleDisplayMode(.large)
         .alert("Food Logged", isPresented: $showSuccess) {
@@ -178,7 +178,7 @@ struct FoodLogView: View {
             HStack(spacing: 0) {
                 macroColumn("Calories", value: food.calories_per_100g, format: "%.0f", unit: "", color: .nexusFood)
                 macroColumn("Protein", value: food.protein_per_100g, format: "%.1f", unit: "g", color: .nexusPrimary)
-                macroColumn("Carbs", value: food.carbs_per_100g, format: "%.1f", unit: "g", color: .orange)
+                macroColumn("Carbs", value: food.carbs_per_100g, format: "%.1f", unit: "g", color: .nexusWarning)
                 macroColumn("Fat", value: food.fat_per_100g, format: "%.1f", unit: "g", color: .yellow)
             }
 

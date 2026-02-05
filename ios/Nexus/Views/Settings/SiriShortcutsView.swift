@@ -37,6 +37,8 @@ struct SiriShortcutsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.nexusBackground)
         .navigationTitle("Siri Shortcuts")
         .navigationBarTitleDisplayMode(.inline)
     }

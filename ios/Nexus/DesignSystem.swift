@@ -26,16 +26,23 @@ extension Color {
     static let nexusWarning = Color(red: 0.831, green: 0.533, blue: 0.165) // warm amber
     static let nexusError = Color(red: 0.769, green: 0.271, blue: 0.212) // brick red
 
-    // Background variants (adaptive: cream light / system dark)
+    // Page background (warm cream light / system dark)
+    static let nexusBackground = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor.systemGroupedBackground
+            : UIColor(red: 0.894, green: 0.835, blue: 0.765, alpha: 1.0) // #E4D5C3
+    })
+
+    // Card backgrounds (white light / system dark) — contrast against nexusBackground
     static let nexusCardBackground = Color(UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor.secondarySystemGroupedBackground
-            : UIColor(red: 0.965, green: 0.945, blue: 0.918, alpha: 1.0) // warm off-white
+            : UIColor.white
     })
     static let nexusCardBackgroundElevated = Color(UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor.tertiarySystemGroupedBackground
-            : UIColor(red: 0.941, green: 0.914, blue: 0.878, alpha: 1.0) // deeper cream
+            : UIColor(red: 0.973, green: 0.961, blue: 0.945, alpha: 1.0) // #F8F5F1
     })
 }
 
@@ -77,7 +84,7 @@ struct NexusCardStyle: ViewModifier {
             .padding()
             .background(elevated ? Color.nexusCardBackgroundElevated : Color.nexusCardBackground)
             .cornerRadius(16)
-            .shadow(color: .black.opacity(elevated ? 0.1 : 0.05), radius: elevated ? 8 : 4, x: 0, y: 2)
+            .shadow(color: .black.opacity(elevated ? 0.12 : 0.08), radius: elevated ? 10 : 5, x: 0, y: 3)
     }
 }
 
@@ -319,7 +326,7 @@ struct NexusStatCard: View {
         .padding()
         .background(Color.nexusCardBackground)
         .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
     }
 }
 

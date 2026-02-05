@@ -9,7 +9,7 @@ struct HealthTodayView: View {
         ScrollView {
             HealthTodayContent(viewModel: viewModel)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.nexusBackground)
         .refreshable {
             await viewModel.fetchLocalHealthKit()
             SyncCoordinator.shared.syncAll(force: true)

@@ -11,7 +11,7 @@ struct HealthTrendsView: View {
         ScrollView {
             HealthTrendsContent(viewModel: viewModel, selectedPeriod: $selectedPeriod)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.nexusBackground)
         .refreshable {
             SyncCoordinator.shared.syncAll(force: true)
             await viewModel.loadData()

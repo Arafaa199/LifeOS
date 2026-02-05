@@ -36,7 +36,7 @@ struct SleepView: View {
                 }
                 .padding(.vertical)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.nexusBackground)
             .navigationTitle("Sleep & Recovery")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
@@ -205,7 +205,7 @@ struct SleepView: View {
                     stage: "Deep Sleep",
                     minutes: sleep.deepSleepMin ?? 0,
                     percentage: total > 0 ? Double(sleep.deepSleepMin ?? 0) / total : 0,
-                    color: .indigo
+                    color: .nexusMood
                 )
 
                 SleepStageRow(
@@ -599,7 +599,7 @@ struct SleepHistoryBar: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(
                         LinearGradient(
-                            colors: [.nexusMood, .indigo],
+                            colors: [.nexusMood, .nexusPrimary],
                             startPoint: .top,
                             endPoint: .bottom
                         )

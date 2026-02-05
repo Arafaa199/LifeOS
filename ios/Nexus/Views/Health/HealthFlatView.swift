@@ -23,7 +23,7 @@ struct HealthFlatView: View {
                     Spacer(minLength: 40)
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.nexusBackground)
             .refreshable {
                 await viewModel.fetchLocalHealthKit()
                 SyncCoordinator.shared.syncAll(force: true)

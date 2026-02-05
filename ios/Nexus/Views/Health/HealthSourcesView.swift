@@ -18,7 +18,7 @@ struct HealthSourcesView: View {
                 HStack {
                     Image(systemName: "w.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.orange)
+                        .foregroundColor(.nexusWarning)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("WHOOP")
@@ -76,7 +76,7 @@ struct HealthSourcesView: View {
                 HStack {
                     Image(systemName: "heart.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.red)
+                        .foregroundColor(.nexusProtein)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("HealthKit")
@@ -178,7 +178,7 @@ struct HealthSourcesView: View {
                     HStack(spacing: 6) {
                         Image(systemName: showOpenSettings ? "exclamationmark.triangle" : "checkmark.circle")
                             .font(.caption)
-                            .foregroundColor(showOpenSettings ? .orange : .green)
+                            .foregroundColor(showOpenSettings ? .nexusWarning : .nexusSuccess)
                         Text(message)
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -241,6 +241,8 @@ struct HealthSourcesView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.nexusBackground)
         .navigationTitle("Health Sources")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -256,18 +258,18 @@ struct HealthSourcesView: View {
 
     private var healthKitStatusColor: Color {
         switch HealthKitManager.shared.permissionStatus {
-        case .working: return .green
-        case .requested: return .orange
+        case .working: return .nexusSuccess
+        case .requested: return .nexusWarning
         case .notSetUp: return .gray
-        case .failed: return .red
+        case .failed: return .nexusError
         }
     }
 
     private func statusColor(_ status: FeedHealthStatus) -> Color {
         switch status {
-        case .healthy, .ok: return .green
-        case .stale: return .orange
-        case .critical: return .red
+        case .healthy, .ok: return .nexusSuccess
+        case .stale: return .nexusWarning
+        case .critical: return .nexusError
         case .unknown: return .gray
         }
     }
@@ -302,7 +304,7 @@ struct MetricBadge: View {
     var body: some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(enabled ? Color.green : Color.gray)
+                .fill(enabled ? Color.nexusSuccess : Color.gray)
                 .frame(width: 6, height: 6)
 
             Text(name)

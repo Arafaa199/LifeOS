@@ -41,6 +41,8 @@ struct SettingsView: View {
             aboutSection
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.nexusBackground)
         .navigationTitle("Settings")
         .onAppear {
             webhookURL = settings.webhookBaseURL

@@ -15,7 +15,7 @@ struct NutritionHistoryView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.nexusBackground)
         .navigationTitle("Nutrition")
         .navigationBarTitleDisplayMode(.large)
         .task {
@@ -88,7 +88,7 @@ struct NutritionHistoryView: View {
             .disabled(isToday)
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(12)
     }
 
@@ -110,12 +110,12 @@ struct NutritionHistoryView: View {
     private var totalsCard: some View {
         VStack(spacing: 16) {
             HStack(spacing: 20) {
-                totalItem(value: "\(viewModel.dailyTotals?.calories ?? 0)", label: "Calories", icon: "flame.fill", color: .orange)
-                totalItem(value: String(format: "%.1fg", viewModel.dailyTotals?.protein_g ?? 0), label: "Protein", icon: "circle.grid.cross.fill", color: .red)
+                totalItem(value: "\(viewModel.dailyTotals?.calories ?? 0)", label: "Calories", icon: "flame.fill", color: .nexusWarning)
+                totalItem(value: String(format: "%.1fg", viewModel.dailyTotals?.protein_g ?? 0), label: "Protein", icon: "circle.grid.cross.fill", color: .nexusProtein)
             }
 
             HStack(spacing: 20) {
-                totalItem(value: String(format: "%.1fg", viewModel.dailyTotals?.carbs_g ?? 0), label: "Carbs", icon: "leaf.fill", color: .green)
+                totalItem(value: String(format: "%.1fg", viewModel.dailyTotals?.carbs_g ?? 0), label: "Carbs", icon: "leaf.fill", color: .nexusSuccess)
                 totalItem(value: String(format: "%.1fg", viewModel.dailyTotals?.fat_g ?? 0), label: "Fat", icon: "drop.fill", color: .yellow)
             }
 
@@ -123,7 +123,7 @@ struct NutritionHistoryView: View {
 
             HStack {
                 Image(systemName: "drop.fill")
-                    .foregroundColor(.blue)
+                    .foregroundColor(.nexusWater)
                 Text("\(viewModel.dailyTotals?.water_ml ?? 0) ml water")
                     .font(.subheadline)
                 Spacer()
@@ -133,7 +133,7 @@ struct NutritionHistoryView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
@@ -200,13 +200,13 @@ struct NutritionHistoryView: View {
                     if let calories = entry.calories, calories > 0 {
                         Text("\(calories) cal")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
                     }
 
                     if let protein = entry.protein_g, protein > 0 {
                         Text("\(Int(protein))g protein")
                             .font(.caption)
-                            .foregroundColor(.red)
+                            .foregroundColor(.nexusProtein)
                     }
 
                     Spacer()
@@ -218,7 +218,7 @@ struct NutritionHistoryView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(10)
     }
 
@@ -238,7 +238,7 @@ struct NutritionHistoryView: View {
                         Text("Add")
                     }
                     .font(.subheadline.weight(.medium))
-                    .foregroundColor(.blue)
+                    .foregroundColor(.nexusWater)
                 }
             }
 
@@ -249,7 +249,7 @@ struct NutritionHistoryView: View {
                     ForEach(viewModel.waterEntries) { entry in
                         HStack {
                             Image(systemName: "drop.fill")
-                                .foregroundColor(.blue)
+                                .foregroundColor(.nexusWater)
                                 .frame(width: 24)
 
                             Text("\(entry.amount_ml) ml")
@@ -263,7 +263,7 @@ struct NutritionHistoryView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color(.secondarySystemGroupedBackground))
+                        .background(Color.nexusCardBackground)
                         .cornerRadius(8)
                     }
                 }
@@ -305,7 +305,7 @@ struct NutritionHistoryView: View {
             .padding(.vertical, 24)
             Spacer()
         }
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(12)
     }
 }

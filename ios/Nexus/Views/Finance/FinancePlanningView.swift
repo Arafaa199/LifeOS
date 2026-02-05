@@ -76,6 +76,8 @@ struct FinanceSettingsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.nexusBackground)
     }
 }
 

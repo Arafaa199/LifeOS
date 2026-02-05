@@ -154,6 +154,8 @@ struct DocumentsListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.nexusBackground)
     }
 }
 

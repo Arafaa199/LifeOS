@@ -54,7 +54,7 @@ struct FoodSearchView: View {
                 resultsList
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.nexusBackground)
         .navigationTitle("Search Foods")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -115,7 +115,7 @@ struct FoodResultRow: View {
             HStack(spacing: 16) {
                 macroLabel("Cal", value: food.calories_per_100g, format: "%.0f", color: .nexusFood)
                 macroLabel("P", value: food.protein_per_100g, format: "%.1fg", color: .nexusPrimary)
-                macroLabel("C", value: food.carbs_per_100g, format: "%.1fg", color: .orange)
+                macroLabel("C", value: food.carbs_per_100g, format: "%.1fg", color: .nexusWarning)
                 macroLabel("F", value: food.fat_per_100g, format: "%.1fg", color: .yellow)
             }
             .font(.caption2)

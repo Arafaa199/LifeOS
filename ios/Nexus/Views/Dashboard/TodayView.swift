@@ -95,7 +95,7 @@ struct TodayView: View {
                     refreshingOverlay
                 }
             }
-            .background(Color(UIColor.systemGroupedBackground))
+            .background(Color.nexusBackground)
             .refreshable { await viewModel.refresh() }
             .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.large)

@@ -19,6 +19,8 @@ struct DocumentDetailView: View {
             actionsSection
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.nexusBackground)
         .navigationTitle(document.label)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

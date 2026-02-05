@@ -27,10 +27,31 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Migrate API key from UserDefaults to Keychain (one-time)
         KeychainManager.shared.migrateFromUserDefaultsIfNeeded()
-
         BackgroundTaskManager.shared.registerBackgroundTasks()
+        configureAppearance()
         return true
+    }
+
+    private func configureAppearance() {
+        let warmBg = UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor.systemBackground
+                : UIColor(red: 0.894, green: 0.835, blue: 0.765, alpha: 1.0)
+        }
+
+        let tabAppearance = UITabBarAppearance()
+        tabAppearance.configureWithDefaultBackground()
+        tabAppearance.backgroundColor = warmBg
+        UITabBar.appearance().standardAppearance = tabAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithDefaultBackground()
+        navAppearance.backgroundColor = warmBg
+        navAppearance.shadowColor = .clear
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+        UINavigationBar.appearance().compactAppearance = navAppearance
     }
 }

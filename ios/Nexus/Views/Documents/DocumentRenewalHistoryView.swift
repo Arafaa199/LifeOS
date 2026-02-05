@@ -68,6 +68,8 @@ struct DocumentRenewalHistoryView: View {
                     .accessibilityElement(children: .combine)
                 }
                 .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
+                .background(Color.nexusBackground)
             }
         }
         .navigationTitle("Renewal History")

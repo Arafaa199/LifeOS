@@ -31,6 +31,8 @@ struct MoreView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Color.nexusBackground)
             .navigationTitle("More")
         }
     }

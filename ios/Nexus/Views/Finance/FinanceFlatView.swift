@@ -39,7 +39,7 @@ struct FinanceFlatView: View {
                     Spacer(minLength: 40)
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color.nexusBackground)
             .refreshable {
                 await viewModel.refresh()
             }

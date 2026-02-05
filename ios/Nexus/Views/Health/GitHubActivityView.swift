@@ -24,6 +24,8 @@ struct GitHubActivityView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.nexusBackground)
         .navigationTitle("GitHub Activity")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -33,9 +35,9 @@ struct GitHubActivityView: View {
     private func summarySection(_ summary: GitHubSummary) -> some View {
         Section("Summary") {
             HStack(spacing: 16) {
-                statBox(value: "\(summary.currentStreak)", label: "Streak", icon: "flame.fill", color: .orange)
+                statBox(value: "\(summary.currentStreak)", label: "Streak", icon: "flame.fill", color: .nexusWarning)
                 statBox(value: "\(summary.activeDays7d)", label: "Active (7d)", icon: "calendar", color: .nexusPrimary)
-                statBox(value: "\(summary.pushEvents7d)", label: "Pushes (7d)", icon: "arrow.up.circle", color: .green)
+                statBox(value: "\(summary.pushEvents7d)", label: "Pushes (7d)", icon: "arrow.up.circle", color: .nexusSuccess)
             }
             .padding(.vertical, 4)
 
@@ -87,7 +89,7 @@ struct GitHubActivityView: View {
                     GeometryReader { geo in
                         let fraction = maxPushes > 0 ? CGFloat(day.pushEvents) / CGFloat(maxPushes) : 0
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(day.pushEvents > 0 ? Color.green : Color(.systemGray5))
+                            .fill(day.pushEvents > 0 ? Color.nexusSuccess : Color(.systemGray5))
                             .frame(width: max(fraction * geo.size.width, day.pushEvents > 0 ? 4 : geo.size.width), height: 14)
                     }
                     .frame(height: 14)

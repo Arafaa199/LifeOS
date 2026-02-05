@@ -10,7 +10,7 @@ struct HealthInsightsView: View {
         ScrollView {
             HealthInsightsContent(viewModel: viewModel)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color.nexusBackground)
         .refreshable {
             SyncCoordinator.shared.syncAll(force: true)
             await viewModel.loadData()
