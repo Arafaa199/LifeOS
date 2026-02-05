@@ -12,11 +12,11 @@ struct HealthTodayView: View {
                 if let freshness = viewModel.healthFreshness {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(freshness.isStale ? Color.orange : Color.green)
+                            .fill(freshness.isStale ? Color.nexusWarning : Color.nexusSuccess)
                             .frame(width: 6, height: 6)
                         Text(freshness.syncTimeLabel)
                             .font(.caption)
-                            .foregroundColor(freshness.isStale ? .orange : .secondary)
+                            .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
                         Spacer()
                     }
                     .padding(.horizontal, 4)
@@ -102,7 +102,12 @@ struct HealthTodayView: View {
                     Spacer()
                 }
             } else {
-                notAvailableView("Recovery data not available yet")
+                dataStateView(
+                    metric: "Recovery",
+                    icon: "heart.text.square",
+                    pendingMessage: "WHOOP hasn't synced recovery yet today",
+                    staleMessage: "Last recovery data is outdated"
+                )
             }
         }
     }
@@ -145,7 +150,12 @@ struct HealthTodayView: View {
                     }
                 }
             } else {
-                notAvailableView("Sleep data not available yet")
+                dataStateView(
+                    metric: "Sleep",
+                    icon: "moon.zzz",
+                    pendingMessage: "Sleep data not processed yet",
+                    staleMessage: "Last sleep data is outdated"
+                )
             }
         }
     }
@@ -160,7 +170,7 @@ struct HealthTodayView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
                         Image(systemName: "figure.walk")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.nexusWater)
                         if let steps {
                             Text(formatNumber(steps))
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -200,7 +210,7 @@ struct HealthTodayView: View {
                             if let vs7d {
                                 Text(vs7d >= 0 ? "+\(String(format: "%.1f", vs7d)) kg vs 7d" : "\(String(format: "%.1f", vs7d)) kg vs 7d")
                                     .font(.caption)
-                                    .foregroundColor(abs(vs7d) > 1 ? .orange : .secondary)
+                                    .foregroundColor(abs(vs7d) > 1 ? .nexusWarning : .secondary)
                             }
                         }
 
@@ -210,7 +220,12 @@ struct HealthTodayView: View {
                     }
                 }
             } else {
-                notAvailableView("Weight not logged yet")
+                dataStateView(
+                    metric: "Weight",
+                    icon: "scalemass",
+                    pendingMessage: "No weight recorded today",
+                    staleMessage: "Weight data is outdated"
+                )
             }
         }
     }
@@ -221,7 +236,7 @@ struct HealthTodayView: View {
         VStack(spacing: 16) {
             ForEach(0..<4) { _ in
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.secondarySystemBackground))
+                    .fill(Color.nexusCardBackground)
                     .frame(height: 100)
                     .shimmer()
             }
@@ -229,20 +244,42 @@ struct HealthTodayView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
+            Spacer().frame(height: 20)
+
             Image(systemName: emptyStateIcon)
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .font(.system(size: 44, weight: .light))
+                .foregroundColor(hasHealthSourceConnected ? .nexusHealth.opacity(0.5) : .secondary.opacity(0.4))
 
-            Text(emptyStateTitle)
-                .font(.headline)
+            VStack(spacing: 8) {
+                Text(emptyStateTitle)
+                    .font(.title3.weight(.semibold))
 
-            Text(emptyStateMessage)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+                Text(emptyStateMessage)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+
+            if !hasHealthSourceConnected {
+                NavigationLink(destination: HealthSourcesView(viewModel: viewModel)) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "gear")
+                        Text("Connect Sources")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(Color.nexusPrimary)
+                    .cornerRadius(10)
+                }
+            }
+
+            Spacer().frame(height: 20)
         }
-        .padding(.vertical, 60)
+        .accessibilityElement(children: .combine)
     }
 
     private var hasHealthSourceConnected: Bool {
@@ -254,30 +291,51 @@ struct HealthTodayView: View {
     }
 
     private var emptyStateTitle: String {
-        hasHealthSourceConnected ? "No data yet today" : "No health data available"
+        hasHealthSourceConnected ? "No data yet today" : "Health sources not connected"
     }
 
     private var emptyStateMessage: String {
         if hasHealthSourceConnected {
-            return "Health data will appear once synced from your devices"
+            return "Your health data will appear here once it syncs from your devices. Pull down to refresh."
         }
-        return "Connect WHOOP or Apple Health to see your metrics"
+        return "Connect WHOOP or Apple Health in Settings to see recovery, sleep, and activity data."
     }
 
-    private func notAvailableView(_ message: String) -> some View {
-        HStack {
-            Image(systemName: "questionmark.circle")
-                .foregroundColor(.secondary)
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+    /// Shows different states: stale data (warning), or pending (neutral)
+    private func dataStateView(metric: String, icon: String, pendingMessage: String, staleMessage: String) -> some View {
+        let isStale = viewModel.healthFreshness?.isStale == true
+
+        return HStack(spacing: 10) {
+            Image(systemName: isStale ? "clock.badge.exclamationmark" : icon)
+                .font(.title3)
+                .foregroundColor(isStale ? .nexusWarning : .secondary.opacity(0.6))
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(isStale ? staleMessage : pendingMessage)
+                    .font(.subheadline)
+                    .foregroundColor(isStale ? .nexusWarning : .secondary)
+
+                if let freshness = viewModel.healthFreshness {
+                    Text("Last update: \(freshness.syncTimeLabel)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Pull to refresh")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
         }
+        .accessibilityLabel("\(metric) data \(isStale ? "is stale" : "not yet available")")
     }
 
     private func recoveryColor(_ score: Int) -> Color {
-        if score >= 67 { return .green }
-        if score >= 34 { return .yellow }
-        return .red
+        if score >= 67 { return .nexusSuccess }
+        if score >= 34 { return .nexusWarning }
+        return .nexusError
     }
 
     private func formatNumber(_ number: Int) -> String {
@@ -289,7 +347,7 @@ struct HealthTodayView: View {
     private func freshnessIndicator(lastUpdated: Date, source: HealthViewModel.DataSourceInfo) -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(source == .cache ? Color.orange : Color.green)
+                .fill(source == .cache ? Color.nexusWarning : Color.nexusSuccess)
                 .frame(width: 6, height: 6)
 
             Text("Updated \(lastUpdated, style: .relative) ago")
@@ -299,7 +357,7 @@ struct HealthTodayView: View {
             if source == .cache {
                 Text("(Cached)")
                     .font(.caption)
-                    .foregroundColor(.orange)
+                    .foregroundColor(.nexusWarning)
             }
 
             Spacer()
@@ -323,7 +381,7 @@ struct HealthMetricCard<Content: View>: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 }
@@ -366,8 +424,8 @@ enum DataSourceType {
 
     var color: Color {
         switch self {
-        case .whoop: return .orange
-        case .healthkit: return .red
+        case .whoop: return .nexusWarning
+        case .healthkit: return .nexusProtein
         }
     }
 }
@@ -392,11 +450,11 @@ struct SleepStagesBar: View {
         GeometryReader { geo in
             HStack(spacing: 2) {
                 Rectangle()
-                    .fill(Color.indigo)
+                    .fill(Color.nexusMood)
                     .frame(width: geo.size.width * CGFloat(deep) / CGFloat(total))
 
                 Rectangle()
-                    .fill(Color.blue)
+                    .fill(Color.nexusPrimary)
                     .frame(width: geo.size.width * CGFloat(rem) / CGFloat(total))
 
                 Rectangle()
@@ -409,11 +467,11 @@ struct SleepStagesBar: View {
 
         HStack(spacing: 12) {
             HStack(spacing: 4) {
-                Circle().fill(Color.indigo).frame(width: 8, height: 8)
+                Circle().fill(Color.nexusMood).frame(width: 8, height: 8)
                 Text("Deep").font(.caption2).foregroundColor(.secondary)
             }
             HStack(spacing: 4) {
-                Circle().fill(Color.blue).frame(width: 8, height: 8)
+                Circle().fill(Color.nexusPrimary).frame(width: 8, height: 8)
                 Text("REM").font(.caption2).foregroundColor(.secondary)
             }
             HStack(spacing: 4) {
@@ -432,7 +490,7 @@ struct ComparisonBadge: View {
         HStack(spacing: 4) {
             Image(systemName: value >= 0 ? "arrow.up.right" : "arrow.down.right")
                 .font(.caption2)
-                .foregroundColor(value >= 0 ? .green : .orange)
+                .foregroundColor(value >= 0 ? .nexusSuccess : .nexusWarning)
 
             Text("\(value >= 0 ? "+" : "")\(Int(value))% \(label)")
                 .font(.caption)
