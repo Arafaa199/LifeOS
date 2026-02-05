@@ -3,32 +3,40 @@ import SwiftUI
 // MARK: - Nexus Brand Colors
 
 extension Color {
-    // Primary brand color - a vibrant teal/cyan
-    static let nexusPrimary = Color(red: 0.0, green: 0.71, blue: 0.76) // #00B5C2
-    static let nexusPrimaryDark = Color(red: 0.0, green: 0.55, blue: 0.59) // #008C96
-    static let nexusPrimaryLight = Color(red: 0.4, green: 0.85, blue: 0.89) // #66D9E3
+    // Primary brand - dark burgundy/wine
+    static let nexusPrimary = Color(red: 0.306, green: 0.031, blue: 0.082) // #4E0815
+    static let nexusPrimaryDark = Color(red: 0.227, green: 0.024, blue: 0.063) // #3A0610
+    static let nexusPrimaryLight = Color(red: 0.478, green: 0.157, blue: 0.251) // #7A2840
 
-    // Secondary accent - warm coral for actions
-    static let nexusAccent = Color(red: 1.0, green: 0.45, blue: 0.38) // #FF7361
-    static let nexusAccentLight = Color(red: 1.0, green: 0.65, blue: 0.58) // #FFA695
+    // Secondary accent - warm cream
+    static let nexusAccent = Color(red: 0.894, green: 0.835, blue: 0.765) // #E4D5C3
+    static let nexusAccentLight = Color(red: 0.941, green: 0.902, blue: 0.847) // #F0E6D8
 
-    // Category colors (refined)
-    static let nexusFood = Color(red: 1.0, green: 0.58, blue: 0.0) // #FF9500
-    static let nexusWater = Color(red: 0.0, green: 0.64, blue: 0.91) // #00A3E8
-    static let nexusWeight = Color(red: 0.2, green: 0.78, blue: 0.35) // #33C759
-    static let nexusMood = Color(red: 0.69, green: 0.32, blue: 0.87) // #B052DE
-    static let nexusProtein = Color(red: 0.96, green: 0.26, blue: 0.21) // #F54336
-    static let nexusFinance = Color(red: 0.13, green: 0.59, blue: 0.95) // #2196F3
-    static let nexusHealth = Color(red: 0.2, green: 0.78, blue: 0.35) // #33C759 - same as success/weight
+    // Category colors (warm-harmonized)
+    static let nexusFood = Color(red: 0.831, green: 0.533, blue: 0.165) // #D4882A warm amber
+    static let nexusWater = Color(red: 0.227, green: 0.486, blue: 0.647) // #3A7CA5 muted teal
+    static let nexusWeight = Color(red: 0.353, green: 0.620, blue: 0.435) // #5A9E6F sage green
+    static let nexusMood = Color(red: 0.545, green: 0.369, blue: 0.514) // #8B5E83 dusty plum
+    static let nexusProtein = Color(red: 0.769, green: 0.271, blue: 0.212) // #C44536 brick red
+    static let nexusFinance = Color(red: 0.306, green: 0.031, blue: 0.082) // #4E0815 burgundy
+    static let nexusHealth = Color(red: 0.353, green: 0.620, blue: 0.435) // #5A9E6F sage green
 
-    // Semantic colors
-    static let nexusSuccess = Color(red: 0.2, green: 0.78, blue: 0.35)
-    static let nexusWarning = Color(red: 1.0, green: 0.76, blue: 0.03)
-    static let nexusError = Color(red: 0.96, green: 0.26, blue: 0.21)
+    // Semantic colors (warm-toned)
+    static let nexusSuccess = Color(red: 0.353, green: 0.620, blue: 0.435) // sage green
+    static let nexusWarning = Color(red: 0.831, green: 0.533, blue: 0.165) // warm amber
+    static let nexusError = Color(red: 0.769, green: 0.271, blue: 0.212) // brick red
 
-    // Background variants
-    static let nexusCardBackground = Color(.systemGray6)
-    static let nexusCardBackgroundElevated = Color(.systemGray5)
+    // Background variants (adaptive: cream light / system dark)
+    static let nexusCardBackground = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor.secondarySystemGroupedBackground
+            : UIColor(red: 0.965, green: 0.945, blue: 0.918, alpha: 1.0) // warm off-white
+    })
+    static let nexusCardBackgroundElevated = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor.tertiarySystemGroupedBackground
+            : UIColor(red: 0.941, green: 0.914, blue: 0.878, alpha: 1.0) // deeper cream
+    })
 }
 
 // MARK: - Gradients
@@ -53,7 +61,7 @@ extension LinearGradient {
     )
 
     static let nexusFinanceGradient = LinearGradient(
-        colors: [Color.nexusFinance, Color.nexusPrimary],
+        colors: [Color.nexusPrimary, Color.nexusPrimaryLight],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
@@ -81,7 +89,7 @@ struct NexusGlassCard: ViewModifier {
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    .stroke(Color.nexusAccent.opacity(0.4), lineWidth: 1)
             )
     }
 }
@@ -95,7 +103,7 @@ struct NexusPrimaryButton: ViewModifier {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isDisabled ? Color.gray : Color.nexusPrimary)
+            .background(isDisabled ? Color.nexusPrimary.opacity(0.4) : Color.nexusPrimary)
             .cornerRadius(14)
             .shadow(color: Color.nexusPrimary.opacity(isDisabled ? 0 : 0.3), radius: 8, x: 0, y: 4)
     }
@@ -119,12 +127,12 @@ struct NexusAccentButton: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(.headline)
-            .foregroundColor(.white)
+            .foregroundColor(.nexusPrimary)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isDisabled ? Color.gray : Color.nexusAccent)
+            .background(isDisabled ? Color.nexusAccent.opacity(0.4) : Color.nexusAccent)
             .cornerRadius(14)
-            .shadow(color: Color.nexusAccent.opacity(isDisabled ? 0 : 0.3), radius: 8, x: 0, y: 4)
+            .shadow(color: Color.nexusPrimary.opacity(isDisabled ? 0 : 0.15), radius: 8, x: 0, y: 4)
     }
 }
 
@@ -147,7 +155,7 @@ struct NexusTextField: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding()
-            .background(Color(.systemGray6))
+            .background(Color.nexusCardBackground)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -258,7 +266,6 @@ struct NexusStatCard: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Icon with gradient background
             ZStack {
                 Circle()
                     .fill(
@@ -294,7 +301,6 @@ struct NexusStatCard: View {
 
             Spacer()
 
-            // Trend indicator
             if let trend = trend {
                 HStack(spacing: 2) {
                     Image(systemName: trend >= 0 ? "arrow.up.right" : "arrow.down.right")
@@ -436,7 +442,7 @@ struct NexusSegmentedPicker<T: Hashable>: View {
                 }
             }
         }
-        .background(Color(.systemGray6))
+        .background(Color.nexusCardBackground)
         .cornerRadius(10)
     }
 }

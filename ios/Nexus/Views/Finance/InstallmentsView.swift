@@ -214,7 +214,7 @@ struct InstallmentsView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(Color(.systemGray6))
+                .background(Color(.tertiarySystemFill))
             }
         }
         .background(Color.nexusCardBackground)
