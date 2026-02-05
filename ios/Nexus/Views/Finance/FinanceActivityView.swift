@@ -71,15 +71,15 @@ struct FinanceActivityView: View {
                 HStack(spacing: 6) {
                     if let freshness = viewModel.financeFreshness {
                         Circle()
-                            .fill(freshness.isStale ? Color.orange : Color.green)
+                            .fill(freshness.isStale ? Color.nexusWarning : Color.nexusSuccess)
                             .frame(width: 6, height: 6)
                         Text(freshness.syncTimeLabel)
                             .font(.caption)
-                            .foregroundColor(freshness.isStale ? .orange : .secondary)
+                            .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
                     } else if let lastUpdated = viewModel.lastUpdated,
                               Date().timeIntervalSince(lastUpdated) > 300 || viewModel.isOffline {
                         Circle()
-                            .fill(viewModel.isOffline ? Color.orange : Color.green)
+                            .fill(viewModel.isOffline ? Color.nexusWarning : Color.nexusSuccess)
                             .frame(width: 6, height: 6)
                         Text("Updated \(lastUpdated, style: .relative) ago")
                             .font(.caption)
@@ -88,7 +88,7 @@ struct FinanceActivityView: View {
                     if viewModel.isOffline {
                         Text("(Offline)")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
                     }
                     Spacer()
                 }
@@ -305,7 +305,7 @@ struct ActivityTransactionRow: View {
                     // Corrected badge
                     if transaction.hasCorrection {
                         Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
                             .font(.caption2)
                     }
                 }
@@ -333,7 +333,7 @@ struct ActivityTransactionRow: View {
                     } else {
                         Text("Unknown time")
                             .font(.caption)
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
                     }
                 }
             }
@@ -343,9 +343,8 @@ struct ActivityTransactionRow: View {
             // Amount with currency
             VStack(alignment: .trailing, spacing: 2) {
                 Text(formatTransactionAmount(transaction))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(transaction.amount < 0 ? .red : .green)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    .foregroundColor(transaction.amount < 0 ? .primary : .nexusSuccess)
 
                 // Show original currency if different from default
                 if transaction.currency != AppSettings.shared.defaultCurrency {
@@ -355,7 +354,9 @@ struct ActivityTransactionRow: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(transaction.merchantName), \(formatTransactionAmount(transaction))")
     }
 
     private var categoryIcon: String {
@@ -377,21 +378,25 @@ struct ActivityTransactionRow: View {
     private var categoryColor: Color {
         guard let category = transaction.category else { return .gray }
         switch category.lowercased() {
-        case "grocery", "groceries": return .green
-        case "restaurant", "food": return .orange
-        case "transport", "transportation": return .blue
-        case "utilities": return .purple
-        case "entertainment": return .pink
-        case "health": return .red
-        case "shopping": return .indigo
+        case "grocery", "groceries": return .nexusWeight
+        case "restaurant", "food": return .nexusFood
+        case "transport", "transportation": return .nexusWater
+        case "utilities": return .nexusMood
+        case "entertainment": return .nexusPrimaryLight
+        case "health": return .nexusProtein
+        case "shopping": return .nexusPrimary
         case "transfer": return .gray
-        case "income", "salary": return .green
+        case "income", "salary": return .nexusSuccess
         default: return .nexusFinance
         }
     }
 
     private func formatTransactionAmount(_ transaction: Transaction) -> String {
-        formatCurrency(transaction.amount, currency: transaction.currency)
+        let formatted = formatCurrency(abs(transaction.amount), currency: transaction.currency)
+        if transaction.amount > 0 {
+            return "+\(formatted)"
+        }
+        return "-\(formatted)"
     }
 }
 
@@ -436,10 +441,10 @@ struct SourceBadge: View {
 
     private var sourceColor: Color {
         switch source.lowercased() {
-        case "sms": return .blue
-        case "manual": return .purple
-        case "receipt": return .orange
-        case "import": return .green
+        case "sms": return .nexusWater
+        case "manual": return .nexusMood
+        case "receipt": return .nexusFood
+        case "import": return .nexusSuccess
         default: return .gray
         }
     }

@@ -25,7 +25,7 @@ struct BudgetView: View {
                             Text("Set Budgets")
                                 .fontWeight(.semibold)
                                 .padding()
-                                .background(Color.blue)
+                                .background(Color.nexusPrimary)
                                 .foregroundColor(.white)
                                 .cornerRadius(10)
                         }
@@ -83,7 +83,7 @@ struct BudgetView: View {
                         .fontWeight(.semibold)
                 }
                 .padding()
-                .background(Color(.secondarySystemBackground))
+                .background(Color.nexusCardBackground)
                 .cornerRadius(8)
             }
         }
@@ -140,7 +140,7 @@ struct TransactionRow: View {
 
                     if transaction.hasCorrection {
                         Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(.nexusWarning)
                             .font(.caption2)
                     }
                 }
@@ -164,10 +164,11 @@ struct TransactionRow: View {
 
             Spacer()
 
-            Text(formatCurrency(transaction.amount, currency: transaction.currency))
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(transaction.amount < 0 ? .red : .green)
+            Text(transaction.amount > 0
+                 ? "+\(formatCurrency(abs(transaction.amount), currency: transaction.currency))"
+                 : "-\(formatCurrency(abs(transaction.amount), currency: transaction.currency))")
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                .foregroundColor(transaction.amount < 0 ? .primary : .nexusSuccess)
         }
         .padding(.vertical, 4)
     }
@@ -196,7 +197,7 @@ struct BudgetCard: View {
                 Spacer()
                 Text("\(formatCurrency(budget.spent ?? 0, currency: AppSettings.shared.defaultCurrency)) / \(formatCurrency(budget.budgetAmount, currency: AppSettings.shared.defaultCurrency))")
                     .font(.subheadline)
-                    .foregroundColor(isOverBudget ? .red : .secondary)
+                    .foregroundColor(isOverBudget ? .nexusError : .secondary)
             }
 
             GeometryReader { geometry in
@@ -207,7 +208,7 @@ struct BudgetCard: View {
                         .cornerRadius(4)
 
                     Rectangle()
-                        .fill(isOverBudget ? Color.red : Color.green)
+                        .fill(isOverBudget ? Color.nexusError : Color.nexusFinance)
                         .frame(width: geometry.size.width * progress, height: 8)
                         .cornerRadius(4)
                 }
@@ -219,11 +220,11 @@ struct BudgetCard: View {
                      "\(formatCurrency(remaining, currency: AppSettings.shared.defaultCurrency)) remaining" :
                      "\(formatCurrency(abs(remaining), currency: AppSettings.shared.defaultCurrency)) over budget")
                     .font(.caption)
-                    .foregroundColor(remaining >= 0 ? .secondary : .red)
+                    .foregroundColor(remaining >= 0 ? .secondary : .nexusError)
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(12)
     }
 }
@@ -242,10 +243,11 @@ struct FilterChip: View {
                 .fontWeight(isSelected ? .semibold : .regular)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.nexusFinance : Color(.secondarySystemBackground))
+                .background(isSelected ? Color.nexusFinance : Color.nexusCardBackground)
                 .foregroundColor(isSelected ? .white : .primary)
                 .cornerRadius(20)
         }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
