@@ -116,7 +116,7 @@ struct HealthInsightsView: View {
                 DataSourceIndicator(
                     name: "WHOOP",
                     icon: "w.circle.fill",
-                    color: .orange,
+                    color: .nexusWarning,
                     status: whoopStatus
                 )
 
@@ -126,12 +126,12 @@ struct HealthInsightsView: View {
                 DataSourceIndicator(
                     name: "HealthKit",
                     icon: "heart.circle.fill",
-                    color: .red,
+                    color: .nexusProtein,
                     status: healthKitStatus
                 )
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
+            .background(Color.nexusCardBackground)
             .cornerRadius(12)
         }
     }
@@ -175,7 +175,7 @@ struct InsightCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 }
@@ -187,9 +187,9 @@ enum DataSourceStatus {
 
     var dotColor: Color {
         switch self {
-        case .healthy: return .green
-        case .stale: return .orange
-        case .failed: return .red
+        case .healthy: return .nexusSuccess
+        case .stale: return .nexusWarning
+        case .failed: return .nexusError
         case .unknown: return .gray
         }
     }
