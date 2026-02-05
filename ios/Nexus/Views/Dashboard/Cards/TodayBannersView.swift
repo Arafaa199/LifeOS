@@ -6,14 +6,16 @@ struct TodayOfflineBanner: View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash")
                 .font(.caption)
-            Text("Offline")
+            Text("Offline — showing saved data")
                 .font(.caption.weight(.medium))
+            Spacer()
         }
-        .foregroundColor(.secondary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color(UIColor.tertiarySystemGroupedBackground))
-        .cornerRadius(8)
+        .foregroundColor(.nexusWarning)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.nexusWarning.opacity(0.1))
+        .cornerRadius(10)
+        .accessibilityLabel("Network offline. Showing locally saved data.")
     }
 }
 
@@ -34,10 +36,10 @@ struct TodayStaleBanner: View {
                 Image(systemName: "arrow.clockwise")
                     .font(.caption2)
             }
-            .foregroundColor(.orange)
+            .foregroundColor(.nexusWarning)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(Color.orange.opacity(0.12))
+            .background(Color.nexusWarning.opacity(0.12))
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
@@ -50,20 +52,22 @@ struct TodayCachedBanner: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "externaldrive")
+            Image(systemName: "clock.arrow.circlepath")
                 .font(.caption)
-            Text("Using cached data")
+            Text("Showing cached data")
                 .font(.caption.weight(.medium))
             if let age = cacheAge {
                 Text("(\(age))")
                     .font(.caption)
             }
+            Spacer()
         }
-        .foregroundColor(.blue)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.blue.opacity(0.1))
-        .cornerRadius(8)
+        .foregroundColor(.secondary)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color(.tertiarySystemBackground))
+        .cornerRadius(10)
+        .accessibilityLabel("Showing cached data\(cacheAge.map { ", \($0) old" } ?? "")")
     }
 }
 
@@ -72,35 +76,43 @@ struct TodayNoDataView: View {
     let onRefresh: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
+            Spacer().frame(height: 40)
+
             Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 40))
-                .foregroundColor(.secondary)
+                .font(.system(size: 44, weight: .light))
+                .foregroundColor(.nexusPrimary.opacity(0.5))
 
-            Text("Waiting for data")
-                .font(.headline)
+            VStack(spacing: 8) {
+                Text("Waiting for data")
+                    .font(.title3.weight(.semibold))
 
-            Text("Pull down to refresh, or check Settings > Sync Center")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+                Text("Pull down to refresh, or check Settings to verify your sync sources are connected.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
 
             Button {
                 onRefresh()
             } label: {
-                HStack {
+                HStack(spacing: 6) {
                     Image(systemName: "arrow.clockwise")
                     Text("Sync Now")
                 }
-                .font(.subheadline.weight(.medium))
+                .font(.subheadline.weight(.semibold))
                 .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(Color.accentColor)
-                .cornerRadius(10)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.nexusPrimary)
+                .cornerRadius(12)
             }
+
+            Spacer().frame(height: 40)
         }
-        .padding(.vertical, 60)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("No data available. Tap Sync Now to refresh.")
     }
 }
 

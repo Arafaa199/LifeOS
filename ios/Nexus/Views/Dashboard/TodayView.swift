@@ -32,6 +32,7 @@ struct TodayView: View {
                             mealConfirmationSection(meal: pendingMeal)
                         }
 
+                        // -- Status --
                         StateCardView(
                             recoveryScore: viewModel.dashboardPayload?.todayFacts?.recoveryScore,
                             sleepMinutes: viewModel.dashboardPayload?.todayFacts?.sleepMinutes,
@@ -46,20 +47,37 @@ struct TodayView: View {
                             reminderSummary: viewModel.dashboardPayload?.reminderSummary
                         )
 
-                        if hasNutritionData {
-                            NutritionCardView(
-                                caloriesConsumed: viewModel.dashboardPayload?.todayFacts?.caloriesConsumed,
-                                mealsLogged: viewModel.dashboardPayload?.todayFacts?.mealsLogged,
-                                waterMl: viewModel.dashboardPayload?.todayFacts?.waterMl
+                        // -- Nutrition + Fasting --
+                        if hasNutritionData || viewModel.dashboardPayload?.fasting != nil {
+                            VStack(spacing: 12) {
+                                if hasNutritionData {
+                                    NutritionCardView(
+                                        caloriesConsumed: viewModel.dashboardPayload?.todayFacts?.caloriesConsumed,
+                                        mealsLogged: viewModel.dashboardPayload?.todayFacts?.mealsLogged,
+                                        waterMl: viewModel.dashboardPayload?.todayFacts?.waterMl
+                                    )
+                                }
+
+                                FastingCardView(
+                                    fasting: viewModel.dashboardPayload?.fasting,
+                                    fastingElapsed: fastingElapsed,
+                                    isLoading: isFastingLoading,
+                                    onToggle: toggleFasting
+                                )
+                            }
+                        } else {
+                            FastingCardView(
+                                fasting: viewModel.dashboardPayload?.fasting,
+                                fastingElapsed: fastingElapsed,
+                                isLoading: isFastingLoading,
+                                onToggle: toggleFasting
                             )
                         }
 
-                        FastingCardView(
-                            fasting: viewModel.dashboardPayload?.fasting,
-                            fastingElapsed: fastingElapsed,
-                            isLoading: isFastingLoading,
-                            onToggle: toggleFasting
-                        )
+                        // -- Insights --
+                        if !insightsEmpty {
+                            todaySectionHeader("Insights")
+                        }
 
                         InsightsFeedView(
                             insights: viewModel.dashboardPayload?.dailyInsights?.rankedInsights ?? [],
@@ -148,6 +166,23 @@ struct TodayView: View {
     private var hasNutritionData: Bool {
         let facts = viewModel.dashboardPayload?.todayFacts
         return (facts?.mealsLogged ?? 0) > 0 || (facts?.waterMl ?? 0) > 0
+    }
+
+    private var insightsEmpty: Bool {
+        let ranked = viewModel.dashboardPayload?.dailyInsights?.rankedInsights ?? []
+        return ranked.isEmpty && fallbackInsight == nil
+    }
+
+    private func todaySectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.5)
+            Spacer()
+        }
+        .padding(.top, 4)
     }
 
     private var staleBannerText: String {
