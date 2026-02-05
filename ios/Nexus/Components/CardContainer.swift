@@ -62,7 +62,7 @@ struct CardContainer<Content: View, EmptyContent: View>: View {
                             Text("\(minutes)m ago")
                                 .font(.caption2)
                         }
-                        .foregroundColor(.orange)
+                        .foregroundColor(.nexusWarning)
                     }
                 }
             }
@@ -82,7 +82,7 @@ struct CardContainer<Content: View, EmptyContent: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(UIColor.secondarySystemBackground))
+        .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
 
@@ -124,7 +124,7 @@ struct SimpleCard<Content: View>: View {
         content()
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(UIColor.secondarySystemBackground))
+            .background(Color.nexusCardBackground)
             .cornerRadius(16)
     }
 }
@@ -142,7 +142,7 @@ struct HeroCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(Color(UIColor.secondarySystemBackground))
+                    .fill(Color.nexusCardBackground)
                     .shadow(color: accentColor.opacity(0.1), radius: 8, x: 0, y: 4)
             )
     }
@@ -182,18 +182,18 @@ struct FreshnessBadge: View {
             if isOffline {
                 Text("• Offline")
                     .font(.caption)
-                    .foregroundColor(.orange)
+                    .foregroundColor(.nexusWarning)
             }
         }
     }
 
     private var dotColor: Color {
-        if isOffline { return .orange }
+        if isOffline { return .nexusWarning }
 
         switch freshness {
-        case .fresh, .recent: return .green
-        case .stale: return .orange
-        case .old: return .red
+        case .fresh, .recent: return .nexusSuccess
+        case .stale: return .nexusWarning
+        case .old: return .nexusError
         case .unknown: return .gray
         }
     }
@@ -265,10 +265,10 @@ struct DeltaBadge: View {
             Text("\(value >= 0 ? "+" : "")\(String(format: "%.0f", value))\(suffix)")
                 .font(.caption.weight(.medium))
         }
-        .foregroundColor(isPositive ? .green : .orange)
+        .foregroundColor(isPositive ? .nexusSuccess : .nexusWarning)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background((isPositive ? Color.green : Color.orange).opacity(0.12))
+        .background((isPositive ? Color.nexusSuccess : Color.nexusWarning).opacity(0.12))
         .cornerRadius(8)
     }
 }
@@ -420,7 +420,7 @@ struct CardCategoryRow: View {
 
             FreshnessBadge(lastUpdated: Date().addingTimeInterval(-300))
 
-            MiniSparkline(data: [65, 72, 58, 80, 75, 82, 78], color: .green)
+            MiniSparkline(data: [65, 72, 58, 80, 75, 82, 78], color: .nexusSuccess)
                 .frame(height: 40)
                 .padding()
         }
