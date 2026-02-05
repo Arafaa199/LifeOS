@@ -110,7 +110,7 @@ struct DocumentDetailView: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 Text(document.remindersEnabled ? "Enabled" : "Disabled")
-                    .foregroundColor(document.remindersEnabled ? .green : .secondary)
+                    .foregroundColor(document.remindersEnabled ? .nexusSuccess : .secondary)
             }
 
             Button {
@@ -145,6 +145,7 @@ struct DocumentDetailView: View {
                     Text("Mark as Renewed")
                 }
             }
+            .accessibilityHint("Opens renewal form to update expiry date")
 
             Button(role: .destructive) {
                 showingDeleteAlert = true
@@ -154,6 +155,7 @@ struct DocumentDetailView: View {
                     Text("Delete Document")
                 }
             }
+            .accessibilityHint("Permanently removes this document and its reminders")
         }
     }
 

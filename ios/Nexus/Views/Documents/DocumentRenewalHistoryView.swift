@@ -11,9 +11,21 @@ struct DocumentRenewalHistoryView: View {
                 ProgressView("Loading history...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.renewalHistory.isEmpty {
-                Text("No renewal records found.")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 16) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                    Text("No Renewals Yet")
+                        .font(.headline)
+                    Text("Renewal history will appear here after you mark this document as renewed.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("No renewal records found")
             } else {
                 List(viewModel.renewalHistory) { renewal in
                     VStack(alignment: .leading, spacing: 8) {
@@ -53,6 +65,7 @@ struct DocumentRenewalHistoryView: View {
                             .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
                 }
                 .listStyle(.insetGrouped)
             }
