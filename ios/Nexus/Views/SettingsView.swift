@@ -8,38 +8,48 @@ struct SettingsView: View {
     @State private var webhookURL: String = ""
     @State private var apiKey: String = ""
     @State private var showingSaveConfirmation = false
+    var embedded: Bool = false
 
+    @ViewBuilder
     var body: some View {
-        NavigationView {
-            List {
-                SyncStatusSection(coordinator: coordinator)
-                PipelineHealthSection(coordinator: coordinator)
-                DomainTogglesSection(settings: settings)
-                SyncIssuesSection(offlineQueue: offlineQueue)
+        if embedded {
+            settingsList
+        } else {
+            NavigationView {
+                settingsList
+            }
+        }
+    }
 
-                connectionSection
-                ConfigurationSection(
-                    webhookURL: $webhookURL,
-                    apiKey: $apiKey,
-                    onSave: saveSettings
-                )
-                dataSourcesSection
-                extrasSection
-                dataSection
-                DebugSection(coordinator: coordinator)
-                aboutSection
-            }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Settings")
-            .onAppear {
-                webhookURL = settings.webhookBaseURL
-                apiKey = KeychainManager.shared.apiKey ?? ""
-            }
-            .alert("Settings Saved", isPresented: $showingSaveConfirmation) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text("Your configuration has been updated.")
-            }
+    private var settingsList: some View {
+        List {
+            SyncStatusSection(coordinator: coordinator)
+            PipelineHealthSection(coordinator: coordinator)
+            DomainTogglesSection(settings: settings)
+            SyncIssuesSection(offlineQueue: offlineQueue)
+
+            connectionSection
+            ConfigurationSection(
+                webhookURL: $webhookURL,
+                apiKey: $apiKey,
+                onSave: saveSettings
+            )
+            dataSourcesSection
+            extrasSection
+            dataSection
+            DebugSection(coordinator: coordinator)
+            aboutSection
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("Settings")
+        .onAppear {
+            webhookURL = settings.webhookBaseURL
+            apiKey = KeychainManager.shared.apiKey ?? ""
+        }
+        .alert("Settings Saved", isPresented: $showingSaveConfirmation) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Your configuration has been updated.")
         }
     }
 

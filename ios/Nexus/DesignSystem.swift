@@ -532,6 +532,28 @@ struct NexusStatusBadge: View {
     }
 }
 
+// MARK: - Section Header
+
+struct NexusSectionHeader: View {
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(Color.nexusPrimary)
+                .frame(width: 3, height: 20)
+                .cornerRadius(1.5)
+            Text(title)
+                .font(.title3)
+                .fontWeight(.bold)
+            Spacer()
+        }
+        .padding(.top, 24)
+        .padding(.bottom, 4)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
 // MARK: - Animated Number
 
 struct AnimatedNumber: View {

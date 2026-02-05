@@ -4,7 +4,6 @@ struct ContentView: View {
     @EnvironmentObject var settings: AppSettings
     @StateObject private var viewModel = DashboardViewModel()
     @StateObject private var financeViewModel = FinanceViewModel()
-    @StateObject private var documentsViewModel = DocumentsViewModel()
     @State private var selectedTab = 0
 
     // Failed item alert state
@@ -19,49 +18,34 @@ struct ContentView: View {
 
             TabView(selection: $selectedTab) {
                 TodayView(viewModel: viewModel)
-                .tabItem {
-                    Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
-                }
-                .tag(0)
-
-                QuickLogView(viewModel: viewModel)
                     .tabItem {
-                        Label("Log", systemImage: selectedTab == 1 ? "plus.circle.fill" : "plus.circle")
+                        Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+                    }
+                    .tag(0)
+
+                HealthFlatView()
+                    .tabItem {
+                        Label("Health", systemImage: selectedTab == 1 ? "heart.fill" : "heart")
                     }
                     .tag(1)
 
-                HealthView()
+                FinanceFlatView(viewModel: financeViewModel)
                     .tabItem {
-                        Label("Health", systemImage: selectedTab == 2 ? "heart.fill" : "heart")
+                        Label("Finance", systemImage: selectedTab == 2 ? "chart.pie.fill" : "chart.pie")
                     }
                     .tag(2)
 
-                FinanceView(viewModel: financeViewModel)
+                CalendarView()
                     .tabItem {
-                        Label("Finance", systemImage: selectedTab == 3 ? "chart.pie.fill" : "chart.pie")
+                        Label("Calendar", systemImage: selectedTab == 3 ? "calendar.circle.fill" : "calendar.circle")
                     }
                     .tag(3)
 
-                CalendarView()
+                MoreView()
                     .tabItem {
-                        Label("Calendar", systemImage: selectedTab == 4 ? "calendar.circle.fill" : "calendar.circle")
+                        Label("More", systemImage: selectedTab == 4 ? "ellipsis.circle.fill" : "ellipsis.circle")
                     }
                     .tag(4)
-
-                NavigationView {
-                    DocumentsListView(viewModel: documentsViewModel)
-                        .navigationTitle("Documents")
-                }
-                .tabItem {
-                    Label("Documents", systemImage: selectedTab == 5 ? "doc.text.fill" : "doc.text")
-                }
-                .tag(5)
-
-                SettingsView()
-                    .tabItem {
-                        Label("Settings", systemImage: selectedTab == 6 ? "gearshape.fill" : "gearshape")
-                    }
-                    .tag(6)
             }
             .tint(.nexusPrimary)
             .environmentObject(viewModel)
@@ -75,12 +59,28 @@ struct ContentView: View {
             }
         }
         .alert("Sync Failed", isPresented: $showingFailedItemAlert) {
-            Button("View in Settings") {
-                selectedTab = 6  // Settings tab
+            Button("Review in Settings") {
+                selectedTab = 4  // More tab (Settings is inside)
             }
-            Button("OK", role: .cancel) { }
+            Button("Dismiss", role: .cancel) { }
         } message: {
-            Text("\"\(failedItemDescription)\" could not be synced after multiple attempts.\n\nError: \(failedItemError)\n\nGo to Settings → Sync Issues to retry or discard.")
+            VStack(alignment: .leading, spacing: 8) {
+                Text("The following item failed to sync after multiple attempts:")
+                    .fontWeight(.medium)
+
+                Text("\"\(failedItemDescription)\"")
+                    .italic()
+
+                Text("Error:")
+                    .fontWeight(.medium)
+                    .padding(.top, 4)
+
+                Text(failedItemError)
+                    .font(.caption)
+
+                Text("Go to More → Settings → Sync Status to retry or discard this item.")
+                    .padding(.top, 4)
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ struct TodayView: View {
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var isFastingLoading = false
     @State private var fastingElapsed: String = "--:--"
+    @State private var showingQuickLog = false
 
     private let fastingTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -100,10 +101,21 @@ struct TodayView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if viewModel.isLoading {
-                        ProgressView().scaleEffect(0.8)
+                    HStack(spacing: 12) {
+                        if viewModel.isLoading {
+                            ProgressView().scaleEffect(0.8)
+                        }
+                        Button(action: { showingQuickLog = true }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                                .foregroundColor(.nexusPrimary)
+                        }
+                        .accessibilityLabel("Quick Log")
                     }
                 }
+            }
+            .sheet(isPresented: $showingQuickLog) {
+                QuickLogView(viewModel: viewModel)
             }
             .onReceive(fastingTimer) { _ in updateFastingElapsed() }
             .onAppear { updateFastingElapsed() }

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CalendarView: View {
     @StateObject private var viewModel = CalendarViewModel()
-    @StateObject private var documentsVM = DocumentsViewModel()
     @State private var selectedSegment = 0
 
     var body: some View {
@@ -11,7 +10,6 @@ struct CalendarView: View {
                 Picker("", selection: $selectedSegment) {
                     Text("Today").tag(0)
                     Text("Week").tag(1)
-                    Text("Docs").tag(2)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -24,9 +22,6 @@ struct CalendarView: View {
 
                     CalendarWeekView(viewModel: viewModel)
                         .tag(1)
-
-                    DocumentsListView(viewModel: documentsVM)
-                        .tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
@@ -42,8 +37,6 @@ struct CalendarView: View {
                     await viewModel.fetchTodayEvents()
                 } else if newValue == 1 {
                     await viewModel.fetchWeekEvents()
-                } else if newValue == 2 {
-                    await documentsVM.loadDocuments()
                 }
             }
         }
