@@ -43,42 +43,22 @@
       "position": [650, 300],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "ha-token",
-          "name": "HA token"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "GET",
-        "url": "=http://172.17.0.1:8123/api/states/{{ $('Prepare Service Call').item.json.entityId }}",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "options": {}
-      },
-      "id": "4",
-      "name": "Get New State",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [850, 300],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "ha-token",
-          "name": "HA token"
+          "id": "6jmHSD0G98KHb1MW",
+          "name": "HA Token"
         }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO life.home_events (entity_id, action, old_state, new_state, source, metadata)\nVALUES (\n  '{{ $('Prepare Service Call').item.json.entityId }}',\n  '{{ $('Prepare Service Call').item.json.originalAction }}',\n  NULL,\n  '{{ $json.state }}',\n  'ios',\n  '{}'::jsonb\n)\nRETURNING id;",
+        "query": "INSERT INTO life.home_events (entity_id, action, old_state, new_state, source, metadata)\nVALUES (\n  '{{ $('Prepare Service Call').item.json.entityId }}',\n  '{{ $('Prepare Service Call').item.json.originalAction }}',\n  NULL,\n  'executed',\n  'ios',\n  '{}'::jsonb\n)\nRETURNING id;",
         "options": {}
       },
       "id": "5",
       "name": "Log Event",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1050, 300],
+      "position": [850, 300],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -90,14 +70,14 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, entity_id: $('Prepare Service Call').item.json.entityId, new_state: $('Get New State').item.json.state, logged: $json.id ? true : false } }}",
+        "responseBody": "={{ { success: true, entity_id: $('Prepare Service Call').item.json.entityId, action: $('Prepare Service Call').item.json.originalAction } }}",
         "options": {}
       },
       "id": "6",
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1250, 300]
+      "position": [1050, 300]
     },
     {
       "parameters": {
@@ -138,17 +118,6 @@
       ]
     },
     "Call HA Service": {
-      "main": [
-        [
-          {
-            "node": "Get New State",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get New State": {
       "main": [
         [
           {
