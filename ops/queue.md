@@ -1886,25 +1886,27 @@ Lane: safe_auto
 ### TASK-FEAT.21: Error Boundary Views
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Add graceful error states for major views. Max 200 LOC total.
 
-**Files to Touch:**
-- `ios/Nexus/Views/Components/ErrorStateView.swift` — NEW: Reusable error view (50 LOC)
-- `ios/Nexus/Views/TodayView.swift` — Add error state when `errorMessage != nil`
-- `ios/Nexus/Views/Finance/FinanceView.swift` — Add error state
+**Files Changed:**
+- `ios/Nexus/Views/Components/ErrorStateView.swift` — NEW: Reusable error view (66 LOC)
+- `ios/Nexus/Views/Dashboard/TodayView.swift` — Add error state when `errorMessage != nil`
+- `ios/Nexus/Views/Finance/FinanceOverviewContent.swift` — Add error state when error + no data
 
-**Implementation Notes:**
-- ErrorStateView: icon (exclamationmark.triangle), message, "Try Again" button
-- Each ViewModel already has `errorMessage: String?` — just display it
-- Show when `errorMessage != nil && data.isEmpty`
+**Implementation:**
+- ErrorStateView: warning triangle icon, configurable title + message, "Try Again" button
+- TodayView: shows error state when `errorMessage != nil && dashboardPayload == nil`
+- FinanceOverviewContent: shows error state when `errorMessage != nil && hasNoData` (computed property)
 
 **Exit Criteria:**
-- [ ] ErrorStateView.swift exists
-- [ ] Error state shows when network fails
-- [ ] `xcodebuild -scheme Nexus build` succeeds
+- [x] ErrorStateView.swift exists (66 lines)
+- [x] Error state shows when network fails and no data
+- [x] `xcodebuild -scheme Nexus build` succeeds → BUILD SUCCEEDED
+
+**Commit:** `c9409f7`
 
 **Done Means:** App shows helpful error instead of blank screens.
 
