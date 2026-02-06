@@ -1,21 +1,58 @@
 import SwiftUI
 
-/// Offline banner for Today view (minimal style)
+/// Offline banner for Today view with queue indicator
 struct TodayOfflineBanner: View {
+    let pendingCount: Int
+
+    init(pendingCount: Int = 0) {
+        self.pendingCount = pendingCount
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash")
                 .font(.caption)
-            Text("Offline — showing saved data")
+            Text(bannerText)
                 .font(.caption.weight(.medium))
             Spacer()
+            if pendingCount > 0 {
+                queueBadge
+            }
         }
         .foregroundColor(.nexusWarning)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(Color.nexusWarning.opacity(0.1))
         .cornerRadius(10)
-        .accessibilityLabel("Network offline. Showing locally saved data.")
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var bannerText: String {
+        if pendingCount > 0 {
+            return "Offline — \(pendingCount) item\(pendingCount == 1 ? "" : "s") queued"
+        }
+        return "Offline — showing saved data"
+    }
+
+    private var queueBadge: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.caption2)
+            Text("\(pendingCount)")
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.nexusWarning)
+        .cornerRadius(12)
+    }
+
+    private var accessibilityText: String {
+        if pendingCount > 0 {
+            return "Network offline. \(pendingCount) item\(pendingCount == 1 ? "" : "s") queued for sync."
+        }
+        return "Network offline. Showing locally saved data."
     }
 }
 
@@ -71,6 +108,27 @@ struct TodayCachedBanner: View {
     }
 }
 
+/// Syncing queue banner (online but has pending items)
+struct TodaySyncingBanner: View {
+    let pendingCount: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .scaleEffect(0.7)
+            Text("Syncing \(pendingCount) item\(pendingCount == 1 ? "" : "s")...")
+                .font(.caption.weight(.medium))
+            Spacer()
+        }
+        .foregroundColor(.nexusPrimary)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.nexusPrimary.opacity(0.1))
+        .cornerRadius(10)
+        .accessibilityLabel("Syncing \(pendingCount) queued item\(pendingCount == 1 ? "" : "s").")
+    }
+}
+
 /// No data state for Today view
 struct TodayNoDataView: View {
     let onRefresh: () -> Void
@@ -116,8 +174,18 @@ struct TodayNoDataView: View {
     }
 }
 
-#Preview("Offline") {
-    TodayOfflineBanner()
+#Preview("Offline - No Queue") {
+    TodayOfflineBanner(pendingCount: 0)
+        .padding()
+}
+
+#Preview("Offline - With Queue") {
+    TodayOfflineBanner(pendingCount: 3)
+        .padding()
+}
+
+#Preview("Syncing") {
+    TodaySyncingBanner(pendingCount: 2)
         .padding()
 }
 

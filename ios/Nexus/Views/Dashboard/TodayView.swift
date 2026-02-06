@@ -6,6 +6,7 @@ import Combine
 struct TodayView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var offlineQueue = OfflineQueue.shared
     @State private var isFastingLoading = false
     @State private var fastingElapsed: String = "--:--"
     @State private var showingQuickLog = false
@@ -17,7 +18,9 @@ struct TodayView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     if !networkMonitor.isConnected {
-                        TodayOfflineBanner()
+                        TodayOfflineBanner(pendingCount: offlineQueue.pendingItemCount)
+                    } else if offlineQueue.pendingItemCount > 0 {
+                        TodaySyncingBanner(pendingCount: offlineQueue.pendingItemCount)
                     } else if viewModel.isFromCache && !viewModel.isForegroundRefreshing {
                         TodayCachedBanner(cacheAge: SyncCoordinator.shared.cacheAgeFormatted)
                     }
