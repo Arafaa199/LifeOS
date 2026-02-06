@@ -40,47 +40,54 @@ struct FinanceOverviewContent: View {
         }
     }
 
+    private var hasNoData: Bool {
+        viewModel.summary.totalSpent == 0 &&
+        viewModel.summary.totalIncome == 0 &&
+        viewModel.recentTransactions.isEmpty
+    }
+
     var body: some View {
         VStack(spacing: 20) {
-            if let lastUpdated = viewModel.lastUpdated,
-               Date().timeIntervalSince(lastUpdated) > 300 || viewModel.isOffline {
-                financeFreshnessIndicator(lastUpdated: lastUpdated, isOffline: viewModel.isOffline)
-            }
+            // Show error state when there's an error and no meaningful data
+            if let error = viewModel.errorMessage, hasNoData {
+                ErrorStateView(
+                    message: error,
+                    onRetry: { viewModel.loadFinanceSummary() }
+                )
+            } else {
+                if let lastUpdated = viewModel.lastUpdated,
+                   Date().timeIntervalSince(lastUpdated) > 300 || viewModel.isOffline {
+                    financeFreshnessIndicator(lastUpdated: lastUpdated, isOffline: viewModel.isOffline)
+                }
 
-            mtdSpendCard
+                mtdSpendCard
 
-            if !topCategories.isEmpty {
-                topCategoriesCard
-            }
+                if !topCategories.isEmpty {
+                    topCategoriesCard
+                }
 
-            cashflowCard
+                cashflowCard
 
-            if !viewModel.recentTransactions.isEmpty {
-                recentTransactionsCard
-            }
+                if !viewModel.recentTransactions.isEmpty {
+                    recentTransactionsCard
+                }
 
-            if viewModel.monthlyObligations > 0 {
-                obligationsSummary
-            }
+                if viewModel.monthlyObligations > 0 {
+                    obligationsSummary
+                }
 
-            // TODO: Uncomment when activeDebts is implemented in FinanceViewModel
-            // if !viewModel.activeDebts.isEmpty {
-            //     debtSummaryCard
-            // }
+                // TODO: Uncomment when activeDebts is implemented in FinanceViewModel
+                // if !viewModel.activeDebts.isEmpty {
+                //     debtSummaryCard
+                // }
 
-            if !viewModel.upcomingBills.isEmpty {
-                upcomingBillsCard
-            }
+                if !viewModel.upcomingBills.isEmpty {
+                    upcomingBillsCard
+                }
 
-            actionRow
+                actionRow
 
-            insightsCard
-
-            if let error = viewModel.errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.nexusError)
-                    .padding()
+                insightsCard
             }
         }
         .padding()

@@ -29,7 +29,12 @@ struct TodayView: View {
                         TodayStaleBanner(text: staleBannerText, onRefresh: viewModel.forceRefresh)
                     }
 
-                    if viewModel.dashboardPayload == nil && !viewModel.isLoading {
+                    if let error = viewModel.errorMessage, viewModel.dashboardPayload == nil {
+                        ErrorStateView(
+                            message: error,
+                            onRetry: viewModel.forceRefresh
+                        )
+                    } else if viewModel.dashboardPayload == nil && !viewModel.isLoading {
                         TodayNoDataView(onRefresh: viewModel.forceRefresh)
                     } else {
                         if let pendingMeal = viewModel.pendingMeals.first {
