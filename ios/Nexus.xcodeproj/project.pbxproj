@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		05D72A332F35D7E0000915CC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 05D72A322F35D7E0000915CC /* WidgetKit.framework */; };
 		05D72A352F35D7E0000915CC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 05D72A342F35D7E0000915CC /* SwiftUI.framework */; };
-		05D72A462F35D7E1000915CC /* NexusWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 05D72A302F35D7E0000915CC /* NexusWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		56AA4588BA1E17C43C7D70BB /* HealthFlatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F41919E64535A7EE568C9 /* HealthFlatView.swift */; };
 		56B542128B4EEB648C8490D3 /* HealthInsightsContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80FF49EDBF9CE87BBB719DB1 /* HealthInsightsContent.swift */; };
 		9E6A434DBFFC24A6F935A7EC /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B475467EA3F591B343D3C9B8 /* MoreView.swift */; };
@@ -18,30 +17,6 @@
 		D3E24CCABCC6B14F48E41E2A /* FinanceFlatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F06F400FAD017F91387984F2 /* FinanceFlatView.swift */; };
 		E89E498094D0F176F9538E1A /* FinanceOverviewContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA334B77B43AB559041D3430 /* FinanceOverviewContent.swift */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		05D72A442F35D7E1000915CC /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 05F053752F1ECB07004BB7A0 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 05D72A2F2F35D7E0000915CC;
-			remoteInfo = NexusWidgetsExtension;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		05D72A4B2F35D7E1000915CC /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				05D72A462F35D7E1000915CC /* NexusWidgetsExtension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		05D72A302F35D7E0000915CC /* NexusWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NexusWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -276,14 +251,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		05D72A452F35D7E1000915CC /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 05D72A2F2F35D7E0000915CC /* NexusWidgetsExtension */;
-			targetProxy = 05D72A442F35D7E1000915CC /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		05D72A492F35D7E1000915CC /* Debug */ = {
