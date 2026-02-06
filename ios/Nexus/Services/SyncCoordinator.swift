@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import Combine
 import os
+import WidgetKit
 
 @MainActor
 class SyncCoordinator: ObservableObject {
@@ -219,6 +220,9 @@ class SyncCoordinator: ObservableObject {
 
             let ms = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
             logger.info("[dashboard] sync succeeded source=\(src) duration=\(ms)ms")
+
+            // Update SharedStorage for widgets
+            updateWidgetData(from: result.payload)
         } catch is CancellationError {
             domainStates[.dashboard]?.phase = .idle
             notifyDomainStateChanged(.dashboard)
@@ -488,5 +492,35 @@ class SyncCoordinator: ObservableObject {
 
     var anySyncing: Bool {
         domainStates.values.contains { $0.isSyncing }
+    }
+
+    // MARK: - Widget Data
+
+    private func updateWidgetData(from payload: DashboardPayload) {
+        let storage = SharedStorage.shared
+
+        // Update recovery data for widgets
+        if let facts = payload.todayFacts {
+            if let recovery = facts.recoveryScore {
+                storage.saveRecoveryData(
+                    score: recovery,
+                    hrv: facts.hrv,
+                    rhr: facts.rhr
+                )
+                logger.info("[widgets] recovery data updated: \(recovery)%")
+            }
+
+            // Update daily summary for widgets
+            // Note: protein not available in TodayFacts yet
+            storage.saveDailySummary(
+                calories: facts.caloriesConsumed ?? 0,
+                protein: 0,
+                water: facts.waterMl ?? 0,
+                weight: facts.weightKg
+            )
+        }
+
+        // Trigger widget refresh
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
