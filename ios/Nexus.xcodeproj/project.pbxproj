@@ -18,11 +18,22 @@
 		E89E498094D0F176F9538E1A /* FinanceOverviewContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA334B77B43AB559041D3430 /* FinanceOverviewContent.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		05D72D612F35E030000915CC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 05F053752F1ECB07004BB7A0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 05F0537C2F1ECB07004BB7A0;
+			remoteInfo = Nexus;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		05D72A302F35D7E0000915CC /* NexusWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NexusWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		05D72A322F35D7E0000915CC /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		05D72A342F35D7E0000915CC /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		05D72A4C2F35DB32000915CC /* NexusWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NexusWidgetsExtension.entitlements; sourceTree = "<group>"; };
+		05D72D5D2F35E030000915CC /* NexusTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NexusTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		05F0537D2F1ECB07004BB7A0 /* Nexus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nexus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		70BB4F69BE80A47975E876E9 /* HealthTrendsContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthTrendsContent.swift; path = Nexus/Views/Health/HealthTrendsContent.swift; sourceTree = SOURCE_ROOT; };
 		7A704DD5BE8948E3F89C70E7 /* HealthTodayContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthTodayContent.swift; path = Nexus/Views/Health/HealthTodayContent.swift; sourceTree = SOURCE_ROOT; };
@@ -39,6 +50,11 @@
 			path = NexusWidgets;
 			sourceTree = "<group>";
 		};
+		05D72D5E2F35E030000915CC /* NexusTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NexusTests;
+			sourceTree = "<group>";
+		};
 		05F0537F2F1ECB07004BB7A0 /* Nexus */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Nexus;
@@ -53,6 +69,13 @@
 			files = (
 				05D72A352F35D7E0000915CC /* SwiftUI.framework in Frameworks */,
 				05D72A332F35D7E0000915CC /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		05D72D5A2F35E030000915CC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -105,6 +128,7 @@
 				05D72A4C2F35DB32000915CC /* NexusWidgetsExtension.entitlements */,
 				05F0537F2F1ECB07004BB7A0 /* Nexus */,
 				05D72A362F35D7E0000915CC /* NexusWidgets */,
+				05D72D5E2F35E030000915CC /* NexusTests */,
 				05D72A312F35D7E0000915CC /* Frameworks */,
 				05F0537E2F1ECB07004BB7A0 /* Products */,
 				7A704DD5BE8948E3F89C70E7 /* HealthTodayContent.swift */,
@@ -122,6 +146,7 @@
 			children = (
 				05F0537D2F1ECB07004BB7A0 /* Nexus.app */,
 				05D72A302F35D7E0000915CC /* NexusWidgetsExtension.appex */,
+				05D72D5D2F35E030000915CC /* NexusTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -150,6 +175,29 @@
 			productName = NexusWidgetsExtension;
 			productReference = 05D72A302F35D7E0000915CC /* NexusWidgetsExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		05D72D5C2F35E030000915CC /* NexusTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 05D72D632F35E030000915CC /* Build configuration list for PBXNativeTarget "NexusTests" */;
+			buildPhases = (
+				05D72D592F35E030000915CC /* Sources */,
+				05D72D5A2F35E030000915CC /* Frameworks */,
+				05D72D5B2F35E030000915CC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				05D72D622F35E030000915CC /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				05D72D5E2F35E030000915CC /* NexusTests */,
+			);
+			name = NexusTests;
+			packageProductDependencies = (
+			);
+			productName = NexusTests;
+			productReference = 05D72D5D2F35E030000915CC /* NexusTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		05F0537C2F1ECB07004BB7A0 /* Nexus */ = {
 			isa = PBXNativeTarget;
@@ -186,6 +234,10 @@
 					05D72A2F2F35D7E0000915CC = {
 						CreatedOnToolsVersion = 26.2;
 					};
+					05D72D5C2F35E030000915CC = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 05F0537C2F1ECB07004BB7A0;
+					};
 					05F0537C2F1ECB07004BB7A0 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -207,12 +259,20 @@
 			targets = (
 				05F0537C2F1ECB07004BB7A0 /* Nexus */,
 				05D72A2F2F35D7E0000915CC /* NexusWidgetsExtension */,
+				05D72D5C2F35E030000915CC /* NexusTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		05D72A2E2F35D7E0000915CC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		05D72D5B2F35E030000915CC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -236,6 +296,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		05D72D592F35E030000915CC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		05F053792F1ECB07004BB7A0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -251,6 +318,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		05D72D622F35E030000915CC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 05F0537C2F1ECB07004BB7A0 /* Nexus */;
+			targetProxy = 05D72D612F35E030000915CC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		05D72A492F35D7E1000915CC /* Debug */ = {
@@ -312,6 +387,48 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		05D72D642F35E030000915CC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3ZYPA7WPP5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = name.arafa.Nexus.NexusTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nexus.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Nexus";
+			};
+			name = Debug;
+		};
+		05D72D652F35E030000915CC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3ZYPA7WPP5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = name.arafa.Nexus.NexusTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nexus.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Nexus";
 			};
 			name = Release;
 		};
@@ -514,6 +631,15 @@
 			buildConfigurations = (
 				05D72A492F35D7E1000915CC /* Debug */,
 				05D72A4A2F35D7E1000915CC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		05D72D632F35E030000915CC /* Build configuration list for PBXNativeTarget "NexusTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				05D72D642F35E030000915CC /* Debug */,
+				05D72D652F35E030000915CC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
