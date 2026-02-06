@@ -1,0 +1,94 @@
+{
+  "name": "Nexus: Weather Daily Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{"field": "hours", "hoursInterval": 6}]
+        }
+      },
+      "id": "schedule",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.open-meteo.com/v1/forecast?latitude=25.0782&longitude=55.1527&daily=temperature_2m_max,temperature_2m_min,weathercode,relative_humidity_2m_mean,uv_index_max,precipitation_sum,sunrise,sunset&timezone=Asia/Dubai&forecast_days=1",
+        "options": {}
+      },
+      "id": "fetch-weather",
+      "name": "Fetch Weather",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [440, 300],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst daily = data.daily;\n\n// Weather code to condition mapping\nconst weatherCodes = {\n  0: 'Clear', 1: 'Mostly Clear', 2: 'Partly Cloudy', 3: 'Overcast',\n  45: 'Foggy', 48: 'Foggy',\n  51: 'Light Drizzle', 53: 'Drizzle', 55: 'Heavy Drizzle',\n  61: 'Light Rain', 63: 'Rain', 65: 'Heavy Rain',\n  71: 'Light Snow', 73: 'Snow', 75: 'Heavy Snow',\n  80: 'Light Showers', 81: 'Showers', 82: 'Heavy Showers',\n  95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Severe Thunderstorm'\n};\n\nconst code = daily.weathercode[0];\nconst condition = weatherCodes[code] || 'Unknown';\n\nreturn {\n  date: daily.time[0],\n  temp_high: daily.temperature_2m_max[0],\n  temp_low: daily.temperature_2m_min[0],\n  temp_avg: ((daily.temperature_2m_max[0] + daily.temperature_2m_min[0]) / 2).toFixed(1),\n  condition: condition,\n  condition_code: code,\n  humidity: daily.relative_humidity_2m_mean ? daily.relative_humidity_2m_mean[0] : null,\n  uv_index: daily.uv_index_max[0],\n  precipitation_mm: daily.precipitation_sum[0],\n  sunrise: daily.sunrise[0],\n  sunset: daily.sunset[0],\n  raw_json: JSON.stringify(data)\n};"
+      },
+      "id": "transform",
+      "name": "Transform Data",
+      "type": "n8n-nodes-base.code",
+      "position": [640, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO life.weather_daily (date, temp_high, temp_low, temp_avg, condition, condition_code, humidity, uv_index, precipitation_mm, sunrise, sunset, raw_json)\nVALUES (\n  '{{ $json.date }}',\n  {{ $json.temp_high }},\n  {{ $json.temp_low }},\n  {{ $json.temp_avg }},\n  '{{ $json.condition }}',\n  {{ $json.condition_code }},\n  {{ $json.humidity || 'NULL' }},\n  {{ $json.uv_index }},\n  {{ $json.precipitation_mm }},\n  '{{ $json.sunrise }}',\n  '{{ $json.sunset }}',\n  '{{ $json.raw_json }}'::jsonb\n)\nON CONFLICT (date) DO UPDATE SET\n  temp_high = EXCLUDED.temp_high,\n  temp_low = EXCLUDED.temp_low,\n  temp_avg = EXCLUDED.temp_avg,\n  condition = EXCLUDED.condition,\n  condition_code = EXCLUDED.condition_code,\n  humidity = EXCLUDED.humidity,\n  uv_index = EXCLUDED.uv_index,\n  precipitation_mm = EXCLUDED.precipitation_mm,\n  sunrise = EXCLUDED.sunrise,\n  sunset = EXCLUDED.sunset,\n  raw_json = EXCLUDED.raw_json,\n  fetched_at = NOW()\nRETURNING date, condition, temp_high, temp_low;",
+        "options": {}
+      },
+      "id": "upsert",
+      "name": "Upsert Weather",
+      "type": "n8n-nodes-base.postgres",
+      "position": [840, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT life.update_daily_facts_weather('{{ $json.date }}'::date);",
+        "options": {}
+      },
+      "id": "update-facts",
+      "name": "Update Daily Facts",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1040, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": {
+      "main": [[{"node": "Fetch Weather", "type": "main", "index": 0}]]
+    },
+    "Fetch Weather": {
+      "main": [[{"node": "Transform Data", "type": "main", "index": 0}]]
+    },
+    "Transform Data": {
+      "main": [[{"node": "Upsert Weather", "type": "main", "index": 0}]]
+    },
+    "Upsert Weather": {
+      "main": [[{"node": "Update Daily Facts", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{"name": "lifeos"}, {"name": "weather"}],
+  "active": true
+}
