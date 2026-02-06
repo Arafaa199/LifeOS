@@ -30,7 +30,24 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         KeychainManager.shared.migrateFromUserDefaultsIfNeeded()
         BackgroundTaskManager.shared.registerBackgroundTasks()
         configureAppearance()
+        QuickActionManager.shared.registerShortcuts()
+
+        // Handle quick action if app was launched from a shortcut
+        if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
+            QuickActionManager.shared.handleShortcutItem(shortcutItem)
+        }
+
         return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        performActionFor shortcutItem: UIApplicationShortcutItem,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        // Handle quick action when app is already running
+        let handled = QuickActionManager.shared.handleShortcutItem(shortcutItem)
+        completionHandler(handled)
     }
 
     private func configureAppearance() {
