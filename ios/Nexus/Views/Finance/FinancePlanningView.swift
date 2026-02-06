@@ -835,6 +835,45 @@ struct RecurringItemRow: View {
     }
 }
 
+// MARK: - Inline Plan Content (for tab embedding)
+
+struct FinancePlanContent: View {
+    @StateObject private var viewModel = FinancePlanningViewModel()
+    @State private var selectedSection = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Section", selection: $selectedSection) {
+                Text("Categories").tag(0)
+                Text("Recurring").tag(1)
+                Text("Rules").tag(2)
+                Text("Settings").tag(3)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            TabView(selection: $selectedSection) {
+                CategoriesListView(viewModel: viewModel)
+                    .tag(0)
+
+                RecurringItemsListView(viewModel: viewModel)
+                    .tag(1)
+
+                MatchingRulesListView(viewModel: viewModel)
+                    .tag(2)
+
+                FinanceSettingsView()
+                    .tag(3)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+        }
+        .onAppear {
+            viewModel.loadAll()
+        }
+    }
+}
+
 #Preview {
     FinancePlanningView()
 }

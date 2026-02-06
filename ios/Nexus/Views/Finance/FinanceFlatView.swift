@@ -32,10 +32,24 @@ struct FinanceFlatView: View {
                     .padding(.horizontal)
                     .padding(.top, 12)
 
-                    // TODO: Uncomment when FinancePlanContent is implemented
-                    // NexusSectionHeader(title: "Plan")
-                    //     .padding(.horizontal)
-                    // FinancePlanContent(viewModel: viewModel)
+                    NexusSectionHeader(title: "Plan")
+                        .padding(.horizontal)
+                        .padding(.top, 16)
+
+                    NavigationLink(destination: FinancePlanningView()) {
+                        HStack {
+                            Text("Finance Settings")
+                                .font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.nexusFinance)
+                        .padding()
+                        .background(Color.nexusCardBackground)
+                        .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
 
                     Spacer(minLength: 40)
                 }

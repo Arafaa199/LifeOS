@@ -34,11 +34,7 @@ struct FinanceView: View {
                     FinanceActivityView(viewModel: viewModel)
                         .tag(1)
 
-                    // TODO: Uncomment when FinancePlanView is implemented
-                    // FinancePlanView(viewModel: viewModel)
-                    //     .tag(2)
-                    Text("Financial planning coming soon")
-                        .foregroundColor(.secondary)
+                    FinancePlanContent()
                         .tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
