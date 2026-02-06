@@ -2100,28 +2100,32 @@ Create an iOS Shortcut with:
 ### TASK-FEAT.27: Location Zone Improvement
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Fix location zone detection - currently showing "unavailable" for location_name.
 
 **Problem:**
 - `life.locations` shows `location_name = 'unavailable'` for all entries
-- HA is polling location but not resolving zone names
+- `get_location_type()` used old coordinates (25.0657, 55.1713) — 1.4km off from actual home (25.0781621, 55.1526481)
+- Everything classified as 'other', daily_location_summary showed 0 hours_at_home
 
-**Approach:**
-- Create known zones table with lat/lon and names
-- Update detect_location_zone() to return zone name
-- Add zones: home, work, gym, common places
+**Files Changed:**
+- `backend/migrations/156_location_zones.up.sql`
+- `backend/migrations/156_location_zones.down.sql`
 
-**Files to Modify:**
-- `backend/migrations/154_weather_and_location.up.sql` — Add zones table
-- Or create new migration 156
+**Fix Applied:**
+- Created `life.known_zones` table with 3 zones (Home, Fitness First Motor City, Dubai Sports City)
+- Rewrote `get_location_type()` to query `known_zones` table (closest match within radius)
+- Rewrote `detect_location_zone()` to return zone NAME from `known_zones` (not just home/local/away)
+- Rewrote `ingest_location()` to derive `location_name` from zone when HA sends 'unavailable'
+- Backfilled 128 existing records: `location_type` corrected, 109 'unavailable' names resolved to 'Home'
 
 **Definition of Done:**
-- [ ] Known zones table with 3+ zones defined
-- [ ] Location events have proper zone names
-- [ ] daily_location_summary shows correct hours per zone
+- [x] Known zones table with 3+ zones defined
+- [x] Location events have proper zone names (0 'unavailable' remaining)
+- [x] daily_location_summary shows correct hours per zone (23h at home vs 0h before)
+- [x] Down migration tested and re-applied
 
 ---
 
