@@ -1,7 +1,9 @@
 import Foundation
+import os
 
 class DashboardService {
     static let shared = DashboardService()
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "dashboardService")
 
     private let api = NexusAPI.shared
     private let cache = CacheManager.shared
@@ -20,33 +22,30 @@ class DashboardService {
     /// Fetches the unified dashboard payload from the server.
     /// Returns cached data if offline or on failure.
     func fetchDashboard() async throws -> DashboardResult {
-        // Try network fetch
         do {
             let response: DashboardResponse = try await api.get("/webhook/nexus-dashboard-today")
 
-            print("[DashboardService] Response: success=\(response.success ?? false), data=\(response.data != nil ? "present" : "nil"), error=\(response.error ?? "none")")
+            logger.debug("Response: success=\(response.success ?? false), data=\(response.data != nil ? "present" : "nil")")
 
             if let payload = response.data {
-                print("[DashboardService] Payload: todayFacts=\(payload.todayFacts != nil ? "present" : "nil"), recovery=\(payload.todayFacts?.recoveryScore ?? -1)")
+                logger.info("Payload received: recovery=\(payload.todayFacts?.recoveryScore ?? -1)")
                 cache.save(payload, forKey: cacheKey)
                 return DashboardResult(payload: payload, source: .network, lastUpdated: Date())
             } else if let error = response.error {
-                print("[DashboardService] Server error: \(error)")
+                logger.error("Server error: \(error)")
                 throw DashboardError.serverError(error)
             } else {
-                print("[DashboardService] Empty response - no payload and no error")
+                logger.warning("Empty response - no payload and no error")
                 throw DashboardError.emptyResponse
             }
         } catch let decodingError as DecodingError {
-            print("[DashboardService] Decode error: \(decodingError)")
-            // Network failed, try cache
+            logger.error("Decode error: \(decodingError.localizedDescription)")
             if let cached = loadCached() {
                 return cached
             }
             throw decodingError
         } catch {
-            print("[DashboardService] Other error: \(error)")
-            // Network failed, try cache
+            logger.error("Fetch error: \(error.localizedDescription)")
             if let cached = loadCached() {
                 return cached
             }

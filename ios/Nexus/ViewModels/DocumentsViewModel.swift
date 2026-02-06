@@ -1,9 +1,11 @@
 import Foundation
 import SwiftUI
 import Combine
+import os
 
 @MainActor
 class DocumentsViewModel: ObservableObject {
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "documents")
     @Published var documents: [Document] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -49,24 +51,23 @@ class DocumentsViewModel: ObservableObject {
         do {
             let response: DocumentsResponse = try await api.get("/webhook/nexus-documents")
             documents = response.documents
-            print("[Documents] Decode OK, count=\(response.documents.count)")
+            logger.info("Fetched \(response.documents.count) documents")
         } catch let decodingError as DecodingError {
-            // Temporary logging for decode errors
             switch decodingError {
             case .typeMismatch(let type, let context):
-                print("[Documents] TypeMismatch: expected \(type), path: \(context.codingPath.map { $0.stringValue }.joined(separator: ".")), desc: \(context.debugDescription)")
+                logger.error("Decode TypeMismatch: expected \(String(describing: type)), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
             case .keyNotFound(let key, let context):
-                print("[Documents] KeyNotFound: \(key.stringValue), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
+                logger.error("Decode KeyNotFound: \(key.stringValue), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
             case .valueNotFound(let type, let context):
-                print("[Documents] ValueNotFound: \(type), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
+                logger.error("Decode ValueNotFound: \(String(describing: type)), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
             case .dataCorrupted(let context):
-                print("[Documents] DataCorrupted: \(context.debugDescription)")
+                logger.error("Decode DataCorrupted: \(context.debugDescription)")
             @unknown default:
-                print("[Documents] Unknown DecodingError: \(decodingError)")
+                logger.error("Decode unknown error: \(decodingError.localizedDescription)")
             }
-            errorMessage = decodingError.localizedDescription
+            errorMessage = "Failed to parse documents"
         } catch {
-            print("[Documents] Other error: \(error)")
+            logger.error("Fetch error: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
         }
         isLoading = false
@@ -99,18 +100,16 @@ class DocumentsViewModel: ObservableObject {
         )
         do {
             let response: SingleDocumentResponse = try await api.post("/webhook/nexus-document", body: request, decoder: JSONDecoder())
-            print("[Documents] POST succeeded, document id=\(response.document?.id ?? -1)")
+            logger.info("Created document id=\(response.document?.id ?? -1)")
 
-            // POST succeeded - add document optimistically if returned
             if let newDoc = response.document {
                 documents.append(newDoc)
             }
 
-            // Try refresh, but don't fail the create if refresh fails
             do {
                 await loadDocuments()
             } catch {
-                print("[Documents] Refresh after create failed (item saved): \(error)")
+                logger.warning("Refresh after create failed: \(error.localizedDescription)")
             }
             return true  // Success - POST worked
         } catch {
@@ -148,19 +147,17 @@ class DocumentsViewModel: ObservableObject {
         )
         do {
             let response: SingleDocumentResponse = try await api.post("/webhook/nexus-document-update", body: request, decoder: JSONDecoder())
-            print("[Documents] Update succeeded, document id=\(response.document?.id ?? id)")
+            logger.info("Updated document id=\(response.document?.id ?? id)")
 
-            // Update succeeded - update local optimistically
             if let updatedDoc = response.document,
                let index = documents.firstIndex(where: { $0.id == id }) {
                 documents[index] = updatedDoc
             }
 
-            // Try refresh, but don't fail the update if refresh fails
             do {
                 await loadDocuments()
             } catch {
-                print("[Documents] Refresh after update failed (item saved): \(error)")
+                logger.warning("Refresh after update failed: \(error.localizedDescription)")
             }
             return true  // Success - POST worked
         } catch {
@@ -193,19 +190,17 @@ class DocumentsViewModel: ObservableObject {
         )
         do {
             let response: SingleDocumentResponse = try await api.post("/webhook/nexus-document-renew", body: request, decoder: JSONDecoder())
-            print("[Documents] Renew succeeded, document id=\(response.document?.id ?? id)")
+            logger.info("Renewed document id=\(response.document?.id ?? id)")
 
-            // Renew succeeded - update local optimistically
             if let renewedDoc = response.document,
                let index = documents.firstIndex(where: { $0.id == id }) {
                 documents[index] = renewedDoc
             }
 
-            // Try refresh, but don't fail the renew if refresh fails
             do {
                 await loadDocuments()
             } catch {
-                print("[Documents] Refresh after renew failed (item saved): \(error)")
+                logger.warning("Refresh after renew failed: \(error.localizedDescription)")
             }
             return true  // Success - POST worked
         } catch {
@@ -233,6 +228,7 @@ class DocumentsViewModel: ObservableObject {
             let response: RenewalHistoryResponse = try await api.get("/webhook/nexus-document-renewals?id=\(documentId)")
             renewalHistory = response.renewals
         } catch {
+            logger.error("Failed to load renewal history: \(error.localizedDescription)")
             renewalHistory = []
         }
         isLoadingHistory = false

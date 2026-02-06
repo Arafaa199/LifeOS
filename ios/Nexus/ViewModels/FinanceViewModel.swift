@@ -1,9 +1,11 @@
 import Foundation
 import SwiftUI
 import Combine
+import os
 
 @MainActor
 class FinanceViewModel: ObservableObject {
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "finance")
     @Published var summary = FinanceSummary()
     @Published var recentTransactions: [Transaction] = []
     @Published var recurringItems: [RecurringItem] = []
@@ -72,15 +74,15 @@ class FinanceViewModel: ObservableObject {
     }
 
     init(
-        api: NexusAPI = .shared,
-        cache: CacheManager = .shared,
-        networkMonitor: NetworkMonitor = .shared,
-        coordinator: SyncCoordinator = .shared
+        api: NexusAPI? = nil,
+        cache: CacheManager? = nil,
+        networkMonitor: NetworkMonitor? = nil,
+        coordinator: SyncCoordinator? = nil
     ) {
-        self.api = api
-        self.cache = cache
-        self.networkMonitor = networkMonitor
-        self.coordinator = coordinator
+        self.api = api ?? NexusAPI.shared
+        self.cache = cache ?? CacheManager.shared
+        self.networkMonitor = networkMonitor ?? NetworkMonitor.shared
+        self.coordinator = coordinator ?? SyncCoordinator.shared
         loadFromCache()
         subscribeToCoordinator()
         updateQueuedCount()
@@ -545,7 +547,7 @@ class FinanceViewModel: ObservableObject {
                     recurringItems = items
                 }
             } catch {
-                // Non-critical — don't surface error for this
+                logger.warning("Failed to load recurring items: \(error.localizedDescription)")
             }
         }
     }
@@ -558,7 +560,11 @@ class FinanceViewModel: ObservableObject {
                 loadRecurringItems()
                 return true
             }
-        } catch {}
+            errorMessage = "Failed to create recurring item"
+        } catch {
+            logger.error("Create recurring item failed: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
+        }
         return false
     }
 
@@ -570,7 +576,11 @@ class FinanceViewModel: ObservableObject {
                 loadRecurringItems()
                 return true
             }
-        } catch {}
+            errorMessage = "Failed to update recurring item"
+        } catch {
+            logger.error("Update recurring item failed: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
+        }
         return false
     }
 
@@ -582,7 +592,11 @@ class FinanceViewModel: ObservableObject {
                 recurringItems.removeAll { $0.id == id }
                 return true
             }
-        } catch {}
+            errorMessage = "Failed to delete recurring item"
+        } catch {
+            logger.error("Delete recurring item failed: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
+        }
         return false
     }
 

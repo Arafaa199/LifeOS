@@ -1,5 +1,4 @@
 import SwiftUI
-import EventKit
 
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings

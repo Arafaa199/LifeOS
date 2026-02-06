@@ -236,47 +236,8 @@ class NexusAPI: ObservableObject {
         return try await get("/webhook/nexus-monthly-trends?months=\(months)")
     }
 
-    // MARK: - LifeOS Summary Methods
-
-    func fetchFinanceDailySummary(date: Date? = nil) async throws -> FinanceDailySummaryResponse {
-        var endpoint = "/webhook/nexus-daily-summary"
-        if let date = date {
-            endpoint += "?date=\(Self.dubaiDateString(from: date))"
-        }
-        return try await get(endpoint, decoder: Self.financeDateDecoder)
-    }
-
-    func fetchWeeklyReport(weekStart: Date? = nil) async throws -> WeeklyReportResponse {
-        var endpoint = "/webhook/nexus-weekly-report"
-        if let weekStart = weekStart {
-            endpoint += "?week_start=\(Self.dubaiDateString(from: weekStart))"
-        }
-        return try await get(endpoint, decoder: Self.financeDateDecoder)
-    }
-
-    func fetchSystemHealth() async throws -> SystemHealthResponse {
-        return try await get("/webhook/nexus-system-health", decoder: Self.financeDateDecoder)
-    }
-
     func fetchSyncStatus() async throws -> SyncStatusResponse {
         return try await get("/webhook/nexus-sync-status")
-    }
-
-    func refreshSummaries() async throws -> NexusResponse {
-        guard let url = URL(string: "\(baseURL)/webhook/nexus-refresh-summary") else {
-            throw APIError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 30
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let apiKey = apiKey {
-            request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        }
-
-        let (data, _) = try await performRequest(request)
-        return try JSONDecoder().decode(NexusResponse.self, from: data)
     }
 
     // MARK: - Meal Confirmation Methods
@@ -494,24 +455,6 @@ class NexusAPI: ObservableObject {
             }
             throw APIError.decodingError
         }
-    }
-    
-    // MARK: - URL Building Helper
-    
-    private func buildURL(endpoint: String, queryItems: [URLQueryItem]? = nil) throws -> URL {
-        guard var components = URLComponents(string: "\(baseURL)\(endpoint)") else {
-            throw APIError.invalidURL
-        }
-        
-        if let queryItems = queryItems, !queryItems.isEmpty {
-            components.queryItems = queryItems
-        }
-        
-        guard let url = components.url else {
-            throw APIError.invalidURL
-        }
-        
-        return url
     }
 
     // MARK: - Generic GET Helper

@@ -2,9 +2,11 @@ import Foundation
 import SwiftUI
 import WidgetKit
 import Combine
+import os
 
 @MainActor
 class DashboardViewModel: ObservableObject {
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "dashboard")
     @Published var summary = DailySummary()
     @Published var recentLogs: [LogEntry] = []
     @Published var errorMessage: String?
@@ -140,13 +142,13 @@ class DashboardViewModel: ObservableObject {
     private let storage = SharedStorage.shared
 
     init(
-        dashboardService: DashboardService = .shared,
-        coordinator: SyncCoordinator = .shared,
-        api: NexusAPI = .shared
+        dashboardService: DashboardService? = nil,
+        coordinator: SyncCoordinator? = nil,
+        api: NexusAPI? = nil
     ) {
-        self.dashboardService = dashboardService
-        self.coordinator = coordinator
-        self.api = api
+        self.dashboardService = dashboardService ?? DashboardService.shared
+        self.coordinator = coordinator ?? SyncCoordinator.shared
+        self.api = api ?? NexusAPI.shared
         loadFromCache()
         subscribeToCoordinator()
     }
@@ -182,8 +184,7 @@ class DashboardViewModel: ObservableObject {
     }
 
     private func handlePayloadUpdate(_ payload: DashboardPayload) {
-        // Debug: Log what we received
-        print("[DashboardVM] handlePayloadUpdate: todayFacts=\(payload.todayFacts != nil ? "present" : "nil"), recovery=\(payload.todayFacts?.recoveryScore ?? -1)")
+        logger.debug("Payload update: todayFacts=\(payload.todayFacts != nil ? "present" : "nil"), recovery=\(payload.todayFacts?.recoveryScore ?? -1)")
 
         dashboardPayload = payload
 
@@ -343,6 +344,7 @@ class DashboardViewModel: ObservableObject {
         do {
             pendingMeals = try await api.fetchPendingMealConfirmations()
         } catch {
+            logger.error("Failed to load pending meals: \(error.localizedDescription)")
             pendingMeals = []
         }
     }

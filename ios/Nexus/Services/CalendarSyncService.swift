@@ -2,10 +2,12 @@ import Foundation
 import EventKit
 import UIKit
 import Combine
+import os
 
 @MainActor
 class CalendarSyncService: ObservableObject {
     static let shared = CalendarSyncService()
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "calendarSync")
 
     private let eventStore = EKEventStore()
 
@@ -42,7 +44,7 @@ class CalendarSyncService: ObservableObject {
                 return granted
             }
         } catch {
-            print("[CalendarSync] Access request failed: \(error)")
+            logger.error("Access request failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -52,7 +54,7 @@ class CalendarSyncService: ObservableObject {
 
         updateAuthorizationStatus()
         guard authorizationStatus == .fullAccess || authorizationStatus == .authorized else {
-            print("[CalendarSync] Not authorized to access calendar")
+            logger.warning("Not authorized to access calendar")
             return
         }
 
@@ -61,7 +63,7 @@ class CalendarSyncService: ObservableObject {
 
         let events = fetchEvents()
         guard !events.isEmpty else {
-            print("[CalendarSync] No events to sync")
+            logger.debug("No events to sync")
             return
         }
 
@@ -71,7 +73,7 @@ class CalendarSyncService: ObservableObject {
             lastSyncDate = Date()
             lastSyncEventCount = events.count
             userDefaults.set(lastSyncDate, forKey: lastSyncKey)
-            print("[CalendarSync] Synced \(events.count) events")
+            logger.info("Synced \(events.count) events")
         }
     }
 

@@ -1,8 +1,10 @@
 import SwiftUI
 import Combine
+import os
 
 @MainActor
 class CalendarViewModel: ObservableObject {
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "calendar")
     @Published var calendarSummary: CalendarSummary?
     @Published var events: [CalendarDisplayEvent] = []
     @Published var isLoadingEvents = false
@@ -171,7 +173,7 @@ class CalendarViewModel: ObservableObject {
                 monthReminders = grouped
             }
         } catch {
-            print("[CalendarVM] Failed to fetch reminders: \(error)")
+            logger.error("Failed to fetch reminders: \(error.localizedDescription)")
         }
     }
 
@@ -197,7 +199,7 @@ class CalendarViewModel: ObservableObject {
                     await MainActor.run { self.yearEventCounts = counts }
                 }
             } catch {
-                print("[CalendarVM] Failed to fetch year events: \(error)")
+                await MainActor.run { self.logger.error("Failed to fetch year events: \(error.localizedDescription)") }
             }
         }()
 
@@ -217,7 +219,7 @@ class CalendarViewModel: ObservableObject {
                     await MainActor.run { self.yearReminderCounts = counts }
                 }
             } catch {
-                print("[CalendarVM] Failed to fetch year reminders: \(error)")
+                await MainActor.run { self.logger.error("Failed to fetch year reminders: \(error.localizedDescription)") }
             }
         }()
 
