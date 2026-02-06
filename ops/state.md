@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-06T16:00:00+04:00
+Last updated: 2026-02-06T18:30:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -160,6 +160,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 6)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-PLAN.4: Budget Alert Push Notifications | DONE | Created NotificationManager.swift (118 LOC): requests notification authorization on first launch (stores flag in UserDefaults), sends UNNotification when budget exceeds 80% threshold, tracks `alertedBudgetsToday` Set to prevent spam (resets daily). Wired into SyncCoordinator.syncDashboard() → calls `checkBudgetAlerts(from:)` after network refresh. NexusApp.AppDelegate calls `requestNotificationPermissionIfNeeded()` on launch. 3 files changed (+137). Exit criteria: `grep -c 'UNUserNotificationCenter\|budgetAlert'` returns 3 (≥2 required). iOS build: BUILD SUCCEEDED. |
 | TASK-PLAN.1: Offline Mode Indicator | DONE | Enhanced TodayBannersView: `TodayOfflineBanner` now shows queue count ("Offline — X items queued" with badge), added `TodaySyncingBanner` for online-with-pending state. TodayView observes `OfflineQueue.shared.pendingItemCount` via `@StateObject`. Banner order: Offline > Syncing > Cached > Stale. Exit criteria: `grep -c 'pendingCount\|TodaySyncingBanner'` returns 17 (≥2 required). 2 files changed (+77/-6). iOS build: BUILD SUCCEEDED. Commit `208060c`. |
 | TASK-FEAT.17: Fasting Timer Display | DONE | Migration 152: Rewrote `health.get_fasting_status()` to query `nutrition.food_log` for last meal time — returns `hours_since_meal` and `last_meal_at` alongside explicit session. iOS: Updated `FastingStatus` with new fields + computed properties (`sinceMealFormatted`, `displayTimer`, `fastingGoalProgress`). Rewrote `FastingCardView` with progress ring (color changes at 75%/100%), passive "Since last meal" tracking, goal badges (16h/18h/20h appear when fasting 12+ hours). Schema version 12→13. 4 files changed. iOS build: BUILD SUCCEEDED. Down migration tested. |
 | TASK-FEAT.16: Streak Tracking Widget | DONE | Backend already had streaks in dashboard payload (schema v12). Added iOS decode + display. Created `Streaks`, `StreakData` structs in DashboardPayload.swift with `sortedStreaks`, `bestActiveStreak`, `isAtBest` helpers. Created `StreakBadgesView.swift` (compact badges with icons, star for personal best, only shows when streaks active). Added to TodayView after StateCardView. 3 files changed (+208). Build: passes for streak files (pre-existing errors in WishlistView/DebtsListView unrelated). Commit `5c27cdb`. |

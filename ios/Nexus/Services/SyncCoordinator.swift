@@ -223,6 +223,11 @@ class SyncCoordinator: ObservableObject {
 
             // Update SharedStorage for widgets
             updateWidgetData(from: result.payload)
+
+            // Check budget alerts (only when fetched from network)
+            if result.source == .network {
+                await checkBudgetAlerts(from: result.payload)
+            }
         } catch is CancellationError {
             domainStates[.dashboard]?.phase = .idle
             notifyDomainStateChanged(.dashboard)
@@ -522,5 +527,26 @@ class SyncCoordinator: ObservableObject {
 
         // Trigger widget refresh
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    // MARK: - Budget Alerts
+
+    private func checkBudgetAlerts(from payload: DashboardPayload) async {
+        // Get budgets from finance summary if available
+        guard let budgets = financeSummaryResult?.data?.budgets, !budgets.isEmpty else {
+            logger.debug("[budget-alerts] no budgets to check")
+            return
+        }
+
+        // Build category spending map from today's facts
+        var categorySpending: [String: Double] = [:]
+        if let breakdown = financeSummaryResult?.data?.categoryBreakdown {
+            categorySpending = breakdown
+        }
+
+        await NotificationManager.shared.checkBudgetAlerts(
+            budgets: budgets,
+            categorySpending: categorySpending
+        )
     }
 }

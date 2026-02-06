@@ -31,6 +31,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         BackgroundTaskManager.shared.registerBackgroundTasks()
         configureAppearance()
         QuickActionManager.shared.registerShortcuts()
+        requestNotificationPermissionIfNeeded()
 
         // Handle quick action if app was launched from a shortcut
         if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
@@ -70,5 +71,17 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
         UINavigationBar.appearance().compactAppearance = navAppearance
+    }
+
+    private func requestNotificationPermissionIfNeeded() {
+        let hasRequestedKey = "hasRequestedNotificationPermission"
+        guard !UserDefaults.standard.bool(forKey: hasRequestedKey) else { return }
+
+        Task {
+            let granted = await NotificationManager.shared.requestAuthorization()
+            if granted {
+                UserDefaults.standard.set(true, forKey: hasRequestedKey)
+            }
+        }
     }
 }
