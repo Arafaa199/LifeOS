@@ -458,6 +458,20 @@ struct RecurringItemsListView: View {
 
     var body: some View {
         List {
+            // Subscriptions shortcut
+            Section {
+                NavigationLink(destination: SubscriptionsView()) {
+                    HStack {
+                        Image(systemName: "repeat.circle.fill")
+                            .foregroundColor(.nexusFinance)
+                        Text("View Subscriptions")
+                        Spacer()
+                        Text("\(viewModel.recurringItems.filter { $0.isExpense && $0.cadence == "monthly" }.count)")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
             Section("Recurring Expenses") {
                 ForEach(viewModel.recurringItems.filter { $0.isExpense }) { item in
                     RecurringItemRow(item: item)
