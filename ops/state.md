@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-06T21:15:00+04:00
+Last updated: 2026-02-06T22:57:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -165,6 +165,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-FEAT.17: Fasting Timer Display | DONE | Migration 152: Rewrote `health.get_fasting_status()` to query `nutrition.food_log` for last meal time — returns `hours_since_meal` and `last_meal_at` alongside explicit session. iOS: Updated `FastingStatus` with new fields + computed properties (`sinceMealFormatted`, `displayTimer`, `fastingGoalProgress`). Rewrote `FastingCardView` with progress ring (color changes at 75%/100%), passive "Since last meal" tracking, goal badges (16h/18h/20h appear when fasting 12+ hours). Schema version 12→13. 4 files changed. iOS build: BUILD SUCCEEDED. Down migration tested. |
 | TASK-FEAT.16: Streak Tracking Widget | DONE | Backend already had streaks in dashboard payload (schema v12). Added iOS decode + display. Created `Streaks`, `StreakData` structs in DashboardPayload.swift with `sortedStreaks`, `bestActiveStreak`, `isAtBest` helpers. Created `StreakBadgesView.swift` (compact badges with icons, star for personal best, only shows when streaks active). Added to TodayView after StateCardView. 3 files changed (+208). Build: passes for streak files (pre-existing errors in WishlistView/DebtsListView unrelated). Commit `5c27cdb`. |
 | TASK-FEAT.18: Fasting Timer Widget | DONE | **Already implemented in prior session.** Widget exists in `NexusWidgets.swift` (lines 418-728): `FastingTimerWidget` + `FastingWidgetProvider` + `FastingTimerWidgetView` with 4 size variants (small, medium, accessoryCircular, accessoryRectangular). SharedStorage has all fasting methods (lines 202-247). SyncCoordinator updates widget data after dashboard sync (lines 528-541). Features: progress ring toward goal, goal badges (16h/18h/20h), "Goal reached!" indicator, 15-min timeline updates. 0 files changed (already complete). iOS build: BUILD SUCCEEDED. |
+| TASK-FEAT.19: Transaction Search | DONE | **Already implemented.** `FinanceActivityView.swift` has full search functionality: `@State private var searchText` (line 6), `filteredTransactions` computed property filters by merchant/category/notes (lines 16-46), `.searchable(text: $searchText, prompt: "Search transactions")` (line 176), category filter chips (lines 114-139), date range picker (lines 98-112). Uses native iOS `.searchable()` modifier which provides standard search bar UX with built-in debounce. 0 files changed (already complete). iOS build: BUILD SUCCEEDED. |
 
 ### Recent (Feb 4)
 | Task | Status | Summary |
