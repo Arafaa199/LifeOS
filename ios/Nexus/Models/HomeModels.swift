@@ -115,6 +115,57 @@ struct PresenceState: Codable {
 
 // MARK: - Convenience Extensions
 
+// MARK: - Control Request/Response
+
+struct HomeControlRequest: Codable {
+    let action: String
+    let entityId: String
+    let data: [String: Double]?
+
+    enum CodingKeys: String, CodingKey {
+        case action
+        case entityId = "entity_id"
+        case data
+    }
+
+    init(action: HomeAction, entityId: String, brightness: Int? = nil) {
+        self.action = action.rawValue
+        self.entityId = entityId
+        if let brightness = brightness {
+            self.data = ["brightness": Double(brightness)]
+        } else {
+            self.data = nil
+        }
+    }
+}
+
+enum HomeAction: String, Codable {
+    case toggle
+    case turnOn = "turn_on"
+    case turnOff = "turn_off"
+    case start
+    case stop
+    case returnToBase = "return"
+    case locate
+}
+
+struct HomeControlResponse: Codable {
+    let success: Bool
+    let entityId: String?
+    let newState: String?
+    let logged: Bool?
+    let error: String?
+
+    enum CodingKeys: String, CodingKey {
+        case success
+        case entityId = "entity_id"
+        case newState = "new_state"
+        case logged, error
+    }
+}
+
+// MARK: - Convenience Extensions
+
 extension HomeStatus {
     var monitorsOn: Bool {
         let left = switches?["left_monitor"]?.isOn ?? false

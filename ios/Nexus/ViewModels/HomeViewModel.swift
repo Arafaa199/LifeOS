@@ -38,6 +38,72 @@ class HomeViewModel: ObservableObject {
         isLoading = false
     }
 
+    // MARK: - Device Control
+
+    func toggleDevice(_ entityId: String) async {
+        do {
+            let response = try await NexusAPI.shared.controlDevice(entityId: entityId, action: .toggle)
+            if response.success {
+                logger.info("[home] toggled \(entityId) → \(response.newState ?? "unknown")")
+                // Refresh status to get updated state
+                await fetchStatus()
+            } else {
+                errorMessage = response.error ?? "Failed to toggle device"
+                logger.error("[home] toggle failed: \(response.error ?? "unknown")")
+            }
+        } catch {
+            errorMessage = "Unable to control device"
+            logger.error("[home] toggle error: \(error.localizedDescription)")
+        }
+    }
+
+    func turnOn(_ entityId: String) async {
+        await controlDevice(entityId, action: .turnOn)
+    }
+
+    func turnOff(_ entityId: String) async {
+        await controlDevice(entityId, action: .turnOff)
+    }
+
+    func setLightBrightness(_ entityId: String, brightness: Int) async {
+        do {
+            let response = try await NexusAPI.shared.controlDevice(
+                entityId: entityId,
+                action: .turnOn,
+                brightness: brightness
+            )
+            if response.success {
+                logger.info("[home] set \(entityId) brightness to \(brightness)%")
+                await fetchStatus()
+            } else {
+                errorMessage = response.error
+            }
+        } catch {
+            errorMessage = "Unable to set brightness"
+            logger.error("[home] brightness error: \(error.localizedDescription)")
+        }
+    }
+
+    func vacuumCommand(_ command: HomeAction) async {
+        guard let entityId = homeStatus?.vacuum?.entityId else { return }
+        await controlDevice(entityId, action: command)
+    }
+
+    private func controlDevice(_ entityId: String, action: HomeAction) async {
+        do {
+            let response = try await NexusAPI.shared.controlDevice(entityId: entityId, action: action)
+            if response.success {
+                logger.info("[home] \(action.rawValue) \(entityId) → \(response.newState ?? "unknown")")
+                await fetchStatus()
+            } else {
+                errorMessage = response.error ?? "Control failed"
+            }
+        } catch {
+            errorMessage = "Unable to control device"
+            logger.error("[home] control error: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Auto-Refresh
 
     func startAutoRefresh(interval: TimeInterval = 30) {

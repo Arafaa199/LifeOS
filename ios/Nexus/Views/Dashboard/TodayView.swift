@@ -11,6 +11,7 @@ struct TodayView: View {
     @State private var isFastingLoading = false
     @State private var fastingElapsed: String = "--:--"
     @State private var showingQuickLog = false
+    @State private var showingHomeControl = false
 
     private let fastingTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -90,7 +91,7 @@ struct TodayView: View {
                         }
 
                         // -- Home --
-                        HomeStatusCard(viewModel: homeViewModel)
+                        HomeStatusCard(viewModel: homeViewModel, onTap: { showingHomeControl = true })
 
                         // -- Insights --
                         if !insightsEmpty {
@@ -133,6 +134,9 @@ struct TodayView: View {
             }
             .sheet(isPresented: $showingQuickLog) {
                 QuickLogView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showingHomeControl) {
+                HomeControlView(viewModel: homeViewModel)
             }
             .onReceive(fastingTimer) { _ in updateFastingElapsed() }
             .onAppear {

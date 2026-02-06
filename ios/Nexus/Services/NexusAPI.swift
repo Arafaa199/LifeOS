@@ -728,6 +728,11 @@ extension NexusAPI {
     func fetchHomeStatus() async throws -> HomeStatusResponse {
         return try await get("/webhook/nexus-home-status")
     }
+
+    func controlDevice(entityId: String, action: HomeAction, brightness: Int? = nil) async throws -> HomeControlResponse {
+        let request = HomeControlRequest(action: action, entityId: entityId, brightness: brightness)
+        return try await post("/webhook/nexus-home-control", body: request)
+    }
 }
 
 // MARK: - Sleep/Recovery Models

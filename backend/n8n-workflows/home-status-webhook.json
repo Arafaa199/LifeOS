@@ -30,8 +30,8 @@
       "position": [450, 300],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "ha-api-token",
-          "name": "Home Assistant API"
+          "id": "ha-token",
+          "name": "HA token"
         }
       }
     },

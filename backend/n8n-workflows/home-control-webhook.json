@@ -1,0 +1,186 @@
+{
+  "name": "Nexus Home Control",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-home-control",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "nexus-home-control"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and prepare HA service call\nconst input = $input.first().json.body || $input.first().json;\n\nconst action = input.action; // toggle, turn_on, turn_off, set\nconst entityId = input.entity_id;\nconst data = input.data || {};\n\nif (!action || !entityId) {\n  throw new Error('action and entity_id are required');\n}\n\n// Determine domain and service\nconst domain = entityId.split('.')[0]; // switch, light, vacuum, etc.\nlet service = action;\n\n// Map actions to HA services\nif (action === 'toggle') {\n  service = 'toggle';\n} else if (action === 'turn_on') {\n  service = 'turn_on';\n} else if (action === 'turn_off') {\n  service = 'turn_off';\n} else if (action === 'set' && domain === 'light') {\n  service = 'turn_on'; // set brightness via turn_on\n}\n\n// Special handling for vacuum\nif (domain === 'vacuum') {\n  if (action === 'start') service = 'start';\n  else if (action === 'stop') service = 'stop';\n  else if (action === 'return') service = 'return_to_base';\n  else if (action === 'locate') service = 'locate';\n}\n\n// Build service data\nconst serviceData = { entity_id: entityId };\nif (data.brightness !== undefined) {\n  serviceData.brightness = Math.round(data.brightness * 2.55); // 0-100 to 0-255\n}\n\nreturn {\n  domain,\n  service,\n  serviceData,\n  originalAction: action,\n  entityId\n};"
+      },
+      "id": "2",
+      "name": "Prepare Service Call",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://172.17.0.1:8123/api/services/{{ $json.domain }}/{{ $json.service }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.serviceData }}",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Call HA Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [650, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ha-token",
+          "name": "HA token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://172.17.0.1:8123/api/states/{{ $('Prepare Service Call').item.json.entityId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Get New State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [850, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ha-token",
+          "name": "HA token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO life.home_events (entity_id, action, old_state, new_state, source, metadata)\nVALUES (\n  '{{ $('Prepare Service Call').item.json.entityId }}',\n  '{{ $('Prepare Service Call').item.json.originalAction }}',\n  NULL,\n  '{{ $json.state }}',\n  'ios',\n  '{}'::jsonb\n)\nRETURNING id;",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Log Event",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1050, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, entity_id: $('Prepare Service Call').item.json.entityId, new_state: $('Get New State').item.json.state, logged: $json.id ? true : false } }}",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.message || 'Failed to control device' } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "7",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Service Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Service Call": {
+      "main": [
+        [
+          {
+            "node": "Call HA Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call HA Service": {
+      "main": [
+        [
+          {
+            "node": "Get New State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get New State": {
+      "main": [
+        [
+          {
+            "node": "Log Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Event": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "lifeos"
+    },
+    {
+      "name": "home"
+    }
+  ],
+  "active": true
+}
