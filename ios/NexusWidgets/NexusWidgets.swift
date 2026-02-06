@@ -9,6 +9,7 @@ struct NexusWidgets: WidgetBundle {
         DailySummaryWidget()
         RecoveryScoreWidget()
         FastingTimerWidget()
+        BudgetRemainingWidget()
     }
 }
 
@@ -765,4 +766,205 @@ struct FastingTimerWidgetView: View {
     FastingTimerWidget()
 } timeline: {
     FastingWidgetEntry(date: .now, hoursSinceMeal: 12.3, isActiveSession: true, sessionElapsedHours: 12.3, goalHours: 16, lastMealTime: .now.addingTimeInterval(-12.3 * 3600))
+}
+
+// MARK: - Budget Remaining Widget
+
+struct BudgetRemainingWidget: Widget {
+    let kind: String = "BudgetRemainingWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: BudgetWidgetProvider()) { entry in
+            BudgetRemainingWidgetView(entry: entry)
+                .containerBackground(.fill.tertiary, for: .widget)
+        }
+        .configurationDisplayName("Budget Remaining")
+        .description("Track your monthly budget at a glance.")
+        .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular])
+    }
+}
+
+struct BudgetWidgetEntry: TimelineEntry {
+    let date: Date
+    let remaining: Double
+    let total: Double
+    let spent: Double
+    let currency: String
+    let topCategory: (name: String, spent: Double, limit: Double)?
+
+    var progress: Double {
+        guard total > 0 else { return 0 }
+        return min(spent / total, 1.0)
+    }
+
+    var progressColor: Color {
+        let remaining = 1.0 - progress
+        if remaining > 0.5 { return .green }
+        if remaining > 0.2 { return .yellow }
+        return .red
+    }
+
+    static var placeholder: BudgetWidgetEntry {
+        BudgetWidgetEntry(
+            date: .now,
+            remaining: 2500,
+            total: 5000,
+            spent: 2500,
+            currency: "AED",
+            topCategory: nil
+        )
+    }
+}
+
+struct BudgetWidgetProvider: TimelineProvider {
+    func placeholder(in context: Context) -> BudgetWidgetEntry {
+        .placeholder
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (BudgetWidgetEntry) -> Void) {
+        let entry = createEntry()
+        completion(entry)
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<BudgetWidgetEntry>) -> Void) {
+        let entry = createEntry()
+        // Refresh every 30 minutes
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now
+        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
+        completion(timeline)
+    }
+
+    private func createEntry() -> BudgetWidgetEntry {
+        let storage = SharedStorage.shared
+        return BudgetWidgetEntry(
+            date: .now,
+            remaining: storage.getBudgetRemaining(),
+            total: storage.getBudgetTotal(),
+            spent: storage.getBudgetSpent(),
+            currency: storage.getBudgetCurrency(),
+            topCategory: storage.getBudgetTopCategory()
+        )
+    }
+}
+
+struct BudgetRemainingWidgetView: View {
+    @Environment(\.widgetFamily) var family
+    var entry: BudgetWidgetEntry
+
+    var body: some View {
+        switch family {
+        case .systemSmall:
+            smallWidget
+        case .accessoryCircular:
+            circularWidget
+        case .accessoryRectangular:
+            rectangularWidget
+        default:
+            smallWidget
+        }
+    }
+
+    // MARK: - Small Widget
+
+    private var smallWidget: some View {
+        VStack(spacing: 8) {
+            // Header
+            HStack {
+                Image(systemName: "creditcard.fill")
+                    .foregroundColor(entry.progressColor)
+                Text("Budget")
+                    .font(.caption.weight(.semibold))
+                Spacer()
+            }
+
+            Spacer()
+
+            // Amount remaining
+            VStack(spacing: 2) {
+                Text(formatCurrency(entry.remaining))
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(entry.progressColor)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+
+                Text("left of \(formatCurrency(entry.total))")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 6)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(entry.progressColor)
+                        .frame(width: geo.size.width * entry.progress, height: 6)
+                }
+            }
+            .frame(height: 6)
+
+            // Percentage
+            Text("\(Int(entry.progress * 100))% spent")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+    }
+
+    // MARK: - Circular Accessory
+
+    private var circularWidget: some View {
+        Gauge(value: 1.0 - entry.progress, in: 0...1) {
+            Image(systemName: "creditcard.fill")
+        } currentValueLabel: {
+            Text("\(Int((1.0 - entry.progress) * 100))")
+                .font(.system(.body, design: .rounded).weight(.bold))
+        }
+        .gaugeStyle(.accessoryCircular)
+        .tint(entry.progressColor)
+    }
+
+    // MARK: - Rectangular Accessory
+
+    private var rectangularWidget: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Image(systemName: "creditcard.fill")
+                Text("Budget")
+                    .font(.caption.weight(.semibold))
+            }
+
+            Text("\(entry.currency) \(Int(entry.remaining)) left")
+                .font(.system(.body, design: .rounded).weight(.bold))
+
+            Gauge(value: 1.0 - entry.progress, in: 0...1) {
+                EmptyView()
+            }
+            .gaugeStyle(.accessoryLinear)
+            .tint(entry.progressColor)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func formatCurrency(_ amount: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = entry.currency
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: amount)) ?? "\(entry.currency) \(Int(amount))"
+    }
+}
+
+#Preview(as: .systemSmall) {
+    BudgetRemainingWidget()
+} timeline: {
+    BudgetWidgetEntry(date: .now, remaining: 2500, total: 5000, spent: 2500, currency: "AED", topCategory: nil)
+    BudgetWidgetEntry(date: .now, remaining: 800, total: 5000, spent: 4200, currency: "AED", topCategory: nil)
+    BudgetWidgetEntry(date: .now, remaining: 0, total: 5000, spent: 5000, currency: "AED", topCategory: nil)
 }

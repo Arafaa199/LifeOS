@@ -29,6 +29,13 @@ class SharedStorage {
         static let fastingIsActive = "fasting_is_active"
         static let fastingStartedAt = "fasting_started_at"
         static let fastingGoalHours = "fasting_goal_hours"
+        static let budgetTotal = "budget_total"
+        static let budgetSpent = "budget_spent"
+        static let budgetRemaining = "budget_remaining"
+        static let budgetCurrency = "budget_currency"
+        static let budgetTopCategory = "budget_top_category"
+        static let budgetTopCategorySpent = "budget_top_category_spent"
+        static let budgetTopCategoryLimit = "budget_top_category_limit"
     }
 
     // MARK: - Recovery Data (WHOOP)
@@ -112,5 +119,38 @@ class SharedStorage {
     func getFastingElapsedHours() -> Double? {
         guard isFastingActive(), let startedAt = getFastingStartedAt() else { return nil }
         return Date().timeIntervalSince(startedAt) / 3600.0
+    }
+
+    // MARK: - Budget Data
+
+    func getBudgetTotal() -> Double {
+        defaults?.double(forKey: Keys.budgetTotal) ?? 0
+    }
+
+    func getBudgetSpent() -> Double {
+        defaults?.double(forKey: Keys.budgetSpent) ?? 0
+    }
+
+    func getBudgetRemaining() -> Double {
+        defaults?.double(forKey: Keys.budgetRemaining) ?? 0
+    }
+
+    func getBudgetCurrency() -> String {
+        defaults?.string(forKey: Keys.budgetCurrency) ?? "AED"
+    }
+
+    func getBudgetTopCategory() -> (name: String, spent: Double, limit: Double)? {
+        guard let name = defaults?.string(forKey: Keys.budgetTopCategory),
+              !name.isEmpty else { return nil }
+        let spent = defaults?.double(forKey: Keys.budgetTopCategorySpent) ?? 0
+        let limit = defaults?.double(forKey: Keys.budgetTopCategoryLimit) ?? 0
+        return (name, spent, limit)
+    }
+
+    /// Progress ratio (0.0 to 1.0+) for budget usage
+    func getBudgetProgress() -> Double {
+        let total = getBudgetTotal()
+        guard total > 0 else { return 0 }
+        return getBudgetSpent() / total
     }
 }

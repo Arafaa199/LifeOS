@@ -45,6 +45,13 @@ class SharedStorage {
         static let fastingIsActive = "fasting_is_active"
         static let fastingStartedAt = "fasting_started_at"
         static let fastingGoalHours = "fasting_goal_hours"
+        static let budgetTotal = "budget_total"
+        static let budgetSpent = "budget_spent"
+        static let budgetRemaining = "budget_remaining"
+        static let budgetCurrency = "budget_currency"
+        static let budgetTopCategory = "budget_top_category"
+        static let budgetTopCategorySpent = "budget_top_category_spent"
+        static let budgetTopCategoryLimit = "budget_top_category_limit"
     }
 
     // MARK: - Goals
@@ -244,6 +251,45 @@ class SharedStorage {
     func getFastingElapsedHours() -> Double? {
         guard isFastingActive(), let startedAt = getFastingStartedAt() else { return nil }
         return Date().timeIntervalSince(startedAt) / 3600.0
+    }
+
+    // MARK: - Budget Data
+
+    func saveBudgetData(totalBudget: Double, spent: Double, remaining: Double, currency: String) {
+        defaults?.set(totalBudget, forKey: Keys.budgetTotal)
+        defaults?.set(spent, forKey: Keys.budgetSpent)
+        defaults?.set(remaining, forKey: Keys.budgetRemaining)
+        defaults?.set(currency, forKey: Keys.budgetCurrency)
+    }
+
+    func saveBudgetTopCategory(name: String, spent: Double, limit: Double) {
+        defaults?.set(name, forKey: Keys.budgetTopCategory)
+        defaults?.set(spent, forKey: Keys.budgetTopCategorySpent)
+        defaults?.set(limit, forKey: Keys.budgetTopCategoryLimit)
+    }
+
+    func getBudgetTotal() -> Double {
+        defaults?.double(forKey: Keys.budgetTotal) ?? 0
+    }
+
+    func getBudgetSpent() -> Double {
+        defaults?.double(forKey: Keys.budgetSpent) ?? 0
+    }
+
+    func getBudgetRemaining() -> Double {
+        defaults?.double(forKey: Keys.budgetRemaining) ?? 0
+    }
+
+    func getBudgetCurrency() -> String {
+        defaults?.string(forKey: Keys.budgetCurrency) ?? "AED"
+    }
+
+    func getBudgetTopCategory() -> (name: String, spent: Double, limit: Double)? {
+        guard let name = defaults?.string(forKey: Keys.budgetTopCategory),
+              !name.isEmpty else { return nil }
+        let spent = defaults?.double(forKey: Keys.budgetTopCategorySpent) ?? 0
+        let limit = defaults?.double(forKey: Keys.budgetTopCategoryLimit) ?? 0
+        return (name, spent, limit)
     }
 
     // MARK: - Reset Methods

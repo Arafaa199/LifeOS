@@ -537,6 +537,32 @@ class SyncCoordinator: ObservableObject {
             }
         }
 
+        // Update budget data for widgets
+        if let budgets = financeSummaryResult?.data?.budgets, !budgets.isEmpty {
+            let totalBudget = budgets.reduce(0.0) { $0 + $1.budgetAmount }
+            let totalSpent = budgets.reduce(0.0) { $0 + ($1.spent ?? 0) }
+            let totalRemaining = totalBudget - totalSpent
+            let currency = financeSummaryResult?.data?.currency ?? "AED"
+
+            storage.saveBudgetData(
+                totalBudget: totalBudget,
+                spent: totalSpent,
+                remaining: max(0, totalRemaining),
+                currency: currency
+            )
+
+            // Find top category by spending
+            if let topBudget = budgets.max(by: { ($0.spent ?? 0) < ($1.spent ?? 0) }) {
+                storage.saveBudgetTopCategory(
+                    name: topBudget.category,
+                    spent: topBudget.spent ?? 0,
+                    limit: topBudget.budgetAmount
+                )
+            }
+
+            logger.info("[widgets] budget data updated: \(currency) \(Int(totalRemaining)) remaining of \(Int(totalBudget))")
+        }
+
         // Trigger widget refresh
         WidgetCenter.shared.reloadAllTimelines()
     }

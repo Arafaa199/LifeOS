@@ -48,3 +48,9 @@ _Last updated: 2026-01-24_
 - Files: 10 (max 8)
 - LOC: 1599 (max 750)
 - Action: Reverted to 6ef49057
+
+### Budget Exceeded (2026-02-06 14:06:01)
+- Task: TASK-FEAT.19
+- Files: 6 (max 8)
+- LOC: 911 (max 750)
+- Action: Reverted to 5999edd1
