@@ -1944,6 +1944,44 @@ Lane: safe_auto
 
 ---
 
+### TASK-FEAT.23: Home Assistant Status Card
+Priority: P2
+Owner: claude
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** Add Home Assistant device status card to TodayView dashboard.
+
+**Files Created:**
+- `backend/n8n-workflows/home-status-webhook.json` — GET endpoint for HA states
+- `ios/Nexus/Models/HomeModels.swift` — Data models for HA entities
+- `ios/Nexus/ViewModels/HomeViewModel.swift` — State management
+- `ios/Nexus/Views/Home/HomeStatusCard.swift` — Dashboard card UI
+
+**Files Modified:**
+- `ios/Nexus/Services/NexusAPI.swift` — Added `fetchHomeStatus()`
+- `ios/Nexus/Views/Dashboard/TodayView.swift` — Integrated HomeStatusCard
+
+**Implementation:**
+- Shows lights, monitors, vacuum, camera status in compact card
+- Device indicators with on/off state and battery levels
+- Fetches on view appear, auto-refresh capability
+- Requires HA API token in n8n (httpHeaderAuth credential)
+
+**Exit Criteria:**
+- [x] HomeStatusCard visible on TodayView
+- [x] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+- [x] n8n workflow created for home status endpoint
+
+**Setup Required:**
+1. Import `home-status-webhook.json` into n8n
+2. Create httpHeaderAuth credential "Home Assistant API" with HA long-lived token
+3. Activate workflow
+
+**Done Means:** User sees smart home device status on dashboard.
+
+---
+
 ---
 
 ## ROADMAP (After Fixes)
