@@ -1856,25 +1856,28 @@ Lane: safe_auto
 ### TASK-FEAT.20: Subscription Monitor View
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Create a simple view surfacing `recurring_items` as "Subscriptions" with next renewal dates. Max 300 LOC.
 
-**Files to Touch:**
-- `ios/Nexus/Views/Finance/SubscriptionsView.swift` — NEW: List of subscriptions
-- `ios/Nexus/Views/Finance/FinancePlanningView.swift` — Add NavigationLink to SubscriptionsView
+**Files Changed:**
+- `ios/Nexus/Views/Finance/SubscriptionsView.swift` — NEW: 237 LOC
+- `ios/Nexus/Views/Finance/FinancePlanningView.swift` — Added NavigationLink to SubscriptionsView
 
-**Implementation Notes:**
-- Reuse existing `fetchRecurringItems()` from NexusAPI
-- Filter where frequency is monthly and category suggests subscription
-- Show: name, amount, next_occurrence
-- Header: "Monthly Total: AED X"
+**Implementation:**
+- Reuses existing `fetchRecurringItems()` from NexusAPI
+- Filters by monthly cadence OR subscription-like names (Netflix, Spotify, gym, etc.)
+- Shows: name, amount, next_due formatted, category-aware icons/colors
+- Header: Monthly total with subscription count
+- Due Soon section: highlights items due within 7 days or overdue
 
 **Exit Criteria:**
-- [ ] SubscriptionsView accessible from Finance Planning
-- [ ] Shows list of recurring subscriptions
-- [ ] `xcodebuild -scheme Nexus build` succeeds
+- [x] SubscriptionsView accessible from Finance Planning (via NavigationLink in Recurring tab)
+- [x] Shows list of recurring subscriptions with monthly total
+- [x] `xcodebuild -scheme Nexus build` → BUILD SUCCEEDED
+
+**Commit:** `0fdb9f1`
 
 **Done Means:** User has visibility into subscription costs.
 
