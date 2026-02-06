@@ -2156,6 +2156,254 @@ Lane: safe_auto
 
 ---
 
+---
+
+## PLANNED TASKS (Auditor-Generated 2026-02-07)
+
+### TASK-PLAN.1: Create Migration for life.listening_events Table
+Priority: P1
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** The `life.listening_events` table exists in the database (created manually) but has no migration file, breaking reproducibility. The n8n workflow (`music-listening-webhook.json`) and iOS `MusicService.swift` are fully implemented and waiting for this table. Create the migration to formalize the schema and add a feed_status trigger so music stops showing "unknown".
+
+**Files Changed:**
+- `backend/migrations/157_listening_events.up.sql`
+- `backend/migrations/157_listening_events.down.sql`
+
+**Fix Applied:**
+- `CREATE TABLE IF NOT EXISTS life.listening_events` with all columns (id SERIAL PK, session_id UUID NOT NULL, track_title TEXT NOT NULL, artist, album, duration_sec, apple_music_id, started_at TIMESTAMPTZ NOT NULL, ended_at, source DEFAULT 'apple_music', raw_json JSONB, created_at DEFAULT now())
+- UNIQUE constraint on `(session_id, started_at)` for n8n idempotent inserts
+- Indexes: `idx_listening_events_session` (session_id), `idx_listening_events_started` (started_at DESC)
+- `life.update_music_feed_status()` trigger function + `trg_listening_events_feed` AFTER INSERT trigger
+- Feed status entry: `music` with `expected_interval = '24 hours'`
+- All IF NOT EXISTS / ON CONFLICT for idempotency (table already existed in prod)
+
+**Verification:**
+- [x] `SELECT COUNT(*) FROM life.listening_events;` — returns 0 (table preserved, no data yet)
+- [x] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'music';` — returns `music | 24:00:00`
+- [x] Test insert → `SELECT status FROM life.feed_status WHERE source = 'music';` — returns 'ok' (trigger fires correctly)
+- [x] Down migration tested: table dropped, feed entry removed, re-applied successfully
+- [x] `grep -l 'listening_events' backend/migrations/157_*.sql` returns 2 files
+- [x] iOS build: BUILD SUCCEEDED
+
+**Done Means:** Music pipeline is fully reproducible from migrations. Feed status shows actual data health instead of "unknown".
+
+---
+
+### TASK-PLAN.2: Add Music Listening Summary to Dashboard Payload
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Music data flows to `life.listening_events` but isn't surfaced in the dashboard. Add a `music_today` key to `dashboard.get_payload()` showing today's listening stats (tracks played, total minutes, top artist) so the iOS app can display it.
+
+**Files to Touch:**
+- `backend/migrations/158_music_dashboard.up.sql`
+- `backend/migrations/158_music_dashboard.down.sql`
+- `ios/Nexus/Models/DashboardPayload.swift`
+
+**Implementation:**
+- Create `life.v_daily_music_summary` VIEW: day (Dubai tz), tracks_played, total_minutes, unique_artists, top_artist, top_album
+- Add `music_today` key to `dashboard.get_payload()`: `COALESCE((SELECT row_to_json(m) FROM life.v_daily_music_summary m WHERE m.day = target), '{"tracks_played":0,"total_minutes":0}'::jsonb)`
+- Schema version bump 13 → 14
+- iOS: Add optional `MusicSummary` struct to `DashboardPayload.swift` (tracks_played, total_minutes, top_artist)
+
+**Verification:**
+- [ ] `SELECT (dashboard.get_payload())->'music_today';` — returns JSON with tracks_played key
+- [ ] `SELECT (dashboard.get_payload())->>'schema_version';` — returns '14'
+- [ ] `xcodebuild -scheme Nexus build` succeeds
+- [ ] Down migration reverts to schema v13, removes music_today key
+
+**Exit Criteria:**
+- [ ] `SELECT (dashboard.get_payload())->'music_today' IS NOT NULL;` returns true
+- [ ] `grep 'MusicSummary\|musicToday' ios/Nexus/Models/DashboardPayload.swift` returns matches
+
+**Done Means:** Dashboard payload includes today's music listening summary, decodable by iOS app.
+
+---
+
+### TASK-PLAN.3: Add Replay Test for Calendar Domain
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Calendar domain has no replay test (only finance and health are covered). Calendar data drives meeting insights, daily summaries, and the Calendar tab. Add a replay test to verify calendar data freshness and sync completeness.
+
+**Files to Touch:**
+- `ops/test/replay/calendar.sh`
+- `ops/test/replay/all.sh` (add calendar to test runner)
+
+**Implementation:**
+- Create `calendar.sh` following `health.sh` pattern:
+  - Check `raw.calendar_events` has recent data (within 48h for sync'd calendars)
+  - Check `life.v_daily_calendar_summary` returns data for today
+  - Check `dashboard.get_payload()->'calendar_summary'` is not null
+  - Check `raw.reminders` table exists and is queryable
+  - Output JSON: `{ "domain": "calendar", "status": "ok|warn|critical", "checks": [...] }`
+- Add `calendar.sh` to `all.sh` test runner array
+
+**Verification:**
+- [ ] `bash ops/test/replay/calendar.sh --json` — returns valid JSON with status
+- [ ] `bash ops/test/replay/all.sh --json` — includes calendar domain in output
+- [ ] Script exits 0 when calendar data is fresh, exits 1 when stale
+
+**Exit Criteria:**
+- [ ] `[ -x ops/test/replay/calendar.sh ]` — file exists and is executable
+- [ ] `grep 'calendar' ops/test/replay/all.sh` returns match
+- [ ] `bash ops/test/replay/calendar.sh --json 2>&1 | python3 -m json.tool` — valid JSON
+
+**Done Means:** Calendar domain has automated regression test in the replay suite.
+
+---
+
+### TASK-PLAN.4: Fix Three "Unknown" Feed Statuses (medications, music, screen_time)
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Three feed sources show "unknown" status because they have `last_event_at = NULL` — they were registered but no data has arrived yet. For `medications` and `screen_time`, this is expected (user hasn't started using them). For `music`, the trigger may not be wired. Ensure all three have proper AFTER INSERT triggers on their source tables so that when data does arrive, the feed status updates automatically.
+
+**Files to Touch:**
+- `backend/migrations/159_fix_unknown_feed_triggers.up.sql`
+- `backend/migrations/159_fix_unknown_feed_triggers.down.sql`
+
+**Implementation:**
+- Verify `health.medications` has an AFTER INSERT trigger updating `life.feed_status_live` for source='medications' (migration 140 may already have this)
+- Verify `life.screen_time_daily` has an AFTER INSERT trigger updating `life.feed_status_live` for source='screen_time' (migration 155 may have the update function but not the trigger)
+- Create any missing triggers using the pattern from migration 086:
+  ```sql
+  CREATE OR REPLACE FUNCTION life.update_feed_status_<source>() RETURNS TRIGGER AS $$
+  BEGIN
+    INSERT INTO life.feed_status_live (source, last_event_at, events_today, expected_interval)
+    VALUES ('<source>', now(), 1, '<interval>')
+    ON CONFLICT (source) DO UPDATE SET
+      last_event_at = now(),
+      events_today = life.feed_status_live.events_today + 1;
+    RETURN NEW;
+  END; $$ LANGUAGE plpgsql;
+  ```
+- Wire trigger to each source table if missing
+
+**Verification:**
+- [ ] `SELECT trigger_name FROM information_schema.triggers WHERE event_object_schema = 'health' AND event_object_table = 'medications';` — returns trigger name
+- [ ] `SELECT trigger_name FROM information_schema.triggers WHERE event_object_schema = 'life' AND event_object_table = 'screen_time_daily';` — returns trigger name
+- [ ] `SELECT trigger_name FROM information_schema.triggers WHERE event_object_schema = 'life' AND event_object_table = 'listening_events';` — returns trigger name (from PLAN.1)
+
+**Exit Criteria:**
+- [ ] All three source tables have AFTER INSERT triggers that update feed_status_live
+- [ ] `SELECT source, status FROM life.feed_status WHERE source IN ('medications', 'screen_time', 'music') AND status = 'unknown';` returns 0 rows after test inserts
+
+**Done Means:** All feed sources have proper triggers so status transitions from "unknown" to "ok" on first data arrival.
+
+---
+
+### TASK-PLAN.5: Add Anomaly Detection Alerts for Spending Spikes
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Surface spending anomalies in the dashboard — when today's spending is 2x+ the 30-day daily average, flag it as an insight. Uses existing `facts.daily_finance` data (330 rows) with no new data sources needed.
+
+**Files to Touch:**
+- `backend/migrations/160_spending_anomaly_insight.up.sql`
+- `backend/migrations/160_spending_anomaly_insight.down.sql`
+
+**Implementation:**
+- Create `insights.detect_spending_anomaly(target_date DATE)` function:
+  - Compute 30-day rolling average daily spend from `facts.daily_finance`
+  - Compare target_date spend to average
+  - If ratio > 2.0: return `{ type: "spending_spike", severity: "high", today_spend, avg_spend, ratio, detail }`
+  - If ratio > 1.5: return `{ type: "spending_elevated", severity: "medium", ... }`
+  - Else: return NULL
+- Wire into `dashboard.get_payload()` → `daily_insights` array (append to existing category_trends)
+- Schema version stays at 14 (or whatever PLAN.2 sets it to) — just adds to existing insights array
+
+**Verification:**
+- [ ] `SELECT insights.detect_spending_anomaly(CURRENT_DATE);` — returns JSON or NULL
+- [ ] `SELECT (dashboard.get_payload())->'daily_insights'->'spending_anomaly';` — returns JSON when anomaly detected
+- [ ] Function handles dates with no spending gracefully (returns NULL, not error)
+
+**Exit Criteria:**
+- [ ] `SELECT proname FROM pg_proc WHERE proname = 'detect_spending_anomaly' AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'insights');` returns 1 row
+- [ ] Down migration drops function and reverts get_payload
+
+**Done Means:** Dashboard proactively alerts when spending is unusually high compared to recent history.
+
+---
+
+### TASK-PLAN.6: Add Replay Test for Nutrition Domain
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Nutrition domain (food_log, water_log, meals) has no replay test. It's the most frequently used logging feature. Add a replay test to verify data freshness, calorie tracking accuracy, and meal inference pipeline health.
+
+**Files to Touch:**
+- `ops/test/replay/nutrition.sh`
+- `ops/test/replay/all.sh` (add nutrition to test runner)
+
+**Implementation:**
+- Create `nutrition.sh` following `health.sh` pattern:
+  - Check `nutrition.food_log` has recent entries (within expected_interval)
+  - Check `nutrition.water_log` has recent entries
+  - Check `facts.daily_nutrition` is populated for recent dates
+  - Check `dashboard.get_payload()->'today_facts'->>'calories'` returns non-null
+  - Check `dashboard.get_payload()->'today_facts'->>'water_ml'` returns non-null
+  - Output JSON: `{ "domain": "nutrition", "status": "ok|warn|critical", "checks": [...] }`
+- Add `nutrition.sh` to `all.sh` test runner array
+
+**Verification:**
+- [ ] `bash ops/test/replay/nutrition.sh --json` — returns valid JSON with status
+- [ ] `bash ops/test/replay/all.sh --json` — includes nutrition domain in output
+- [ ] Script exits 0 when nutrition data is fresh
+
+**Exit Criteria:**
+- [ ] `[ -x ops/test/replay/nutrition.sh ]` — file exists and is executable
+- [ ] `grep 'nutrition' ops/test/replay/all.sh` returns match
+
+**Done Means:** Nutrition domain has automated regression test in the replay suite.
+
+---
+
+### TASK-PLAN.7: Wrap Migration 155 in Transaction for Reproducibility
+Priority: P3
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Migration 155 (screen_time) lacks `BEGIN`/`COMMIT` wrapper and its down migration lacks `DELETE FROM ops.schema_migrations`. This is advisory (already applied successfully) but should be fixed for reproducibility on any future environment rebuild.
+
+**Files to Touch:**
+- `backend/migrations/155_screen_time.up.sql`
+- `backend/migrations/155_screen_time.down.sql`
+
+**Implementation:**
+- Up migration: Wrap existing content in `BEGIN; ... COMMIT;`
+- Down migration: Add `BEGIN;` at top, `DELETE FROM ops.schema_migrations WHERE filename = '155_screen_time.up.sql';` before `COMMIT;`
+- No functional changes — purely structural hardening
+
+**Verification:**
+- [ ] `head -1 backend/migrations/155_screen_time.up.sql` — shows `BEGIN;`
+- [ ] `tail -1 backend/migrations/155_screen_time.up.sql` — shows `COMMIT;`
+- [ ] `grep 'schema_migrations' backend/migrations/155_screen_time.down.sql` — returns match
+
+**Exit Criteria:**
+- [ ] Both files start with `BEGIN;` and end with `COMMIT;`
+- [ ] Down migration includes schema_migrations cleanup
+
+**Done Means:** Migration 155 is transaction-safe and fully reversible, matching the pattern of migrations 156+.
+
+---
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)

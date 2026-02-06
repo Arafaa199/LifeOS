@@ -172,6 +172,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 7)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-PLAN.1: listening_events Migration | DONE | Migration 157: Formalized `life.listening_events` table (existed in prod but had no migration). Created `CREATE TABLE IF NOT EXISTS` with SERIAL PK, session_id UUID, track_title TEXT NOT NULL, artist, album, duration_sec, apple_music_id, started_at TIMESTAMPTZ NOT NULL, ended_at, source DEFAULT 'apple_music', raw_json JSONB, created_at. UNIQUE constraint on `(session_id, started_at)` for n8n idempotent inserts. Indexes: session_id, started_at DESC. Created `life.update_music_feed_status()` trigger function + `trg_listening_events_feed` AFTER INSERT trigger. Registered `music` source in `life.feed_status_live` with 24h expected_interval. Trigger test: insert → status changed from `unknown` to `ok` ✓. Down migration tested (drop + delete + re-apply). Migration tracked in `ops.schema_migrations`. 2 files created. iOS build: BUILD SUCCEEDED. |
 | TASK-FEAT.26: Screen Time Integration | DONE | Migration 155: Created `life.screen_time_daily` table (date PK, total_minutes, category breakdown columns, pickups, first_pickup_at, raw_json). Added `screen_time_hours` NUMERIC(4,1) column to `life.daily_facts`. Created `life.update_daily_facts_screen_time(date)` function. Added `screen_time` feed status entry (48h expected_interval). Created `screen-time-webhook.json` n8n workflow: POST `/webhook/nexus-screen-time` with input validation (date format, total_minutes required), IF Valid branch, upsert + auto-update daily_facts + feed status. End-to-end test: 312 min → 5.2 hours ✓. 3 files created. iOS build: BUILD SUCCEEDED. |
 | TASK-FEAT.27: Location Zone Improvement | DONE | Migration 156: Created `life.known_zones` table with 3 zones (Home, Fitness First Motor City, Dubai Sports City). Rewrote `get_location_type()` to query known_zones (was hardcoded with wrong coordinates — 25.0657 vs actual 25.0781621, 1.4km off). Rewrote `detect_location_zone()` to return zone NAME from known_zones. Rewrote `ingest_location()` to derive location_name from zone when HA sends 'unavailable'. Backfilled 128 records: location_type corrected (122 now 'home'), 109 'unavailable' names resolved to 'Home'. Before: 0 hours_at_home, 23 hours_away. After: 23 hours_at_home, 0 hours_away. daily_facts primary_location now 'home'. Down migration tested. 2 files changed. |
 | TASK-FEAT.28: Recovery Lock Screen Widget | DONE | RecoveryScoreWidget already existed with `.systemSmall`, `.accessoryCircular`, `.accessoryRectangular`. SharedStorage already had recovery read/write. SyncCoordinator already synced recovery to widgets. Added `.accessoryInline` family support with "85% Recovery · HRV 116" format. Enhanced rectangular view to show HRV alongside recovery %. 1 file changed (NexusWidgets.swift, +24/-8). Both targets: BUILD SUCCEEDED. Commit `e2304c2`. |
@@ -384,3 +385,43 @@ Comprehensive iOS architecture audit completed across 3 phases. All critical iss
 1. **PLAN.1 + PLAN.2** are quick iOS-only wins with no backend changes
 2. **PLAN.3** fixes a data gap that's been accumulating for 10 days
 3. **PLAN.4 + PLAN.5** build on existing infrastructure with medium effort
+
+---
+
+## Auditor Planning Mode (2026-02-07)
+
+## Planning Rationale
+
+### Why These Tasks Were Chosen
+
+1. **TASK-PLAN.1 (listening_events migration)** — **Critical infrastructure gap.** The table exists in prod but has no migration file. This means any environment rebuild (disaster recovery, staging) would break the music pipeline. The n8n workflow and iOS app are both fully implemented and waiting. Highest priority because it blocks PLAN.2 and fixes a reproducibility invariant.
+
+2. **TASK-PLAN.2 (Music dashboard)** — **High user value, medium effort.** Music listening is the newest data source (FEAT.24), fully wired on iOS and n8n, but invisible in the dashboard. Adding it to the payload closes the loop and lets the user see their listening activity alongside recovery, spending, and other metrics.
+
+3. **TASK-PLAN.3 (Calendar replay test)** — **Operational coverage.** Only 2 of 6+ domains have replay tests (33% coverage). Calendar is the newest active domain with real user data flowing. A replay test catches sync failures before the user notices stale calendar data.
+
+4. **TASK-PLAN.4 (Fix unknown feeds)** — **Dashboard cleanliness.** Three "unknown" statuses in feed_status create noise — users can't tell if the system is healthy or broken. Ensuring triggers exist means the status will self-heal the moment data arrives.
+
+5. **TASK-PLAN.5 (Spending anomaly)** — **Proactive user value.** The data already exists in `facts.daily_finance` (330 rows). A simple statistical comparison surfaces actionable insight ("You're spending 2.5x your daily average today") with no new data sources or pipelines.
+
+6. **TASK-PLAN.6 (Nutrition replay test)** — **Test coverage for most-used feature.** Food/water logging is the most frequent user interaction. Regression testing ensures the calorie tracking pipeline doesn't silently break.
+
+7. **TASK-PLAN.7 (Migration 155 hardening)** — **Low effort, fixes auditor finding.** Addresses the specific risk identified in the recent audit (missing BEGIN/COMMIT, missing schema_migrations cleanup). Advisory but important for reproducibility.
+
+### What Was Deliberately Excluded
+
+- **Debt/Wishlist implementation** — Requires both backend CRUD endpoints AND iOS views. Multi-session effort (3-4 sessions) that exceeds single-task scope. Better as a dedicated feature sprint.
+- **Receipt→Nutrition matching (SUGG-06)** — High effort, needs fuzzy matching research. Not a quick win.
+- **Apple Watch companion (SUGG-13)** — New target, significant effort, not aligned with current sprint priorities.
+- **Data Export API (SUGG-17)** — No user request, speculative.
+- **n8n README IP update** — Too trivial for a coder task, housekeeping only.
+
+### Task Ordering Rationale
+
+1. PLAN.1 first — unblocks PLAN.2 and PLAN.4 (music feed trigger)
+2. PLAN.2 depends on PLAN.1 — music summary needs the table
+3. PLAN.3 is independent — can run in parallel with PLAN.1/2
+4. PLAN.4 after PLAN.1 — the music trigger from PLAN.1 is one of three feeds to fix
+5. PLAN.5 is independent — pure backend function, no dependencies
+6. PLAN.6 is independent — test infrastructure only
+7. PLAN.7 is lowest priority — advisory, already-applied migration hardening
