@@ -45,8 +45,13 @@ struct TodayView: View {
                             financeFreshness: viewModel.financeFreshness,
                             hasData: viewModel.dashboardPayload != nil,
                             currency: AppSettings.shared.defaultCurrency,
+                            workoutCount: viewModel.dashboardPayload?.todayFacts?.workoutCount,
+                            workoutMinutes: viewModel.dashboardPayload?.todayFacts?.workoutMinutes,
                             reminderSummary: viewModel.dashboardPayload?.reminderSummary
                         )
+
+                        // -- Streaks --
+                        StreakBadgesView(streaks: viewModel.dashboardPayload?.streaks)
 
                         // -- Nutrition + Fasting --
                         if hasNutritionData || viewModel.dashboardPayload?.fasting != nil {

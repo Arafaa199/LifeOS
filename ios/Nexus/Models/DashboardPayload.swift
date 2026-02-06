@@ -19,6 +19,7 @@ struct DashboardPayload: Codable {
     let reminderSummary: ReminderSummary?
     let fasting: FastingStatus?
     let medicationsToday: MedicationsSummary?
+    let streaks: Streaks?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -35,6 +36,7 @@ struct DashboardPayload: Codable {
         case reminderSummary = "reminder_summary"
         case fasting
         case medicationsToday = "medications_today"
+        case streaks
         // Top-level flat fields (fallback when meta object is missing)
         case schemaVersion = "schema_version"
         case generatedAt = "generated_at"
@@ -83,6 +85,7 @@ struct DashboardPayload: Codable {
         reminderSummary = try container.decodeIfPresent(ReminderSummary.self, forKey: .reminderSummary)
         fasting = try container.decodeIfPresent(FastingStatus.self, forKey: .fasting)
         medicationsToday = try container.decodeIfPresent(MedicationsSummary.self, forKey: .medicationsToday)
+        streaks = try container.decodeIfPresent(Streaks.self, forKey: .streaks)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -101,6 +104,7 @@ struct DashboardPayload: Codable {
         try container.encodeIfPresent(reminderSummary, forKey: .reminderSummary)
         try container.encodeIfPresent(fasting, forKey: .fasting)
         try container.encodeIfPresent(medicationsToday, forKey: .medicationsToday)
+        try container.encodeIfPresent(streaks, forKey: .streaks)
     }
 }
 
@@ -262,6 +266,10 @@ struct TodayFacts: Codable {
     let dataCompleteness: Double?
     let factsComputedAt: String?
 
+    // Workout data
+    let workoutCount: Int?
+    let workoutMinutes: Int?
+
     // Comparisons vs baselines
     let recoveryVs7d: Double?
     let recoveryVs30d: Double?
@@ -306,6 +314,8 @@ struct TodayFacts: Codable {
         case caloriesConsumed = "calories_consumed"
         case dataCompleteness = "data_completeness"
         case factsComputedAt = "facts_computed_at"
+        case workoutCount = "workout_count"
+        case workoutMinutes = "workout_minutes"
         case recoveryVs7d = "recovery_vs_7d"
         case recoveryVs30d = "recovery_vs_30d"
         case hrvVs7d = "hrv_vs_7d"
@@ -715,6 +725,94 @@ struct FastingStatus: Codable {
     var startedAtDate: Date? {
         guard let startedAt else { return nil }
         return DomainFreshness.parseTimestamp(startedAt)
+    }
+}
+
+// MARK: - Streaks
+
+struct Streaks: Codable {
+    let water: StreakData
+    let meals: StreakData
+    let weight: StreakData
+    let workout: StreakData
+    let overall: StreakData
+    let computedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case water, meals, weight, workout, overall
+        case computedAt = "computed_at"
+    }
+
+    /// Returns the best active streak (non-zero current)
+    var bestActiveStreak: (name: String, current: Int, best: Int)? {
+        let all = [
+            ("Weight", weight),
+            ("Water", water),
+            ("Meals", meals),
+            ("Workout", workout)
+        ]
+        let active = all.filter { $0.1.current > 0 }.sorted { $0.1.current > $1.1.current }
+        guard let top = active.first else { return nil }
+        return (top.0, top.1.current, top.1.best)
+    }
+
+    /// Returns all streaks sorted by current value descending
+    var sortedStreaks: [(name: String, icon: String, data: StreakData)] {
+        [
+            ("Weight", "scalemass", weight),
+            ("Water", "drop.fill", water),
+            ("Meals", "fork.knife", meals),
+            ("Workout", "figure.run", workout)
+        ].sorted { $0.2.current > $1.2.current }
+    }
+}
+
+struct StreakData: Codable {
+    let current: Int
+    let best: Int
+
+    /// True if currently on a streak
+    var isActive: Bool { current > 0 }
+
+    /// True if currently at personal best
+    var isAtBest: Bool { current > 0 && current >= best }
+}
+
+// MARK: - Explain Today
+
+struct ExplainToday: Codable {
+    let targetDate: String
+    let hasData: Bool
+    let briefing: String
+    let dataGaps: [String]
+    let dataCompleteness: Double?
+    let computedAt: String?
+    let assertions: ExplainTodayAssertions?
+
+    enum CodingKeys: String, CodingKey {
+        case targetDate = "target_date"
+        case hasData = "has_data"
+        case briefing
+        case dataGaps = "data_gaps"
+        case dataCompleteness = "data_completeness"
+        case computedAt = "computed_at"
+        case assertions
+    }
+}
+
+struct ExplainTodayAssertions: Codable {
+    let dubaiDayValid: Bool?
+    let dataFresh: Bool?
+    let dataSufficient: Bool?
+    let allPassed: Bool?
+    let dataCompleteness: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case dubaiDayValid = "dubai_day_valid"
+        case dataFresh = "data_fresh"
+        case dataSufficient = "data_sufficient"
+        case allPassed = "all_passed"
+        case dataCompleteness = "data_completeness"
     }
 }
 
