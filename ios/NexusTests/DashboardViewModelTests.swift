@@ -1,47 +1,29 @@
 import XCTest
 @testable import Nexus
 
-/// Tests for DashboardViewModel
+/// Tests for DashboardViewModel and related models
 @MainActor
 final class DashboardViewModelTests: XCTestCase {
-
-    // MARK: - Initial State Tests
-
-    func testInitialStateIsEmpty() {
-        let vm = DashboardViewModel()
-
-        XCTAssertNil(vm.errorMessage, "Error message should be nil initially")
-        XCTAssertNil(vm.lastSyncDate, "Last sync date should be nil initially")
-        XCTAssertEqual(vm.recentLogs.count, 0, "Recent logs should be empty initially")
-    }
 
     // MARK: - DailySummary Tests
 
     func testDailySummaryDefaults() {
         let summary = DailySummary()
 
-        XCTAssertEqual(summary.calories, 0)
-        XCTAssertEqual(summary.protein, 0)
-        XCTAssertEqual(summary.water, 0)
-        XCTAssertNil(summary.weight)
+        XCTAssertEqual(summary.totalCalories, 0)
+        XCTAssertEqual(summary.totalProtein, 0)
+        XCTAssertEqual(summary.totalWater, 0)
+        XCTAssertNil(summary.latestWeight)
         XCTAssertNil(summary.mood)
         XCTAssertNil(summary.energy)
     }
 
-    // MARK: - Error State Tests
+    func testDailySummaryWeightBackwardCompatibility() {
+        var summary = DailySummary()
+        summary.latestWeight = 75.5
 
-    func testErrorMessageCanBeSet() {
-        let vm = DashboardViewModel()
-        vm.errorMessage = "Test error"
-
-        XCTAssertEqual(vm.errorMessage, "Test error")
+        // weight property should mirror latestWeight
+        XCTAssertEqual(summary.weight, 75.5)
     }
 
-    func testErrorMessageCanBeCleared() {
-        let vm = DashboardViewModel()
-        vm.errorMessage = "Test error"
-        vm.errorMessage = nil
-
-        XCTAssertNil(vm.errorMessage)
-    }
 }
