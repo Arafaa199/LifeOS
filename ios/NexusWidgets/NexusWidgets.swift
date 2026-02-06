@@ -191,7 +191,7 @@ struct RecoveryScoreWidget: Widget {
         }
         .configurationDisplayName("Recovery Score")
         .description("View your WHOOP recovery score at a glance.")
-        .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
 
@@ -247,8 +247,23 @@ struct RecoveryScoreWidgetView: View {
             circularWidget
         case .accessoryRectangular:
             rectangularWidget
+        case .accessoryInline:
+            inlineWidget
         default:
             smallWidget
+        }
+    }
+
+    @ViewBuilder
+    var inlineWidget: some View {
+        if let score = entry.recoveryScore {
+            if let hrv = entry.hrv {
+                Label("\(score)% Recovery · HRV \(String(format: "%.0f", hrv))", systemImage: "heart.fill")
+            } else {
+                Label("\(score)% Recovery", systemImage: "heart.fill")
+            }
+        } else {
+            Label("No Recovery Data", systemImage: "heart.circle")
         }
     }
 
@@ -342,15 +357,16 @@ struct RecoveryScoreWidgetView: View {
                 }
                 .gaugeStyle(.accessoryLinear)
                 .tint(recoveryColor(for: score))
-                .frame(width: 60)
+                .frame(width: 50)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Recovery")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Text("\(score)%")
-                        .font(.headline)
-                        .bold()
+                    Text("\(score)% Recovery")
+                        .font(.caption.weight(.semibold))
+                    if let hrv = entry.hrv {
+                        Text("HRV \(String(format: "%.0f", hrv))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
             } else {
                 Image(systemName: "heart.circle")
