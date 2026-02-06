@@ -813,6 +813,28 @@ struct AddMatchingRuleView: View {
     }
 }
 
+// MARK: - Recurring Item Row (Stub)
+
+struct RecurringItemRow: View {
+    let item: RecurringItem
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.name)
+                    .font(.subheadline.weight(.medium))
+                Text(item.cadence.capitalized)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Text(formatCurrency(item.amount, currency: item.currency))
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(item.isExpense ? .nexusError : .nexusSuccess)
+        }
+    }
+}
+
 #Preview {
     FinancePlanningView()
 }

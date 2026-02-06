@@ -32,9 +32,10 @@ struct FinanceFlatView: View {
                     .padding(.horizontal)
                     .padding(.top, 12)
 
-                    NexusSectionHeader(title: "Plan")
-                        .padding(.horizontal)
-                    FinancePlanContent(viewModel: viewModel)
+                    // TODO: Uncomment when FinancePlanContent is implemented
+                    // NexusSectionHeader(title: "Plan")
+                    //     .padding(.horizontal)
+                    // FinancePlanContent(viewModel: viewModel)
 
                     Spacer(minLength: 40)
                 }

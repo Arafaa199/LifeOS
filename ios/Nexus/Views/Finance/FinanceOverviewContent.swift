@@ -63,9 +63,10 @@ struct FinanceOverviewContent: View {
                 obligationsSummary
             }
 
-            if !viewModel.activeDebts.isEmpty {
-                debtSummaryCard
-            }
+            // TODO: Uncomment when activeDebts is implemented in FinanceViewModel
+            // if !viewModel.activeDebts.isEmpty {
+            //     debtSummaryCard
+            // }
 
             if !viewModel.upcomingBills.isEmpty {
                 upcomingBillsCard
@@ -85,7 +86,8 @@ struct FinanceOverviewContent: View {
         .padding()
         .onAppear {
             viewModel.loadFinanceSummary()
-            viewModel.loadDebts()
+            // TODO: Uncomment when loadDebts() is implemented
+            // viewModel.loadDebts()
         }
     }
 
@@ -294,7 +296,8 @@ struct FinanceOverviewContent: View {
     }
 
     // MARK: - Debt Summary Card
-
+    // TODO: Uncomment when activeDebts and totalDebtRemaining are implemented in FinanceViewModel
+    /*
     private var debtSummaryCard: some View {
         NavigationLink(destination: DebtsListView(viewModel: viewModel)) {
             HStack {
@@ -323,6 +326,7 @@ struct FinanceOverviewContent: View {
         }
         .buttonStyle(.plain)
     }
+    */
 
     // MARK: - Monthly Obligations Summary
 

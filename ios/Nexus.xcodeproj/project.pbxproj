@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		56AA4588BA1E17C43C7D70BB /* HealthFlatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF1F41919E64535A7EE568C9 /* HealthFlatView.swift */; };
 		56B542128B4EEB648C8490D3 /* HealthInsightsContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80FF49EDBF9CE87BBB719DB1 /* HealthInsightsContent.swift */; };
-		97DB46C0AED2EA5D293A1C24 /* FinancePlanContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D704164A5FD6243726666E5 /* FinancePlanContent.swift */; };
 		9E6A434DBFFC24A6F935A7EC /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B475467EA3F591B343D3C9B8 /* MoreView.swift */; };
 		A8304D5B94E32ACB47FF2C5B /* HealthTodayContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A704DD5BE8948E3F89C70E7 /* HealthTodayContent.swift */; };
 		CAAB4884930544747739BD3E /* HealthTrendsContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70BB4F69BE80A47975E876E9 /* HealthTrendsContent.swift */; };
@@ -19,7 +18,6 @@
 
 /* Begin PBXFileReference section */
 		05F0537D2F1ECB07004BB7A0 /* Nexus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nexus.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		5D704164A5FD6243726666E5 /* FinancePlanContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FinancePlanContent.swift; path = Nexus/Views/Finance/FinancePlanContent.swift; sourceTree = SOURCE_ROOT; };
 		70BB4F69BE80A47975E876E9 /* HealthTrendsContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthTrendsContent.swift; path = Nexus/Views/Health/HealthTrendsContent.swift; sourceTree = SOURCE_ROOT; };
 		7A704DD5BE8948E3F89C70E7 /* HealthTodayContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthTodayContent.swift; path = Nexus/Views/Health/HealthTodayContent.swift; sourceTree = SOURCE_ROOT; };
 		80FF49EDBF9CE87BBB719DB1 /* HealthInsightsContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthInsightsContent.swift; path = Nexus/Views/Health/HealthInsightsContent.swift; sourceTree = SOURCE_ROOT; };
@@ -30,7 +28,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		05F0537F2F1ECB07004BB7A0 /* Nexus */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Nexus; sourceTree = "<group>"; };
+		05F0537F2F1ECB07004BB7A0 /* Nexus */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Nexus;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,7 +56,6 @@
 				80FF49EDBF9CE87BBB719DB1 /* HealthInsightsContent.swift */,
 				CF1F41919E64535A7EE568C9 /* HealthFlatView.swift */,
 				CA334B77B43AB559041D3430 /* FinanceOverviewContent.swift */,
-				5D704164A5FD6243726666E5 /* FinancePlanContent.swift */,
 				F06F400FAD017F91387984F2 /* FinanceFlatView.swift */,
 				B475467EA3F591B343D3C9B8 /* MoreView.swift */,
 			);
@@ -147,7 +148,6 @@
 				56B542128B4EEB648C8490D3 /* HealthInsightsContent.swift in Sources */,
 				56AA4588BA1E17C43C7D70BB /* HealthFlatView.swift in Sources */,
 				E89E498094D0F176F9538E1A /* FinanceOverviewContent.swift in Sources */,
-				97DB46C0AED2EA5D293A1C24 /* FinancePlanContent.swift in Sources */,
 				D3E24CCABCC6B14F48E41E2A /* FinanceFlatView.swift in Sources */,
 				9E6A434DBFFC24A6F935A7EC /* MoreView.swift in Sources */,
 			);

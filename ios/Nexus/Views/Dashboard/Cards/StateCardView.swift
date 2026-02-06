@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Combined state card showing recovery, budget, and reminders
+/// Combined state card showing recovery, budget, workouts, and reminders
 struct StateCardView: View {
     // Recovery data
     let recoveryScore: Int?
@@ -15,6 +15,10 @@ struct StateCardView: View {
     let financeFreshness: DomainFreshness?
     let hasData: Bool
     let currency: String
+
+    // Workout data
+    let workoutCount: Int?
+    let workoutMinutes: Int?
 
     // Reminder data
     let reminderSummary: ReminderSummary?
@@ -47,6 +51,12 @@ struct StateCardView: View {
                 )
             }
 
+            // Workout row (only show if there are workouts)
+            if let count = workoutCount, count > 0 {
+                Divider()
+                workoutRow(count: count, minutes: workoutMinutes ?? 0)
+            }
+
             if let reminders = reminderSummary,
                reminders.dueToday > 0 || reminders.overdueCount > 0 {
                 Divider()
@@ -56,6 +66,28 @@ struct StateCardView: View {
         .padding(20)
         .background(Color.nexusCardBackground)
         .cornerRadius(16)
+    }
+
+    private func workoutRow(count: Int, minutes: Int) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "figure.run")
+                .font(.caption)
+                .foregroundColor(.nexusSuccess)
+
+            Text("\(count) workout\(count == 1 ? "" : "s")")
+                .font(.caption.weight(.medium))
+                .foregroundColor(.secondary)
+
+            Text("\u{00B7}")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Text("\(minutes) min")
+                .font(.caption.weight(.medium))
+                .foregroundColor(.secondary)
+
+            Spacer()
+        }
     }
 
     private func reminderRow(_ reminders: ReminderSummary) -> some View {
@@ -99,6 +131,8 @@ struct StateCardView: View {
         financeFreshness: nil,
         hasData: true,
         currency: "AED",
+        workoutCount: 1,
+        workoutMinutes: 45,
         reminderSummary: nil
     )
     .padding()
