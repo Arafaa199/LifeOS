@@ -706,14 +706,19 @@ struct FastingStatus: Codable {
     let sessionId: Int?
     let startedAt: String?
     let elapsedHours: Double?
+    let hoursSinceMeal: Double?
+    let lastMealAt: String?
 
     enum CodingKeys: String, CodingKey {
         case isActive = "is_active"
         case sessionId = "session_id"
         case startedAt = "started_at"
         case elapsedHours = "elapsed_hours"
+        case hoursSinceMeal = "hours_since_meal"
+        case lastMealAt = "last_meal_at"
     }
 
+    /// Format elapsed hours as HH:MM (for explicit fasting session)
     var elapsedFormatted: String {
         guard let hours = elapsedHours else { return "--:--" }
         let totalMinutes = Int(hours * 60)
@@ -722,9 +727,44 @@ struct FastingStatus: Codable {
         return String(format: "%d:%02d", h, m)
     }
 
+    /// Format hours since last meal as HH:MM (for passive IF tracking)
+    var sinceMealFormatted: String {
+        guard let hours = hoursSinceMeal else { return "--:--" }
+        let totalMinutes = Int(hours * 60)
+        let h = totalMinutes / 60
+        let m = totalMinutes % 60
+        return String(format: "%d:%02d", h, m)
+    }
+
+    /// Display timer: use explicit session if active, otherwise passive since-meal
+    var displayTimer: String {
+        if isActive, elapsedHours != nil {
+            return elapsedFormatted
+        }
+        return sinceMealFormatted
+    }
+
+    /// Progress toward common IF goals (16h, 18h, 20h)
+    var fastingGoalProgress: (hours: Double, goal: Int, progress: Double)? {
+        let hours = isActive ? elapsedHours : hoursSinceMeal
+        guard let h = hours, h > 0 else { return nil }
+
+        // Common IF windows
+        let goals = [16, 18, 20, 24]
+        // Pick the goal user is closest to achieving
+        let goal = goals.first(where: { Double($0) >= h }) ?? 24
+        let progress = min(h / Double(goal), 1.0)
+        return (h, goal, progress)
+    }
+
     var startedAtDate: Date? {
         guard let startedAt else { return nil }
         return DomainFreshness.parseTimestamp(startedAt)
+    }
+
+    var lastMealDate: Date? {
+        guard let lastMealAt else { return nil }
+        return DomainFreshness.parseTimestamp(lastMealAt)
     }
 }
 

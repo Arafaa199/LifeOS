@@ -1606,28 +1606,29 @@ Estimated Effort: 1 coder run
 ### TASK-FEAT.17: Fasting Timer Display
 Priority: P3
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
-Estimated Effort: 1 coder run
 
 **Objective:** Show elapsed time since last food_log entry. Useful for intermittent fasting tracking.
 
-**Backend:**
-```sql
--- Add to dashboard.get_payload()
-'fasting_hours', EXTRACT(EPOCH FROM (NOW() - (
-    SELECT MAX(logged_at) FROM nutrition.food_log WHERE date = CURRENT_DATE
-))) / 3600
-```
+**Files Changed:**
+- `backend/migrations/152_fasting_hours_since_meal.up.sql`
+- `backend/migrations/152_fasting_hours_since_meal.down.sql`
+- `ios/Nexus/Models/DashboardPayload.swift` (FastingStatus: added hoursSinceMeal, lastMealAt, sinceMealFormatted, displayTimer, fastingGoalProgress)
+- `ios/Nexus/Views/Dashboard/Cards/FastingCardView.swift` (progress ring, goal badges, passive IF tracking)
 
-**iOS:**
-- Display in FastingCardView: "16:32 fasted" with optional goal indicator (16h/18h/20h)
-- Show progress ring if goal set
+**Fix Applied:**
+- Rewrote `health.get_fasting_status()` to query `nutrition.food_log` for last meal time
+- Returns `hours_since_meal` and `last_meal_at` alongside explicit session data
+- iOS FastingCardView shows: progress ring with goal color, "Since last meal" label for passive tracking
+- Goal badges (16h/18h/20h) appear when fasting 12+ hours
+- Schema version bumped 12 → 13
 
 **Verification:**
-```sql
-SELECT (dashboard.get_payload())->'fasting_hours';
-```
+- [x] `SELECT (dashboard.get_payload())->'fasting'->'hours_since_meal';` → returns hours (e.g., 354.6)
+- [x] `SELECT (dashboard.get_payload())->>'schema_version';` → 13
+- [x] iOS build: BUILD SUCCEEDED
+- [x] Down migration tested and re-applied
 
 **Done Means:** TodayView shows fasting duration since last meal with optional goal progress.
 

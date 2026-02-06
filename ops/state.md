@@ -160,6 +160,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 6)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-FEAT.17: Fasting Timer Display | DONE | Migration 152: Rewrote `health.get_fasting_status()` to query `nutrition.food_log` for last meal time — returns `hours_since_meal` and `last_meal_at` alongside explicit session. iOS: Updated `FastingStatus` with new fields + computed properties (`sinceMealFormatted`, `displayTimer`, `fastingGoalProgress`). Rewrote `FastingCardView` with progress ring (color changes at 75%/100%), passive "Since last meal" tracking, goal badges (16h/18h/20h appear when fasting 12+ hours). Schema version 12→13. 4 files changed. iOS build: BUILD SUCCEEDED. Down migration tested. |
 | TASK-FEAT.16: Streak Tracking Widget | DONE | Backend already had streaks in dashboard payload (schema v12). Added iOS decode + display. Created `Streaks`, `StreakData` structs in DashboardPayload.swift with `sortedStreaks`, `bestActiveStreak`, `isAtBest` helpers. Created `StreakBadgesView.swift` (compact badges with icons, star for personal best, only shows when streaks active). Added to TodayView after StateCardView. 3 files changed (+208). Build: passes for streak files (pre-existing errors in WishlistView/DebtsListView unrelated). Commit `5c27cdb`. |
 
 ### Recent (Feb 4)
