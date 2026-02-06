@@ -51,8 +51,7 @@ struct TodayView: View {
                         )
 
                         // -- Streaks --
-                        // TODO: Uncomment when StreakBadgesView is implemented
-                        // StreakBadgesView(streaks: viewModel.dashboardPayload?.streaks)
+                        StreakBadgesView(streaks: viewModel.dashboardPayload?.streaks)
 
                         // -- Nutrition + Fasting --
                         if hasNutritionData || viewModel.dashboardPayload?.fasting != nil {
