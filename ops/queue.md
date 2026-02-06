@@ -20,8 +20,14 @@ SMS ingestion is FROZEN (no changes to parsing logic).
 All launchd services running (exit 0). WHOOP → normalized pipeline wired.
 DB host changed from Tailscale IP to LAN IP (10.0.0.11) for all scripts.
 
-**Current Phase:** Feature Development (Calendar + Reminders + Correlations)
-**Goal:** Wire Reminders into backend, improve Calendar views, add cross-domain correlations
+**Current Phase:** Data Expansion + Widgets
+**Goal:** Expand data sources (screen time, improved location), add Lock Screen widgets
+
+**Latest Completed:**
+- TASK-FEAT.24: Apple Music Logging ✓
+- TASK-FEAT.25: Weather + Location Tracking ✓
+- Home Assistant controls (Phase 2) ✓
+- Deep codebase polish (Logger, error handling) ✓
 
 **Audit Report:** `ops/logs/auditor/audit-2026-01-26.md`
 
@@ -29,10 +35,14 @@ DB host changed from Tailscale IP to LAN IP (10.0.0.11) for all scripts.
 
 ## CODER INSTRUCTIONS
 
-Execute tasks from the ACTIVE FEATURE TASKS section below in order (FEAT.4 first).
-Tasks marked READY are unblocked. Tasks with Depends must wait.
+Execute tasks marked READY in order:
+1. TASK-FEAT.26 (Screen Time Integration)
+2. TASK-FEAT.27 (Location Zone Improvement)
+3. TASK-FEAT.28 (Recovery Lock Screen Widget)
 
-**Remaining user actions:** Restart Tailscale on nexus (`sudo systemctl restart tailscaled`) and grant Full Disk Access to Terminal for SMS import.
+Tasks marked DONE can be skipped. Focus on expanding data collection.
+
+**Note:** Music and Weather/Location are complete and deployed.
 
 ---
 
@@ -1981,6 +1991,141 @@ Lane: safe_auto
 **Done Means:** User sees smart home device status on dashboard.
 
 ---
+
+### TASK-FEAT.24: Apple Music Logging
+Priority: P2
+Owner: claude
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** Passive Apple Music observation and logging.
+
+**Files Created:**
+- `ios/Nexus/Models/MusicModels.swift` — ListeningEvent, API types
+- `ios/Nexus/Services/MusicService.swift` — MPMusicPlayerController observer
+- `ios/Nexus/Views/Music/MusicView.swift` — Now Playing + Today list
+- `backend/n8n-workflows/music-listening-webhook.json` — Batch insert + history endpoints
+
+**Files Modified:**
+- `ios/Nexus/Services/NexusAPI.swift` — Added music endpoints
+- `ios/Nexus/Services/AppSettings.swift` — Added musicLoggingEnabled flag
+- `ios/Nexus/NexusApp.swift` — Scene phase integration
+- `ios/Nexus/Views/MoreView.swift` — Music navigation link
+- `ios/Nexus/Views/Settings/DomainTogglesSection.swift` — Toggle
+- `ios/Info.plist` — NSAppleMusicUsageDescription
+
+**Database:**
+- `life.listening_events` table (migration 147)
+- Idempotent via (session_id, started_at) unique constraint
+
+**Done Means:** User's music listening history logged passively.
+
+---
+
+### TASK-FEAT.25: Weather + Location Tracking
+Priority: P2
+Owner: claude
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** Add weather data and improve location tracking in daily_facts.
+
+**Files Created:**
+- `backend/migrations/154_weather_and_location.up.sql`
+- `backend/migrations/154_weather_and_location.down.sql`
+- `backend/n8n-workflows/weather-daily-sync.json`
+
+**Database Changes:**
+- `life.weather_daily` table for detailed weather history
+- `life.daily_facts` columns: weather_temp_high, weather_temp_low, weather_condition, weather_humidity, weather_uv_index
+- `life.daily_facts` columns: hours_at_home, hours_away, primary_location
+- `life.detect_location_zone()` function for automatic zone detection
+
+**n8n Workflow:**
+- Weather Daily Sync: Fetches from Open-Meteo API every 6 hours (free, no API key)
+- Dubai coordinates hardcoded
+
+**Done Means:** Daily weather and location summary in daily_facts.
+
+---
+
+### TASK-FEAT.26: Screen Time Integration
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Capture iOS Screen Time data and store in daily_facts.
+
+**Approach:**
+- iOS Shortcuts automation runs daily
+- Captures Screen Time summary (total, by category, pickups)
+- Posts to n8n webhook
+- Stores in life.screen_time_daily
+
+**Files to Create:**
+- `backend/migrations/155_screen_time.up.sql` — Table + daily_facts columns
+- `backend/n8n-workflows/screen-time-webhook.json` — POST endpoint
+- iOS Shortcut (manual setup by user)
+
+**Definition of Done:**
+- [ ] Migration created and applied
+- [ ] n8n webhook accepts screen time data
+- [ ] daily_facts has screen_time_hours column
+- [ ] iOS Shortcut documented for user setup
+
+---
+
+### TASK-FEAT.27: Location Zone Improvement
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Fix location zone detection - currently showing "unavailable" for location_name.
+
+**Problem:**
+- `life.locations` shows `location_name = 'unavailable'` for all entries
+- HA is polling location but not resolving zone names
+
+**Approach:**
+- Create known zones table with lat/lon and names
+- Update detect_location_zone() to return zone name
+- Add zones: home, work, gym, common places
+
+**Files to Modify:**
+- `backend/migrations/154_weather_and_location.up.sql` — Add zones table
+- Or create new migration 156
+
+**Definition of Done:**
+- [ ] Known zones table with 3+ zones defined
+- [ ] Location events have proper zone names
+- [ ] daily_location_summary shows correct hours per zone
+
+---
+
+### TASK-FEAT.28: Recovery Lock Screen Widget
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Add Lock Screen widget showing WHOOP recovery score.
+
+**Files to Create/Modify:**
+- `ios/NexusWidgets/RecoveryWidget.swift` — New widget
+- `ios/Nexus/Services/SharedStorage.swift` — Add recovery data
+- `ios/Nexus/Services/SyncCoordinator.swift` — Sync recovery to widget
+
+**Implementation:**
+- Circular accessory: Recovery % with color (green/yellow/red)
+- Rectangular accessory: Recovery + HRV
+- Inline accessory: "85% Recovery"
+
+**Definition of Done:**
+- [ ] Widget appears in Lock Screen widget gallery
+- [ ] Shows correct recovery score from WHOOP
+- [ ] BUILD SUCCEEDED for both targets
 
 ---
 
