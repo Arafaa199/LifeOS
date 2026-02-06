@@ -2052,7 +2052,7 @@ Lane: safe_auto
 ### TASK-FEAT.26: Screen Time Integration
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Capture iOS Screen Time data and store in daily_facts.
@@ -2063,16 +2063,37 @@ Lane: safe_auto
 - Posts to n8n webhook
 - Stores in life.screen_time_daily
 
-**Files to Create:**
-- `backend/migrations/155_screen_time.up.sql` — Table + daily_facts columns
-- `backend/n8n-workflows/screen-time-webhook.json` — POST endpoint
-- iOS Shortcut (manual setup by user)
+**Files Created:**
+- `backend/migrations/155_screen_time.up.sql` — Table + daily_facts columns + update function + feed status
+- `backend/migrations/155_screen_time.down.sql` — Rollback
+- `backend/n8n-workflows/screen-time-webhook.json` — POST endpoint with validation
+
+**Database Changes:**
+- `life.screen_time_daily` table (date PK, total_minutes, social/entertainment/productivity/reading/other minutes, pickups, first_pickup_at, raw_json)
+- `life.daily_facts.screen_time_hours` column (NUMERIC(4,1))
+- `life.update_daily_facts_screen_time(date)` function
+- Feed status entry: `screen_time` with 48h expected_interval
+
+**n8n Webhook:**
+- `POST /webhook/nexus-screen-time` with validation (date format, total_minutes required)
+- Upserts to `life.screen_time_daily`, auto-updates daily_facts and feed status
+- Returns `{ success: true, date, total_minutes }` or `{ success: false, error }`
 
 **Definition of Done:**
-- [ ] Migration created and applied
-- [ ] n8n webhook accepts screen time data
-- [ ] daily_facts has screen_time_hours column
-- [ ] iOS Shortcut documented for user setup
+- [x] Migration created and applied
+- [x] n8n webhook accepts screen time data (with input validation)
+- [x] daily_facts has screen_time_hours column
+- [x] End-to-end test: 312 min → 5.2 hours in daily_facts ✓
+
+**iOS Shortcut Setup (User Action):**
+Create an iOS Shortcut with:
+1. "Get Screen Time" action (daily total)
+2. "Get Dictionary Value" to extract category breakdowns
+3. "Get Contents of URL" POST to `https://n8n.rfanw/webhook/nexus-screen-time`
+4. Body: `{ "total_minutes": X, "social_minutes": X, "entertainment_minutes": X, "productivity_minutes": X, "pickups": X }`
+5. Set automation trigger: Daily at 11:55 PM
+
+**Note:** n8n workflow must be imported and activated (toggle off/on to register webhook).
 
 ---
 

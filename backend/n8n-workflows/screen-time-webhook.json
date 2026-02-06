@@ -1,0 +1,166 @@
+{
+  "name": "Nexus: Screen Time Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-screen-time",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "nexus-screen-time"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// Validate required field\nconst totalMinutes = parseInt(body.total_minutes);\nif (isNaN(totalMinutes) || totalMinutes < 0) {\n  return { json: { valid: false, error: 'total_minutes must be a non-negative integer' } };\n}\n\n// Validate date\nconst date = body.date || new Date().toISOString().split('T')[0];\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {\n  return { json: { valid: false, error: 'date must be YYYY-MM-DD format' } };\n}\n\n// Parse optional category minutes (default 0)\nconst safeInt = (v) => { const n = parseInt(v); return isNaN(n) ? 'NULL' : n; };\nconst social = safeInt(body.social_minutes);\nconst entertainment = safeInt(body.entertainment_minutes);\nconst productivity = safeInt(body.productivity_minutes);\nconst reading = safeInt(body.reading_minutes);\nconst other = safeInt(body.other_minutes);\nconst pickups = safeInt(body.pickups);\nconst firstPickup = body.first_pickup_at ? `'${body.first_pickup_at.replace(/'/g, \"''\")}'::timestamptz` : 'NULL';\n\nconst rawJson = JSON.stringify(body).replace(/'/g, \"''\");\n\nconst sql = `INSERT INTO life.screen_time_daily (date, total_minutes, social_minutes, entertainment_minutes, productivity_minutes, reading_minutes, other_minutes, pickups, first_pickup_at, raw_json)\nVALUES (\n  '${date}',\n  ${totalMinutes},\n  ${social},\n  ${entertainment},\n  ${productivity},\n  ${reading},\n  ${other},\n  ${pickups},\n  ${firstPickup},\n  '${rawJson}'::jsonb\n)\nON CONFLICT (date) DO UPDATE SET\n  total_minutes = EXCLUDED.total_minutes,\n  social_minutes = EXCLUDED.social_minutes,\n  entertainment_minutes = EXCLUDED.entertainment_minutes,\n  productivity_minutes = EXCLUDED.productivity_minutes,\n  reading_minutes = EXCLUDED.reading_minutes,\n  other_minutes = EXCLUDED.other_minutes,\n  pickups = EXCLUDED.pickups,\n  first_pickup_at = EXCLUDED.first_pickup_at,\n  raw_json = EXCLUDED.raw_json,\n  created_at = NOW();\n\n-- Update daily_facts\nSELECT life.update_daily_facts_screen_time('${date}'::date);\n\n-- Update feed status\nUPDATE life.feed_status_live\nSET last_event_at = NOW(), events_today = events_today + 1\nWHERE source = 'screen_time';`;\n\nreturn { json: { valid: true, sql: sql, date: date, totalMinutes: totalMinutes } };"
+      },
+      "id": "validate-and-build",
+      "name": "Validate & Build SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "valid-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid",
+      "name": "IF Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "insert-screen-time",
+      "name": "Insert Screen Time",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [910, 200],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"date\": \"{{ $('Validate & Build SQL').item.json.date }}\",\n  \"total_minutes\": {{ $('Validate & Build SQL').item.json.totalMinutes }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"{{ $('Validate & Build SQL').item.json.error }}\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "error-response",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate & Build SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Build SQL": {
+      "main": [
+        [
+          {
+            "node": "IF Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Valid": {
+      "main": [
+        [
+          {
+            "node": "Insert Screen Time",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Screen Time": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "nexus"
+    },
+    {
+      "name": "lifeos"
+    }
+  ]
+}

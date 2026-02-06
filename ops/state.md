@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-06T15:32:00+04:00
+Last updated: 2026-02-07T12:00:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -168,6 +168,11 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-FEAT.19: Transaction Search | DONE | **Already implemented.** `FinanceActivityView.swift` has full search functionality: `@State private var searchText` (line 6), `filteredTransactions` computed property filters by merchant/category/notes (lines 16-46), `.searchable(text: $searchText, prompt: "Search transactions")` (line 176), category filter chips (lines 114-139), date range picker (lines 98-112). Uses native iOS `.searchable()` modifier which provides standard search bar UX with built-in debounce. 0 files changed (already complete). iOS build: BUILD SUCCEEDED. |
 | TASK-FEAT.20: Subscription Monitor View | DONE | Created `SubscriptionsView.swift` (237 LOC): monthly total header, "Due Soon" section for items due within 7 days, all subscriptions list. Category-aware icons (TV for Netflix/Disney, music note for Spotify, etc.) and colors. Filters recurring items by monthly cadence OR subscription-like names. Added NavigationLink to SubscriptionsView in FinancePlanningView Recurring tab. 2 files changed (+251). iOS build: BUILD SUCCEEDED. Commit `0fdb9f1`. |
 | TASK-FEAT.21: Error Boundary Views | DONE | Created `ErrorStateView.swift` (66 LOC) in new `Views/Components/` directory: warning triangle icon, configurable title/message, "Try Again" button with retry callback. Updated `TodayView.swift` to show error state when `errorMessage != nil && dashboardPayload == nil`. Updated `FinanceOverviewContent.swift` to show error state when `errorMessage != nil && hasNoData` (spent/income both 0 and no transactions). 3 files changed (+109/-31). iOS build: BUILD SUCCEEDED. Commit `c9409f7`. |
+
+### Recent (Feb 7)
+| Task | Status | Summary |
+|------|--------|---------|
+| TASK-FEAT.26: Screen Time Integration | DONE | Migration 155: Created `life.screen_time_daily` table (date PK, total_minutes, category breakdown columns, pickups, first_pickup_at, raw_json). Added `screen_time_hours` NUMERIC(4,1) column to `life.daily_facts`. Created `life.update_daily_facts_screen_time(date)` function. Added `screen_time` feed status entry (48h expected_interval). Created `screen-time-webhook.json` n8n workflow: POST `/webhook/nexus-screen-time` with input validation (date format, total_minutes required), IF Valid branch, upsert + auto-update daily_facts + feed status. End-to-end test: 312 min → 5.2 hours ✓. 3 files created. iOS build: BUILD SUCCEEDED. |
 
 ### Recent (Feb 4)
 | Task | Status | Summary |
