@@ -8,6 +8,7 @@ struct NexusWidgets: WidgetBundle {
         WaterQuickLogWidget()
         DailySummaryWidget()
         RecoveryScoreWidget()
+        FastingTimerWidget()
     }
 }
 
@@ -414,6 +415,318 @@ struct WideStatRow: View {
     }
 }
 
+// MARK: - Fasting Timer Widget
+
+struct FastingTimerWidget: Widget {
+    let kind: String = "FastingTimerWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: FastingWidgetProvider()) { entry in
+            FastingTimerWidgetView(entry: entry)
+                .containerBackground(.fill.tertiary, for: .widget)
+        }
+        .configurationDisplayName("Fasting Timer")
+        .description("Track your intermittent fasting progress.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
+    }
+}
+
+struct FastingWidgetEntry: TimelineEntry {
+    let date: Date
+    let hoursSinceMeal: Double?
+    let isActiveSession: Bool
+    let sessionElapsedHours: Double?
+    let goalHours: Int
+    let lastMealTime: Date?
+}
+
+struct FastingWidgetProvider: TimelineProvider {
+    func placeholder(in context: Context) -> FastingWidgetEntry {
+        FastingWidgetEntry(
+            date: Date(),
+            hoursSinceMeal: 14.5,
+            isActiveSession: false,
+            sessionElapsedHours: nil,
+            goalHours: 16,
+            lastMealTime: Date().addingTimeInterval(-14.5 * 3600)
+        )
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (FastingWidgetEntry) -> Void) {
+        let storage = SharedStorage.shared
+        let entry = FastingWidgetEntry(
+            date: Date(),
+            hoursSinceMeal: storage.getHoursSinceLastMeal(),
+            isActiveSession: storage.isFastingActive(),
+            sessionElapsedHours: storage.getFastingElapsedHours(),
+            goalHours: storage.getFastingGoalHours(),
+            lastMealTime: storage.getLastMealTime()
+        )
+        completion(entry)
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<FastingWidgetEntry>) -> Void) {
+        let storage = SharedStorage.shared
+        let currentDate = Date()
+
+        // Create entries for the next hour (update every 15 minutes for timer accuracy)
+        var entries: [FastingWidgetEntry] = []
+        for minuteOffset in stride(from: 0, through: 60, by: 15) {
+            let entryDate = Calendar.current.date(byAdding: .minute, value: minuteOffset, to: currentDate) ?? currentDate
+            let entry = FastingWidgetEntry(
+                date: entryDate,
+                hoursSinceMeal: storage.getHoursSinceLastMeal().map { $0 + Double(minuteOffset) / 60.0 },
+                isActiveSession: storage.isFastingActive(),
+                sessionElapsedHours: storage.getFastingElapsedHours().map { $0 + Double(minuteOffset) / 60.0 },
+                goalHours: storage.getFastingGoalHours(),
+                lastMealTime: storage.getLastMealTime()
+            )
+            entries.append(entry)
+        }
+
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate) ?? currentDate
+        let timeline = Timeline(entries: entries, policy: .after(nextUpdate))
+        completion(timeline)
+    }
+}
+
+struct FastingTimerWidgetView: View {
+    var entry: FastingWidgetProvider.Entry
+    @Environment(\.widgetFamily) var family
+
+    /// The effective fasting hours (active session takes priority)
+    private var effectiveHours: Double? {
+        if entry.isActiveSession, let sessionHours = entry.sessionElapsedHours {
+            return sessionHours
+        }
+        return entry.hoursSinceMeal
+    }
+
+    /// Progress toward goal (0.0 to 1.0)
+    private var progress: Double {
+        guard let hours = effectiveHours else { return 0 }
+        return min(hours / Double(entry.goalHours), 1.0)
+    }
+
+    /// Color based on progress
+    private var progressColor: Color {
+        guard let hours = effectiveHours else { return .gray }
+        if hours >= Double(entry.goalHours) {
+            return .green
+        } else if hours >= Double(entry.goalHours) * 0.75 {
+            return .yellow
+        } else {
+            return .orange
+        }
+    }
+
+    /// Format hours as HH:MM
+    private var timerDisplay: String {
+        guard let hours = effectiveHours else { return "--:--" }
+        let totalMinutes = Int(hours * 60)
+        let h = totalMinutes / 60
+        let m = totalMinutes % 60
+        return String(format: "%d:%02d", h, m)
+    }
+
+    var body: some View {
+        switch family {
+        case .systemSmall:
+            smallWidget
+        case .systemMedium:
+            mediumWidget
+        case .accessoryCircular:
+            circularWidget
+        case .accessoryRectangular:
+            rectangularWidget
+        default:
+            smallWidget
+        }
+    }
+
+    var smallWidget: some View {
+        VStack(spacing: 8) {
+            if effectiveHours != nil {
+                ZStack {
+                    Circle()
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 8)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(progressColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    VStack(spacing: 2) {
+                        Text(timerDisplay)
+                            .font(.title2)
+                            .bold()
+                            .monospacedDigit()
+                        Text("\(entry.goalHours)h goal")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .frame(width: 80, height: 80)
+
+                if entry.isActiveSession {
+                    Text("Fasting")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .bold()
+                } else {
+                    Text("Since meal")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                if progress >= 1.0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.caption2)
+                        Text("Goal reached!")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                    }
+                }
+            } else {
+                Image(systemName: "fork.knife.circle")
+                    .font(.largeTitle)
+                    .foregroundColor(.gray)
+                Text("No Data")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Log a meal to start")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+    }
+
+    var mediumWidget: some View {
+        HStack(spacing: 16) {
+            // Progress ring
+            ZStack {
+                Circle()
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 6)
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(progressColor, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                VStack(spacing: 0) {
+                    Text(timerDisplay)
+                        .font(.title3)
+                        .bold()
+                        .monospacedDigit()
+                }
+            }
+            .frame(width: 70, height: 70)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Image(systemName: "fork.knife.circle")
+                        .foregroundColor(.orange)
+                    Text(entry.isActiveSession ? "Fasting Session" : "Intermittent Fasting")
+                        .font(.headline)
+                }
+
+                if let hours = effectiveHours {
+                    Text("\(String(format: "%.1f", hours))h of \(entry.goalHours)h goal")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                if progress >= 1.0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Goal reached!")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                            .bold()
+                    }
+                } else {
+                    let remaining = max(0, Double(entry.goalHours) - (effectiveHours ?? 0))
+                    let remainingH = Int(remaining)
+                    let remainingM = Int((remaining - Double(remainingH)) * 60)
+                    Text("\(remainingH)h \(remainingM)m to go")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                // Goal badges
+                HStack(spacing: 8) {
+                    ForEach([16, 18, 20], id: \.self) { goal in
+                        goalBadge(hours: goal)
+                    }
+                }
+            }
+
+            Spacer()
+        }
+        .padding()
+    }
+
+    @ViewBuilder
+    private func goalBadge(hours: Int) -> some View {
+        let achieved = (effectiveHours ?? 0) >= Double(hours)
+        Text("\(hours)h")
+            .font(.caption2)
+            .bold()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(achieved ? Color.green.opacity(0.8) : Color.gray.opacity(0.3))
+            .foregroundColor(achieved ? .white : .secondary)
+            .cornerRadius(4)
+    }
+
+    var circularWidget: some View {
+        ZStack {
+            if effectiveHours != nil {
+                Gauge(value: progress) {
+                    Text("")
+                } currentValueLabel: {
+                    Text(timerDisplay)
+                        .font(.caption2)
+                        .bold()
+                        .monospacedDigit()
+                }
+                .gaugeStyle(.accessoryCircular)
+                .tint(progressColor)
+            } else {
+                Image(systemName: "fork.knife.circle")
+                    .font(.title2)
+            }
+        }
+    }
+
+    var rectangularWidget: some View {
+        HStack {
+            if effectiveHours != nil {
+                Gauge(value: progress) {
+                    Text("")
+                }
+                .gaugeStyle(.accessoryLinear)
+                .tint(progressColor)
+                .frame(width: 60)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.isActiveSession ? "Fasting" : "Since meal")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    Text(timerDisplay)
+                        .font(.headline)
+                        .bold()
+                        .monospacedDigit()
+                }
+            } else {
+                Image(systemName: "fork.knife.circle")
+                Text("No Data")
+                    .font(.caption)
+            }
+        }
+    }
+}
+
 // MARK: - Widget Previews
 
 #Preview(as: .systemSmall) {
@@ -439,4 +752,17 @@ struct WideStatRow: View {
 } timeline: {
     RecoveryWidgetEntry(date: .now, recoveryScore: 72, hrv: 48.5, rhr: 54, lastUpdated: .now)
     RecoveryWidgetEntry(date: .now, recoveryScore: nil, hrv: nil, rhr: nil, lastUpdated: nil)
+}
+
+#Preview(as: .systemSmall) {
+    FastingTimerWidget()
+} timeline: {
+    FastingWidgetEntry(date: .now, hoursSinceMeal: 14.5, isActiveSession: false, sessionElapsedHours: nil, goalHours: 16, lastMealTime: .now.addingTimeInterval(-14.5 * 3600))
+    FastingWidgetEntry(date: .now, hoursSinceMeal: 17.2, isActiveSession: false, sessionElapsedHours: nil, goalHours: 16, lastMealTime: .now.addingTimeInterval(-17.2 * 3600))
+}
+
+#Preview(as: .systemMedium) {
+    FastingTimerWidget()
+} timeline: {
+    FastingWidgetEntry(date: .now, hoursSinceMeal: 12.3, isActiveSession: true, sessionElapsedHours: 12.3, goalHours: 16, lastMealTime: .now.addingTimeInterval(-12.3 * 3600))
 }

@@ -41,6 +41,10 @@ class SharedStorage {
         static let recoveryHRV = "recovery_hrv"
         static let recoveryRHR = "recovery_rhr"
         static let recoveryDate = "recovery_date"
+        static let fastingLastMealAt = "fasting_last_meal_at"
+        static let fastingIsActive = "fasting_is_active"
+        static let fastingStartedAt = "fasting_started_at"
+        static let fastingGoalHours = "fasting_goal_hours"
     }
 
     // MARK: - Goals
@@ -193,6 +197,53 @@ class SharedStorage {
     private func isRecoveryDataCurrent() -> Bool {
         guard let recoveryDate = getRecoveryDate() else { return false }
         return Constants.Dubai.isDateInToday(recoveryDate)
+    }
+
+    // MARK: - Fasting Data
+
+    func saveFastingData(lastMealAt: Date?, isActive: Bool, startedAt: Date?) {
+        if let lastMealAt = lastMealAt {
+            defaults?.set(lastMealAt, forKey: Keys.fastingLastMealAt)
+        }
+        defaults?.set(isActive, forKey: Keys.fastingIsActive)
+        if let startedAt = startedAt {
+            defaults?.set(startedAt, forKey: Keys.fastingStartedAt)
+        } else {
+            defaults?.removeObject(forKey: Keys.fastingStartedAt)
+        }
+    }
+
+    func saveFastingGoal(hours: Int) {
+        defaults?.set(hours, forKey: Keys.fastingGoalHours)
+    }
+
+    func getLastMealTime() -> Date? {
+        defaults?.object(forKey: Keys.fastingLastMealAt) as? Date
+    }
+
+    func isFastingActive() -> Bool {
+        defaults?.bool(forKey: Keys.fastingIsActive) ?? false
+    }
+
+    func getFastingStartedAt() -> Date? {
+        defaults?.object(forKey: Keys.fastingStartedAt) as? Date
+    }
+
+    func getFastingGoalHours() -> Int {
+        let goal = defaults?.integer(forKey: Keys.fastingGoalHours) ?? 0
+        return goal > 0 ? goal : 16  // Default to 16h IF
+    }
+
+    /// Hours elapsed since last meal (for passive IF tracking)
+    func getHoursSinceLastMeal() -> Double? {
+        guard let lastMeal = getLastMealTime() else { return nil }
+        return Date().timeIntervalSince(lastMeal) / 3600.0
+    }
+
+    /// Hours elapsed in active fasting session
+    func getFastingElapsedHours() -> Double? {
+        guard isFastingActive(), let startedAt = getFastingStartedAt() else { return nil }
+        return Date().timeIntervalSince(startedAt) / 3600.0
     }
 
     // MARK: - Reset Methods

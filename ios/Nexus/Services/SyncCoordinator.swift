@@ -525,6 +525,18 @@ class SyncCoordinator: ObservableObject {
             )
         }
 
+        // Update fasting data for widgets
+        if let fasting = payload.fasting {
+            storage.saveFastingData(
+                lastMealAt: fasting.lastMealDate,
+                isActive: fasting.isActive,
+                startedAt: fasting.startedAtDate
+            )
+            if let hours = fasting.hoursSinceMeal ?? fasting.elapsedHours {
+                logger.info("[widgets] fasting data updated: \(String(format: "%.1f", hours))h")
+            }
+        }
+
         // Trigger widget refresh
         WidgetCenter.shared.reloadAllTimelines()
     }

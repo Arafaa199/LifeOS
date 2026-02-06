@@ -25,6 +25,10 @@ class SharedStorage {
         static let recoveryHRV = "recovery_hrv"
         static let recoveryRHR = "recovery_rhr"
         static let recoveryDate = "recovery_date"
+        static let fastingLastMealAt = "fasting_last_meal_at"
+        static let fastingIsActive = "fasting_is_active"
+        static let fastingStartedAt = "fasting_started_at"
+        static let fastingGoalHours = "fasting_goal_hours"
     }
 
     // MARK: - Recovery Data (WHOOP)
@@ -77,5 +81,36 @@ class SharedStorage {
 
     func getLastUpdateDate() -> Date? {
         defaults?.object(forKey: Keys.lastUpdateDate) as? Date
+    }
+
+    // MARK: - Fasting Data
+
+    func getLastMealTime() -> Date? {
+        defaults?.object(forKey: Keys.fastingLastMealAt) as? Date
+    }
+
+    func isFastingActive() -> Bool {
+        defaults?.bool(forKey: Keys.fastingIsActive) ?? false
+    }
+
+    func getFastingStartedAt() -> Date? {
+        defaults?.object(forKey: Keys.fastingStartedAt) as? Date
+    }
+
+    func getFastingGoalHours() -> Int {
+        let goal = defaults?.integer(forKey: Keys.fastingGoalHours) ?? 0
+        return goal > 0 ? goal : 16  // Default to 16h IF
+    }
+
+    /// Hours elapsed since last meal (for passive IF tracking)
+    func getHoursSinceLastMeal() -> Double? {
+        guard let lastMeal = getLastMealTime() else { return nil }
+        return Date().timeIntervalSince(lastMeal) / 3600.0
+    }
+
+    /// Hours elapsed in active fasting session
+    func getFastingElapsedHours() -> Double? {
+        guard isFastingActive(), let startedAt = getFastingStartedAt() else { return nil }
+        return Date().timeIntervalSince(startedAt) / 3600.0
     }
 }
