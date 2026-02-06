@@ -1794,26 +1794,29 @@ Lane: safe_auto
 ### TASK-FEAT.18: Fasting Timer Widget
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Add a fasting timer widget to iOS WidgetKit showing elapsed hours since last food_log, with optional 16/18/20h goal ring visualization.
 
-**Files to Touch:**
-- `ios/NexusWidgets/FastingTimerWidget.swift` — NEW: TimelineProvider + Widget view
-- `ios/NexusWidgets/SharedStorage.swift` — Add `getLastMealTime() -> Date?` and `saveFastingGoal(hours:)`
-- `ios/Nexus/Services/SyncCoordinator.swift` — Update SharedStorage with last meal time after food_log sync
+**Finding:** Widget already fully implemented in a previous session.
 
-**Implementation Notes:**
-- Query last food_log timestamp from dashboard payload
-- Widget shows: "12h 34m" elapsed, circular progress toward goal (16h default)
-- Green ring when goal reached, yellow when 75%+, gray otherwise
-- Tap opens app to Log Food screen
+**Existing Implementation:**
+- `ios/NexusWidgets/NexusWidgets.swift` lines 418-728 — FastingTimerWidget with Entry, Provider, View
+- `ios/NexusWidgets/SharedStorage.swift` lines 202-247 — All fasting methods (getLastMealTime, saveFastingData, etc.)
+- `ios/Nexus/Services/SyncCoordinator.swift` lines 528-541 — Updates SharedStorage after dashboard sync
+
+**Features:**
+- Supports: `.systemSmall`, `.systemMedium`, `.accessoryCircular`, `.accessoryRectangular`
+- Progress ring toward configurable goal (default 16h)
+- Goal badges (16h/18h/20h) with achievement indicators
+- "Goal reached!" indicator when target met
+- Updates every 15 minutes via timeline projection
 
 **Exit Criteria:**
-- [ ] Widget appears in widget gallery with "Fasting Timer" name
-- [ ] `xcodebuild -scheme Nexus build` succeeds
-- [ ] Timer updates correctly based on last meal time
+- [x] Widget appears in widget gallery with "Fasting Timer" name
+- [x] `xcodebuild -scheme Nexus build` succeeds → BUILD SUCCEEDED
+- [x] Timer updates correctly based on last meal time (via SharedStorage.getHoursSinceLastMeal)
 
 **Done Means:** User can glance at widget to see fasting progress without opening app.
 
