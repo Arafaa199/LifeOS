@@ -2132,25 +2132,27 @@ Lane: safe_auto
 ### TASK-FEAT.28: Recovery Lock Screen Widget
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Add Lock Screen widget showing WHOOP recovery score.
 
-**Files to Create/Modify:**
-- `ios/NexusWidgets/RecoveryWidget.swift` — New widget
-- `ios/Nexus/Services/SharedStorage.swift` — Add recovery data
-- `ios/Nexus/Services/SyncCoordinator.swift` — Sync recovery to widget
+**Finding:** RecoveryScoreWidget already existed in `NexusWidgets.swift` with `.systemSmall`, `.accessoryCircular`, `.accessoryRectangular` support. SharedStorage already had recovery data read/write methods. SyncCoordinator already synced recovery data to widgets. Only missing: `.accessoryInline` support and HRV display in rectangular view.
+
+**Files Changed:**
+- `ios/NexusWidgets/NexusWidgets.swift` — Added `.accessoryInline` family, inline view with "85% Recovery · HRV 116" format, enhanced rectangular view to show HRV
 
 **Implementation:**
-- Circular accessory: Recovery % with color (green/yellow/red)
-- Rectangular accessory: Recovery + HRV
-- Inline accessory: "85% Recovery"
+- Circular accessory: Recovery % with color gauge (green/yellow/red) ✓ (pre-existing)
+- Rectangular accessory: Recovery % + HRV (enhanced)
+- Inline accessory: "85% Recovery · HRV 116" (NEW)
 
 **Definition of Done:**
-- [ ] Widget appears in Lock Screen widget gallery
-- [ ] Shows correct recovery score from WHOOP
-- [ ] BUILD SUCCEEDED for both targets
+- [x] Widget appears in Lock Screen widget gallery (accessoryCircular, accessoryRectangular, accessoryInline)
+- [x] Shows correct recovery score from WHOOP (via SharedStorage)
+- [x] BUILD SUCCEEDED for both targets (Nexus + NexusWidgetsExtension)
+
+**Commit:** `e2304c2`
 
 ---
 
