@@ -1791,6 +1791,143 @@ Lane: safe_auto
 
 ---
 
+### TASK-FEAT.18: Fasting Timer Widget
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Add a fasting timer widget to iOS WidgetKit showing elapsed hours since last food_log, with optional 16/18/20h goal ring visualization.
+
+**Files to Touch:**
+- `ios/NexusWidgets/FastingTimerWidget.swift` — NEW: TimelineProvider + Widget view
+- `ios/NexusWidgets/SharedStorage.swift` — Add `getLastMealTime() -> Date?` and `saveFastingGoal(hours:)`
+- `ios/Nexus/Services/SyncCoordinator.swift` — Update SharedStorage with last meal time after food_log sync
+
+**Implementation Notes:**
+- Query last food_log timestamp from dashboard payload
+- Widget shows: "12h 34m" elapsed, circular progress toward goal (16h default)
+- Green ring when goal reached, yellow when 75%+, gray otherwise
+- Tap opens app to Log Food screen
+
+**Exit Criteria:**
+- [ ] Widget appears in widget gallery with "Fasting Timer" name
+- [ ] `xcodebuild -scheme Nexus build` succeeds
+- [ ] Timer updates correctly based on last meal time
+
+**Done Means:** User can glance at widget to see fasting progress without opening app.
+
+---
+
+### TASK-FEAT.19: Transaction Search
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Add full-text search across transactions with filters for date range, category, and amount. KEEP IT SIMPLE - max 400 LOC.
+
+**Files to Touch:**
+- `ios/Nexus/Views/Finance/TransactionSearchView.swift` — NEW: Simple search UI (under 250 LOC)
+- `ios/Nexus/Views/Finance/FinanceActivityView.swift` — Add search icon in toolbar
+- `ios/Nexus/Services/NexusAPI.swift` — Add search endpoint call (reuse existing types)
+
+**Implementation Notes:**
+- Use existing `/webhook/nexus-finance-summary` with query param or simple client-side filter
+- Search by merchant name only (ILIKE %query%)
+- Debounce search input (300ms)
+- Reuse existing TransactionRow component
+- NO new n8n workflow needed - filter client-side from loaded transactions
+
+**Exit Criteria:**
+- [ ] Search icon visible in Finance Activity toolbar
+- [ ] Typing filters visible transactions
+- [ ] `xcodebuild -scheme Nexus build` succeeds
+
+**Done Means:** User can quickly find past transactions without scrolling.
+
+---
+
+### TASK-FEAT.20: Subscription Monitor View
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Create a simple view surfacing `recurring_items` as "Subscriptions" with next renewal dates. Max 300 LOC.
+
+**Files to Touch:**
+- `ios/Nexus/Views/Finance/SubscriptionsView.swift` — NEW: List of subscriptions
+- `ios/Nexus/Views/Finance/FinancePlanningView.swift` — Add NavigationLink to SubscriptionsView
+
+**Implementation Notes:**
+- Reuse existing `fetchRecurringItems()` from NexusAPI
+- Filter where frequency is monthly and category suggests subscription
+- Show: name, amount, next_occurrence
+- Header: "Monthly Total: AED X"
+
+**Exit Criteria:**
+- [ ] SubscriptionsView accessible from Finance Planning
+- [ ] Shows list of recurring subscriptions
+- [ ] `xcodebuild -scheme Nexus build` succeeds
+
+**Done Means:** User has visibility into subscription costs.
+
+---
+
+### TASK-FEAT.21: Error Boundary Views
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Add graceful error states for major views. Max 200 LOC total.
+
+**Files to Touch:**
+- `ios/Nexus/Views/Components/ErrorStateView.swift` — NEW: Reusable error view (50 LOC)
+- `ios/Nexus/Views/TodayView.swift` — Add error state when `errorMessage != nil`
+- `ios/Nexus/Views/Finance/FinanceView.swift` — Add error state
+
+**Implementation Notes:**
+- ErrorStateView: icon (exclamationmark.triangle), message, "Try Again" button
+- Each ViewModel already has `errorMessage: String?` — just display it
+- Show when `errorMessage != nil && data.isEmpty`
+
+**Exit Criteria:**
+- [ ] ErrorStateView.swift exists
+- [ ] Error state shows when network fails
+- [ ] `xcodebuild -scheme Nexus build` succeeds
+
+**Done Means:** App shows helpful error instead of blank screens.
+
+---
+
+### TASK-FEAT.22: Budget Remaining Widget
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Add WidgetKit widget showing budget remaining. Max 250 LOC.
+
+**Files to Touch:**
+- `ios/NexusWidgets/BudgetWidget.swift` — NEW: Simple budget display
+- `ios/NexusWidgets/SharedStorage.swift` — Add budget data getters
+
+**Implementation Notes:**
+- Small widget only: shows "AED X left" with simple progress bar
+- Color: green (>50% left), yellow (20-50%), red (<20%)
+- Data from SharedStorage (populated by SyncCoordinator)
+
+**Exit Criteria:**
+- [ ] Widget appears in widget gallery
+- [ ] Shows correct budget remaining
+- [ ] `xcodebuild -scheme NexusWidgetsExtension build` succeeds
+
+**Done Means:** User can monitor budget from home screen.
+
+---
+
 ---
 
 ## ROADMAP (After Fixes)
