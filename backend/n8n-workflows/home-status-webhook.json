@@ -1,0 +1,122 @@
+{
+  "name": "Nexus Home Status",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-home-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "nexus-home-status"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://172.17.0.1:8123/api/states",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Get HA States",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ha-api-token",
+          "name": "Home Assistant API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform HA states into structured home status\nconst states = $input.first().json;\n\n// Helper to find entity\nconst getEntity = (entityId) => states.find(s => s.entity_id === entityId);\n\n// Lights\nconst lightstrip = getEntity('light.hue_lightstrip_plus_1');\nconst lights = {\n  hue_lightstrip: lightstrip ? {\n    entity_id: 'light.hue_lightstrip_plus_1',\n    state: lightstrip.state,\n    brightness: lightstrip.attributes?.brightness || null,\n    brightness_pct: lightstrip.attributes?.brightness ? Math.round(lightstrip.attributes.brightness / 255 * 100) : null\n  } : null\n};\n\n// Switches (monitors + printer)\nconst leftMon = getEntity('switch.leftmonplug_socket_1');\nconst rightMon = getEntity('switch.rightmonplug_socket_1');\nconst printer = getEntity('switch.3d_printer_socket_1');\n\nconst switches = {\n  left_monitor: leftMon ? { entity_id: 'switch.leftmonplug_socket_1', state: leftMon.state } : null,\n  right_monitor: rightMon ? { entity_id: 'switch.rightmonplug_socket_1', state: rightMon.state } : null,\n  printer: printer ? { entity_id: 'switch.3d_printer_socket_1', state: printer.state } : null\n};\n\n// Vacuum\nconst vacuum = getEntity('vacuum.vacuum');\nconst vacuumBattery = getEntity('sensor.vacuum_battery');\nconst vacuumStatus = vacuum ? {\n  entity_id: 'vacuum.vacuum',\n  state: vacuum.state,\n  battery: vacuumBattery ? parseInt(vacuumBattery.state) : null,\n  fan_speed: vacuum.attributes?.fan_speed || null\n} : null;\n\n// Camera\nconst camera = getEntity('camera.ezviz_camera');\nconst cameraSleep = getEntity('switch.ezviz_camera_sleep');\nconst cameraStatus = camera ? {\n  entity_id: 'camera.ezviz_camera',\n  state: camera.state,\n  sleeping: cameraSleep?.state === 'on'\n} : null;\n\n// Motion/Presence (find most recent motion)\nconst motionSensors = states.filter(s => \n  s.entity_id.includes('motion') && \n  s.attributes?.device_class === 'motion'\n);\nconst lastMotion = motionSensors\n  .filter(s => s.state === 'on' || s.last_changed)\n  .sort((a, b) => new Date(b.last_changed) - new Date(a.last_changed))[0];\n\nconst presence = {\n  home: motionSensors.some(s => s.state === 'on') || true, // Default to home\n  last_motion: lastMotion?.last_changed || null,\n  motion_location: lastMotion?.entity_id?.replace('binary_sensor.', '').replace('_motion', '') || null\n};\n\nreturn {\n  success: true,\n  home: {\n    lights,\n    switches,\n    vacuum: vacuumStatus,\n    camera: cameraStatus,\n    presence\n  },\n  last_updated: new Date().toISOString()\n};"
+      },
+      "id": "3",
+      "name": "Transform States",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.message || 'Failed to fetch HA states' } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "5",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [650, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get HA States",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get HA States": {
+      "main": [
+        [
+          {
+            "node": "Transform States",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform States": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "lifeos"
+    },
+    {
+      "name": "home"
+    }
+  ],
+  "active": true
+}

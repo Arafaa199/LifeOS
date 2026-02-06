@@ -7,6 +7,7 @@ struct TodayView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @StateObject private var offlineQueue = OfflineQueue.shared
+    @StateObject private var homeViewModel = HomeViewModel()
     @State private var isFastingLoading = false
     @State private var fastingElapsed: String = "--:--"
     @State private var showingQuickLog = false
@@ -88,6 +89,9 @@ struct TodayView: View {
                             )
                         }
 
+                        // -- Home --
+                        HomeStatusCard(viewModel: homeViewModel)
+
                         // -- Insights --
                         if !insightsEmpty {
                             todaySectionHeader("Insights")
@@ -131,7 +135,13 @@ struct TodayView: View {
                 QuickLogView(viewModel: viewModel)
             }
             .onReceive(fastingTimer) { _ in updateFastingElapsed() }
-            .onAppear { updateFastingElapsed() }
+            .onAppear {
+                updateFastingElapsed()
+                Task { await homeViewModel.fetchStatus() }
+            }
+            .onDisappear {
+                homeViewModel.stopAutoRefresh()
+            }
         }
     }
 

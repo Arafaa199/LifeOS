@@ -722,6 +722,12 @@ extension NexusAPI {
     func fetchHealthTimeseries(days: Int = 30) async throws -> HealthTimeseriesResponse {
         return try await get("/webhook/nexus-health-timeseries?days=\(days)")
     }
+
+    // MARK: - Home Assistant
+
+    func fetchHomeStatus() async throws -> HomeStatusResponse {
+        return try await get("/webhook/nexus-home-status")
+    }
 }
 
 // MARK: - Sleep/Recovery Models
