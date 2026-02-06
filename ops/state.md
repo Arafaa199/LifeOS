@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-06T14:32:00+04:00
+Last updated: 2026-02-06T16:00:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -160,6 +160,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 ### Recent (Feb 6)
 | Task | Status | Summary |
 |------|--------|---------|
+| TASK-PLAN.1: Offline Mode Indicator | DONE | Enhanced TodayBannersView: `TodayOfflineBanner` now shows queue count ("Offline — X items queued" with badge), added `TodaySyncingBanner` for online-with-pending state. TodayView observes `OfflineQueue.shared.pendingItemCount` via `@StateObject`. Banner order: Offline > Syncing > Cached > Stale. Exit criteria: `grep -c 'pendingCount\|TodaySyncingBanner'` returns 17 (≥2 required). 2 files changed (+77/-6). iOS build: BUILD SUCCEEDED. Commit `208060c`. |
 | TASK-FEAT.17: Fasting Timer Display | DONE | Migration 152: Rewrote `health.get_fasting_status()` to query `nutrition.food_log` for last meal time — returns `hours_since_meal` and `last_meal_at` alongside explicit session. iOS: Updated `FastingStatus` with new fields + computed properties (`sinceMealFormatted`, `displayTimer`, `fastingGoalProgress`). Rewrote `FastingCardView` with progress ring (color changes at 75%/100%), passive "Since last meal" tracking, goal badges (16h/18h/20h appear when fasting 12+ hours). Schema version 12→13. 4 files changed. iOS build: BUILD SUCCEEDED. Down migration tested. |
 | TASK-FEAT.16: Streak Tracking Widget | DONE | Backend already had streaks in dashboard payload (schema v12). Added iOS decode + display. Created `Streaks`, `StreakData` structs in DashboardPayload.swift with `sortedStreaks`, `bestActiveStreak`, `isAtBest` helpers. Created `StreakBadgesView.swift` (compact badges with icons, star for personal best, only shows when streaks active). Added to TodayView after StateCardView. 3 files changed (+208). Build: passes for streak files (pre-existing errors in WishlistView/DebtsListView unrelated). Commit `5c27cdb`. |
 
@@ -339,3 +340,35 @@ Comprehensive iOS architecture audit completed across 3 phases. All critical iss
 **2026-02-01 Cycle:** 8 PLAN tasks (Calendar error feedback, SQL sanitization, daily_finance rewrite, GitHub iOS view, Transaction sanitization, GitHub feed threshold, Reminder error attribution, TodayView doc comment) — ALL COMPLETE
 
 **2026-02-02 Cycle:** 5 PIPE tasks (WHOOP trigger events, Normalized backfill, Raw dedup, HRV precision, Coder shutdown) — ALL COMPLETE. 7 FEAT tasks (Reminders sync, Reminders GET, Calendar month, Calendar correlation, Reminder facts, Calendar background, Weekly email) — ALL COMPLETE
+
+---
+
+## Auditor Planning Mode (2026-02-06)
+
+## Planning Rationale
+
+### Why These Tasks Were Chosen
+
+1. **TASK-PLAN.1 (Offline Indicator)** — High user value, low effort. Currently users have no visibility into whether their data is queued for sync. This causes confusion when network is spotty. Quick win from SUGG-14.
+
+2. **TASK-PLAN.2 (Quick Actions)** — High user value, low effort. Builds on the Siri Shortcuts work (FEAT.11) but adds home screen convenience. iOS users expect 3D Touch quick actions. Quick win from SUGG-12.
+
+3. **TASK-PLAN.3 (GitHub Sync)** — Critical data gap fix. The workflow has been inactive since Jan 27 (10 days of missing GitHub activity). This is a config-only change but marked `needs_approval` because it affects external API calls.
+
+4. **TASK-PLAN.4 (Budget Alerts)** — Medium effort, high engagement value. Proactive notifications drive user retention. The budget logic already exists in `dashboard.get_payload()` — just needs to trigger a notification when threshold crossed.
+
+5. **TASK-PLAN.5 (FinancePlanView)** — Quick polish. The view already exists (`FinancePlanningView.swift` is 27KB), but it's wired as a sheet from the gear button instead of inline in the tab. This unblocks the TODO on line 37.
+
+### What Was Deliberately Excluded
+
+- **Finance stub methods (debt, wishlist, cashflow)** — These require backend API endpoints that don't exist yet. Would be a multi-session effort.
+- **HealthKit Medications full implementation** — Blocked on Apple's undocumented `HKMedicationDoseEventQueryDescriptor` API (iOS 18+).
+- **Receipt→Nutrition matching (SUGG-06)** — High effort, requires ML/fuzzy matching research. Not a quick win.
+- **Unit tests (SUGG-21)** — Blocked on Xcode target setup (requires user action).
+- **Inactive n8n workflows (power-metrics, environment-metrics)** — These are intentionally disabled (IoT sensors not connected). Only GitHub sync is accidentally inactive.
+
+### Task Ordering
+
+1. **PLAN.1 + PLAN.2** are quick iOS-only wins with no backend changes
+2. **PLAN.3** fixes a data gap that's been accumulating for 10 days
+3. **PLAN.4 + PLAN.5** build on existing infrastructure with medium effort

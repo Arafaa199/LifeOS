@@ -1652,6 +1652,146 @@ Lane: safe_auto
 
 ---
 
+---
+
+## PLANNED TASKS (Auditor-Generated 2026-02-06)
+
+### TASK-PLAN.1: Add Offline Mode Indicator Badge to Dashboard
+Priority: P1
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** Show a visual badge on TodayView when the device is offline or when the OfflineQueue has pending items, so users know their data is queued for sync.
+
+**Files Changed:**
+- `ios/Nexus/Views/Dashboard/Cards/TodayBannersView.swift`
+- `ios/Nexus/Views/Dashboard/TodayView.swift`
+
+**Fix Applied:**
+- Enhanced `TodayOfflineBanner`: accepts `pendingCount` parameter, shows dynamic text "Offline — X items queued" with queue badge
+- Added `TodaySyncingBanner`: shows "Syncing X items..." when online but queue has pending items
+- TodayView now observes `OfflineQueue.shared.pendingItemCount` via `@StateObject`
+- Banner order: Offline > Syncing > Cached > Stale
+
+**Note:** OfflineQueue already had `@Published pendingItemCount` (line 138) — no changes needed there.
+
+**Verification:**
+- [x] `grep -c 'pendingCount\|TodaySyncingBanner' ios/Nexus/Views/Dashboard/Cards/TodayBannersView.swift` returns 17
+- [x] `xcodebuild -scheme Nexus build` succeeds (BUILD SUCCEEDED)
+- [x] Exit criteria met: grep returns ≥2
+
+**Commit:** `208060c`
+
+**Done Means:** User sees offline status and queue depth without opening Settings.
+
+---
+
+### TASK-PLAN.2: Add Quick Actions Menu (3D Touch / Long-Press)
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Enable home screen quick actions (long-press app icon) for Log Water, Log Mood, Start Fast — instant access without opening app.
+
+**Files to Touch:**
+- `ios/Nexus/NexusApp.swift` (add UIApplicationShortcutItem handling)
+- `ios/Nexus/Info.plist` (add UIApplicationShortcutItems array)
+
+**Verification:**
+- [ ] Long-press Nexus app icon on home screen → shows 3 quick actions
+- [ ] Tap "Log Water" → app opens and triggers water log flow
+- [ ] Tap "Start Fast" → app opens and triggers fasting start
+
+**Exit Criteria:**
+- [ ] `grep -c 'UIApplicationShortcutItem\|performActionFor' ios/Nexus/NexusApp.swift` returns ≥2
+- [ ] `xcodebuild -scheme Nexus build` succeeds
+
+**Done Means:** User can log water, mood, or start fasting from home screen without opening app.
+
+---
+
+### TASK-PLAN.3: Reactivate GitHub Sync Workflow
+Priority: P1
+Owner: coder
+Status: READY
+Lane: needs_approval
+
+**Objective:** GitHub feed shows `status: ok` but hasn't synced since Jan 27 because the n8n workflow is inactive. Reactivate it to resume GitHub activity tracking.
+
+**Files to Touch:**
+- `backend/n8n-workflows/github-sync.json` (set `"active": true`)
+
+**Verification:**
+- [ ] After n8n import: `curl -s http://nexus:5678/webhook/github-sync-status` returns active workflow
+- [ ] `ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c \"SELECT MAX(created_at) FROM raw.github_events;\""` shows recent timestamp (within 6h of activation)
+
+**Exit Criteria:**
+- [ ] `grep '"active": true' backend/n8n-workflows/github-sync.json` succeeds
+- [ ] GitHub events appear in `raw.github_events` after next scheduled run
+
+**Done Means:** GitHub activity syncs every 6 hours, dashboard shows fresh data.
+
+**Note:** Requires n8n workflow import and activation. User must have valid GitHub token configured.
+
+---
+
+### TASK-PLAN.4: Add Budget Alert Push Notifications
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Send a local push notification when daily spending exceeds 80% of any active budget threshold, alerting the user proactively.
+
+**Files to Touch:**
+- `ios/Nexus/Services/NotificationManager.swift` (new file, ~60 LOC)
+- `ios/Nexus/Services/SyncCoordinator.swift` (call notification check after dashboard refresh)
+- `ios/Nexus/NexusApp.swift` (request notification permission on first launch)
+
+**Verification:**
+- [ ] Set a test budget (e.g., Food: 100 AED), log expenses exceeding 80 AED
+- [ ] App backgrounded → notification appears: "Budget Alert: Food at 85%"
+- [ ] Notification taps open Finance tab
+
+**Exit Criteria:**
+- [ ] `ls ios/Nexus/Services/NotificationManager.swift` succeeds
+- [ ] `grep -c 'UNUserNotificationCenter\|budgetAlert' ios/Nexus/Services/NotificationManager.swift` returns ≥2
+- [ ] `xcodebuild -scheme Nexus build` succeeds
+
+**Done Means:** User receives proactive budget warnings without checking the app.
+
+---
+
+### TASK-PLAN.5: Wire FinancePlanView into Finance Tab
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Replace the "Financial planning coming soon" placeholder with the actual FinancePlanningView content in the Finance tab's "Plan" segment.
+
+**Files to Touch:**
+- `ios/Nexus/Views/Finance/FinanceView.swift` (lines 37-42)
+- `ios/Nexus/Views/Finance/FinanceFlatView.swift` (line 35-36)
+
+**Verification:**
+- [ ] Open Finance tab → tap "Plan" segment
+- [ ] Shows Categories/Recurring/Rules/Settings picker (not "coming soon" text)
+- [ ] All 4 sections load and display correctly
+
+**Exit Criteria:**
+- [ ] `grep -c 'coming soon' ios/Nexus/Views/Finance/FinanceView.swift` returns 0
+- [ ] `grep -c 'FinancePlanningView\|FinancePlanContent' ios/Nexus/Views/Finance/FinanceView.swift` returns ≥1
+- [ ] `xcodebuild -scheme Nexus build` succeeds
+
+**Done Means:** Finance "Plan" tab shows actual planning UI instead of placeholder.
+
+---
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)
