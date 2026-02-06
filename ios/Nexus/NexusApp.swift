@@ -15,8 +15,21 @@ struct NexusApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
                 BackgroundTaskManager.shared.scheduleHealthRefresh()
+                // Sync pending music events before going to background
+                if settings.musicLoggingEnabled {
+                    Task { await MusicService.shared.syncPendingEvents() }
+                }
             } else if newPhase == .active {
                 SyncCoordinator.shared.syncAll(force: true)
+                // Start music observer if enabled
+                if settings.musicLoggingEnabled {
+                    MusicService.shared.startObserving()
+                }
+            } else if newPhase == .inactive {
+                // Stop observing when app becomes inactive
+                if settings.musicLoggingEnabled {
+                    MusicService.shared.stopObserving()
+                }
             }
         }
     }

@@ -44,6 +44,8 @@
 	<string>Nexus reads your calendar events to track meeting hours and help you understand your time allocation.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
 	<string>Nexus syncs your reminders bidirectionally to track tasks and integrate with your daily dashboard.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Nexus logs your listening history to correlate music with mood, energy, and health data.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -676,6 +676,17 @@ extension NexusAPI {
         let request = HomeControlRequest(action: action, entityId: entityId, brightness: brightness)
         return try await post("/webhook/nexus-home-control", body: request)
     }
+
+    // MARK: - Music
+
+    func logMusicEvents(_ events: [ListeningEvent]) async throws -> MusicEventsResponse {
+        let request = MusicEventsRequest(events: events)
+        return try await post("/webhook/nexus-music-events", body: request)
+    }
+
+    func fetchMusicHistory(limit: Int = 20) async throws -> MusicHistoryResponse {
+        return try await get("/webhook/nexus-music-history?limit=\(limit)")
+    }
 }
 
 // MARK: - Sleep/Recovery Models

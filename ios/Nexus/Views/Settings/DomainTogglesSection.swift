@@ -18,6 +18,9 @@ struct DomainTogglesSection: View {
             Toggle(isOn: $settings.calendarSyncEnabled) {
                 Label("Calendar", systemImage: "calendar")
             }
+            Toggle(isOn: $settings.musicLoggingEnabled) {
+                Label("Music Logging", systemImage: "music.note")
+            }
         } header: {
             Text("Domain Sync")
         } footer: {

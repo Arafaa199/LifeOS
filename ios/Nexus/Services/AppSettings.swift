@@ -30,6 +30,9 @@ class AppSettings: ObservableObject {
     @Published var documentsSyncEnabled: Bool {
         didSet { UserDefaults.standard.set(documentsSyncEnabled, forKey: "documentsSyncEnabled") }
     }
+    @Published var musicLoggingEnabled: Bool {
+        didSet { UserDefaults.standard.set(musicLoggingEnabled, forKey: "musicLoggingEnabled") }
+    }
 
     private init() {
         self.defaultCurrency = UserDefaults.standard.string(forKey: "defaultCurrency") ?? "AED"
@@ -42,6 +45,8 @@ class AppSettings: ObservableObject {
         self.healthKitSyncEnabled = UserDefaults.standard.object(forKey: "healthKitSyncEnabled") as? Bool ?? true
         self.calendarSyncEnabled = UserDefaults.standard.object(forKey: "calendarSyncEnabled") as? Bool ?? true
         self.documentsSyncEnabled = UserDefaults.standard.object(forKey: "documentsSyncEnabled") as? Bool ?? true
+        // Music logging defaults to false (opt-in)
+        self.musicLoggingEnabled = UserDefaults.standard.object(forKey: "musicLoggingEnabled") as? Bool ?? false
     }
 
     // Currency display helpers

@@ -17,6 +17,15 @@ struct MoreView: View {
                             subtitle: "Passports, visas, IDs"
                         )
                     }
+
+                    NavigationLink(destination: MusicView()) {
+                        SettingsRow(
+                            icon: "music.note",
+                            iconColor: .pink,
+                            title: "Music",
+                            subtitle: "Listening activity"
+                        )
+                    }
                 }
 
                 Section("App") {
