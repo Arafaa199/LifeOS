@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct WaterLogView: View {
     @StateObject private var viewModel = NutritionViewModel()
@@ -9,6 +10,9 @@ struct WaterLogView: View {
     @State private var lastLoggedAmount: Int = 0
 
     @Environment(\.dismiss) private var dismiss
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+    private let successHaptics = UINotificationFeedbackGenerator()
 
     private let presets: [(String, Int)] = [
         ("Glass", 250),
@@ -215,6 +219,7 @@ struct WaterLogView: View {
     // MARK: - Actions
 
     private func logWater(_ amount: Int) {
+        haptics.impactOccurred()
         isLogging = true
         lastLoggedAmount = amount
 
@@ -223,8 +228,11 @@ struct WaterLogView: View {
             isLogging = false
 
             if success {
+                successHaptics.notificationOccurred(.success)
                 showSuccess = true
                 await viewModel.loadHistory()
+            } else {
+                successHaptics.notificationOccurred(.error)
             }
         }
     }

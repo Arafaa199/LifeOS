@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import os
 
 struct MoodLogView: View {
@@ -11,6 +12,8 @@ struct MoodLogView: View {
 
     @Environment(\.dismiss) private var dismiss
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "mood")
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+    private let successHaptics = UINotificationFeedbackGenerator()
 
     private let moodEmojis = ["😫", "😢", "😔", "😐", "🙂", "😊", "😄", "😁", "🤩", "🥳"]
     private let energyEmojis = ["🪫", "😴", "🥱", "😑", "😐", "🙂", "😀", "💪", "⚡️", "🔥"]
@@ -163,6 +166,7 @@ struct MoodLogView: View {
     // MARK: - Actions
 
     private func logMood() {
+        haptics.impactOccurred()
         isLogging = true
 
         Task {
@@ -174,12 +178,15 @@ struct MoodLogView: View {
                 )
 
                 if response.success {
+                    successHaptics.notificationOccurred(.success)
                     logger.info("Logged mood: \(moodScore), energy: \(energyScore)")
                     showSuccess = true
                 } else {
+                    successHaptics.notificationOccurred(.error)
                     errorMessage = response.message ?? "Failed to log mood"
                 }
             } catch {
+                successHaptics.notificationOccurred(.error)
                 logger.error("Failed to log mood: \(error.localizedDescription)")
                 errorMessage = error.localizedDescription
             }

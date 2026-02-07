@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Fasting timer card with start/break button and passive IF tracking
 struct FastingCardView: View {
@@ -6,6 +7,8 @@ struct FastingCardView: View {
     let fastingElapsed: String
     let isLoading: Bool
     let onToggle: () -> Void
+
+    private let haptics = UIImpactFeedbackGenerator(style: .medium)
 
     var body: some View {
         VStack(spacing: 12) {
@@ -67,6 +70,7 @@ struct FastingCardView: View {
 
                 // Action button
                 Button {
+                    haptics.impactOccurred()
                     onToggle()
                 } label: {
                     Text(fasting?.isActive == true ? "Break" : "Start")
