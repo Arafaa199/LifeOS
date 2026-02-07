@@ -175,6 +175,24 @@ class NexusAPI: ObservableObject {
         try await post("/webhook/nexus-workout", body: request)
     }
 
+    // MARK: - Notes
+
+    func searchNotes(query: String? = nil, tag: String? = nil, limit: Int = 50) async throws -> NotesSearchResponse {
+        var params: [String] = []
+        if let query = query, !query.isEmpty {
+            let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+            params.append("q=\(encoded)")
+        }
+        if let tag = tag, !tag.isEmpty {
+            let encoded = tag.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tag
+            params.append("tag=\(encoded)")
+        }
+        params.append("limit=\(limit)")
+
+        let queryString = params.joined(separator: "&")
+        return try await get("/webhook/nexus-notes-search?\(queryString)")
+    }
+
     // MARK: - Finance Methods
 
     func logExpense(_ text: String) async throws -> FinanceResponse {

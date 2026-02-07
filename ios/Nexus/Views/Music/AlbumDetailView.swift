@@ -72,9 +72,9 @@ struct AlbumDetailView: View {
                         Text("•")
                         Text(genre)
                     }
-                    if let trackCount = album.trackCount {
+                    if album.trackCount > 0 {
                         Text("•")
-                        Text("\(trackCount) songs")
+                        Text("\(album.trackCount) songs")
                     }
                 }
                 .font(.caption)
@@ -139,8 +139,8 @@ struct AlbumDetailView: View {
                     .font(.body)
                     .lineLimit(1)
 
-                if let artistName = track.artistName, artistName != album.artistName {
-                    Text(artistName)
+                if track.artistName != album.artistName {
+                    Text(track.artistName)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

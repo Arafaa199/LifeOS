@@ -28,6 +28,15 @@ struct MoreView: View {
                         )
                     }
 
+                    NavigationLink(destination: NotesView()) {
+                        SettingsRow(
+                            icon: "note.text",
+                            iconColor: .purple,
+                            title: "Notes",
+                            subtitle: "Obsidian vault search"
+                        )
+                    }
+
                     NavigationLink(destination: MedicationsView()) {
                         SettingsRow(
                             icon: "pills.fill",
