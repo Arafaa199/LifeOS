@@ -367,7 +367,11 @@ class ReminderSyncService: ObservableObject {
                 return newCal
             }
         }
-        return eventStore.defaultCalendarForNewReminders() ?? eventStore.calendars(for: .reminder).first!
+        guard let calendar = eventStore.defaultCalendarForNewReminders() ?? eventStore.calendars(for: .reminder).first else {
+            logger.error("[ReminderSync] No reminder calendar available")
+            fatalError("No reminder calendar available - this should not happen on iOS")
+        }
+        return calendar
     }
 
     private func parseISO8601(_ string: String) -> Date? {

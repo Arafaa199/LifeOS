@@ -106,11 +106,7 @@ class DocumentsViewModel: ObservableObject {
                 documents.append(newDoc)
             }
 
-            do {
-                await loadDocuments()
-            } catch {
-                logger.warning("Refresh after create failed: \(error.localizedDescription)")
-            }
+            await loadDocuments()
             return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription
@@ -154,11 +150,7 @@ class DocumentsViewModel: ObservableObject {
                 documents[index] = updatedDoc
             }
 
-            do {
-                await loadDocuments()
-            } catch {
-                logger.warning("Refresh after update failed: \(error.localizedDescription)")
-            }
+            await loadDocuments()
             return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription
@@ -197,11 +189,7 @@ class DocumentsViewModel: ObservableObject {
                 documents[index] = renewedDoc
             }
 
-            do {
-                await loadDocuments()
-            } catch {
-                logger.warning("Refresh after renew failed: \(error.localizedDescription)")
-            }
+            await loadDocuments()
             return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription

@@ -16,7 +16,12 @@ class BackgroundTaskManager {
             forTaskWithIdentifier: Self.healthRefreshTaskIdentifier,
             using: nil
         ) { task in
-            self.handleHealthRefresh(task: task as! BGAppRefreshTask)
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                logger.error("Unexpected task type: \(type(of: task))")
+                task.setTaskCompleted(success: false)
+                return
+            }
+            self.handleHealthRefresh(task: refreshTask)
         }
     }
 

@@ -204,7 +204,9 @@ struct TodayView: View {
             do {
                 if isActive { try await viewModel.breakFast() }
                 else { try await viewModel.startFast() }
-            } catch {}
+            } catch {
+                viewModel.errorMessage = "Failed to toggle fasting: \(error.localizedDescription)"
+            }
             isFastingLoading = false
         }
     }

@@ -542,9 +542,12 @@ class FinanceViewModel: ObservableObject {
                 let response = try await api.fetchRecurringItems()
                 if response.success, let items = response.data {
                     recurringItems = items
+                } else {
+                    logger.warning("Failed to load recurring items: empty response")
                 }
             } catch {
                 logger.warning("Failed to load recurring items: \(error.localizedDescription)")
+                errorMessage = error.localizedDescription
             }
         }
     }

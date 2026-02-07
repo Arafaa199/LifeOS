@@ -9,6 +9,9 @@ struct SettingsView: View {
     @State private var showingSaveConfirmation = false
     var embedded: Bool = false
 
+    private static let docsURL = URL(string: "https://github.com/Arafaa199/LifeOS")!
+    private static let issuesURL = URL(string: "https://github.com/Arafaa199/LifeOS/issues")!
+
     @ViewBuilder
     var body: some View {
         if embedded {
@@ -153,7 +156,7 @@ struct SettingsView: View {
                 value: versionString
             )
 
-            Link(destination: URL(string: "https://github.com/Arafaa199/LifeOS")!) {
+            Link(destination: Self.docsURL) {
                 SettingsRow(
                     icon: "book",
                     iconColor: .nexusPrimary,
@@ -163,7 +166,7 @@ struct SettingsView: View {
                 )
             }
 
-            Link(destination: URL(string: "https://github.com/Arafaa199/LifeOS/issues")!) {
+            Link(destination: Self.issuesURL) {
                 SettingsRow(
                     icon: "exclamationmark.bubble",
                     iconColor: .nexusWarning,

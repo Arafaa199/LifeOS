@@ -1,6 +1,9 @@
 import Foundation
 import HealthKit
 import Combine
+import os
+
+private let logger = Logger(subsystem: "com.nexus.app", category: "healthkit")
 
 @MainActor
 class HealthKitManager: ObservableObject {
@@ -126,7 +129,7 @@ class HealthKitManager: ObservableObject {
             // Query completed without error — access is working
             markQuerySuccess()
         } catch {
-            // Query failed — permissions may be denied
+            logger.debug("Auth probe query failed (permissions may be denied): \(error.localizedDescription)")
         }
     }
 
@@ -188,7 +191,9 @@ class HealthKitManager: ObservableObject {
             throw HealthKitError.notAvailable
         }
 
-        let startDate = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
+        guard let startDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) else {
+            throw HealthKitError.queryFailed("Failed to calculate start date")
+        }
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date())
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
@@ -376,7 +381,9 @@ class HealthKitManager: ObservableObject {
 
         // Look back 24 hours for sleep data
         let endDate = Date()
-        let startDate = Calendar.current.date(byAdding: .hour, value: -24, to: endDate)!
+        guard let startDate = Calendar.current.date(byAdding: .hour, value: -24, to: endDate) else {
+            throw HealthKitError.queryFailed("Failed to calculate start date")
+        }
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate)
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
@@ -602,7 +609,7 @@ class HealthKitManager: ObservableObject {
                 await syncWorkoutToNexus(workout)
             }
         } catch {
-            // Silent fail - workouts are non-critical
+            logger.debug("Workout sync query failed (non-critical): \(error.localizedDescription)")
         }
     }
 
@@ -658,7 +665,7 @@ class HealthKitManager: ObservableObject {
         do {
             _ = try await NexusAPI.shared.logWorkout(request)
         } catch {
-            // Silent fail - individual workout sync failures are not critical
+            logger.debug("Individual workout sync failed (non-critical): \(error.localizedDescription)")
         }
     }
 
@@ -774,6 +781,7 @@ enum HealthKitError: LocalizedError {
     case notAvailable
     case notAuthorized
     case noData
+    case queryFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -783,6 +791,8 @@ enum HealthKitError: LocalizedError {
             return "HealthKit access not authorized"
         case .noData:
             return "No health data found"
+        case .queryFailed(let reason):
+            return "Query failed: \(reason)"
         }
     }
 }

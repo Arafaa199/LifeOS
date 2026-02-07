@@ -79,9 +79,13 @@ class CalendarSyncService: ObservableObject {
 
     private func fetchEvents() -> [CalendarEvent] {
         let calendar = Constants.Dubai.calendar
+        let now = Date()
 
-        let startDate = calendar.date(byAdding: .day, value: -30, to: Date())!
-        let endDate = calendar.date(byAdding: .day, value: 7, to: Date())!
+        guard let startDate = calendar.date(byAdding: .day, value: -30, to: now),
+              let endDate = calendar.date(byAdding: .day, value: 7, to: now) else {
+            logger.error("Failed to calculate date range for calendar sync")
+            return []
+        }
 
         let predicate = eventStore.predicateForEvents(
             withStart: startDate,
