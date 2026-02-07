@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+import os
+
+private let logger = Logger(subsystem: "com.nexus", category: "FinanceActivity")
 
 struct FinanceActivityView: View {
     @ObservedObject var viewModel: FinanceViewModel
@@ -248,9 +251,7 @@ struct FinanceActivityView: View {
             csvURL = tempURL
             showingExport = true
         } catch {
-            #if DEBUG
-            print("Failed to write CSV: \(error)")
-            #endif
+            logger.error("Failed to write CSV: \(error.localizedDescription)")
         }
     }
 

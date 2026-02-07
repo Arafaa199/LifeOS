@@ -1,5 +1,8 @@
 import SwiftUI
 import Charts
+import os
+
+private let logger = Logger(subsystem: "com.nexus", category: "MonthlyTrends")
 
 struct MonthlyTrendsView: View {
     @Environment(\.dismiss) var dismiss
@@ -238,9 +241,7 @@ struct MonthlyTrendsView: View {
                 monthlyData = data.monthlySpending
             }
         } catch {
-            #if DEBUG
-            print("Failed to load monthly trends: \(error)")
-            #endif
+            logger.error("Failed to load monthly trends: \(error.localizedDescription)")
         }
 
         isLoading = false
