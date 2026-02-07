@@ -99,6 +99,9 @@ struct TodayView: View {
                         // -- Mood --
                         MoodCardView(mood: viewModel.dashboardPayload?.moodToday)
 
+                        // -- Medications --
+                        MedicationsCardView(medications: viewModel.dashboardPayload?.medicationsToday)
+
                         // -- Insights --
                         if !insightsEmpty {
                             todaySectionHeader("Insights")
