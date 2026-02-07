@@ -1,0 +1,302 @@
+{
+  "name": "Nexus: Receipts API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-receipts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "get-receipts",
+      "name": "GET Receipts",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 100],
+      "webhookId": "nexus-receipts-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT r.id, r.vendor, r.store_name, r.receipt_date::text, r.total_amount, r.currency, r.parse_status, r.linked_transaction_id, COUNT(ri.id) as item_count, COUNT(ri.matched_food_id) as matched_count FROM finance.receipts r LEFT JOIN finance.receipt_items ri ON ri.receipt_id = r.id WHERE r.parse_status = 'success' GROUP BY r.id ORDER BY r.receipt_date DESC LIMIT 50;",
+        "options": {}
+      },
+      "id": "fetch-receipts",
+      "name": "Fetch Receipts",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 100],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, receipts: $input.all().map(i => i.json), count: $input.all().length }) }}"
+      },
+      "id": "respond-receipts",
+      "name": "Respond Receipts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 100],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-receipt-detail",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "get-receipt-detail",
+      "name": "GET Receipt Detail",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 400],
+      "webhookId": "nexus-receipt-detail-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst id = input.query?.id;\nif (!id) throw new Error('id query param is required');\nreturn { id: parseInt(id) };"
+      },
+      "id": "parse-detail-id",
+      "name": "Parse ID",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 400],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT id, vendor, store_name, store_address, receipt_date::text, receipt_time::text, invoice_number, subtotal, vat_amount, total_amount, currency, linked_transaction_id, link_method FROM finance.receipts WHERE id = {{ $json.id }};",
+        "options": {}
+      },
+      "id": "fetch-receipt-header",
+      "name": "Fetch Receipt Header",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 400],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT ri.id, ri.line_number, ri.item_description, ri.item_description_clean, ri.quantity, ri.unit, ri.unit_price, ri.line_total, ri.is_promotional, ri.discount_amount, ri.matched_food_id, ri.match_confidence, ri.is_user_confirmed, f.name as food_name, f.brand as food_brand, f.calories_per_100g, f.protein_per_100g, f.carbs_per_100g, f.fat_per_100g, f.serving_size_g FROM finance.receipt_items ri LEFT JOIN nutrition.foods f ON f.id = ri.matched_food_id WHERE ri.receipt_id = {{ $('Parse ID').item.json.id }} ORDER BY ri.line_number;",
+        "options": {}
+      },
+      "id": "fetch-receipt-items",
+      "name": "Fetch Receipt Items",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 550],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": []
+        },
+        "options": {}
+      },
+      "id": "merge-receipt-data",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "position": [900, 475],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "const header = $('Fetch Receipt Header').first().json;\nconst items = $('Fetch Receipt Items').all().map(i => i.json);\n\nreturn {\n  success: true,\n  receipt: {\n    ...header,\n    items: items\n  }\n};"
+      },
+      "id": "build-response",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 475],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "respond-detail",
+      "name": "Respond Detail",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1340, 475],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-receipt-item-match",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "post-item-match",
+      "name": "POST Item Match",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 800],
+      "webhookId": "nexus-receipt-item-match-post",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\nif (!input.item_id || !input.food_id) {\n  throw new Error('item_id and food_id are required');\n}\nreturn {\n  item_id: parseInt(input.item_id),\n  food_id: parseInt(input.food_id),\n  is_user_confirmed: input.is_user_confirmed !== false\n};"
+      },
+      "id": "parse-match",
+      "name": "Parse Match",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 800],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE finance.receipt_items SET matched_food_id = {{ $json.food_id }}, match_confidence = 1.00, is_user_confirmed = {{ $json.is_user_confirmed }}, nutrition_snapshot = (SELECT jsonb_build_object('calories_per_100g', calories_per_100g, 'protein_per_100g', protein_per_100g, 'carbs_per_100g', carbs_per_100g, 'fat_per_100g', fat_per_100g) FROM nutrition.foods WHERE id = {{ $json.food_id }}) WHERE id = {{ $json.item_id }} RETURNING id, matched_food_id, match_confidence, is_user_confirmed;",
+        "options": {}
+      },
+      "id": "update-match",
+      "name": "Update Match",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 800],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, item: $json } }}"
+      },
+      "id": "respond-match",
+      "name": "Respond Match",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 800],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-receipt-nutrition",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "get-nutrition",
+      "name": "GET Nutrition",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 1100],
+      "webhookId": "nexus-receipt-nutrition-get",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst id = input.query?.id;\nif (!id) throw new Error('id query param is required');\nreturn { id: parseInt(id) };"
+      },
+      "id": "parse-nutrition-id",
+      "name": "Parse Nutrition ID",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 1100],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT COUNT(*) as total_items, COUNT(ri.matched_food_id) as matched_items, COALESCE(SUM(CASE WHEN ri.matched_food_id IS NOT NULL THEN (ri.nutrition_snapshot->>'calories_per_100g')::numeric * COALESCE(ri.quantity, 1) * COALESCE(f.serving_size_g, 100) / 100 END), 0) as total_calories, COALESCE(SUM(CASE WHEN ri.matched_food_id IS NOT NULL THEN (ri.nutrition_snapshot->>'protein_per_100g')::numeric * COALESCE(ri.quantity, 1) * COALESCE(f.serving_size_g, 100) / 100 END), 0) as total_protein, COALESCE(SUM(CASE WHEN ri.matched_food_id IS NOT NULL THEN (ri.nutrition_snapshot->>'carbs_per_100g')::numeric * COALESCE(ri.quantity, 1) * COALESCE(f.serving_size_g, 100) / 100 END), 0) as total_carbs, COALESCE(SUM(CASE WHEN ri.matched_food_id IS NOT NULL THEN (ri.nutrition_snapshot->>'fat_per_100g')::numeric * COALESCE(ri.quantity, 1) * COALESCE(f.serving_size_g, 100) / 100 END), 0) as total_fat FROM finance.receipt_items ri LEFT JOIN nutrition.foods f ON f.id = ri.matched_food_id WHERE ri.receipt_id = {{ $json.id }};",
+        "options": {}
+      },
+      "id": "calc-nutrition",
+      "name": "Calculate Nutrition",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 1100],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, nutrition: $json } }}"
+      },
+      "id": "respond-nutrition",
+      "name": "Respond Nutrition",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 1100],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "GET Receipts": {
+      "main": [[{"node": "Fetch Receipts", "type": "main", "index": 0}]]
+    },
+    "Fetch Receipts": {
+      "main": [[{"node": "Respond Receipts", "type": "main", "index": 0}]]
+    },
+    "GET Receipt Detail": {
+      "main": [[{"node": "Parse ID", "type": "main", "index": 0}]]
+    },
+    "Parse ID": {
+      "main": [
+        [
+          {"node": "Fetch Receipt Header", "type": "main", "index": 0},
+          {"node": "Fetch Receipt Items", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Fetch Receipt Header": {
+      "main": [[{"node": "Merge", "type": "main", "index": 0}]]
+    },
+    "Fetch Receipt Items": {
+      "main": [[{"node": "Merge", "type": "main", "index": 1}]]
+    },
+    "Merge": {
+      "main": [[{"node": "Build Response", "type": "main", "index": 0}]]
+    },
+    "Build Response": {
+      "main": [[{"node": "Respond Detail", "type": "main", "index": 0}]]
+    },
+    "POST Item Match": {
+      "main": [[{"node": "Parse Match", "type": "main", "index": 0}]]
+    },
+    "Parse Match": {
+      "main": [[{"node": "Update Match", "type": "main", "index": 0}]]
+    },
+    "Update Match": {
+      "main": [[{"node": "Respond Match", "type": "main", "index": 0}]]
+    },
+    "GET Nutrition": {
+      "main": [[{"node": "Parse Nutrition ID", "type": "main", "index": 0}]]
+    },
+    "Parse Nutrition ID": {
+      "main": [[{"node": "Calculate Nutrition", "type": "main", "index": 0}]]
+    },
+    "Calculate Nutrition": {
+      "main": [[{"node": "Respond Nutrition", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{"name": "nexus"}, {"name": "receipts"}, {"name": "nutrition"}]
+}

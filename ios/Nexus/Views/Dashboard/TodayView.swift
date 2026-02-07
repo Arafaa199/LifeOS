@@ -7,7 +7,7 @@ struct TodayView: View {
     @ObservedObject var viewModel: DashboardViewModel
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @StateObject private var offlineQueue = OfflineQueue.shared
-    @StateObject private var homeViewModel = HomeViewModel()
+    @ObservedObject private var homeViewModel = HomeViewModel.shared
     @State private var isFastingLoading = false
     @State private var fastingElapsed: String = "--:--"
     @State private var showingQuickLog = false
@@ -148,15 +148,11 @@ struct TodayView: View {
                 QuickLogView(viewModel: viewModel)
             }
             .sheet(isPresented: $showingHomeControl) {
-                HomeControlView(viewModel: homeViewModel)
+                HomeControlView()
             }
             .onReceive(fastingTimer) { _ in updateFastingElapsed() }
             .onAppear {
                 updateFastingElapsed()
-                Task { await homeViewModel.fetchStatus() }
-            }
-            .onDisappear {
-                homeViewModel.stopAutoRefresh()
             }
         }
     }

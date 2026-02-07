@@ -54,6 +54,29 @@ class CalendarSyncService: ObservableObject {
         }
     }
 
+    /// Ensures calendar access is granted, requesting if needed
+    private func ensureCalendarAccess() async throws {
+        updateAuthorizationStatus()
+
+        switch authorizationStatus {
+        case .fullAccess, .authorized:
+            return // Already have access
+        case .notDetermined:
+            // Request access
+            let granted = await requestAccess()
+            if !granted {
+                throw APIError.custom("Calendar access denied. Please enable Calendar access in Settings > Privacy > Calendars.")
+            }
+        case .writeOnly:
+            // iOS 17+ writeOnly doesn't allow reading calendars, need full access
+            throw APIError.custom("Limited calendar access. Please enable Full Access in Settings > Privacy > Calendars > Nexus.")
+        case .denied, .restricted:
+            throw APIError.custom("Calendar access denied. Please enable Calendar access in Settings > Privacy > Calendars.")
+        @unknown default:
+            throw APIError.custom("Unknown calendar authorization status. Please check Settings > Privacy > Calendars.")
+        }
+    }
+
     // MARK: - Main Sync Entry Point (6-step bidirectional diff)
 
     func syncAllData() async throws {
@@ -238,7 +261,7 @@ class CalendarSyncService: ObservableObject {
 
         if isNewEvent {
             ekEvent = EKEvent(eventStore: eventStore)
-            ekEvent.calendar = defaultCalendar(named: dbRow.calendar_name)
+            ekEvent.calendar = try defaultCalendar(named: dbRow.calendar_name)
         } else if let existing = existingEvents[dbRow.event_id] {
             ekEvent = existing
         } else {
@@ -249,7 +272,7 @@ class CalendarSyncService: ObservableObject {
                 ekEvent = match
             } else {
                 ekEvent = EKEvent(eventStore: eventStore)
-                ekEvent.calendar = defaultCalendar(named: dbRow.calendar_name)
+                ekEvent.calendar = try defaultCalendar(named: dbRow.calendar_name)
             }
         }
 
@@ -321,6 +344,9 @@ class CalendarSyncService: ObservableObject {
     // MARK: - CRUD Operations
 
     func createEvent(title: String, startAt: Date, endAt: Date, isAllDay: Bool = false, calendarName: String? = nil, location: String? = nil, notes: String? = nil) async throws -> EKEvent {
+        // Ensure we have calendar access
+        try await ensureCalendarAccess()
+
         let ekEvent = EKEvent(eventStore: eventStore)
         ekEvent.title = title
         ekEvent.startDate = startAt
@@ -328,7 +354,7 @@ class CalendarSyncService: ObservableObject {
         ekEvent.isAllDay = isAllDay
         ekEvent.location = location
         ekEvent.notes = notes
-        ekEvent.calendar = defaultCalendar(named: calendarName)
+        ekEvent.calendar = try defaultCalendar(named: calendarName)
 
         try eventStore.save(ekEvent, span: .thisEvent)
         logger.info("[CalendarSync] Created event: \(title)")
@@ -340,6 +366,8 @@ class CalendarSyncService: ObservableObject {
     }
 
     func updateEvent(_ event: EKEvent, title: String? = nil, startAt: Date? = nil, endAt: Date? = nil, isAllDay: Bool? = nil, location: String? = nil, notes: String? = nil) async throws {
+        try await ensureCalendarAccess()
+
         if let title = title { event.title = title }
         if let startAt = startAt { event.startDate = startAt }
         if let endAt = endAt { event.endDate = endAt }
@@ -355,6 +383,8 @@ class CalendarSyncService: ObservableObject {
     }
 
     func deleteEvent(_ event: EKEvent) async throws {
+        try await ensureCalendarAccess()
+
         let title = event.title ?? "Untitled"
         try eventStore.remove(event, span: .thisEvent)
         logger.info("[CalendarSync] Deleted event: \(title)")
@@ -408,14 +438,14 @@ class CalendarSyncService: ObservableObject {
         )
     }
 
-    func defaultCalendar(named name: String?) -> EKCalendar {
+    func defaultCalendar(named name: String?) throws -> EKCalendar {
         if let name = name,
            let cal = eventStore.calendars(for: .event).first(where: { $0.title == name && $0.allowsContentModifications }) {
             return cal
         }
         guard let calendar = eventStore.defaultCalendarForNewEvents ?? eventStore.calendars(for: .event).first(where: { $0.allowsContentModifications }) else {
             logger.error("[CalendarSync] No calendar available for writing")
-            fatalError("No calendar available for writing - this should not happen on iOS")
+            throw APIError.custom("No calendar available for writing. Check calendar permissions in Settings.")
         }
         return calendar
     }

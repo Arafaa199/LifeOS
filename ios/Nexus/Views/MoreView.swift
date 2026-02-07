@@ -3,7 +3,8 @@ import SwiftUI
 struct MoreView: View {
     @EnvironmentObject var settings: AppSettings
     @StateObject private var documentsVM = DocumentsViewModel()
-    @StateObject private var homeVM = HomeViewModel()
+    @StateObject private var receiptsVM = ReceiptsViewModel()
+    @ObservedObject private var homeVM = HomeViewModel.shared
 
     var body: some View {
         NavigationView {
@@ -16,6 +17,16 @@ struct MoreView: View {
                             iconColor: .nexusPrimary,
                             title: "Documents",
                             subtitle: "Passports, visas, IDs"
+                        )
+                    }
+
+                    NavigationLink(destination: ReceiptsListView(viewModel: receiptsVM)
+                        .navigationTitle("Receipts")) {
+                        SettingsRow(
+                            icon: "receipt",
+                            iconColor: .nexusFood,
+                            title: "Receipts",
+                            subtitle: "Grocery shopping + nutrition"
                         )
                     }
 
@@ -106,6 +117,15 @@ struct MoreView: View {
                 }
 
                 Section("App") {
+                    NavigationLink(destination: PipelineHealthView()) {
+                        SettingsRow(
+                            icon: "waveform.path.ecg",
+                            iconColor: .nexusSuccess,
+                            title: "Pipeline Health",
+                            subtitle: "Data feeds, sync status"
+                        )
+                    }
+
                     NavigationLink(destination: SettingsView(embedded: true)) {
                         SettingsRow(
                             icon: "gearshape.fill",

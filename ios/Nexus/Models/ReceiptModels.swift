@@ -1,92 +1,115 @@
 import Foundation
 
-// MARK: - Receipt Response
+// MARK: - Receipt Summary (List View)
 
-struct ReceiptsResponse: Codable {
-    let success: Bool
-    let receipts: [Receipt]
+struct ReceiptSummary: Codable, Identifiable, Sendable {
+    let id: Int
+    let vendor: String
+    let store_name: String?
+    let receipt_date: String
+    let total_amount: Double
+    let currency: String
+    let parse_status: String?
+    let linked_transaction_id: Int?
+    let item_count: Int
+    let matched_count: Int
 }
 
-// MARK: - Receipt
+struct ReceiptsResponse: Codable, Sendable {
+    let success: Bool
+    let receipts: [ReceiptSummary]
+    let count: Int
+}
 
-struct Receipt: Codable, Identifiable {
+// MARK: - Receipt Detail
+
+struct ReceiptDetail: Codable, Identifiable, Sendable {
     let id: Int
-    let vendor: String?
-    let storeLocation: String?
-    let receiptDate: String?
-    let total: Double
-    let status: String?
-    let createdAt: String?
+    let vendor: String
+    let store_name: String?
+    let store_address: String?
+    let receipt_date: String
+    let receipt_time: String?
+    let invoice_number: String?
+    let subtotal: Double?
+    let vat_amount: Double?
+    let total_amount: Double
+    let currency: String
+    let linked_transaction_id: Int?
+    let link_method: String?
     let items: [ReceiptItem]
+}
 
-    var displayDate: String {
-        guard let dateStr = receiptDate ?? createdAt else { return "Unknown" }
-
-        let isoFormatter = ISO8601DateFormatter()
-        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-        if let date = isoFormatter.date(from: dateStr) {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .none
-            return formatter.string(from: date)
-        }
-
-        // Try without fractional seconds
-        isoFormatter.formatOptions = [.withInternetDateTime]
-        if let date = isoFormatter.date(from: dateStr) {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .none
-            return formatter.string(from: date)
-        }
-
-        // Fallback: just return date portion
-        return String(dateStr.prefix(10))
-    }
-
-    var displayVendor: String {
-        vendor ?? "Unknown Store"
-    }
-
-    var itemCount: Int {
-        items.count
-    }
+struct ReceiptDetailResponse: Codable, Sendable {
+    let success: Bool
+    let receipt: ReceiptDetail
 }
 
 // MARK: - Receipt Item
 
-struct ReceiptItem: Codable, Identifiable {
+struct ReceiptItem: Codable, Identifiable, Sendable {
     let id: Int
-    let name: String?
-    let brand: String?
-    let qty: Double?
-    let unitPrice: Double?
-    let total: Double?
-    let category: String?
+    let line_number: Int?
+    let item_description: String
+    let item_description_clean: String?
+    let quantity: Double?
+    let unit: String?
+    let unit_price: Double?
+    let line_total: Double
+    let is_promotional: Bool?
+    let discount_amount: Double?
+    let matched_food_id: Int?
+    let match_confidence: Double?
+    let is_user_confirmed: Bool?
+    let food_name: String?
+    let food_brand: String?
+    let calories_per_100g: Double?
+    let protein_per_100g: Double?
+    let carbs_per_100g: Double?
+    let fat_per_100g: Double?
+    let serving_size_g: Double?
 
-    enum CodingKeys: String, CodingKey {
-        case id, name, brand, qty, total, category
-        case unitPrice = "unit_price"
+    var isMatched: Bool {
+        matched_food_id != nil
     }
 
-    var displayName: String {
-        if let brand = brand, !brand.isEmpty, brand != name {
-            return "\(brand) - \(name ?? "Item")"
-        }
-        return name ?? "Unknown Item"
+    var displayDescription: String {
+        item_description_clean ?? item_description
     }
+}
 
-    var displayQty: String {
-        guard let qty = qty, qty > 1 else { return "" }
-        if qty == qty.rounded() {
-            return "\(Int(qty))x"
-        }
-        return String(format: "%.2fx", qty)
-    }
+// MARK: - Item Match
 
-    var displayTotal: String {
-        guard let total = total else { return "" }
-        return String(format: "%.2f AED", total)
-    }
+struct ReceiptItemMatchRequest: Codable, Sendable {
+    let item_id: Int
+    let food_id: Int
+    let is_user_confirmed: Bool
+}
+
+struct ReceiptItemMatchResponse: Codable, Sendable {
+    let success: Bool
+    let item: ReceiptItemMatchResult?
+}
+
+struct ReceiptItemMatchResult: Codable, Sendable {
+    let id: Int
+    let matched_food_id: Int
+    let match_confidence: Double
+    let is_user_confirmed: Bool
+}
+
+// MARK: - Nutrition Summary
+
+struct ReceiptNutritionResponse: Codable, Sendable {
+    let success: Bool
+    let nutrition: ReceiptNutritionSummary
+}
+
+struct ReceiptNutritionSummary: Codable, Sendable {
+    let total_items: Int
+    let matched_items: Int
+    let total_calories: Double
+    let total_protein: Double
+    let total_carbs: Double
+    let total_fat: Double
 }

@@ -158,35 +158,21 @@ struct DeviceIndicator: View {
 
 #Preview {
     VStack(spacing: 20) {
-        // With data
-        HomeStatusCard(viewModel: {
-            let vm = HomeViewModel()
-            vm.homeStatus = HomeStatus(
-                lights: ["hue": LightState(entityId: "light.hue", state: "on", brightness: 200, brightnessPct: 80)],
-                switches: [
-                    "left_monitor": SwitchState(entityId: "switch.left", state: "off"),
-                    "right_monitor": SwitchState(entityId: "switch.right", state: "off")
-                ],
-                vacuum: VacuumState(entityId: "vacuum.eufy", state: "docked", battery: 87, fanSpeed: "standard"),
-                camera: CameraState(entityId: "camera.ezviz", state: "idle", sleeping: false),
-                presence: nil
-            )
-            return vm
-        }())
-
-        // Loading
-        HomeStatusCard(viewModel: {
-            let vm = HomeViewModel()
-            vm.isLoading = true
-            return vm
-        }())
-
-        // Error
-        HomeStatusCard(viewModel: {
-            let vm = HomeViewModel()
-            vm.errorMessage = "Unable to connect"
-            return vm
-        }())
+        // Uses shared instance - status shown will be current runtime state
+        HomeStatusCard(viewModel: HomeViewModel.shared)
     }
     .padding()
+    .onAppear {
+        // Set mock data for preview
+        HomeViewModel.shared.homeStatus = HomeStatus(
+            lights: ["hue": LightState(entityId: "light.hue", state: "on", brightness: 200, brightnessPct: 80)],
+            switches: [
+                "left_monitor": SwitchState(entityId: "switch.left", state: "off"),
+                "right_monitor": SwitchState(entityId: "switch.right", state: "off")
+            ],
+            vacuum: VacuumState(entityId: "vacuum.eufy", state: "docked", battery: 87, fanSpeed: "standard"),
+            camera: CameraState(entityId: "camera.ezviz", state: "idle", sleeping: false),
+            presence: nil
+        )
+    }
 }

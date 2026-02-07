@@ -20,6 +20,14 @@ class ReminderSyncService: ObservableObject {
     private let lastSyncKey = "reminders_last_sync_date"
     private let isoFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        f.timeZone = Constants.Dubai.timeZone
+        return f
+    }()
+
+    private let isoFormatterNoFrac: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
         f.timeZone = Constants.Dubai.timeZone
         return f
     }()
@@ -250,7 +258,7 @@ class ReminderSyncService: ObservableObject {
 
         if isNewReminder {
             ekReminder = EKReminder(eventStore: eventStore)
-            ekReminder.calendar = defaultReminderCalendar(named: dbRow.list_name)
+            ekReminder.calendar = try defaultReminderCalendar(named: dbRow.list_name)
         } else if let existing = existingReminders[dbRow.reminder_id] {
             ekReminder = existing
         } else {
@@ -261,7 +269,7 @@ class ReminderSyncService: ObservableObject {
                 ekReminder = match
             } else {
                 ekReminder = EKReminder(eventStore: eventStore)
-                ekReminder.calendar = defaultReminderCalendar(named: dbRow.list_name)
+                ekReminder.calendar = try defaultReminderCalendar(named: dbRow.list_name)
             }
         }
 
@@ -352,7 +360,7 @@ class ReminderSyncService: ObservableObject {
         )
     }
 
-    private func defaultReminderCalendar(named name: String?) -> EKCalendar {
+    private func defaultReminderCalendar(named name: String?) throws -> EKCalendar {
         if let name = name,
            let cal = eventStore.calendars(for: .reminder).first(where: { $0.title == name }) {
             return cal
@@ -369,13 +377,13 @@ class ReminderSyncService: ObservableObject {
         }
         guard let calendar = eventStore.defaultCalendarForNewReminders() ?? eventStore.calendars(for: .reminder).first else {
             logger.error("[ReminderSync] No reminder calendar available")
-            fatalError("No reminder calendar available - this should not happen on iOS")
+            throw APIError.custom("No reminder calendar available. Check Reminders permissions in Settings.")
         }
         return calendar
     }
 
     private func parseISO8601(_ string: String) -> Date? {
-        isoFormatter.date(from: string)
+        isoFormatter.date(from: string) ?? isoFormatterNoFrac.date(from: string)
     }
 }
 

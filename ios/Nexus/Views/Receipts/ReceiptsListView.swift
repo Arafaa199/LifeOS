@@ -1,0 +1,179 @@
+import SwiftUI
+
+struct ReceiptsListView: View {
+    @ObservedObject var viewModel: ReceiptsViewModel
+    @State private var selectedReceipt: ReceiptSummary?
+
+    var body: some View {
+        Group {
+            if viewModel.isLoading && viewModel.receipts.isEmpty {
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("Loading receipts...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.receipts.isEmpty {
+                emptyState
+            } else {
+                receiptList
+            }
+        }
+        .sheet(item: $selectedReceipt) { receipt in
+            NavigationView {
+                ReceiptDetailView(viewModel: viewModel, receiptId: receipt.id)
+            }
+        }
+        .refreshable {
+            await viewModel.loadReceipts()
+        }
+        .task {
+            if viewModel.receipts.isEmpty {
+                await viewModel.loadReceipts()
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "receipt")
+                .font(.system(size: 56))
+                .foregroundColor(.secondary)
+                .padding(.top, 40)
+
+            VStack(spacing: 8) {
+                Text("No Receipts Yet")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Text("Your grocery receipts from Carrefour and other stores will appear here.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+
+                Text("Link items to foods for nutrition tracking.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var receiptList: some View {
+        List {
+            if let error = viewModel.errorMessage, !error.isEmpty {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.nexusWarning)
+                            .imageScale(.medium)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sync Issue")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            Text(error)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            ForEach(viewModel.receiptsByMonth, id: \.0) { monthKey, receipts in
+                Section(viewModel.formatMonthHeader(monthKey)) {
+                    ForEach(receipts) { receipt in
+                        ReceiptSummaryRow(receipt: receipt)
+                            .onTapGesture { selectedReceipt = receipt }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.nexusBackground)
+    }
+}
+
+struct ReceiptSummaryRow: View {
+    let receipt: ReceiptSummary
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "receipt")
+                .font(.title3)
+                .foregroundColor(.nexusPrimary)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(receipt.store_name ?? receipt.vendor)
+                    .font(.body)
+                    .fontWeight(.medium)
+
+                Text(formatDate(receipt.receipt_date))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formatAmount(receipt.total_amount, currency: receipt.currency))
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+
+                MatchBadge(matched: receipt.matched_count, total: receipt.item_count)
+            }
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(receipt.store_name ?? receipt.vendor), \(formatDate(receipt.receipt_date)), \(formatAmount(receipt.total_amount, currency: receipt.currency))")
+    }
+
+    private func formatDate(_ dateStr: String) -> String {
+        let input = DateFormatter()
+        input.dateFormat = "yyyy-MM-dd"
+        guard let date = input.date(from: dateStr) else { return dateStr }
+        let output = DateFormatter()
+        output.dateStyle = .medium
+        return output.string(from: date)
+    }
+
+    private func formatAmount(_ amount: Double, currency: String) -> String {
+        if currency == "AED" {
+            return String(format: "%.2f AED", amount)
+        }
+        return String(format: "%.2f %@", amount, currency)
+    }
+}
+
+struct MatchBadge: View {
+    let matched: Int
+    let total: Int
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if matched > 0 {
+                Image(systemName: "leaf.fill")
+                    .font(.caption2)
+                    .foregroundColor(.nexusFood)
+            }
+            Text("\(matched)/\(total)")
+                .font(.caption)
+                .foregroundColor(matched > 0 ? .nexusFood : .secondary)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(matched > 0 ? Color.nexusFood.opacity(0.15) : Color.secondary.opacity(0.1))
+        .clipShape(Capsule())
+    }
+}

@@ -76,9 +76,9 @@ struct FinanceSettingsView: View {
             }
 
             Section("Data Sources") {
-                NavigationLink(destination: ReceiptsView()) {
+                NavigationLink(destination: ReceiptsListView(viewModel: ReceiptsViewModel())) {
                     HStack {
-                        Image(systemName: "doc.text")
+                        Image(systemName: "receipt")
                             .foregroundColor(.nexusFinance)
                             .frame(width: 24)
                         Text("Receipts")

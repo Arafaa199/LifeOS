@@ -26,7 +26,6 @@ struct SettingsView: View {
     private var settingsList: some View {
         List {
             SyncStatusSection(coordinator: coordinator)
-            PipelineHealthSection(coordinator: coordinator)
             DomainTogglesSection(settings: settings)
             SyncIssuesSection(offlineQueue: offlineQueue)
 
