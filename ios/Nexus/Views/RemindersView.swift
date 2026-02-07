@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import os
 
 struct RemindersView: View {
@@ -10,6 +11,8 @@ struct RemindersView: View {
     @State private var showCompleted = false
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "reminders")
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+    private let successHaptics = UINotificationFeedbackGenerator()
 
     var body: some View {
         Group {
@@ -27,6 +30,7 @@ struct RemindersView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 HStack(spacing: 12) {
                     Button {
+                        haptics.impactOccurred()
                         showCompleted.toggle()
                     } label: {
                         Image(systemName: showCompleted ? "eye.fill" : "eye.slash")
@@ -34,6 +38,7 @@ struct RemindersView: View {
                     .accessibilityLabel(showCompleted ? "Hide completed" : "Show completed")
 
                     Button {
+                        haptics.impactOccurred()
                         Task { await syncReminders() }
                     } label: {
                         Image(systemName: syncService.isSyncing ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath")
@@ -43,7 +48,10 @@ struct RemindersView: View {
                     .disabled(syncService.isSyncing)
                     .accessibilityLabel("Sync reminders")
 
-                    Button { showAddSheet = true } label: {
+                    Button {
+                        haptics.impactOccurred()
+                        showAddSheet = true
+                    } label: {
                         Image(systemName: "plus")
                     }
                     .accessibilityLabel("Add reminder")
@@ -176,6 +184,7 @@ struct RemindersView: View {
     }
 
     private func toggleCompletion(_ reminder: ReminderDisplayItem) {
+        haptics.impactOccurred()
         Task {
             do {
                 let response = try await NexusAPI.shared.toggleReminderCompletion(
@@ -183,6 +192,7 @@ struct RemindersView: View {
                     isCompleted: !reminder.isCompleted
                 )
                 if response.success {
+                    successHaptics.notificationOccurred(.success)
                     logger.info("Toggled reminder: \(reminder.reminderId)")
                     await loadReminders()
                     // Trigger sync to push to EventKit
@@ -191,8 +201,11 @@ struct RemindersView: View {
                     } catch {
                         logger.warning("Sync after toggle failed: \(error.localizedDescription)")
                     }
+                } else {
+                    successHaptics.notificationOccurred(.error)
                 }
             } catch {
+                successHaptics.notificationOccurred(.error)
                 logger.error("Failed to toggle reminder: \(error.localizedDescription)")
             }
         }
@@ -336,6 +349,8 @@ struct AddReminderSheet: View {
     @State private var errorMessage: String?
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "reminders")
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+    private let successHaptics = UINotificationFeedbackGenerator()
 
     private let lists = ["Reminders", "Work", "Personal", "Shopping", "Health"]
 
@@ -407,6 +422,7 @@ struct AddReminderSheet: View {
     }
 
     private func save() async {
+        haptics.impactOccurred()
         isSaving = true
         errorMessage = nil
 
@@ -434,6 +450,7 @@ struct AddReminderSheet: View {
         do {
             let response = try await NexusAPI.shared.createReminder(request)
             if response.success {
+                successHaptics.notificationOccurred(.success)
                 logger.info("Created reminder: \(title)")
                 // Create a display item to pass back
                 let item = ReminderDisplayItem(
@@ -449,9 +466,11 @@ struct AddReminderSheet: View {
                 onSave(item)
                 dismiss()
             } else {
+                successHaptics.notificationOccurred(.error)
                 errorMessage = "Failed to create reminder"
             }
         } catch {
+            successHaptics.notificationOccurred(.error)
             errorMessage = error.localizedDescription
             logger.error("Failed to create reminder: \(error.localizedDescription)")
         }
