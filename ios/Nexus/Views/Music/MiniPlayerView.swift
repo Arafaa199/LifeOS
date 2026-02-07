@@ -49,6 +49,7 @@ struct MiniPlayerView: View {
                             .foregroundColor(.primary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(musicService.isPlaying ? "Pause" : "Play")
 
                     Button(action: musicService.skipToNext) {
                         Image(systemName: "forward.fill")
@@ -56,6 +57,7 @@ struct MiniPlayerView: View {
                             .foregroundColor(.primary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Next track")
                 }
             }
             .padding(.horizontal, 16)

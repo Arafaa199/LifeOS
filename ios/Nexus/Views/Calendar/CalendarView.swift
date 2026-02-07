@@ -48,6 +48,7 @@ struct CalendarView: View {
                         Image(systemName: "plus")
                             .font(.body.weight(.medium))
                     }
+                    .accessibilityLabel("Add event")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Today") {

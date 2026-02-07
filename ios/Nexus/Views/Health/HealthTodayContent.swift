@@ -149,9 +149,10 @@ struct HealthTodayContent: View {
                             Text(formatNumber(steps))
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                         } else {
-                            Text("--")
+                            Text("—")
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.tertiary)
+                                .accessibilityLabel("No step data available")
                         }
                     }
                     HStack(spacing: 4) {

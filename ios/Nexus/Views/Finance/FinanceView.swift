@@ -47,6 +47,7 @@ struct FinanceView: View {
                         Image(systemName: "gearshape")
                             .foregroundColor(.nexusFinance)
                     }
+                    .accessibilityLabel("Finance settings")
                 }
             }
             .sheet(isPresented: $showingSettings) {

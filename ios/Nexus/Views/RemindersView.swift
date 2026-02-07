@@ -31,6 +31,7 @@ struct RemindersView: View {
                     } label: {
                         Image(systemName: showCompleted ? "eye.fill" : "eye.slash")
                     }
+                    .accessibilityLabel(showCompleted ? "Hide completed" : "Show completed")
 
                     Button {
                         Task { await syncReminders() }
@@ -40,10 +41,12 @@ struct RemindersView: View {
                             .animation(syncService.isSyncing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: syncService.isSyncing)
                     }
                     .disabled(syncService.isSyncing)
+                    .accessibilityLabel("Sync reminders")
 
                     Button { showAddSheet = true } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("Add reminder")
                 }
             }
         }

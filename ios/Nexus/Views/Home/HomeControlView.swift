@@ -47,6 +47,7 @@ struct HomeControlView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                     .disabled(viewModel.isLoading)
+                    .accessibilityLabel("Refresh home status")
                 }
             }
             .refreshable {

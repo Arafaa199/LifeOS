@@ -195,6 +195,7 @@ struct MusicPlayerView: View {
                     .font(.system(size: 32))
                     .foregroundColor(.white)
             }
+            .accessibilityLabel("Previous track")
 
             // Play/Pause
             Button(action: musicService.togglePlayPause) {
@@ -202,6 +203,7 @@ struct MusicPlayerView: View {
                     .font(.system(size: 72))
                     .foregroundColor(.white)
             }
+            .accessibilityLabel(musicService.isPlaying ? "Pause" : "Play")
 
             // Next
             Button(action: musicService.skipToNext) {
@@ -209,6 +211,7 @@ struct MusicPlayerView: View {
                     .font(.system(size: 32))
                     .foregroundColor(.white)
             }
+            .accessibilityLabel("Next track")
         }
         .padding(.vertical, 24)
     }
@@ -223,11 +226,14 @@ struct MusicPlayerView: View {
                     .font(.title3)
                     .foregroundColor(musicService.shuffleMode == .songs ? .nexusPrimary : .white.opacity(0.6))
             }
+            .accessibilityLabel("Shuffle")
+            .accessibilityValue(musicService.shuffleMode == .songs ? "On" : "Off")
 
             // Volume indicator (system volume control via hardware buttons)
             Image(systemName: "speaker.wave.2.fill")
                 .font(.title3)
                 .foregroundColor(.white.opacity(0.6))
+                .accessibilityHidden(true)
 
             // Repeat
             Button(action: musicService.toggleRepeat) {
@@ -235,6 +241,8 @@ struct MusicPlayerView: View {
                     .font(.title3)
                     .foregroundColor(musicService.repeatMode != .none ? .nexusPrimary : .white.opacity(0.6))
             }
+            .accessibilityLabel("Repeat")
+            .accessibilityValue(repeatAccessibilityValue)
 
             // Queue
             NavigationLink(destination: QueueView()) {
@@ -242,6 +250,7 @@ struct MusicPlayerView: View {
                     .font(.title3)
                     .foregroundColor(.white.opacity(0.6))
             }
+            .accessibilityLabel("Queue")
         }
         .padding(.vertical, 16)
     }
@@ -250,6 +259,15 @@ struct MusicPlayerView: View {
         switch musicService.repeatMode {
         case .one: return "repeat.1"
         default: return "repeat"
+        }
+    }
+
+    private var repeatAccessibilityValue: String {
+        switch musicService.repeatMode {
+        case .none: return "Off"
+        case .one: return "One"
+        case .all: return "All"
+        @unknown default: return "Off"
         }
     }
 
