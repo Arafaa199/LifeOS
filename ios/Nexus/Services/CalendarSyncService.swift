@@ -70,7 +70,12 @@ class CalendarSyncService: ObservableObject {
 
         // Step 1: PULL from EventKit
         let ekEvents = fetchEvents()
-        let ekMap = Dictionary(ekEvents.map { ($0.eventIdentifier, $0) }, uniquingKeysWith: { first, _ in first })
+        let ekMap: [String: EKEvent] = Dictionary(
+            uniqueKeysWithValues: ekEvents.compactMap { event in
+                guard let id = event.eventIdentifier else { return nil }
+                return (id, event)
+            }
+        )
 
         // Step 2: PULL from DB
         let dbState = try await fetchSyncState()

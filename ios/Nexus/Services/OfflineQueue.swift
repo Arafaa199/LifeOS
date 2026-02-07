@@ -53,6 +53,8 @@ enum ErrorClassification: CustomStringConvertible {
                 return .transient
             case .invalidURL, .invalidResponse, .decodingError:
                 return .permanent
+            case .custom:
+                return .clientError
             }
         }
 
