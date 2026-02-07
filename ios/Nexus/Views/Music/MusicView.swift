@@ -1,250 +1,294 @@
 import SwiftUI
-import MediaPlayer
+import MusicKit
 
+/// Main music hub view with Apple Music integration
 struct MusicView: View {
-    @StateObject private var musicService = MusicService.shared
-    @State private var isLoading = false
-    
+    @StateObject private var musicKitService = MusicKitService.shared
+    @StateObject private var musicService = MusicService.shared  // For logging
+    @State private var showFullPlayer = false
+    @State private var selectedTab = 0
+
     var body: some View {
-        List {
-            if !musicService.hasAuthorization {
-                authorizationSection
+        ZStack(alignment: .bottom) {
+            if !musicKitService.isAuthorized {
+                authorizationView
             } else {
-                nowPlayingSection
-                todaySection
+                mainContent
+            }
+
+            // Mini player
+            if musicKitService.isAuthorized {
+                VStack(spacing: 0) {
+                    Spacer()
+                    MiniPlayerView(musicService: musicKitService, showFullPlayer: $showFullPlayer)
+                }
+            }
+        }
+        .navigationTitle("Music")
+        .navigationBarTitleDisplayMode(.large)
+        .fullScreenCover(isPresented: $showFullPlayer) {
+            MusicPlayerView(musicService: musicKitService)
+        }
+    }
+
+    // MARK: - Authorization
+
+    private var authorizationView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "music.note.house.fill")
+                .font(.system(size: 80))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.pink, .purple],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            VStack(spacing: 8) {
+                Text("Apple Music")
+                    .font(.title.bold())
+
+                Text("Connect to Apple Music to play songs, browse your library, and discover new music.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+            }
+
+            Button {
+                Task {
+                    let granted = await musicKitService.requestAuthorization()
+                    if granted && AppSettings.shared.musicLoggingEnabled {
+                        musicService.startObserving()
+                    }
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "applelogo")
+                    Text("Connect to Apple Music")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        colors: [.pink, .red],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(14)
+            }
+            .padding(.horizontal, 40)
+
+            Spacer()
+        }
+        .background(Color.nexusBackground)
+    }
+
+    // MARK: - Main Content
+
+    private var mainContent: some View {
+        List {
+            // Now Playing Section
+            if musicKitService.currentEntry != nil {
+                Section {
+                    Button(action: { showFullPlayer = true }) {
+                        nowPlayingCard
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                }
+            }
+
+            // Quick Access
+            Section {
+                NavigationLink(destination: MusicSearchView()) {
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+
+                NavigationLink(destination: MusicLibraryView()) {
+                    Label("Library", systemImage: "music.note.house")
+                }
+
+                NavigationLink(destination: QueueView()) {
+                    Label("Queue", systemImage: "list.bullet")
+                }
+            }
+
+            // User Playlists
+            if !musicKitService.userPlaylists.isEmpty {
+                Section("Your Playlists") {
+                    ForEach(musicKitService.userPlaylists.prefix(5), id: \.id) { playlist in
+                        PlaylistRow(playlist: playlist)
+                    }
+
+                    if musicKitService.userPlaylists.count > 5 {
+                        NavigationLink(destination: MusicLibraryView()) {
+                            Text("See All")
+                                .foregroundColor(.nexusPrimary)
+                        }
+                    }
+                }
+            }
+
+            // Listening Stats (from MusicService logging)
+            Section("Today's Activity") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(musicService.todayEvents.count)")
+                            .font(.title.bold())
+                        Text("Tracks Played")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(totalListeningTime)
+                            .font(.title.bold())
+                        Text("Listening Time")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 8)
+
+                if musicService.pendingCount > 0 {
+                    HStack {
+                        Image(systemName: "icloud.and.arrow.up")
+                            .foregroundColor(.orange)
+                        Text("\(musicService.pendingCount) tracks pending sync")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            // Recent Tracks
+            if !musicService.todayEvents.isEmpty {
+                Section("Recent") {
+                    ForEach(musicService.todayEvents.prefix(10)) { event in
+                        RecentTrackRow(event: event)
+                    }
+                }
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Color.nexusBackground)
-        .navigationTitle("Music")
         .refreshable {
+            await musicKitService.loadLibraryData()
             await musicService.fetchTodayEvents()
         }
         .task {
-            if musicService.hasAuthorization {
-                await musicService.fetchTodayEvents()
-            }
+            await musicService.fetchTodayEvents()
         }
     }
-    
-    // MARK: - Authorization
-    
-    private var authorizationSection: some View {
-        Section {
-            VStack(spacing: 16) {
-                Image(systemName: "music.note")
-                    .font(.system(size: 48))
-                    .foregroundColor(.secondary)
-                
-                Text("Music Access Required")
+
+    // MARK: - Now Playing Card
+
+    private var nowPlayingCard: some View {
+        HStack(spacing: 16) {
+            // Artwork
+            if let artwork = musicKitService.artwork {
+                ArtworkImage(artwork, width: 80, height: 80)
+                    .cornerRadius(8)
+                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 80, height: 80)
+                    .overlay(
+                        Image(systemName: "music.note")
+                            .font(.title)
+                            .foregroundColor(.secondary)
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("NOW PLAYING")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.nexusPrimary)
+
+                Text(musicKitService.currentTitle)
                     .font(.headline)
-                
-                Text("Nexus needs access to Apple Music to log your listening history.")
+                    .lineLimit(1)
+
+                Text(musicKitService.currentArtist)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                Button(action: requestAuthorization) {
-                    Text("Enable Access")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
+                    .lineLimit(1)
             }
-            .padding(.vertical, 24)
-            .frame(maxWidth: .infinity)
-        }
-    }
-    
-    private func requestAuthorization() {
-        Task {
-            let granted = await musicService.requestAuthorization()
-            if granted && AppSettings.shared.musicLoggingEnabled {
-                musicService.startObserving()
-            }
-        }
-    }
-    
-    // MARK: - Now Playing
 
-    private var nowPlayingSection: some View {
-        Section("Now Playing") {
-            if let track = musicService.currentTrack {
-                VStack(spacing: 16) {
-                    NowPlayingRow(track: track, isPlaying: musicService.isPlaying)
-                    playerControls
-                }
-                .padding(.vertical, 8)
-            } else {
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "pause.circle")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
-                        Text("Not playing")
-                            .foregroundColor(.secondary)
-                    }
-                    playerControls
-                }
-                .padding(.vertical, 8)
-            }
-        }
-    }
+            Spacer()
 
-    // MARK: - Player Controls
-
-    private var playerControls: some View {
-        HStack(spacing: 32) {
-            Button {
-                musicService.skipToPrevious()
-            } label: {
-                Image(systemName: "backward.fill")
-                    .font(.title2)
-                    .foregroundColor(.primary)
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                musicService.togglePlayPause()
-            } label: {
-                Image(systemName: musicService.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 48))
+            // Play/Pause button
+            Button(action: musicKitService.togglePlayPause) {
+                Image(systemName: musicKitService.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 44))
                     .foregroundColor(.nexusPrimary)
             }
             .buttonStyle(.plain)
-
-            Button {
-                musicService.skipToNext()
-            } label: {
-                Image(systemName: "forward.fill")
-                    .font(.title2)
-                    .foregroundColor(.primary)
-            }
-            .buttonStyle(.plain)
         }
-        .padding(.vertical, 8)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.nexusCardBackground)
+                .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
+        )
     }
-    
-    // MARK: - Today's History
-    
-    private var todaySection: some View {
-        Section {
-            if musicService.todayEvents.isEmpty {
-                HStack {
-                    Image(systemName: "music.note.list")
-                        .foregroundColor(.secondary)
-                    Text("No tracks today")
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 8)
-            } else {
-                ForEach(musicService.todayEvents) { event in
-                    TrackRow(event: event)
-                }
-            }
-        } header: {
-            HStack {
-                Text("Today")
-                Spacer()
-                if musicService.pendingCount > 0 {
-                    Text("\(musicService.pendingCount) pending")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                }
-            }
+
+    // MARK: - Helpers
+
+    private var totalListeningTime: String {
+        let totalSeconds = musicService.todayEvents.compactMap { $0.durationSec }.reduce(0, +)
+        let minutes = totalSeconds / 60
+        if minutes >= 60 {
+            return "\(minutes / 60)h \(minutes % 60)m"
         }
+        return "\(minutes)m"
     }
 }
 
-// MARK: - Now Playing Row
+// MARK: - Recent Track Row
 
-private struct NowPlayingRow: View {
-    let track: ListeningEvent
-    var isPlaying: Bool = true
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // Animated indicator
-            HStack(spacing: 2) {
-                ForEach(0..<3, id: \.self) { i in
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(isPlaying ? Color.nexusPrimary : Color.secondary)
-                        .frame(width: 3, height: isPlaying ? CGFloat.random(in: 8...16) : 8)
-                }
-            }
-            .frame(width: 16)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(track.trackTitle)
-                    .font(.headline)
-                    .lineLimit(1)
-                
-                if let artist = track.artist {
-                    Text(artist)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            
-            Spacer()
-            
-            if let duration = track.durationSec {
-                Text(formatDuration(duration))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-    
-    private func formatDuration(_ seconds: Int) -> String {
-        let mins = seconds / 60
-        let secs = seconds % 60
-        return String(format: "%d:%02d", mins, secs)
-    }
-}
-
-// MARK: - Track Row
-
-private struct TrackRow: View {
+private struct RecentTrackRow: View {
     let event: ListeningEvent
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "music.note")
                 .font(.title3)
-                .foregroundColor(.secondary)
-                .frame(width: 24)
-            
+                .foregroundColor(.pink)
+                .frame(width: 32)
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.trackTitle)
                     .font(.subheadline)
                     .lineLimit(1)
-                
-                HStack(spacing: 4) {
-                    if let artist = event.artist {
-                        Text(artist)
-                            .foregroundColor(.secondary)
-                    }
-                    if let album = event.album, event.artist != nil {
-                        Text("•")
-                            .foregroundColor(.secondary)
-                        Text(album)
-                            .foregroundColor(.secondary)
-                    }
+
+                if let artist = event.artist {
+                    Text(artist)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
                 }
-                .font(.caption)
-                .lineLimit(1)
             }
-            
+
             Spacer()
-            
+
             VStack(alignment: .trailing, spacing: 2) {
-                Text(timeString(from: event.startedAt))
+                Text(timeString)
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
+
                 if let duration = event.durationSec {
                     Text(formatDuration(duration))
                         .font(.caption2)
@@ -254,18 +298,18 @@ private struct TrackRow: View {
         }
         .padding(.vertical, 2)
     }
-    
-    private func timeString(from iso8601: String) -> String {
+
+    private var timeString: String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
-        guard let date = formatter.date(from: iso8601) else { return "" }
-        
+        guard let date = formatter.date(from: event.startedAt) else { return "" }
+
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "h:mm a"
         timeFormatter.timeZone = TimeZone(identifier: "Asia/Dubai")
         return timeFormatter.string(from: date)
     }
-    
+
     private func formatDuration(_ seconds: Int) -> String {
         let mins = seconds / 60
         let secs = seconds % 60
