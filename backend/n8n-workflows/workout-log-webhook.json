@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "nexus-workout",
-        "options": { "responseMode": "responseNode" }
+        "responseMode": "responseNode", "options": {}
       },
       "id": "webhook",
       "name": "Workout Log Webhook",

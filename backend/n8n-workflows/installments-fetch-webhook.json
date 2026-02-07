@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "GET",
         "path": "nexus-installments",
-        "options": { "responseMode": "responseNode" }
+        "responseMode": "responseNode", "options": {}
       },
       "id": "webhook",
       "name": "Fetch Webhook",

@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "GET",
         "path": "nexus-supplements",
-        "options": { "responseMode": "responseNode" }
+        "responseMode": "responseNode", "options": {}
       },
       "id": "webhook-get",
       "name": "GET Supplements",
@@ -75,7 +75,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "nexus-supplement",
-        "options": { "responseMode": "responseNode" }
+        "responseMode": "responseNode", "options": {}
       },
       "id": "webhook-post",
       "name": "POST Supplement",

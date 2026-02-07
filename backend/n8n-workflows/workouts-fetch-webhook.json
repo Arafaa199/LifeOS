@@ -5,7 +5,8 @@
       "parameters": {
         "httpMethod": "GET",
         "path": "nexus-workouts",
-        "options": { "responseMode": "responseNode" }
+        "responseMode": "responseNode",
+        "options": {}
       },
       "id": "webhook",
       "name": "Fetch Workouts",
