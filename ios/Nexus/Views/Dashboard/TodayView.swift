@@ -93,6 +93,12 @@ struct TodayView: View {
                         // -- Home --
                         HomeStatusCard(viewModel: homeViewModel, onTap: { showingHomeControl = true })
 
+                        // -- Music --
+                        MusicCardView(music: viewModel.dashboardPayload?.musicToday)
+
+                        // -- Mood --
+                        MoodCardView(mood: viewModel.dashboardPayload?.moodToday)
+
                         // -- Insights --
                         if !insightsEmpty {
                             todaySectionHeader("Insights")

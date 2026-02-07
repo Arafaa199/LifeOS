@@ -21,6 +21,7 @@ struct DashboardPayload: Codable {
     let medicationsToday: MedicationsSummary?
     let streaks: Streaks?
     let musicToday: MusicSummary?
+    let moodToday: MoodSummary?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -39,6 +40,7 @@ struct DashboardPayload: Codable {
         case medicationsToday = "medications_today"
         case streaks
         case musicToday = "music_today"
+        case moodToday = "mood_today"
         // Top-level flat fields (fallback when meta object is missing)
         case schemaVersion = "schema_version"
         case generatedAt = "generated_at"
@@ -89,6 +91,7 @@ struct DashboardPayload: Codable {
         medicationsToday = try container.decodeIfPresent(MedicationsSummary.self, forKey: .medicationsToday)
         streaks = try container.decodeIfPresent(Streaks.self, forKey: .streaks)
         musicToday = try container.decodeIfPresent(MusicSummary.self, forKey: .musicToday)
+        moodToday = try container.decodeIfPresent(MoodSummary.self, forKey: .moodToday)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -109,6 +112,7 @@ struct DashboardPayload: Codable {
         try container.encodeIfPresent(medicationsToday, forKey: .medicationsToday)
         try container.encodeIfPresent(streaks, forKey: .streaks)
         try container.encodeIfPresent(musicToday, forKey: .musicToday)
+        try container.encodeIfPresent(moodToday, forKey: .moodToday)
     }
 }
 
@@ -840,6 +844,38 @@ struct MusicSummary: Codable {
     }
 
     var hasActivity: Bool { tracksPlayed > 0 }
+}
+
+// MARK: - Mood Summary
+
+struct MoodSummary: Codable {
+    let moodScore: Int?
+    let energyScore: Int?
+    let loggedAt: String?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case moodScore = "mood_score"
+        case energyScore = "energy_score"
+        case loggedAt = "logged_at"
+        case notes
+    }
+
+    var hasData: Bool { moodScore != nil }
+
+    var moodEmoji: String {
+        guard let score = moodScore else { return "" }
+        let emojis = ["😫", "😢", "😔", "😐", "🙂", "😊", "😄", "😁", "🤩", "🥳"]
+        let index = max(0, min(score - 1, emojis.count - 1))
+        return emojis[index]
+    }
+
+    var energyEmoji: String {
+        guard let score = energyScore else { return "" }
+        let emojis = ["🪫", "😴", "🥱", "😑", "😐", "🙂", "😀", "💪", "⚡️", "🔥"]
+        let index = max(0, min(score - 1, emojis.count - 1))
+        return emojis[index]
+    }
 }
 
 // MARK: - Explain Today
