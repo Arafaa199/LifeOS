@@ -89,6 +89,19 @@ struct FinanceSettingsView: View {
                     }
                 }
 
+                NavigationLink(destination: InstallmentsView(viewModel: FinanceViewModel())) {
+                    HStack {
+                        Image(systemName: "creditcard.and.123")
+                            .foregroundColor(.nexusMood)
+                            .frame(width: 24)
+                        Text("Installments")
+                        Spacer()
+                        Text("BNPL tracking")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
                 NavigationLink(destination: SubscriptionsView()) {
                     HStack {
                         Image(systemName: "repeat")
