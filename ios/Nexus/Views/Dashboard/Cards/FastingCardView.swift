@@ -82,7 +82,7 @@ struct FastingCardView: View {
             }
 
             // Goal progress indicator (when tracking passively with significant hours)
-            if let progress = fasting?.fastingGoalProgress, !fasting!.isActive, progress.hours >= 12 {
+            if let fasting = fasting, let progress = fasting.fastingGoalProgress, !fasting.isActive, progress.hours >= 12 {
                 HStack(spacing: 8) {
                     ForEach([16, 18, 20], id: \.self) { goal in
                         goalBadge(goal: goal, currentHours: progress.hours)
