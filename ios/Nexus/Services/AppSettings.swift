@@ -2,6 +2,28 @@ import Foundation
 import SwiftUI
 import Combine
 
+enum AppearanceMode: String, CaseIterable {
+    case system = "System"
+    case light = "Light"
+    case dark = "Dark"
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .system: return "circle.lefthalf.filled"
+        case .light: return "sun.max.fill"
+        case .dark: return "moon.fill"
+        }
+    }
+}
+
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
@@ -34,6 +56,10 @@ class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(musicLoggingEnabled, forKey: "musicLoggingEnabled") }
     }
 
+    @Published var appearanceMode: AppearanceMode {
+        didSet { UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode") }
+    }
+
     private init() {
         self.defaultCurrency = UserDefaults.standard.string(forKey: "defaultCurrency") ?? "AED"
         self.showCurrencyConversion = UserDefaults.standard.bool(forKey: "showCurrencyConversion")
@@ -47,6 +73,13 @@ class AppSettings: ObservableObject {
         self.documentsSyncEnabled = UserDefaults.standard.object(forKey: "documentsSyncEnabled") as? Bool ?? true
         // Music logging enabled by default
         self.musicLoggingEnabled = UserDefaults.standard.object(forKey: "musicLoggingEnabled") as? Bool ?? true
+        // Appearance mode defaults to system
+        if let savedMode = UserDefaults.standard.string(forKey: "appearanceMode"),
+           let mode = AppearanceMode(rawValue: savedMode) {
+            self.appearanceMode = mode
+        } else {
+            self.appearanceMode = .system
+        }
     }
 
     // Currency display helpers

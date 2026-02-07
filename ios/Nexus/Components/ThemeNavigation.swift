@@ -85,46 +85,59 @@ struct ThemeSidebarDrawer: View {
     @Environment(\.colorScheme) private var colorScheme
 
     enum SidebarDestination: String, CaseIterable {
-        case home = "Home"
-        case health = "Health"
-        case finance = "Finance"
-        case calendar = "Calendar"
+        // Life Data
         case documents = "Documents"
-        case music = "Music"
         case receipts = "Receipts"
+        case music = "Music"
+        case notes = "Notes"
+        case reminders = "Reminders"
+        // Wellness
+        case medications = "Medications"
+        case supplements = "Supplements"
+        case workouts = "Workouts"
+        // Home
+        case homeControl = "Home Control"
+        // System
+        case pipelineHealth = "Pipeline Health"
         case settings = "Settings"
+        case appearance = "Appearance"
 
         var icon: String {
             switch self {
-            case .home: return "house.fill"
-            case .health: return "heart.fill"
-            case .finance: return "chart.pie.fill"
-            case .calendar: return "calendar"
             case .documents: return "doc.text.fill"
-            case .music: return "music.note"
             case .receipts: return "receipt"
+            case .music: return "music.note"
+            case .notes: return "note.text"
+            case .reminders: return "checklist"
+            case .medications: return "pills.fill"
+            case .supplements: return "leaf.fill"
+            case .workouts: return "figure.run"
+            case .homeControl: return "house.fill"
+            case .pipelineHealth: return "waveform.path.ecg"
             case .settings: return "gearshape.fill"
+            case .appearance: return "circle.lefthalf.filled"
             }
         }
 
-        var isMainTab: Bool {
+        var section: SidebarSection {
             switch self {
-            case .home, .health, .finance, .calendar:
-                return true
-            default:
-                return false
+            case .documents, .receipts, .music, .notes, .reminders:
+                return .lifeData
+            case .medications, .supplements, .workouts:
+                return .wellness
+            case .homeControl:
+                return .home
+            case .pipelineHealth, .settings, .appearance:
+                return .system
             }
         }
+    }
 
-        var tabIndex: Int? {
-            switch self {
-            case .home: return 0
-            case .health: return 1
-            case .finance: return 2
-            case .calendar: return 3
-            default: return nil
-            }
-        }
+    enum SidebarSection: String, CaseIterable {
+        case lifeData = "Life Data"
+        case wellness = "Wellness"
+        case home = "Home"
+        case system = "System"
     }
 
     var body: some View {
@@ -187,19 +200,13 @@ struct ThemeSidebarDrawer: View {
             // Navigation items
             ScrollView {
                 VStack(spacing: NexusTheme.Spacing.xs) {
-                    // Main section
-                    sectionHeader("Main")
+                    ForEach(SidebarSection.allCases, id: \.rawValue) { section in
+                        sectionHeader(section.rawValue)
+                            .padding(.top, section == .lifeData ? 0 : NexusTheme.Spacing.lg)
 
-                    ForEach(SidebarDestination.allCases.filter { $0.isMainTab }, id: \.rawValue) { dest in
-                        sidebarItem(dest, isActive: dest.tabIndex == selectedTab)
-                    }
-
-                    // More section
-                    sectionHeader("More")
-                        .padding(.top, NexusTheme.Spacing.lg)
-
-                    ForEach(SidebarDestination.allCases.filter { !$0.isMainTab }, id: \.rawValue) { dest in
-                        sidebarItem(dest, isActive: false)
+                        ForEach(SidebarDestination.allCases.filter { $0.section == section }, id: \.rawValue) { dest in
+                            sidebarItem(dest, isActive: false)
+                        }
                     }
                 }
                 .padding(NexusTheme.Spacing.lg)

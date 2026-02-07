@@ -18,7 +18,15 @@ struct ThemedContentView: View {
     @State private var showDocuments = false
     @State private var showMusic = false
     @State private var showReceipts = false
+    @State private var showNotes = false
+    @State private var showReminders = false
+    @State private var showMedications = false
+    @State private var showSupplements = false
+    @State private var showWorkouts = false
+    @State private var showHomeControl = false
+    @State private var showPipelineHealth = false
     @State private var showSettings = false
+    @State private var showAppearance = false
 
     // Failed item alert state
     @State private var showingFailedItemAlert = false
@@ -119,6 +127,45 @@ struct ThemedContentView: View {
                 SettingsView()
             }
         }
+        .sheet(isPresented: $showNotes) {
+            NavigationStack {
+                NotesView()
+            }
+        }
+        .sheet(isPresented: $showReminders) {
+            NavigationStack {
+                RemindersView()
+            }
+        }
+        .sheet(isPresented: $showMedications) {
+            NavigationStack {
+                MedicationsView()
+            }
+        }
+        .sheet(isPresented: $showSupplements) {
+            NavigationStack {
+                SupplementsView()
+            }
+        }
+        .sheet(isPresented: $showWorkouts) {
+            NavigationStack {
+                WorkoutsView()
+            }
+        }
+        .sheet(isPresented: $showHomeControl) {
+            NavigationStack {
+                HomeControlView(viewModel: HomeViewModel.shared)
+            }
+        }
+        .sheet(isPresented: $showPipelineHealth) {
+            NavigationStack {
+                PipelineHealthView()
+            }
+        }
+        .sheet(isPresented: $showAppearance) {
+            AppearanceSheet()
+                .presentationDetents([.height(300)])
+        }
         // Quick log action sheets
         .sheet(isPresented: $showWaterLog) {
             QuickWaterLogSheet()
@@ -178,26 +225,31 @@ struct ThemedContentView: View {
     }
 
     private func handleSidebarNavigation(_ destination: ThemeSidebarDrawer.SidebarDestination) {
-        // Handle main tab navigation
-        if let tabIndex = destination.tabIndex {
-            withAnimation(NexusTheme.Animation.quick) {
-                selectedTab = tabIndex
-            }
-            return
-        }
-
-        // Handle secondary navigation
         switch destination {
         case .documents:
             showDocuments = true
-        case .music:
-            showMusic = true
         case .receipts:
             showReceipts = true
+        case .music:
+            showMusic = true
+        case .notes:
+            showNotes = true
+        case .reminders:
+            showReminders = true
+        case .medications:
+            showMedications = true
+        case .supplements:
+            showSupplements = true
+        case .workouts:
+            showWorkouts = true
+        case .homeControl:
+            showHomeControl = true
+        case .pipelineHealth:
+            showPipelineHealth = true
         case .settings:
             showSettings = true
-        default:
-            break
+        case .appearance:
+            showAppearance = true
         }
     }
 

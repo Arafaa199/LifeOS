@@ -11,6 +11,7 @@ struct NexusApp: App {
         WindowGroup {
             ThemedContentView()
                 .environmentObject(settings)
+                .preferredColorScheme(settings.appearanceMode.colorScheme)
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {

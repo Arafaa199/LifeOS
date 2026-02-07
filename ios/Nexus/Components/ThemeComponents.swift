@@ -735,7 +735,89 @@ struct ThemeLoadingView: View {
     }
 }
 
+// MARK: - Appearance Sheet
+
+/// Sheet for toggling between light, dark, and system appearance
+struct AppearanceSheet: View {
+    @EnvironmentObject var settings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: NexusTheme.Spacing.lg) {
+            // Handle
+            Capsule()
+                .fill(NexusTheme.Colors.divider)
+                .frame(width: 36, height: 5)
+                .padding(.top, NexusTheme.Spacing.md)
+
+            // Title
+            HStack {
+                NexusTheme.Typography.cardTitle("Appearance")
+                    .foregroundColor(NexusTheme.Colors.textSecondary)
+                Spacer()
+            }
+            .padding(.horizontal, NexusTheme.Spacing.xl)
+
+            // Mode options
+            VStack(spacing: NexusTheme.Spacing.sm) {
+                ForEach(AppearanceMode.allCases, id: \.rawValue) { mode in
+                    appearanceOption(mode)
+                }
+            }
+            .padding(.horizontal, NexusTheme.Spacing.xl)
+
+            Spacer()
+        }
+        .background(NexusTheme.Colors.card)
+    }
+
+    @ViewBuilder
+    private func appearanceOption(_ mode: AppearanceMode) -> some View {
+        let isSelected = settings.appearanceMode == mode
+
+        Button(action: {
+            NexusTheme.Haptics.selection()
+            withAnimation(NexusTheme.Animation.quick) {
+                settings.appearanceMode = mode
+            }
+        }) {
+            HStack(spacing: NexusTheme.Spacing.md) {
+                Image(systemName: mode.icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(isSelected ? NexusTheme.Colors.accent : NexusTheme.Colors.textSecondary)
+                    .frame(width: 32)
+
+                Text(mode.rawValue)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(NexusTheme.Colors.accent)
+                }
+            }
+            .padding(NexusTheme.Spacing.lg)
+            .background(isSelected ? NexusTheme.Colors.accent.opacity(0.1) : NexusTheme.Colors.cardAlt)
+            .cornerRadius(NexusTheme.Radius.md)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.md)
+                    .stroke(isSelected ? NexusTheme.Colors.accent : NexusTheme.Colors.divider, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Preview
+
+#Preview("Appearance Sheet") {
+    AppearanceSheet()
+        .environmentObject(AppSettings.shared)
+        .presentationDetents([.height(300)])
+}
 
 #Preview("Theme Components") {
     ScrollView {
