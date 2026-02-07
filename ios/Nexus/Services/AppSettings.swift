@@ -45,8 +45,8 @@ class AppSettings: ObservableObject {
         self.healthKitSyncEnabled = UserDefaults.standard.object(forKey: "healthKitSyncEnabled") as? Bool ?? true
         self.calendarSyncEnabled = UserDefaults.standard.object(forKey: "calendarSyncEnabled") as? Bool ?? true
         self.documentsSyncEnabled = UserDefaults.standard.object(forKey: "documentsSyncEnabled") as? Bool ?? true
-        // Music logging defaults to false (opt-in)
-        self.musicLoggingEnabled = UserDefaults.standard.object(forKey: "musicLoggingEnabled") as? Bool ?? false
+        // Music logging enabled by default
+        self.musicLoggingEnabled = UserDefaults.standard.object(forKey: "musicLoggingEnabled") as? Bool ?? true
     }
 
     // Currency display helpers
