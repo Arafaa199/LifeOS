@@ -2336,7 +2336,7 @@ Lane: safe_auto
 ### TASK-PLAN.6: Add Replay Test for Nutrition Domain
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Nutrition domain (food_log, water_log, meals) has no replay test. It's the most frequently used logging feature. Add a replay test to verify data freshness, calorie tracking accuracy, and meal inference pipeline health.
@@ -2371,7 +2371,7 @@ Lane: safe_auto
 ### TASK-PLAN.7: Wrap Migration 155 in Transaction for Reproducibility
 Priority: P3
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Migration 155 (screen_time) lacks `BEGIN`/`COMMIT` wrapper and its down migration lacks `DELETE FROM ops.schema_migrations`. This is advisory (already applied successfully) but should be fixed for reproducibility on any future environment rebuild.
