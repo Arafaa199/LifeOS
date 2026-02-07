@@ -37,6 +37,7 @@ struct NutritionHistoryView: View {
                     .font(.title3.weight(.semibold))
                     .foregroundColor(.accentColor)
             }
+            .accessibilityLabel("Previous day")
 
             Spacer()
 
@@ -86,6 +87,7 @@ struct NutritionHistoryView: View {
                     .foregroundColor(isToday ? .secondary : .accentColor)
             }
             .disabled(isToday)
+            .accessibilityLabel("Next day")
         }
         .padding()
         .background(Color.nexusCardBackground)

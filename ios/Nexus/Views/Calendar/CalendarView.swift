@@ -88,6 +88,7 @@ struct CalendarView: View {
                     .font(.body.weight(.semibold))
                     .foregroundColor(.nexusPrimary)
             }
+            .accessibilityLabel("Previous month")
 
             Spacer()
 
@@ -101,6 +102,7 @@ struct CalendarView: View {
                     .font(.body.weight(.semibold))
                     .foregroundColor(.nexusPrimary)
             }
+            .accessibilityLabel("Next month")
         }
     }
 

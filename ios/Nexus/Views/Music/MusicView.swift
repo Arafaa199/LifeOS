@@ -33,6 +33,7 @@ struct MusicView: View {
                     Button { showSearch = true } label: {
                         Image(systemName: "magnifyingglass")
                     }
+                    .accessibilityLabel("Search music")
                 }
             }
         }
@@ -224,6 +225,7 @@ struct MusicView: View {
                             .foregroundColor(.pink)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(musicService.isPlaying ? "Pause" : "Play")
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.title3)
