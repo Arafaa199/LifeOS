@@ -1,5 +1,6 @@
 import SwiftUI
 import MusicKit
+import os
 
 /// Detail view for an artist showing their albums and top songs
 struct ArtistDetailView: View {
@@ -8,6 +9,8 @@ struct ArtistDetailView: View {
     @State private var albums: MusicItemCollection<Album>?
     @State private var topSongs: MusicItemCollection<Song>?
     @State private var isLoading = true
+
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "music")
 
     var body: some View {
         ScrollView {
@@ -209,7 +212,7 @@ struct ArtistDetailView: View {
                 topSongs = fullArtist.topSongs
             }
         } catch {
-            print("Failed to load artist content: \(error)")
+            logger.error("Failed to load artist content: \(error.localizedDescription)")
         }
 
         isLoading = false

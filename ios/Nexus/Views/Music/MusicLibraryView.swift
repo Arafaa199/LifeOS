@@ -1,5 +1,8 @@
 import SwiftUI
 import MusicKit
+import os
+
+private let musicLogger = Logger(subsystem: "com.nexus.lifeos", category: "music")
 
 /// Browse user's music library
 struct MusicLibraryView: View {
@@ -95,6 +98,7 @@ struct AlbumsTab: View {
             albums = response.items
             isLoading = false
         } catch {
+            musicLogger.warning("Failed to load albums: \(error.localizedDescription)")
             isLoading = false
         }
     }
@@ -137,6 +141,7 @@ struct SongsTab: View {
             songs = response.items
             isLoading = false
         } catch {
+            musicLogger.warning("Failed to load songs: \(error.localizedDescription)")
             isLoading = false
         }
     }

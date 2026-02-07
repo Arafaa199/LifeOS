@@ -1,5 +1,6 @@
 import SwiftUI
 import MusicKit
+import os
 
 /// Detail view for an album showing all tracks
 struct AlbumDetailView: View {
@@ -7,6 +8,8 @@ struct AlbumDetailView: View {
     @ObservedObject private var musicService = MusicKitService.shared
     @State private var tracks: MusicItemCollection<Track>?
     @State private var isLoading = true
+
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "music")
 
     var body: some View {
         ScrollView {
@@ -221,7 +224,7 @@ struct AlbumDetailView: View {
                 tracks = fullAlbum.tracks
             }
         } catch {
-            print("Failed to load album tracks: \(error)")
+            logger.error("Failed to load album tracks: \(error.localizedDescription)")
         }
 
         isLoading = false
