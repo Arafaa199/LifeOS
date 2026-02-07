@@ -69,7 +69,7 @@ struct DocumentRenewalHistoryView: View {
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
-                .background(Color.nexusBackground)
+                .background(NexusTheme.Colors.background)
             }
         }
         .navigationTitle("Renewal History")

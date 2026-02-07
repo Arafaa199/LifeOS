@@ -9,7 +9,7 @@ struct NexusApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ThemedContentView()
                 .environmentObject(settings)
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -65,25 +65,46 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     private func configureAppearance() {
-        let warmBg = UIColor { traits in
+        // Theme navigation bar color (warm cream light / rich dark with transparency)
+        let themeNavBar = UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor.systemBackground
-                : UIColor(red: 0.894, green: 0.835, blue: 0.765, alpha: 1.0)
+                ? UIColor(hex: "141210").withAlphaComponent(0.92)
+                : UIColor(hex: "F4ECE4").withAlphaComponent(0.92)
         }
 
+        // Tab bar - hide default (using custom ThemeTabBar)
         let tabAppearance = UITabBarAppearance()
-        tabAppearance.configureWithDefaultBackground()
-        tabAppearance.backgroundColor = warmBg
+        tabAppearance.configureWithTransparentBackground()
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+        UITabBar.appearance().isHidden = true
 
+        // Navigation bar
         let navAppearance = UINavigationBarAppearance()
-        navAppearance.configureWithDefaultBackground()
-        navAppearance.backgroundColor = warmBg
+        navAppearance.configureWithTransparentBackground()
+        navAppearance.backgroundColor = themeNavBar
         navAppearance.shadowColor = .clear
+        navAppearance.titleTextAttributes = [
+            .foregroundColor: UIColor { traits in
+                traits.userInterfaceStyle == .dark
+                    ? UIColor(hex: "F2EDE8")
+                    : UIColor(hex: "1A1410")
+            }
+        ]
+        navAppearance.largeTitleTextAttributes = [
+            .foregroundColor: UIColor { traits in
+                traits.userInterfaceStyle == .dark
+                    ? UIColor(hex: "F2EDE8")
+                    : UIColor(hex: "1A1410")
+            }
+        ]
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
         UINavigationBar.appearance().compactAppearance = navAppearance
+        UINavigationBar.appearance().tintColor = UIColor(hex: "FF005E")
+
+        // Accent color for controls
+        UIView.appearance().tintColor = UIColor(hex: "FF005E")
     }
 
     private func requestNotificationPermissionIfNeeded() {

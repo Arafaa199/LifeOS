@@ -97,10 +97,10 @@ struct QuickExpenseView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.nexusError)
+                        .background(NexusTheme.Colors.Semantic.red)
                         .foregroundColor(.white)
                         .cornerRadius(12)
-                        .shadow(color: Color.nexusError.opacity(0.3), radius: 6, x: 0, y: 3)
+                        .shadow(color: NexusTheme.Colors.Semantic.red.opacity(0.3), radius: 6, x: 0, y: 3)
                     }
 
                     Button {
@@ -114,10 +114,10 @@ struct QuickExpenseView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.nexusSuccess)
+                        .background(NexusTheme.Colors.Semantic.green)
                         .foregroundColor(.white)
                         .cornerRadius(12)
-                        .shadow(color: Color.nexusSuccess.opacity(0.3), radius: 6, x: 0, y: 3)
+                        .shadow(color: NexusTheme.Colors.Semantic.green.opacity(0.3), radius: 6, x: 0, y: 3)
                     }
                 }
 
@@ -128,7 +128,7 @@ struct QuickExpenseView: View {
 
                 if let error = viewModel.errorMessage {
                     Text(error)
-                        .foregroundColor(.nexusError)
+                        .foregroundColor(NexusTheme.Colors.Semantic.red)
                         .padding()
                 }
             }
@@ -163,19 +163,19 @@ struct QuickExpenseView: View {
                     icon: "cart.fill",
                     label: "Grocery",
                     value: viewModel.summary.formatAmount(viewModel.summary.grocerySpent),
-                    color: .nexusSuccess
+                    color: NexusTheme.Colors.Semantic.green
                 )
 
                 StatItem(
                     icon: "fork.knife",
                     label: "Eating Out",
                     value: viewModel.summary.formatAmount(viewModel.summary.eatingOutSpent),
-                    color: .nexusFood
+                    color: NexusTheme.Colors.Semantic.amber
                 )
             }
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 
@@ -244,10 +244,10 @@ struct QuickExpenseView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: isOverBudget ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                    .foregroundColor(isOverBudget ? .nexusError : .nexusWarning)
+                    .foregroundColor(isOverBudget ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.amber)
                 Text(isOverBudget ? "Over Budget" : "Budget Warning")
                     .font(.headline)
-                    .foregroundColor(isOverBudget ? .nexusError : .nexusWarning)
+                    .foregroundColor(isOverBudget ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.amber)
                 Spacer()
             }
 
@@ -269,11 +269,11 @@ struct QuickExpenseView: View {
                         }
                     }
                 }
-                .foregroundColor(isOverBudget ? .nexusError : .nexusWarning)
+                .foregroundColor(isOverBudget ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.amber)
             }
         }
         .padding()
-        .background(isOverBudget ? Color.nexusError.opacity(0.1) : Color.nexusWarning.opacity(0.1))
+        .background(isOverBudget ? NexusTheme.Colors.Semantic.red.opacity(0.1) : NexusTheme.Colors.Semantic.amber.opacity(0.1))
         .cornerRadius(12)
     }
 }

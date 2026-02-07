@@ -36,7 +36,7 @@ struct SleepView: View {
                 }
                 .padding(.vertical)
             }
-            .background(Color.nexusBackground)
+            .background(NexusTheme.Colors.background)
             .navigationTitle("Sleep & Recovery")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
@@ -84,7 +84,7 @@ struct SleepView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "waveform.path.ecg")
                             .font(.caption)
-                            .foregroundColor(.nexusMood)
+                            .foregroundColor(NexusTheme.Colors.accent)
                         Text(String(format: "%.0f", recovery.hrv ?? 0))
                             .font(.title3.weight(.bold))
                     }
@@ -100,7 +100,7 @@ struct SleepView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "heart.fill")
                             .font(.caption)
-                            .foregroundColor(.nexusError)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
                         Text("\(recovery.rhr ?? 0)")
                             .font(.title3.weight(.bold))
                     }
@@ -117,7 +117,7 @@ struct SleepView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "lungs.fill")
                                 .font(.caption)
-                                .foregroundColor(.nexusWater)
+                                .foregroundColor(NexusTheme.Colors.Semantic.blue)
                             Text(String(format: "%.0f", spo2))
                                 .font(.title3.weight(.bold))
                         }
@@ -130,7 +130,7 @@ struct SleepView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(20)
         .padding(.horizontal)
     }
@@ -148,42 +148,42 @@ struct SleepView: View {
                     title: "Time Asleep",
                     value: formatMinutes(sleep.totalSleepMin),
                     icon: "moon.zzz.fill",
-                    color: .nexusMood
+                    color: NexusTheme.Colors.accent
                 )
 
                 SleepStatCard(
                     title: "Time in Bed",
                     value: formatMinutes(sleep.timeInBedMin ?? 0),
                     icon: "bed.double.fill",
-                    color: .nexusPrimary
+                    color: NexusTheme.Colors.accent
                 )
 
                 SleepStatCard(
                     title: "Efficiency",
                     value: String(format: "%.0f%%", sleep.sleepEfficiency ?? 0),
                     icon: "chart.line.uptrend.xyaxis",
-                    color: .nexusSuccess
+                    color: NexusTheme.Colors.Semantic.green
                 )
 
                 SleepStatCard(
                     title: "Performance",
                     value: "\(sleep.sleepPerformance ?? 0)%",
                     icon: "star.fill",
-                    color: .nexusFood
+                    color: NexusTheme.Colors.Semantic.amber
                 )
 
                 SleepStatCard(
                     title: "Sleep Cycles",
                     value: "\(sleep.cycles ?? 0)",
                     icon: "arrow.2.circlepath",
-                    color: .nexusWater
+                    color: NexusTheme.Colors.Semantic.blue
                 )
 
                 SleepStatCard(
                     title: "Disturbances",
                     value: "\(sleep.disturbances ?? 0)",
                     icon: "exclamationmark.triangle",
-                    color: .nexusWarning
+                    color: NexusTheme.Colors.Semantic.amber
                 )
             }
             .padding(.horizontal)
@@ -205,21 +205,21 @@ struct SleepView: View {
                     stage: "Deep Sleep",
                     minutes: sleep.deepSleepMin ?? 0,
                     percentage: total > 0 ? Double(sleep.deepSleepMin ?? 0) / total : 0,
-                    color: .nexusMood
+                    color: NexusTheme.Colors.accent
                 )
 
                 SleepStageRow(
                     stage: "REM Sleep",
                     minutes: sleep.remSleepMin ?? 0,
                     percentage: total > 0 ? Double(sleep.remSleepMin ?? 0) / total : 0,
-                    color: .nexusMood
+                    color: NexusTheme.Colors.accent
                 )
 
                 SleepStageRow(
                     stage: "Light Sleep",
                     minutes: sleep.lightSleepMin ?? 0,
                     percentage: total > 0 ? Double(sleep.lightSleepMin ?? 0) / total : 0,
-                    color: .nexusPrimary
+                    color: NexusTheme.Colors.accent
                 )
 
                 SleepStageRow(
@@ -230,7 +230,7 @@ struct SleepView: View {
                 )
             }
             .padding()
-            .background(Color.nexusCardBackground)
+            .background(NexusTheme.Colors.card)
             .cornerRadius(16)
             .padding(.horizontal)
         }
@@ -314,7 +314,7 @@ struct SleepView: View {
             }
             .padding(24)
             .frame(maxWidth: .infinity)
-            .background(Color.nexusCardBackground)
+            .background(NexusTheme.Colors.card)
             .cornerRadius(20)
             .padding(.horizontal)
 
@@ -344,7 +344,7 @@ struct SleepView: View {
                     }
                 }
                 .padding()
-                .background(Color.nexusCardBackground)
+                .background(NexusTheme.Colors.card)
                 .cornerRadius(16)
                 .padding(.horizontal)
             }
@@ -364,7 +364,7 @@ struct SleepView: View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 48))
-                .foregroundColor(.nexusWarning)
+                .foregroundColor(NexusTheme.Colors.Semantic.amber)
 
             Text("Couldn't Load Sleep Data")
                 .font(.headline)
@@ -444,7 +444,7 @@ struct SkeletonStatCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 }
@@ -511,7 +511,7 @@ struct SleepStatCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 }
@@ -599,7 +599,7 @@ struct SleepHistoryBar: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(
                         LinearGradient(
-                            colors: [.nexusMood, .nexusPrimary],
+                            colors: [NexusTheme.Colors.accent, NexusTheme.Colors.accent],
                             startPoint: .top,
                             endPoint: .bottom
                         )

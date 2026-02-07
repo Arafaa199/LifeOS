@@ -50,7 +50,7 @@ struct InstallmentsView: View {
                 Spacer()
                 Image(systemName: "creditcard.and.123")
                     .font(.system(size: 32))
-                    .foregroundColor(.nexusMood.opacity(0.7))
+                    .foregroundColor(NexusTheme.Colors.accent.opacity(0.7))
             }
 
             Divider()
@@ -75,20 +75,20 @@ struct InstallmentsView: View {
             if summary.dueThisWeek > 0 {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.nexusWarning)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     Text("\(installments.first?.currency ?? "AED") \(summary.dueThisWeekAmount) due this week")
                         .font(.subheadline)
-                        .foregroundColor(.nexusWarning)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     Spacer()
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(Color.nexusWarning.opacity(0.1))
+                .background(NexusTheme.Colors.Semantic.amber.opacity(0.1))
                 .cornerRadius(8)
             }
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -96,11 +96,11 @@ struct InstallmentsView: View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundColor(isWarning ? .nexusWarning : .nexusMood)
+                .foregroundColor(isWarning ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
                     .font(.headline)
-                    .foregroundColor(isWarning ? .nexusWarning : .primary)
+                    .foregroundColor(isWarning ? NexusTheme.Colors.Semantic.amber : .primary)
                 Text(label)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -167,7 +167,7 @@ struct InstallmentsView: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.nexusError)
+                                .background(NexusTheme.Colors.Semantic.red)
                                 .cornerRadius(4)
                         } else if plan.isDueSoon {
                             Text("DUE SOON")
@@ -176,7 +176,7 @@ struct InstallmentsView: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.nexusWarning)
+                                .background(NexusTheme.Colors.Semantic.amber)
                                 .cornerRadius(4)
                         }
                     }
@@ -217,7 +217,7 @@ struct InstallmentsView: View {
                 .background(Color(.tertiarySystemFill))
             }
         }
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 
@@ -227,7 +227,7 @@ struct InstallmentsView: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.nexusSuccess)
+                .foregroundColor(NexusTheme.Colors.Semantic.green)
 
             Text("No Active Installments")
                 .font(.headline)
@@ -246,7 +246,7 @@ struct InstallmentsView: View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 40))
-                .foregroundColor(.nexusWarning)
+                .foregroundColor(NexusTheme.Colors.Semantic.amber)
 
             Text("Could not load installments")
                 .font(.headline)
@@ -270,9 +270,9 @@ struct InstallmentsView: View {
 
     private func sourceColor(_ source: String) -> Color {
         switch source.lowercased() {
-        case "tabby": return .nexusMood
-        case "tamara": return .nexusWater
-        case "postpay": return .nexusSuccess
+        case "tabby": return NexusTheme.Colors.accent
+        case "tamara": return NexusTheme.Colors.Semantic.blue
+        case "postpay": return NexusTheme.Colors.Semantic.green
         default: return .gray
         }
     }

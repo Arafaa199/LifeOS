@@ -35,7 +35,7 @@ struct ArtistDetailView: View {
             }
             .padding()
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle(artist.name)
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -78,7 +78,7 @@ struct ArtistDetailView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.nexusPrimary)
+                        .background(NexusTheme.Colors.accent)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                 }

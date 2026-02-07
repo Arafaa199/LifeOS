@@ -10,7 +10,7 @@ struct PipelineHealthView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Pipeline Health")
         .refreshable {
             await coordinator.sync(SyncCoordinator.SyncDomain.dashboard)
@@ -49,7 +49,7 @@ struct PipelineHealthView: View {
                         } else {
                             Image(systemName: state.lastError == nil ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                                 .font(.caption)
-                                .foregroundColor(state.lastError == nil ? .nexusSuccess : .nexusWarning)
+                                .foregroundColor(state.lastError == nil ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.amber)
                         }
                     }
                     .padding(.vertical, 4)
@@ -75,10 +75,10 @@ struct PipelineHealthView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.caption)
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                         Text("Stale: \(stale.joined(separator: ", "))")
                             .font(.caption)
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                     .padding(.vertical, 2)
                 }
@@ -151,9 +151,9 @@ struct PipelineHealthView: View {
 
     private func feedStatusColor(_ status: FeedHealthStatus) -> Color {
         switch status {
-        case .healthy, .ok: return .nexusSuccess
-        case .stale: return .nexusWarning
-        case .critical: return .nexusError
+        case .healthy, .ok: return NexusTheme.Colors.Semantic.green
+        case .stale: return NexusTheme.Colors.Semantic.amber
+        case .critical: return NexusTheme.Colors.Semantic.red
         case .unknown: return .secondary
         }
     }

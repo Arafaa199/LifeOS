@@ -11,7 +11,7 @@ struct HealthTrendsView: View {
         ScrollView {
             HealthTrendsContent(viewModel: viewModel, selectedPeriod: $selectedPeriod)
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .refreshable {
             SyncCoordinator.shared.syncAll(force: true)
             await viewModel.loadData()
@@ -41,7 +41,7 @@ struct TrendCard<Content: View>: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 }

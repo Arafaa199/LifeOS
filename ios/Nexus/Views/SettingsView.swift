@@ -43,7 +43,7 @@ struct SettingsView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Settings")
         .onAppear {
             webhookURL = settings.webhookBaseURL
@@ -63,7 +63,7 @@ struct SettingsView: View {
             NavigationLink(destination: TestConnectionView()) {
                 SettingsRow(
                     icon: "wifi",
-                    iconColor: .nexusPrimary,
+                    iconColor: NexusTheme.Colors.accent,
                     title: "Test Connection",
                     subtitle: "Verify your Nexus connection"
                 )
@@ -80,7 +80,7 @@ struct SettingsView: View {
             NavigationLink(destination: HealthSourcesView(viewModel: HealthViewModel())) {
                 SettingsRow(
                     icon: "antenna.radiowaves.left.and.right",
-                    iconColor: .nexusHealth,
+                    iconColor: NexusTheme.Colors.Semantic.green,
                     title: "Health Sources",
                     subtitle: "WHOOP, Apple Health, data priority"
                 )
@@ -106,7 +106,7 @@ struct SettingsView: View {
             NavigationLink(destination: WidgetSettingsView()) {
                 SettingsRow(
                     icon: "square.grid.2x2",
-                    iconColor: .nexusFinance,
+                    iconColor: NexusTheme.Colors.Semantic.green,
                     title: "Widgets",
                     subtitle: "Configure home screen widgets"
                 )
@@ -115,7 +115,7 @@ struct SettingsView: View {
             NavigationLink(destination: SiriShortcutsView()) {
                 SettingsRow(
                     icon: "mic.fill",
-                    iconColor: .nexusMood,
+                    iconColor: NexusTheme.Colors.accent,
                     title: "Siri Shortcuts",
                     subtitle: "Voice commands for quick logging"
                 )
@@ -134,7 +134,7 @@ struct SettingsView: View {
             } label: {
                 SettingsRow(
                     icon: "trash",
-                    iconColor: .nexusError,
+                    iconColor: NexusTheme.Colors.Semantic.red,
                     title: "Clear Local Data",
                     subtitle: "Remove cached data from this device"
                 )
@@ -158,7 +158,7 @@ struct SettingsView: View {
             Link(destination: Self.docsURL) {
                 SettingsRow(
                     icon: "book",
-                    iconColor: .nexusPrimary,
+                    iconColor: NexusTheme.Colors.accent,
                     title: "Documentation",
                     subtitle: "View guides and API reference",
                     showChevron: true
@@ -168,7 +168,7 @@ struct SettingsView: View {
             Link(destination: Self.issuesURL) {
                 SettingsRow(
                     icon: "exclamationmark.bubble",
-                    iconColor: .nexusWarning,
+                    iconColor: NexusTheme.Colors.Semantic.amber,
                     title: "Report an Issue",
                     subtitle: "Help us improve Nexus",
                     showChevron: true
@@ -180,7 +180,7 @@ struct SettingsView: View {
             VStack(spacing: 8) {
                 Image(systemName: "n.circle.fill")
                     .font(.largeTitle)
-                    .foregroundColor(.nexusPrimary.opacity(0.5))
+                    .foregroundColor(NexusTheme.Colors.accent.opacity(0.5))
 
                 Text("Nexus - Life Data Hub")
                     .font(.caption)

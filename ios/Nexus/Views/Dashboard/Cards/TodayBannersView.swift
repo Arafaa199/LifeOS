@@ -9,21 +9,21 @@ struct TodayOfflineBanner: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: NexusTheme.Spacing.xs) {
             Image(systemName: "wifi.slash")
-                .font(.caption)
+                .font(.system(size: 11))
             Text(bannerText)
-                .font(.caption.weight(.medium))
+                .font(.system(size: 11, weight: .medium))
             Spacer()
             if pendingCount > 0 {
                 queueBadge
             }
         }
-        .foregroundColor(.nexusWarning)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(Color.nexusWarning.opacity(0.1))
-        .cornerRadius(10)
+        .foregroundColor(NexusTheme.Colors.Semantic.amber)
+        .padding(.horizontal, NexusTheme.Spacing.md)
+        .padding(.vertical, NexusTheme.Spacing.xs)
+        .background(NexusTheme.Colors.Semantic.amber.opacity(0.10))
+        .cornerRadius(NexusTheme.Radius.sm)
         .accessibilityLabel(accessibilityText)
     }
 
@@ -35,17 +35,17 @@ struct TodayOfflineBanner: View {
     }
 
     private var queueBadge: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: NexusTheme.Spacing.xxxs) {
             Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.caption2)
+                .font(.system(size: 9))
             Text("\(pendingCount)")
-                .font(.caption.weight(.semibold))
+                .font(.system(size: 11, weight: .semibold))
         }
         .foregroundColor(.white)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.nexusWarning)
-        .cornerRadius(12)
+        .padding(.horizontal, NexusTheme.Spacing.xs)
+        .padding(.vertical, NexusTheme.Spacing.xxxs)
+        .background(NexusTheme.Colors.Semantic.amber)
+        .cornerRadius(NexusTheme.Radius.md)
     }
 
     private var accessibilityText: String {
@@ -65,19 +65,19 @@ struct TodayStaleBanner: View {
         Button {
             onRefresh()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: NexusTheme.Spacing.xs) {
                 Image(systemName: "clock.arrow.circlepath")
-                    .font(.caption)
+                    .font(.system(size: 11))
                 Text(text)
-                    .font(.caption.weight(.medium))
+                    .font(.system(size: 11, weight: .medium))
                 Image(systemName: "arrow.clockwise")
-                    .font(.caption2)
+                    .font(.system(size: 9))
             }
-            .foregroundColor(.nexusWarning)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.nexusWarning.opacity(0.12))
-            .cornerRadius(8)
+            .foregroundColor(NexusTheme.Colors.Semantic.amber)
+            .padding(.horizontal, NexusTheme.Spacing.md)
+            .padding(.vertical, NexusTheme.Spacing.xxs)
+            .background(NexusTheme.Colors.Semantic.amber.opacity(0.10))
+            .cornerRadius(NexusTheme.Radius.xs)
         }
         .buttonStyle(.plain)
     }
@@ -88,22 +88,22 @@ struct TodayCachedBanner: View {
     let cacheAge: String?
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: NexusTheme.Spacing.xs) {
             Image(systemName: "clock.arrow.circlepath")
-                .font(.caption)
+                .font(.system(size: 11))
             Text("Showing cached data")
-                .font(.caption.weight(.medium))
+                .font(.system(size: 11, weight: .medium))
             if let age = cacheAge {
                 Text("(\(age))")
-                    .font(.caption)
+                    .font(.system(size: 11))
             }
             Spacer()
         }
-        .foregroundColor(.secondary)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(Color(.tertiarySystemBackground))
-        .cornerRadius(10)
+        .foregroundColor(NexusTheme.Colors.textSecondary)
+        .padding(.horizontal, NexusTheme.Spacing.md)
+        .padding(.vertical, NexusTheme.Spacing.xs)
+        .background(NexusTheme.Colors.cardAlt)
+        .cornerRadius(NexusTheme.Radius.sm)
         .accessibilityLabel("Showing cached data\(cacheAge.map { ", \($0) old" } ?? "")")
     }
 }
@@ -113,18 +113,18 @@ struct TodaySyncingBanner: View {
     let pendingCount: Int
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: NexusTheme.Spacing.xs) {
             ProgressView()
                 .scaleEffect(0.7)
             Text("Syncing \(pendingCount) item\(pendingCount == 1 ? "" : "s")...")
-                .font(.caption.weight(.medium))
+                .font(.system(size: 11, weight: .medium))
             Spacer()
         }
-        .foregroundColor(.nexusPrimary)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(Color.nexusPrimary.opacity(0.1))
-        .cornerRadius(10)
+        .foregroundColor(NexusTheme.Colors.accent)
+        .padding(.horizontal, NexusTheme.Spacing.md)
+        .padding(.vertical, NexusTheme.Spacing.xs)
+        .background(NexusTheme.Colors.accent.opacity(0.08))
+        .cornerRadius(NexusTheme.Radius.sm)
         .accessibilityLabel("Syncing \(pendingCount) queued item\(pendingCount == 1 ? "" : "s").")
     }
 }
@@ -134,37 +134,38 @@ struct TodayNoDataView: View {
     let onRefresh: () -> Void
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: NexusTheme.Spacing.xxl) {
             Spacer().frame(height: 40)
 
             Image(systemName: "arrow.triangle.2.circlepath")
                 .font(.system(size: 44, weight: .light))
-                .foregroundColor(.nexusPrimary.opacity(0.5))
+                .foregroundColor(NexusTheme.Colors.accent.opacity(0.5))
 
-            VStack(spacing: 8) {
+            VStack(spacing: NexusTheme.Spacing.xs) {
                 Text("Waiting for data")
-                    .font(.title3.weight(.semibold))
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
 
                 Text("Pull down to refresh, or check Settings to verify your sync sources are connected.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 14))
+                    .foregroundColor(NexusTheme.Colors.textSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, NexusTheme.Spacing.xxxl)
             }
 
             Button {
                 onRefresh()
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: NexusTheme.Spacing.xxs) {
                     Image(systemName: "arrow.clockwise")
                     Text("Sync Now")
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color.nexusPrimary)
-                .cornerRadius(12)
+                .padding(.horizontal, NexusTheme.Spacing.xxxl)
+                .padding(.vertical, NexusTheme.Spacing.md)
+                .background(NexusTheme.Colors.accent)
+                .cornerRadius(NexusTheme.Radius.md)
             }
 
             Spacer().frame(height: 40)
@@ -177,24 +178,29 @@ struct TodayNoDataView: View {
 #Preview("Offline - No Queue") {
     TodayOfflineBanner(pendingCount: 0)
         .padding()
+        .background(NexusTheme.Colors.background)
 }
 
 #Preview("Offline - With Queue") {
     TodayOfflineBanner(pendingCount: 3)
         .padding()
+        .background(NexusTheme.Colors.background)
 }
 
 #Preview("Syncing") {
     TodaySyncingBanner(pendingCount: 2)
         .padding()
+        .background(NexusTheme.Colors.background)
 }
 
 #Preview("Stale") {
     TodayStaleBanner(text: "Health & Finance data delayed", onRefresh: {})
         .padding()
+        .background(NexusTheme.Colors.background)
 }
 
 #Preview("No Data") {
     TodayNoDataView(onRefresh: {})
         .padding()
+        .background(NexusTheme.Colors.background)
 }

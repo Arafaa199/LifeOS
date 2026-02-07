@@ -37,12 +37,12 @@ class SyncCoordinator: ObservableObject {
 
         var color: Color {
             switch self {
-            case .dashboard: return .nexusPrimary
-            case .finance: return .nexusFinance
-            case .healthKit: return .red
-            case .calendar: return .blue
-            case .whoop: return .orange
-            case .documents: return .purple
+            case .dashboard: return NexusTheme.Colors.accent
+            case .finance: return NexusTheme.Colors.Semantic.green
+            case .healthKit: return NexusTheme.Colors.Semantic.red
+            case .calendar: return NexusTheme.Colors.Semantic.blue
+            case .whoop: return NexusTheme.Colors.Semantic.amber
+            case .documents: return NexusTheme.Colors.Semantic.purple
             }
         }
 

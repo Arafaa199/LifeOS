@@ -93,7 +93,7 @@ struct MonthlyTrendsView: View {
                         x: .value("Month", item.monthName),
                         y: .value("Amount", item.totalSpent)
                     )
-                    .foregroundStyle(Color.nexusFinance)
+                    .foregroundStyle(NexusTheme.Colors.Semantic.green)
                     .symbol(Circle())
 
                     AreaMark(
@@ -102,7 +102,7 @@ struct MonthlyTrendsView: View {
                     )
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [Color.nexusFinance.opacity(0.3), Color.nexusFinance.opacity(0.05)],
+                            colors: [NexusTheme.Colors.Semantic.green.opacity(0.3), NexusTheme.Colors.Semantic.green.opacity(0.05)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -110,7 +110,7 @@ struct MonthlyTrendsView: View {
                 }
                 .frame(height: 200)
                 .padding()
-                .background(Color.nexusCardBackground)
+                .background(NexusTheme.Colors.card)
                 .cornerRadius(12)
                 .padding(.horizontal)
             } else {
@@ -132,7 +132,7 @@ struct MonthlyTrendsView: View {
                                         .frame(height: 24)
 
                                     Rectangle()
-                                        .fill(Color.nexusPrimary)
+                                        .fill(NexusTheme.Colors.accent)
                                         .frame(width: width, height: 24)
                                 }
                                 .cornerRadius(4)
@@ -147,7 +147,7 @@ struct MonthlyTrendsView: View {
                     }
                 }
                 .padding()
-                .background(Color.nexusCardBackground)
+                .background(NexusTheme.Colors.card)
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
@@ -175,11 +175,11 @@ struct MonthlyTrendsView: View {
 
                     VStack(spacing: 4) {
                         Image(systemName: change >= 0 ? "arrow.up.right" : "arrow.down.right")
-                            .foregroundColor(change >= 0 ? .nexusError : .nexusSuccess)
+                            .foregroundColor(change >= 0 ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.green)
                         Text(String(format: "%.0f%%", abs(percentChange)))
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .foregroundColor(change >= 0 ? .nexusError : .nexusSuccess)
+                            .foregroundColor(change >= 0 ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.green)
                     }
                     .frame(width: 60)
 
@@ -219,12 +219,12 @@ struct MonthlyTrendsView: View {
                             if change != 0 {
                                 Image(systemName: change > 0 ? "arrow.up" : "arrow.down")
                                     .font(.caption)
-                                    .foregroundColor(change > 0 ? .nexusError : .nexusSuccess)
+                                    .foregroundColor(change > 0 ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.green)
                             }
                         }
                     }
                     .padding()
-                    .background(Color.nexusCardBackground)
+                    .background(NexusTheme.Colors.card)
                     .cornerRadius(8)
                 }
                 .padding(.horizontal)
@@ -265,7 +265,7 @@ struct MonthCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(isCurrent ? Color.nexusPrimary.opacity(0.1) : Color.nexusCardBackground)
+        .background(isCurrent ? NexusTheme.Colors.accent.opacity(0.1) : NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 }

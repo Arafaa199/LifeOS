@@ -28,7 +28,7 @@ struct MoodLogView: View {
             }
             .padding()
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Log Mood")
         .navigationBarTitleDisplayMode(.large)
         .alert("Logged!", isPresented: $showSuccess) {
@@ -66,7 +66,7 @@ struct MoodLogView: View {
                     get: { Double(moodScore) },
                     set: { moodScore = Int($0) }
                 ), in: 1...10, step: 1)
-                .accentColor(.nexusPrimary)
+                .accentColor(NexusTheme.Colors.accent)
                 .accessibilityLabel("Mood score")
                 .accessibilityValue("\(moodScore) out of 10")
 
@@ -80,7 +80,7 @@ struct MoodLogView: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -118,7 +118,7 @@ struct MoodLogView: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -134,7 +134,7 @@ struct MoodLogView: View {
                 .textFieldStyle(.roundedBorder)
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -157,7 +157,7 @@ struct MoodLogView: View {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.nexusPrimary)
+            .background(NexusTheme.Colors.accent)
             .cornerRadius(12)
         }
         .disabled(isLogging)

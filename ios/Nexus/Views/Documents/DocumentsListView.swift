@@ -106,7 +106,7 @@ struct DocumentsListView: View {
                 Section {
                     HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                             .imageScale(.medium)
 
                         VStack(alignment: .leading, spacing: 4) {
@@ -134,7 +134,7 @@ struct DocumentsListView: View {
                     }
                 } header: {
                     Label("Expiring Soon", systemImage: "exclamationmark.circle.fill")
-                        .foregroundColor(.nexusWarning)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                 }
             }
 
@@ -155,7 +155,7 @@ struct DocumentsListView: View {
                     }
                 } header: {
                     Label("Expired", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundColor(.nexusError)
+                        .foregroundColor(NexusTheme.Colors.Semantic.red)
                 } footer: {
                     Text("These documents have passed their expiry date and may need renewal.")
                         .font(.caption)
@@ -164,7 +164,7 @@ struct DocumentsListView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
     }
 }
 
@@ -207,10 +207,10 @@ struct DocumentRow: View {
 
     private var urgencyColor: Color {
         switch document.urgency {
-        case "expired": return .nexusError
-        case "critical": return .nexusWarning
-        case "warning": return .nexusFood
-        default: return .nexusSuccess
+        case "expired": return NexusTheme.Colors.Semantic.red
+        case "critical": return NexusTheme.Colors.Semantic.amber
+        case "warning": return NexusTheme.Colors.Semantic.amber
+        default: return NexusTheme.Colors.Semantic.green
         }
     }
 }
@@ -240,10 +240,10 @@ struct UrgencyBadge: View {
 
     private var badgeColor: Color {
         switch urgency {
-        case "expired": return .nexusError
-        case "critical": return .nexusWarning
-        case "warning": return .nexusFood
-        default: return .nexusSuccess
+        case "expired": return NexusTheme.Colors.Semantic.red
+        case "critical": return NexusTheme.Colors.Semantic.amber
+        case "warning": return NexusTheme.Colors.Semantic.amber
+        default: return NexusTheme.Colors.Semantic.green
         }
     }
 }

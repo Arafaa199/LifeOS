@@ -47,7 +47,7 @@ struct FoodSearchView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "leaf.fill")
                         .font(.system(size: 48))
-                        .foregroundColor(.nexusFood.opacity(0.4))
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber.opacity(0.4))
                     Text("Search 2.4M foods by name or brand")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -57,7 +57,7 @@ struct FoodSearchView: View {
                 resultsList
             }
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Search Foods")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -116,9 +116,9 @@ struct FoodResultRow: View {
             }
 
             HStack(spacing: 16) {
-                macroLabel("Cal", value: food.calories_per_100g, format: "%.0f", color: .nexusFood)
-                macroLabel("P", value: food.protein_per_100g, format: "%.1fg", color: .nexusPrimary)
-                macroLabel("C", value: food.carbs_per_100g, format: "%.1fg", color: .nexusWarning)
+                macroLabel("Cal", value: food.calories_per_100g, format: "%.0f", color: NexusTheme.Colors.Semantic.amber)
+                macroLabel("P", value: food.protein_per_100g, format: "%.1fg", color: NexusTheme.Colors.accent)
+                macroLabel("C", value: food.carbs_per_100g, format: "%.1fg", color: NexusTheme.Colors.Semantic.amber)
                 macroLabel("F", value: food.fat_per_100g, format: "%.1fg", color: .yellow)
             }
             .font(.caption2)

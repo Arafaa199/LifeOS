@@ -63,7 +63,7 @@ struct FoodLogView: View {
             }
             .padding()
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Log Food")
         .navigationBarTitleDisplayMode(.large)
         .alert("Food Logged", isPresented: $showSuccess) {
@@ -121,10 +121,10 @@ struct FoodLogView: View {
                         Text("Search Foods")
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(.nexusFood)
+                    .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.nexusFood.opacity(0.12))
+                    .background(NexusTheme.Colors.Semantic.amber.opacity(0.12))
                     .cornerRadius(12)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -136,10 +136,10 @@ struct FoodLogView: View {
                         Text("Scan")
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(.nexusPrimary)
+                    .foregroundColor(NexusTheme.Colors.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.nexusPrimary.opacity(0.12))
+                    .background(NexusTheme.Colors.accent.opacity(0.12))
                     .cornerRadius(12)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -176,9 +176,9 @@ struct FoodLogView: View {
             }
 
             HStack(spacing: 0) {
-                macroColumn("Calories", value: food.calories_per_100g, format: "%.0f", unit: "", color: .nexusFood)
-                macroColumn("Protein", value: food.protein_per_100g, format: "%.1f", unit: "g", color: .nexusPrimary)
-                macroColumn("Carbs", value: food.carbs_per_100g, format: "%.1f", unit: "g", color: .nexusWarning)
+                macroColumn("Calories", value: food.calories_per_100g, format: "%.0f", unit: "", color: NexusTheme.Colors.Semantic.amber)
+                macroColumn("Protein", value: food.protein_per_100g, format: "%.1f", unit: "g", color: NexusTheme.Colors.accent)
+                macroColumn("Carbs", value: food.carbs_per_100g, format: "%.1f", unit: "g", color: NexusTheme.Colors.Semantic.amber)
                 macroColumn("Fat", value: food.fat_per_100g, format: "%.1f", unit: "g", color: .yellow)
             }
 
@@ -195,7 +195,7 @@ struct FoodLogView: View {
         .nexusCard()
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.nexusFood.opacity(0.3), lineWidth: 1)
+                .stroke(NexusTheme.Colors.Semantic.amber.opacity(0.3), lineWidth: 1)
         )
     }
 
@@ -242,13 +242,13 @@ struct FoodLogView: View {
                         .padding(.vertical, 12)
                         .background(
                             selectedMeal == meal ?
-                            Color.nexusFood :
+                            NexusTheme.Colors.Semantic.amber :
                             Color(.systemBackground)
                         )
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(selectedMeal == meal ? Color.nexusFood : Color(.systemGray4), lineWidth: 1)
+                                .stroke(selectedMeal == meal ? NexusTheme.Colors.Semantic.amber : Color(.systemGray4), lineWidth: 1)
                         )
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -271,12 +271,12 @@ struct FoodLogView: View {
                 Button(action: toggleVoiceInput) {
                     ZStack {
                         Circle()
-                            .fill(speechRecognizer.isRecording ? Color.nexusError.opacity(0.15) : Color.nexusPrimary.opacity(0.15))
+                            .fill(speechRecognizer.isRecording ? NexusTheme.Colors.Semantic.red.opacity(0.15) : NexusTheme.Colors.accent.opacity(0.15))
                             .frame(width: 44, height: 44)
 
                         Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(speechRecognizer.isRecording ? .nexusError : .nexusPrimary)
+                            .foregroundColor(speechRecognizer.isRecording ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.accent)
                             .symbolEffect(.pulse, isActive: speechRecognizer.isRecording)
                     }
                 }
@@ -290,7 +290,7 @@ struct FoodLogView: View {
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(speechRecognizer.isRecording ? Color.nexusError : Color.nexusPrimary.opacity(0.3), lineWidth: speechRecognizer.isRecording ? 2 : 1)
+                            .stroke(speechRecognizer.isRecording ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.accent.opacity(0.3), lineWidth: speechRecognizer.isRecording ? 2 : 1)
                     )
                     .focused($isInputFocused)
                     .disabled(speechRecognizer.isRecording)
@@ -310,12 +310,12 @@ struct FoodLogView: View {
                         VStack(spacing: 4) {
                             Image(systemName: "waveform")
                                 .font(.title2)
-                                .foregroundColor(.nexusError)
+                                .foregroundColor(NexusTheme.Colors.Semantic.red)
                                 .symbolEffect(.variableColor.iterative, isActive: true)
                             Text("Listening...")
                                 .font(.caption)
                                 .fontWeight(.medium)
-                                .foregroundColor(.nexusError)
+                                .foregroundColor(NexusTheme.Colors.Semantic.red)
                         }
                         .padding(12)
                     }
@@ -344,10 +344,10 @@ struct FoodLogView: View {
                         Text("Camera")
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(.nexusPrimary)
+                    .foregroundColor(NexusTheme.Colors.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.nexusPrimary.opacity(0.12))
+                    .background(NexusTheme.Colors.accent.opacity(0.12))
                     .cornerRadius(12)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -359,10 +359,10 @@ struct FoodLogView: View {
                         Text("Library")
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(.nexusMood)
+                    .foregroundColor(NexusTheme.Colors.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.nexusMood.opacity(0.12))
+                    .background(NexusTheme.Colors.accent.opacity(0.12))
                     .cornerRadius(12)
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -379,7 +379,7 @@ struct FoodLogView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.nexusSuccess)
+                                .foregroundColor(NexusTheme.Colors.Semantic.green)
                             Text("Photo ready")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
@@ -399,7 +399,7 @@ struct FoodLogView: View {
                     }
                 }
                 .padding(12)
-                .background(Color.nexusSuccess.opacity(0.08))
+                .background(NexusTheme.Colors.Semantic.green.opacity(0.08))
                 .cornerRadius(12)
             }
         }
@@ -580,8 +580,8 @@ struct QuickFoodChip: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(Color.nexusFood.opacity(0.12))
-            .foregroundColor(.nexusFood)
+            .background(NexusTheme.Colors.Semantic.amber.opacity(0.12))
+            .foregroundColor(NexusTheme.Colors.Semantic.amber)
             .cornerRadius(20)
         }
         .buttonStyle(PlainButtonStyle())

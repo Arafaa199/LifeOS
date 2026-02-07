@@ -6,21 +6,22 @@ struct HomeStatusCard: View {
 
     var body: some View {
         Button(action: { onTap?() }) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: NexusTheme.Spacing.md) {
                 // Header
                 HStack {
                     Image(systemName: "house.fill")
-                        .foregroundColor(.orange)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     Text("Home")
-                        .font(.headline)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(NexusTheme.Colors.textPrimary)
                     Spacer()
                     if viewModel.isLoading {
                         ProgressView()
                             .scaleEffect(0.8)
                     } else {
                         Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textMuted)
                     }
                 }
 
@@ -28,14 +29,14 @@ struct HomeStatusCard: View {
                     // Error state
                     HStack {
                         Image(systemName: "exclamationmark.triangle")
-                            .foregroundColor(.orange)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                         Text(error)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
                     }
                 } else if let status = viewModel.homeStatus {
                     // Device grid
-                    HStack(spacing: 16) {
+                    HStack(spacing: NexusTheme.Spacing.lg) {
                         // Lights
                         DeviceIndicator(
                             icon: "lightbulb.fill",
@@ -75,23 +76,27 @@ struct HomeStatusCard: View {
                     }
                 } else {
                     // Loading placeholder
-                    HStack(spacing: 16) {
+                    HStack(spacing: NexusTheme.Spacing.lg) {
                         ForEach(0..<4, id: \.self) { _ in
-                            VStack(spacing: 4) {
+                            VStack(spacing: NexusTheme.Spacing.xxxs) {
                                 Circle()
-                                    .fill(Color.gray.opacity(0.2))
+                                    .fill(NexusTheme.Colors.cardAlt)
                                     .frame(width: 32, height: 32)
                                 RoundedRectangle(cornerRadius: 2)
-                                    .fill(Color.gray.opacity(0.2))
+                                    .fill(NexusTheme.Colors.cardAlt)
                                     .frame(width: 40, height: 10)
                             }
                         }
                     }
                 }
             }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .cornerRadius(16)
+            .padding(NexusTheme.Spacing.lg)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -107,20 +112,20 @@ struct DeviceIndicator: View {
     var battery: Int? = nil
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: NexusTheme.Spacing.xxxs) {
             ZStack {
                 Circle()
-                    .fill(isOn ? Color.green.opacity(0.2) : Color.gray.opacity(0.1))
+                    .fill(isOn ? NexusTheme.Colors.Semantic.green.opacity(0.15) : NexusTheme.Colors.cardAlt)
                     .frame(width: 36, height: 36)
 
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundColor(isOn ? .green : .gray)
+                    .foregroundColor(isOn ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textTertiary)
             }
 
             Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
+                .font(.system(size: 10))
+                .foregroundColor(NexusTheme.Colors.textSecondary)
 
             if let battery = battery {
                 HStack(spacing: 2) {
@@ -132,9 +137,8 @@ struct DeviceIndicator: View {
                 .foregroundColor(batteryColor(for: battery))
             } else {
                 Text(state)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundColor(isOn ? .green : .secondary)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(isOn ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
             }
         }
         .frame(maxWidth: .infinity)
@@ -148,9 +152,9 @@ struct DeviceIndicator: View {
     }
 
     private func batteryColor(for level: Int) -> Color {
-        if level > 50 { return .green }
-        if level > 20 { return .orange }
-        return .red
+        if level > 50 { return NexusTheme.Colors.Semantic.green }
+        if level > 20 { return NexusTheme.Colors.Semantic.amber }
+        return NexusTheme.Colors.Semantic.red
     }
 }
 
@@ -162,6 +166,7 @@ struct DeviceIndicator: View {
         HomeStatusCard(viewModel: HomeViewModel.shared)
     }
     .padding()
+    .background(NexusTheme.Colors.background)
     .onAppear {
         // Set mock data for preview
         HomeViewModel.shared.homeStatus = HomeStatus(

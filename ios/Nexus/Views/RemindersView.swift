@@ -245,7 +245,7 @@ struct ReminderRow: View {
             Button(action: onToggle) {
                 Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundColor(reminder.isCompleted ? .nexusSuccess : .secondary)
+                    .foregroundColor(reminder.isCompleted ? NexusTheme.Colors.Semantic.green : .secondary)
             }
             .buttonStyle(.plain)
 
@@ -260,7 +260,7 @@ struct ReminderRow: View {
                     if let priorityLabel = reminder.priorityLabel {
                         Text(priorityLabel)
                             .font(.caption)
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                 }
 

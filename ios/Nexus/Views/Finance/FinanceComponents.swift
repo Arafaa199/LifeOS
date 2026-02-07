@@ -25,7 +25,7 @@ struct BudgetView: View {
                             Text("Set Budgets")
                                 .fontWeight(.semibold)
                                 .padding()
-                                .background(Color.nexusPrimary)
+                                .background(NexusTheme.Colors.accent)
                                 .foregroundColor(.white)
                                 .cornerRadius(10)
                         }
@@ -83,7 +83,7 @@ struct BudgetView: View {
                         .fontWeight(.semibold)
                 }
                 .padding()
-                .background(Color.nexusCardBackground)
+                .background(NexusTheme.Colors.card)
                 .cornerRadius(8)
             }
         }
@@ -140,7 +140,7 @@ struct TransactionRow: View {
 
                     if transaction.hasCorrection {
                         Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                             .font(.caption2)
                     }
                 }
@@ -168,7 +168,7 @@ struct TransactionRow: View {
                  ? "+\(formatCurrency(abs(transaction.amount), currency: transaction.currency))"
                  : "-\(formatCurrency(abs(transaction.amount), currency: transaction.currency))")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .foregroundColor(transaction.amount < 0 ? .primary : .nexusSuccess)
+                .foregroundColor(transaction.amount < 0 ? .primary : NexusTheme.Colors.Semantic.green)
         }
         .padding(.vertical, 4)
     }
@@ -197,7 +197,7 @@ struct BudgetCard: View {
                 Spacer()
                 Text("\(formatCurrency(budget.spent ?? 0, currency: AppSettings.shared.defaultCurrency)) / \(formatCurrency(budget.budgetAmount, currency: AppSettings.shared.defaultCurrency))")
                     .font(.subheadline)
-                    .foregroundColor(isOverBudget ? .nexusError : .secondary)
+                    .foregroundColor(isOverBudget ? NexusTheme.Colors.Semantic.red : .secondary)
             }
 
             GeometryReader { geometry in
@@ -208,7 +208,7 @@ struct BudgetCard: View {
                         .cornerRadius(4)
 
                     Rectangle()
-                        .fill(isOverBudget ? Color.nexusError : Color.nexusFinance)
+                        .fill(isOverBudget ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.green)
                         .frame(width: geometry.size.width * progress, height: 8)
                         .cornerRadius(4)
                 }
@@ -220,11 +220,11 @@ struct BudgetCard: View {
                      "\(formatCurrency(remaining, currency: AppSettings.shared.defaultCurrency)) remaining" :
                      "\(formatCurrency(abs(remaining), currency: AppSettings.shared.defaultCurrency)) over budget")
                     .font(.caption)
-                    .foregroundColor(remaining >= 0 ? .secondary : .nexusError)
+                    .foregroundColor(remaining >= 0 ? .secondary : NexusTheme.Colors.Semantic.red)
             }
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 }
@@ -243,7 +243,7 @@ struct FilterChip: View {
                 .fontWeight(isSelected ? .semibold : .regular)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(isSelected ? Color.nexusFinance : Color.nexusCardBackground)
+                .background(isSelected ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.card)
                 .foregroundColor(isSelected ? .white : .primary)
                 .cornerRadius(20)
         }

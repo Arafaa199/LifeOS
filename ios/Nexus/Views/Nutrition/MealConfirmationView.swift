@@ -45,9 +45,9 @@ struct MealConfirmationView: View {
                         onSkip()
                     }) {
                         Image(systemName: "xmark")
-                            .foregroundColor(.nexusError)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
                             .frame(width: 32, height: 32)
-                            .background(Color.nexusError.opacity(0.1))
+                            .background(NexusTheme.Colors.Semantic.red.opacity(0.1))
                             .clipShape(Circle())
                     }
 
@@ -57,9 +57,9 @@ struct MealConfirmationView: View {
                         onConfirm()
                     }) {
                         Image(systemName: "checkmark")
-                            .foregroundColor(.nexusSuccess)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                             .frame(width: 32, height: 32)
-                            .background(Color.nexusSuccess.opacity(0.1))
+                            .background(NexusTheme.Colors.Semantic.green.opacity(0.1))
                             .clipShape(Circle())
                     }
                 }
@@ -68,7 +68,7 @@ struct MealConfirmationView: View {
             }
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
         .offset(x: offset)
         .gesture(
@@ -145,11 +145,11 @@ struct MealConfirmationView: View {
     private var iconColor: Color {
         switch meal.mealType.lowercased() {
         case "breakfast":
-            return .nexusWarning
+            return NexusTheme.Colors.Semantic.amber
         case "lunch":
             return .yellow
         case "dinner":
-            return .nexusMood
+            return NexusTheme.Colors.accent
         default:
             return .gray
         }
@@ -157,11 +157,11 @@ struct MealConfirmationView: View {
 
     private var confidenceColor: Color {
         if meal.confidence >= 0.7 {
-            return .nexusSuccess
+            return NexusTheme.Colors.Semantic.green
         } else if meal.confidence >= 0.4 {
-            return .nexusWarning
+            return NexusTheme.Colors.Semantic.amber
         } else {
-            return .nexusError
+            return NexusTheme.Colors.Semantic.red
         }
     }
 

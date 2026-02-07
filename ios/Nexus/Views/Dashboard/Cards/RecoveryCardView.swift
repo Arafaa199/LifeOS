@@ -8,11 +8,11 @@ struct RecoveryCardView: View {
     let freshness: DomainFreshness?
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: NexusTheme.Spacing.md) {
             // Recovery ring
             ZStack {
                 Circle()
-                    .stroke(Color.gray.opacity(0.15), lineWidth: 6)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 6)
                     .frame(width: 56, height: 56)
 
                 Circle()
@@ -30,30 +30,31 @@ struct RecoveryCardView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Recovery")
-                    .font(.subheadline.weight(.medium))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
 
                 if recoveryScore == nil {
                     if healthStatus == "healthy" || healthStatus == nil {
                         Text("Pending...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textTertiary)
                     } else {
                         Text("Unavailable")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textTertiary)
                     }
                 }
 
                 if let sleep = sleepMinutes {
                     Text(formatSleep(sleep))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11))
+                        .foregroundColor(NexusTheme.Colors.textSecondary)
                 }
 
                 if let freshness {
                     Text(freshness.syncTimeLabel)
-                        .font(.caption2)
-                        .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
+                        .font(.system(size: 10))
+                        .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.textTertiary)
                 }
             }
         }
@@ -79,14 +80,14 @@ struct RecoveryCardView: View {
     private var recoveryColor: Color {
         guard let score = recoveryScore else {
             if healthStatus == "healthy" || healthStatus == nil {
-                return .secondary
+                return NexusTheme.Colors.textTertiary
             }
-            return .gray
+            return NexusTheme.Colors.textMuted
         }
         switch score {
-        case 67...100: return .nexusSuccess
-        case 34...66: return .nexusWarning
-        default: return .nexusError
+        case 67...100: return NexusTheme.Colors.Semantic.green
+        case 34...66: return NexusTheme.Colors.Semantic.amber
+        default: return NexusTheme.Colors.Semantic.red
         }
     }
 
@@ -112,4 +113,5 @@ struct RecoveryCardView: View {
         freshness: nil
     )
     .padding()
+    .background(NexusTheme.Colors.card)
 }

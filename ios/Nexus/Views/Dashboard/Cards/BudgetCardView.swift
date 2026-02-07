@@ -10,29 +10,29 @@ struct BudgetCardView: View {
     let currency: String
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 6) {
+        VStack(alignment: .trailing, spacing: NexusTheme.Spacing.xxs) {
             // Spend amount as primary number
             Text(spentTodayText)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(.primary)
+                .foregroundColor(NexusTheme.Colors.textPrimary)
 
             // Status chip
             HStack(spacing: 4) {
                 Image(systemName: budgetStatusIcon)
                     .font(.system(size: 9))
                 Text(budgetStatusText)
-                    .font(.caption2.weight(.medium))
+                    .font(.system(size: 10, weight: .semibold))
             }
             .foregroundColor(budgetStatusColor)
-            .padding(.horizontal, 8)
+            .padding(.horizontal, NexusTheme.Spacing.xs)
             .padding(.vertical, 3)
             .background(budgetStatusColor.opacity(0.12))
-            .cornerRadius(6)
+            .cornerRadius(NexusTheme.Radius.xs)
 
             if let freshness {
                 Text(freshness.syncTimeLabel)
-                    .font(.caption2)
-                    .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
+                    .font(.system(size: 10))
+                    .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.textTertiary)
             }
         }
     }
@@ -77,11 +77,11 @@ struct BudgetCardView: View {
     }
 
     private var budgetStatusColor: Color {
-        guard hasData else { return .gray }
+        guard hasData else { return NexusTheme.Colors.textMuted }
 
-        if spendUnusual == true { return .nexusError }
-        if let vsAvg = spendVs7d, vsAvg > 50 { return .nexusWarning }
-        return .nexusSuccess
+        if spendUnusual == true { return NexusTheme.Colors.Semantic.red }
+        if let vsAvg = spendVs7d, vsAvg > 50 { return NexusTheme.Colors.Semantic.amber }
+        return NexusTheme.Colors.Semantic.green
     }
 }
 
@@ -95,4 +95,5 @@ struct BudgetCardView: View {
         currency: "AED"
     )
     .padding()
+    .background(NexusTheme.Colors.card)
 }

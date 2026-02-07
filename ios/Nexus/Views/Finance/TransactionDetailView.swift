@@ -18,7 +18,7 @@ struct TransactionDetailView: View {
                     Section {
                         HStack {
                             Image(systemName: "pencil.circle.fill")
-                                .foregroundColor(.nexusWarning)
+                                .foregroundColor(NexusTheme.Colors.Semantic.amber)
                             VStack(alignment: .leading) {
                                 Text("Corrected")
                                     .font(.headline)
@@ -33,7 +33,7 @@ struct TransactionDetailView: View {
                                 showingRevertAlert = true
                             }
                             .buttonStyle(.bordered)
-                            .tint(.nexusWarning)
+                            .tint(NexusTheme.Colors.Semantic.amber)
                         }
                     }
                 }
@@ -47,7 +47,7 @@ struct TransactionDetailView: View {
                         Spacer()
                         Text(transaction.displayAmount)
                             .fontWeight(.semibold)
-                            .foregroundColor(transaction.amount < 0 ? .nexusError : .nexusSuccess)
+                            .foregroundColor(transaction.amount < 0 ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.green)
                     }
 
                     DetailRow(label: "Date", value: transaction.date.formatted(date: .abbreviated, time: .omitted))
@@ -85,10 +85,10 @@ struct TransactionDetailView: View {
                                 if transaction.fxIsEstimate == true {
                                     Text("~ Est.")
                                         .font(.caption2)
-                                        .foregroundColor(.nexusWarning)
+                                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                                         .padding(.horizontal, 4)
                                         .padding(.vertical, 2)
-                                        .background(Color.nexusWarning.opacity(0.15))
+                                        .background(NexusTheme.Colors.Semantic.amber.opacity(0.15))
                                         .cornerRadius(4)
                                 }
                             }
@@ -104,7 +104,7 @@ struct TransactionDetailView: View {
                                     .foregroundColor(.secondary)
                                 Spacer()
                                 Text("Rate unavailable")
-                                    .foregroundColor(.nexusError)
+                                    .foregroundColor(NexusTheme.Colors.Semantic.red)
                                     .font(.subheadline)
                             }
                         }
@@ -157,11 +157,11 @@ struct TransactionDetailView: View {
                 Section("Flags") {
                     if transaction.isGrocery {
                         Label("Grocery Purchase", systemImage: "cart.fill")
-                            .foregroundColor(.nexusSuccess)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                     }
                     if transaction.isRestaurant {
                         Label("Restaurant/Food", systemImage: "fork.knife")
-                            .foregroundColor(.nexusFood)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                     if !transaction.isGrocery && !transaction.isRestaurant {
                         Text("None")

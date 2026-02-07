@@ -20,7 +20,7 @@ struct DocumentDetailView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle(document.label)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -112,7 +112,7 @@ struct DocumentDetailView: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 Text(document.remindersEnabled ? "Enabled" : "Disabled")
-                    .foregroundColor(document.remindersEnabled ? .nexusSuccess : .secondary)
+                    .foregroundColor(document.remindersEnabled ? NexusTheme.Colors.Semantic.green : .secondary)
             }
 
             Button {

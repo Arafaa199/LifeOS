@@ -76,7 +76,7 @@ struct MiniPlayerView: View {
                 // Progress indicator
                 GeometryReader { geo in
                     Rectangle()
-                        .fill(Color.nexusPrimary)
+                        .fill(NexusTheme.Colors.accent)
                         .frame(width: geo.size.width * musicService.progress, height: 2)
                 }
                 .frame(height: 2)

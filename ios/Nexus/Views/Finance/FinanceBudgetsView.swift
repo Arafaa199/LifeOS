@@ -29,15 +29,15 @@ struct FinanceBudgetsView: View {
                 HStack(spacing: 6) {
                     if let freshness = viewModel.financeFreshness {
                         Circle()
-                            .fill(freshness.isStale ? Color.nexusWarning : Color.nexusSuccess)
+                            .fill(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                             .frame(width: 6, height: 6)
                         Text(freshness.syncTimeLabel)
                             .font(.caption)
-                            .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
+                            .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : .secondary)
                     } else if let lastUpdated = viewModel.lastUpdated,
                               Date().timeIntervalSince(lastUpdated) > 300 || viewModel.isOffline {
                         Circle()
-                            .fill(viewModel.isOffline ? Color.nexusWarning : Color.nexusSuccess)
+                            .fill(viewModel.isOffline ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                             .frame(width: 6, height: 6)
                         Text("Updated \(lastUpdated, style: .relative) ago")
                             .font(.caption)
@@ -46,7 +46,7 @@ struct FinanceBudgetsView: View {
                     if viewModel.isOffline {
                         Text("(Offline)")
                             .font(.caption)
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                     Spacer()
                 }
@@ -97,7 +97,7 @@ struct FinanceBudgetsView: View {
                     Text(formatCurrency(totalSpent, currency: AppSettings.shared.defaultCurrency))
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(totalSpent > totalBudget ? .nexusError : .primary)
+                        .foregroundColor(totalSpent > totalBudget ? NexusTheme.Colors.Semantic.red : .primary)
                 }
             }
 
@@ -114,7 +114,7 @@ struct FinanceBudgetsView: View {
                             .cornerRadius(5)
 
                         Rectangle()
-                            .fill(isOver ? Color.nexusError : Color.nexusFinance)
+                            .fill(isOver ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.green)
                             .frame(width: geo.size.width * min(progress, 1.0), height: 10)
                             .cornerRadius(5)
                     }
@@ -130,7 +130,7 @@ struct FinanceBudgetsView: View {
                     } else {
                         Text(formatCurrency(abs(remaining), currency: AppSettings.shared.defaultCurrency) + " over budget")
                             .font(.caption)
-                            .foregroundColor(.nexusError)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
                     }
 
                     Spacer()
@@ -138,12 +138,12 @@ struct FinanceBudgetsView: View {
                     Text(String(format: "%.0f%%", progress * 100))
                         .font(.caption)
                         .fontWeight(.medium)
-                        .foregroundColor(isOver ? .nexusError : .secondary)
+                        .foregroundColor(isOver ? NexusTheme.Colors.Semantic.red : .secondary)
                 }
             }
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -188,7 +188,7 @@ struct FinanceBudgetsView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.nexusFinance)
+            .background(NexusTheme.Colors.Semantic.green)
             .foregroundColor(.white)
             .cornerRadius(12)
         }
@@ -217,9 +217,9 @@ struct BudgetRowCard: View {
     }
 
     private var progressColor: Color {
-        if isOverBudget { return .nexusError }
-        if progress > 0.8 { return .nexusWarning }
-        return .nexusFinance
+        if isOverBudget { return NexusTheme.Colors.Semantic.red }
+        if progress > 0.8 { return NexusTheme.Colors.Semantic.amber }
+        return NexusTheme.Colors.Semantic.green
     }
 
     var body: some View {
@@ -243,7 +243,7 @@ struct BudgetRowCard: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.nexusError)
+                        .background(NexusTheme.Colors.Semantic.red)
                         .cornerRadius(4)
                 }
             }
@@ -252,7 +252,7 @@ struct BudgetRowCard: View {
             HStack {
                 Text(formatCurrency(spent, currency: AppSettings.shared.defaultCurrency))
                     .font(.subheadline)
-                    .foregroundColor(isOverBudget ? .nexusError : .primary)
+                    .foregroundColor(isOverBudget ? NexusTheme.Colors.Semantic.red : .primary)
 
                 Text("of")
                     .font(.caption)
@@ -271,7 +271,7 @@ struct BudgetRowCard: View {
                 } else {
                     Text(formatCurrency(abs(remaining), currency: AppSettings.shared.defaultCurrency) + " over")
                         .font(.caption)
-                        .foregroundColor(.nexusError)
+                        .foregroundColor(NexusTheme.Colors.Semantic.red)
                 }
             }
 
@@ -292,7 +292,7 @@ struct BudgetRowCard: View {
             .frame(height: 8)
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 

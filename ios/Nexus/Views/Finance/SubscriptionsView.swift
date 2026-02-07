@@ -21,7 +21,7 @@ struct SubscriptionsView: View {
                     VStack(alignment: .trailing, spacing: 4) {
                         Text(formatCurrency(viewModel.monthlyTotal, currency: "AED"))
                             .font(.title2.bold())
-                            .foregroundColor(.nexusFinance)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                         Text("per month")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -118,7 +118,7 @@ struct SubscriptionRow: View {
                             .foregroundColor(.secondary)
                         Text(dueDate)
                             .font(.caption)
-                            .foregroundColor(item.isOverdue ? .nexusError : .nexusWarning)
+                            .foregroundColor(item.isOverdue ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.amber)
                     }
                 }
             }
@@ -129,7 +129,7 @@ struct SubscriptionRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(formatCurrency(item.amount, currency: item.currency))
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.nexusError)
+                    .foregroundColor(NexusTheme.Colors.Semantic.red)
 
                 if !showDueDate, let days = item.daysUntilDue, days >= 0 {
                     Text(daysUntilText(days))
@@ -169,7 +169,7 @@ struct SubscriptionRow: View {
         } else if name.contains("gym") || name.contains("fitness") {
             return .orange
         } else {
-            return .nexusFinance
+            return NexusTheme.Colors.Semantic.green
         }
     }
 

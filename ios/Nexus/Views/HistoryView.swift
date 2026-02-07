@@ -46,7 +46,7 @@ struct HistoryView: View {
                     }
                     .padding(.top, 16)
                 }
-                .background(Color.nexusBackground)
+                .background(NexusTheme.Colors.background)
             }
             .navigationTitle("History")
             .navigationBarTitleDisplayMode(.inline)
@@ -79,9 +79,9 @@ struct HistoryView: View {
                 Button(action: previousDay) {
                     Image(systemName: "chevron.left")
                         .font(.title3.weight(.semibold))
-                        .foregroundColor(.nexusPrimary)
+                        .foregroundColor(NexusTheme.Colors.accent)
                         .frame(width: 44, height: 44)
-                        .background(Color.nexusPrimary.opacity(0.12))
+                        .background(NexusTheme.Colors.accent.opacity(0.12))
                         .cornerRadius(12)
                 }
 
@@ -101,9 +101,9 @@ struct HistoryView: View {
                 Button(action: nextDay) {
                     Image(systemName: "chevron.right")
                         .font(.title3.weight(.semibold))
-                        .foregroundColor(canGoForward ? .nexusPrimary : .secondary)
+                        .foregroundColor(canGoForward ? NexusTheme.Colors.accent : .secondary)
                         .frame(width: 44, height: 44)
-                        .background((canGoForward ? Color.nexusPrimary : Color.secondary).opacity(0.12))
+                        .background((canGoForward ? NexusTheme.Colors.accent : Color.secondary).opacity(0.12))
                         .cornerRadius(12)
                 }
                 .disabled(!canGoForward)
@@ -143,12 +143,12 @@ struct HistoryView: View {
 
                         if isToday {
                             Circle()
-                                .fill(isSelected ? .white : .nexusPrimary)
+                                .fill(isSelected ? .white : NexusTheme.Colors.accent)
                                 .frame(width: 4, height: 4)
                         }
                     }
                     .frame(width: 40, height: 56)
-                    .background(isSelected ? Color.nexusPrimary : Color.clear)
+                    .background(isSelected ? NexusTheme.Colors.accent : Color.clear)
                     .cornerRadius(10)
                 }
                 .disabled(isFuture)
@@ -177,7 +177,7 @@ struct HistoryView: View {
                     value: "\(data.calories)",
                     unit: "kcal",
                     icon: "flame.fill",
-                    color: .nexusFood,
+                    color: NexusTheme.Colors.Semantic.amber,
                     goal: Double(goals.calories),
                     current: Double(data.calories)
                 )
@@ -187,7 +187,7 @@ struct HistoryView: View {
                     value: String(format: "%.1f", data.protein),
                     unit: "g",
                     icon: "bolt.fill",
-                    color: .nexusProtein,
+                    color: NexusTheme.Colors.Semantic.purple,
                     goal: goals.protein,
                     current: data.protein
                 )
@@ -197,7 +197,7 @@ struct HistoryView: View {
                     value: "\(data.water)",
                     unit: "ml",
                     icon: "drop.fill",
-                    color: .nexusWater,
+                    color: NexusTheme.Colors.Semantic.blue,
                     goal: Double(goals.water),
                     current: Double(data.water)
                 )
@@ -207,7 +207,7 @@ struct HistoryView: View {
                     value: data.weight != nil ? String(format: "%.1f", data.weight!) : "--",
                     unit: "kg",
                     icon: "scalemass.fill",
-                    color: .nexusWeight,
+                    color: NexusTheme.Colors.Semantic.purple,
                     goal: goals.weight,
                     current: data.weight
                 )
@@ -221,7 +221,7 @@ struct HistoryView: View {
                         value: "\(mood)",
                         unit: "/ 10",
                         icon: "face.smiling.fill",
-                        color: .nexusMood,
+                        color: NexusTheme.Colors.accent,
                         goal: 10,
                         current: Double(mood)
                     )
@@ -232,7 +232,7 @@ struct HistoryView: View {
                             value: "\(energy)",
                             unit: "/ 10",
                             icon: "bolt.heart.fill",
-                            color: .nexusAccent,
+                            color: NexusTheme.Colors.accent,
                             goal: 10,
                             current: Double(energy)
                         )
@@ -320,7 +320,7 @@ struct HistoryView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 32)
-                .background(Color.nexusCardBackground)
+                .background(NexusTheme.Colors.card)
                 .cornerRadius(16)
                 .padding(.horizontal)
             } else {
@@ -334,7 +334,7 @@ struct HistoryView: View {
                         }
                     }
                 }
-                .background(Color.nexusCardBackground)
+                .background(NexusTheme.Colors.card)
                 .cornerRadius(16)
                 .padding(.horizontal)
             }
@@ -366,7 +366,7 @@ struct HistoryView: View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 48))
-                .foregroundColor(.nexusWarning)
+                .foregroundColor(NexusTheme.Colors.Semantic.amber)
 
             Text("Couldn't Load Data")
                 .font(.headline)
@@ -523,7 +523,7 @@ struct HistoryStatCard: View {
             }
         }
         .padding(12)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 }
@@ -581,8 +581,8 @@ struct HistoryLogRow: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.nexusFood.opacity(0.15))
-                        .foregroundColor(.nexusFood)
+                        .background(NexusTheme.Colors.Semantic.amber.opacity(0.15))
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                         .cornerRadius(12)
                 }
 
@@ -592,8 +592,8 @@ struct HistoryLogRow: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.nexusProtein.opacity(0.15))
-                        .foregroundColor(.nexusProtein)
+                        .background(NexusTheme.Colors.Semantic.purple.opacity(0.15))
+                        .foregroundColor(NexusTheme.Colors.Semantic.purple)
                         .cornerRadius(12)
                 }
             }

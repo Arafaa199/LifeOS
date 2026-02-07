@@ -37,7 +37,7 @@ struct EventEditSheet: View {
                 notesSection
             }
             .scrollContentBackground(.hidden)
-            .background(Color.nexusBackground)
+            .background(NexusTheme.Colors.background)
             .navigationTitle(isEditing ? "Edit Event" : "New Event")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

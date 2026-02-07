@@ -54,7 +54,7 @@ struct ContentView: View {
                     }
                     .tag(4)
             }
-            .tint(.nexusPrimary)
+            .tint(NexusTheme.Colors.accent)
             .environmentObject(viewModel)
         }
         .onReceive(NotificationCenter.default.publisher(for: .offlineItemPermanentlyFailed)) { notification in
@@ -143,7 +143,7 @@ struct QuickMoodLogSheet: View {
                         Text("Mood: \(Int(moodScore))/10")
                             .font(.headline)
                         Slider(value: $moodScore, in: 1...10, step: 1)
-                            .tint(.nexusPrimary)
+                            .tint(NexusTheme.Colors.accent)
                     }
                     .padding(.vertical, 8)
 
@@ -151,7 +151,7 @@ struct QuickMoodLogSheet: View {
                         Text("Energy: \(Int(energyLevel))/10")
                             .font(.headline)
                         Slider(value: $energyLevel, in: 1...10, step: 1)
-                            .tint(.nexusAccent)
+                            .tint(NexusTheme.Colors.accent)
                     }
                     .padding(.vertical, 8)
                 } header: {

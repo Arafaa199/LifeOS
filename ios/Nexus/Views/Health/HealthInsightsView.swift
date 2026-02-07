@@ -10,7 +10,7 @@ struct HealthInsightsView: View {
         ScrollView {
             HealthInsightsContent(viewModel: viewModel)
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .refreshable {
             SyncCoordinator.shared.syncAll(force: true)
             await viewModel.loadData()
@@ -52,7 +52,7 @@ struct InsightCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 }
@@ -64,9 +64,9 @@ enum DataSourceStatus {
 
     var dotColor: Color {
         switch self {
-        case .healthy: return .nexusSuccess
-        case .stale: return .nexusWarning
-        case .failed: return .nexusError
+        case .healthy: return NexusTheme.Colors.Semantic.green
+        case .stale: return NexusTheme.Colors.Semantic.amber
+        case .failed: return NexusTheme.Colors.Semantic.red
         case .unknown: return .gray
         }
     }

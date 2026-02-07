@@ -158,7 +158,7 @@ struct FinanceOverviewContent: View {
                                 .cornerRadius(4)
 
                             Rectangle()
-                                .fill(Color.nexusFinance)
+                                .fill(NexusTheme.Colors.Semantic.green)
                                 .frame(width: geo.size.width * progress, height: 8)
                                 .cornerRadius(4)
                         }
@@ -178,9 +178,13 @@ struct FinanceOverviewContent: View {
                 }
             }
         }
-        .padding(16)
-        .background(Color.nexusCardBackground)
-        .cornerRadius(16)
+        .padding(NexusTheme.Spacing.lg)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
     }
 
     private var budgetStatusBadge: some View {
@@ -234,7 +238,7 @@ struct FinanceOverviewContent: View {
                                 .cornerRadius(3)
 
                             Rectangle()
-                                .fill(Color.nexusFinance.opacity(0.8))
+                                .fill(NexusTheme.Colors.Semantic.green.opacity(0.8))
                                 .frame(width: geo.size.width * progress, height: 6)
                                 .cornerRadius(3)
                         }
@@ -248,9 +252,13 @@ struct FinanceOverviewContent: View {
                 }
             }
         }
-        .padding(16)
-        .background(Color.nexusCardBackground)
-        .cornerRadius(16)
+        .padding(NexusTheme.Spacing.lg)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
     }
 
     // MARK: - Cashflow Card
@@ -265,7 +273,7 @@ struct FinanceOverviewContent: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.down.circle.fill")
-                            .foregroundColor(.nexusSuccess)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                             .font(.subheadline)
                         Text("Income")
                             .font(.caption)
@@ -276,7 +284,7 @@ struct FinanceOverviewContent: View {
                     Text(formatCurrency(mtdIncome, currency: AppSettings.shared.defaultCurrency))
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.nexusSuccess)
+                        .foregroundColor(NexusTheme.Colors.Semantic.green)
                 }
 
                 Spacer()
@@ -288,14 +296,14 @@ struct FinanceOverviewContent: View {
                             .fontWeight(.medium)
                             .foregroundColor(.secondary)
                         Image(systemName: "arrow.up.circle.fill")
-                            .foregroundColor(.nexusError)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
                             .font(.subheadline)
                     }
 
                     Text(formatCurrency(mtdSpend, currency: AppSettings.shared.defaultCurrency))
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.nexusError)
+                        .foregroundColor(NexusTheme.Colors.Semantic.red)
                 }
             }
 
@@ -305,7 +313,7 @@ struct FinanceOverviewContent: View {
 
             HStack(alignment: .center, spacing: 8) {
                 Image(systemName: net >= 0 ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .foregroundColor(net >= 0 ? .nexusSuccess : .nexusWarning)
+                    .foregroundColor(net >= 0 ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.amber)
                     .font(.title3)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -317,14 +325,14 @@ struct FinanceOverviewContent: View {
                     Text((net >= 0 ? "+" : "") + formatCurrency(net, currency: AppSettings.shared.defaultCurrency))
                         .font(.title3)
                         .fontWeight(.bold)
-                        .foregroundColor(net >= 0 ? .nexusSuccess : .nexusWarning)
+                        .foregroundColor(net >= 0 ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.amber)
                 }
 
                 Spacer()
             }
         }
         .padding(16)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -333,7 +341,7 @@ struct FinanceOverviewContent: View {
     private var obligationsSummary: some View {
         HStack {
             Image(systemName: "repeat.circle.fill")
-                .foregroundColor(.nexusWarning)
+                .foregroundColor(NexusTheme.Colors.Semantic.amber)
             Text("Monthly obligations")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -341,10 +349,10 @@ struct FinanceOverviewContent: View {
             Text(formatCurrency(viewModel.monthlyObligations, currency: AppSettings.shared.defaultCurrency))
                 .font(.subheadline)
                 .fontWeight(.semibold)
-                .foregroundColor(.nexusWarning)
+                .foregroundColor(NexusTheme.Colors.Semantic.amber)
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 
@@ -369,7 +377,7 @@ struct FinanceOverviewContent: View {
             ForEach(Array(viewModel.upcomingBills.prefix(5))) { item in
                 HStack(spacing: 12) {
                     Circle()
-                        .fill(item.isOverdue ? Color.nexusError : item.isDueSoon ? Color.nexusWarning : Color.nexusPrimary)
+                        .fill(item.isOverdue ? NexusTheme.Colors.Semantic.red : item.isDueSoon ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.accent)
                         .frame(width: 8, height: 8)
 
                     VStack(alignment: .leading, spacing: 3) {
@@ -380,7 +388,7 @@ struct FinanceOverviewContent: View {
                         if let date = item.dueDateFormatted {
                             Text(date)
                                 .font(.caption)
-                                .foregroundColor(item.isOverdue ? .nexusError : item.isDueSoon ? .nexusWarning : .secondary)
+                                .foregroundColor(item.isOverdue ? NexusTheme.Colors.Semantic.red : item.isDueSoon ? NexusTheme.Colors.Semantic.amber : .secondary)
                         }
                     }
 
@@ -399,7 +407,7 @@ struct FinanceOverviewContent: View {
             }
         }
         .padding(16)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -429,7 +437,7 @@ struct FinanceOverviewContent: View {
             }
         }
         .padding(16)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -447,8 +455,8 @@ struct FinanceOverviewContent: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Color.nexusError.opacity(0.1))
-                .foregroundColor(.nexusError)
+                .background(NexusTheme.Colors.Semantic.red.opacity(0.1))
+                .foregroundColor(NexusTheme.Colors.Semantic.red)
                 .cornerRadius(12)
             }
 
@@ -462,8 +470,8 @@ struct FinanceOverviewContent: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Color.nexusSuccess.opacity(0.1))
-                .foregroundColor(.nexusSuccess)
+                .background(NexusTheme.Colors.Semantic.green.opacity(0.1))
+                .foregroundColor(NexusTheme.Colors.Semantic.green)
                 .cornerRadius(12)
             }
         }
@@ -479,7 +487,7 @@ struct FinanceOverviewContent: View {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 8) {
                         Image(systemName: "lightbulb.fill")
-                            .foregroundColor(.nexusFood)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                             .font(.title3)
                         Text("Financial Insights")
                             .font(.headline)
@@ -501,11 +509,11 @@ struct FinanceOverviewContent: View {
                     }
                 }
                 .padding(16)
-                .background(Color.nexusFood.opacity(0.08))
+                .background(NexusTheme.Colors.Semantic.amber.opacity(0.08))
                 .cornerRadius(16)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.nexusFood.opacity(0.2), lineWidth: 1)
+                        .stroke(NexusTheme.Colors.Semantic.amber.opacity(0.2), lineWidth: 1)
                 )
             }
         }
@@ -537,14 +545,14 @@ struct FinanceOverviewContent: View {
         HStack(spacing: 8) {
             if let freshness = viewModel.financeFreshness {
                 Circle()
-                    .fill(freshness.isStale ? Color.nexusWarning : Color.nexusSuccess)
+                    .fill(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                     .frame(width: 8, height: 8)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(freshness.isStale ? "Data may be outdated" : "Data is current")
                         .font(.caption)
                         .fontWeight(.medium)
-                        .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
+                        .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : .secondary)
 
                     Text(freshness.syncTimeLabel)
                         .font(.caption2)
@@ -555,7 +563,7 @@ struct FinanceOverviewContent: View {
                 let isStale = age > 300
 
                 Circle()
-                    .fill(isOffline ? Color.nexusWarning : isStale ? Color.nexusFood : Color.nexusSuccess)
+                    .fill(isOffline ? NexusTheme.Colors.Semantic.amber : isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                     .frame(width: 8, height: 8)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -563,7 +571,7 @@ struct FinanceOverviewContent: View {
                         Text("Offline — showing cached data")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     } else if isStale {
                         Text("Last updated \(lastUpdated, style: .relative) ago")
                             .font(.caption)

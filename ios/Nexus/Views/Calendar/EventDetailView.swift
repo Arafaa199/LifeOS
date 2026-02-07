@@ -23,7 +23,7 @@ struct EventDetailView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Event Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -77,7 +77,7 @@ struct EventDetailView: View {
                 LabeledContent {
                     HStack {
                         Circle()
-                            .fill(Color.nexusPrimary)
+                            .fill(NexusTheme.Colors.accent)
                             .frame(width: 8, height: 8)
                         Text(calendarName)
                     }

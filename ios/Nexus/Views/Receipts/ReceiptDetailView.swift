@@ -30,7 +30,7 @@ struct ReceiptDetailView: View {
                 }
             }
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Receipt")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -105,9 +105,9 @@ struct ReceiptDetailView: View {
         Section {
             VStack(spacing: 12) {
                 HStack(spacing: 16) {
-                    nutritionPill("Cal", value: Int(nutrition.total_calories), color: .nexusFood)
-                    nutritionPill("P", value: Int(nutrition.total_protein), suffix: "g", color: .nexusPrimary)
-                    nutritionPill("C", value: Int(nutrition.total_carbs), suffix: "g", color: .nexusWarning)
+                    nutritionPill("Cal", value: Int(nutrition.total_calories), color: NexusTheme.Colors.Semantic.amber)
+                    nutritionPill("P", value: Int(nutrition.total_protein), suffix: "g", color: NexusTheme.Colors.accent)
+                    nutritionPill("C", value: Int(nutrition.total_carbs), suffix: "g", color: NexusTheme.Colors.Semantic.amber)
                     nutritionPill("F", value: Int(nutrition.total_fat), suffix: "g", color: .yellow)
                 }
 
@@ -118,7 +118,7 @@ struct ReceiptDetailView: View {
             .padding(.vertical, 8)
         } header: {
             Label("Nutrition Estimate", systemImage: "leaf.fill")
-                .foregroundColor(.nexusFood)
+                .foregroundColor(NexusTheme.Colors.Semantic.amber)
         } footer: {
             Text("Based on matched items at default serving sizes")
         }
@@ -213,10 +213,10 @@ struct ReceiptLineItemRow: View {
                             Text("PROMO")
                                 .font(.caption2)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.nexusSuccess)
+                                .foregroundColor(NexusTheme.Colors.Semantic.green)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)
-                                .background(Color.nexusSuccess.opacity(0.15))
+                                .background(NexusTheme.Colors.Semantic.green.opacity(0.15))
                                 .cornerRadius(4)
                         }
                     }
@@ -243,12 +243,12 @@ struct ReceiptLineItemRow: View {
         HStack(spacing: 8) {
             Image(systemName: "leaf.fill")
                 .font(.caption)
-                .foregroundColor(.nexusFood)
+                .foregroundColor(NexusTheme.Colors.Semantic.amber)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.food_name ?? "Linked")
                     .font(.caption)
-                    .foregroundColor(.nexusFood)
+                    .foregroundColor(NexusTheme.Colors.Semantic.amber)
 
                 if let brand = item.food_brand, !brand.isEmpty {
                     Text(brand)
@@ -273,12 +273,12 @@ struct ReceiptLineItemRow: View {
             if item.is_user_confirmed == true {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.caption)
-                    .foregroundColor(.nexusSuccess)
+                    .foregroundColor(NexusTheme.Colors.Semantic.green)
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(Color.nexusFood.opacity(0.1))
+        .background(NexusTheme.Colors.Semantic.amber.opacity(0.1))
         .cornerRadius(8)
     }
 

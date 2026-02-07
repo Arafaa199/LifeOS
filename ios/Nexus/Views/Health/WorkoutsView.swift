@@ -268,12 +268,12 @@ struct WorkoutRow: View {
             // Type icon
             ZStack {
                 Circle()
-                    .fill(Color.nexusPrimary.opacity(0.15))
+                    .fill(NexusTheme.Colors.accent.opacity(0.15))
                     .frame(width: 44, height: 44)
 
                 Image(systemName: workout.typeIcon)
                     .font(.system(size: 18))
-                    .foregroundColor(.nexusPrimary)
+                    .foregroundColor(NexusTheme.Colors.accent)
             }
 
             // Info

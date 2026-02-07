@@ -24,7 +24,7 @@ struct FoodMatchSheet: View {
                 }
             }
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Link to Food")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

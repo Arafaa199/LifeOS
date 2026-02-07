@@ -162,7 +162,7 @@ private struct TimeChip: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(isSelected ? Color.nexusPrimary : Color.secondary.opacity(0.15))
+            .background(isSelected ? NexusTheme.Colors.accent : Color.secondary.opacity(0.15))
             .foregroundColor(isSelected ? .white : .primary)
             .cornerRadius(16)
         }

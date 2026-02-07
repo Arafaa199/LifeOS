@@ -61,7 +61,7 @@ struct SpendingChartsView: View {
             }
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 }
@@ -95,7 +95,7 @@ struct CategoryBar: View {
                         .cornerRadius(4)
 
                     Rectangle()
-                        .fill(Color.nexusPrimary.gradient)
+                        .fill(NexusTheme.Colors.accent.gradient)
                         .frame(width: geometry.size.width * percentage, height: 20)
                         .cornerRadius(4)
 

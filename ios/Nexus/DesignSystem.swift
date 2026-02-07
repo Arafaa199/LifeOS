@@ -82,7 +82,7 @@ struct NexusCardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding()
-            .background(elevated ? Color.nexusCardBackgroundElevated : Color.nexusCardBackground)
+            .background(elevated ? NexusTheme.Colors.cardAlt : NexusTheme.Colors.card)
             .cornerRadius(16)
             .shadow(color: .black.opacity(elevated ? 0.12 : 0.08), radius: elevated ? 10 : 5, x: 0, y: 3)
     }
@@ -96,7 +96,7 @@ struct NexusGlassCard: ViewModifier {
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.nexusAccent.opacity(0.4), lineWidth: 1)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
             )
     }
 }
@@ -110,9 +110,9 @@ struct NexusPrimaryButton: ViewModifier {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isDisabled ? Color.nexusPrimary.opacity(0.4) : Color.nexusPrimary)
+            .background(isDisabled ? NexusTheme.Colors.accent.opacity(0.4) : NexusTheme.Colors.accent)
             .cornerRadius(14)
-            .shadow(color: Color.nexusPrimary.opacity(isDisabled ? 0 : 0.3), radius: 8, x: 0, y: 4)
+            .shadow(color: NexusTheme.Colors.accent.opacity(isDisabled ? 0 : 0.3), radius: 8, x: 0, y: 4)
     }
 }
 
@@ -120,10 +120,10 @@ struct NexusSecondaryButton: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(.headline)
-            .foregroundColor(.nexusPrimary)
+            .foregroundColor(NexusTheme.Colors.accent)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.nexusPrimary.opacity(0.12))
+            .background(NexusTheme.Colors.accent.opacity(0.12))
             .cornerRadius(14)
     }
 }
@@ -134,12 +134,12 @@ struct NexusAccentButton: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(.headline)
-            .foregroundColor(.nexusPrimary)
+            .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(isDisabled ? Color.nexusAccent.opacity(0.4) : Color.nexusAccent)
+            .background(isDisabled ? NexusTheme.Colors.accent.opacity(0.4) : NexusTheme.Colors.accent)
             .cornerRadius(14)
-            .shadow(color: Color.nexusPrimary.opacity(isDisabled ? 0 : 0.15), radius: 8, x: 0, y: 4)
+            .shadow(color: NexusTheme.Colors.accent.opacity(isDisabled ? 0 : 0.15), radius: 8, x: 0, y: 4)
     }
 }
 
@@ -162,11 +162,11 @@ struct NexusTextField: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding()
-            .background(Color.nexusCardBackground)
+            .background(NexusTheme.Colors.card)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.nexusPrimary.opacity(0.3), lineWidth: 1)
+                    .stroke(NexusTheme.Colors.accent.opacity(0.3), lineWidth: 1)
             )
     }
 }
@@ -232,7 +232,7 @@ struct NexusHeaderView: View {
     let icon: String?
     let color: Color
 
-    init(_ title: String, subtitle: String? = nil, icon: String? = nil, color: Color = .nexusPrimary) {
+    init(_ title: String, subtitle: String? = nil, icon: String? = nil, color: Color = NexusTheme.Colors.accent) {
         self.title = title
         self.subtitle = subtitle
         self.icon = icon
@@ -316,15 +316,15 @@ struct NexusStatCard: View {
                         .font(.caption)
                         .fontWeight(.medium)
                 }
-                .foregroundColor(trend >= 0 ? .nexusSuccess : .nexusError)
+                .foregroundColor(trend >= 0 ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.red)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background((trend >= 0 ? Color.nexusSuccess : Color.nexusError).opacity(0.1))
+                .background((trend >= 0 ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.red).opacity(0.1))
                 .cornerRadius(8)
             }
         }
         .padding()
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
     }
@@ -390,7 +390,7 @@ struct NexusQuickActionButton: View {
             .frame(minWidth: 80)
             .padding(.vertical, 12)
             .padding(.horizontal, 8)
-            .background(Color.nexusCardBackground)
+            .background(NexusTheme.Colors.card)
             .cornerRadius(16)
         }
         .buttonStyle(PlainButtonStyle())
@@ -422,7 +422,7 @@ struct NexusQuickActionCard: View {
         .frame(minWidth: 80)
         .padding(.vertical, 12)
         .padding(.horizontal, 8)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 }
@@ -444,12 +444,12 @@ struct NexusSegmentedPicker<T: Hashable>: View {
                         .frame(maxWidth: .infinity)
                         .background(
                             selection == option ?
-                            Color.nexusPrimary : Color.clear
+                            NexusTheme.Colors.accent : Color.clear
                         )
                 }
             }
         }
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(10)
     }
 }
@@ -463,7 +463,7 @@ struct NexusLoadingView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.2)
-                .tint(.nexusPrimary)
+                .tint(NexusTheme.Colors.accent)
 
             Text(message)
                 .font(.subheadline)
@@ -477,7 +477,7 @@ struct NexusRefreshIndicator: View {
     var body: some View {
         HStack(spacing: 8) {
             ProgressView()
-                .tint(.nexusPrimary)
+                .tint(NexusTheme.Colors.accent)
             Text("Syncing...")
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -493,10 +493,10 @@ struct NexusStatusBadge: View {
 
         var color: Color {
             switch self {
-            case .online: return .nexusSuccess
-            case .offline: return .nexusWarning
-            case .syncing: return .nexusPrimary
-            case .error: return .nexusError
+            case .online: return NexusTheme.Colors.Semantic.green
+            case .offline: return NexusTheme.Colors.Semantic.amber
+            case .syncing: return NexusTheme.Colors.accent
+            case .error: return NexusTheme.Colors.Semantic.red
             }
         }
 
@@ -547,7 +547,7 @@ struct NexusSectionHeader: View {
     var body: some View {
         HStack(spacing: 10) {
             Rectangle()
-                .fill(Color.nexusPrimary)
+                .fill(NexusTheme.Colors.accent)
                 .frame(width: 3, height: 20)
                 .cornerRadius(1.5)
             Text(title)

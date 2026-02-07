@@ -6,8 +6,8 @@ struct StreakBadgesView: View {
 
     var body: some View {
         if let streaks = streaks, hasAnyStreak(streaks) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: NexusTheme.Spacing.xs) {
+                HStack(spacing: NexusTheme.Spacing.xs) {
                     ForEach(streaks.sortedStreaks.prefix(4), id: \.name) { item in
                         StreakBadge(
                             name: item.name,
@@ -19,9 +19,13 @@ struct StreakBadgesView: View {
                     }
                 }
             }
-            .padding(12)
-            .background(Color(UIColor.secondarySystemGroupedBackground))
-            .cornerRadius(12)
+            .padding(NexusTheme.Spacing.md)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+            )
         }
     }
 
@@ -42,35 +46,35 @@ struct StreakBadge: View {
     let isAtBest: Bool
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: NexusTheme.Spacing.xxxs) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.system(size: 11))
                 .foregroundColor(badgeColor)
 
             Text("\(current)")
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundColor(.primary)
+                .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                .foregroundColor(NexusTheme.Colors.textPrimary)
 
             if isAtBest && current > 1 {
                 Image(systemName: "star.fill")
                     .font(.system(size: 8))
-                    .foregroundColor(.yellow)
+                    .foregroundColor(NexusTheme.Colors.Semantic.amber)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(badgeColor.opacity(0.15))
-        .cornerRadius(6)
-        .help("\(name): \(current) day streak (best: \(best))")
+        .padding(.horizontal, NexusTheme.Spacing.xs)
+        .padding(.vertical, NexusTheme.Spacing.xxxs)
+        .background(badgeColor.opacity(0.12))
+        .cornerRadius(NexusTheme.Radius.xs)
+        .accessibilityLabel("\(name): \(current) day streak, best: \(best)")
     }
 
     private var badgeColor: Color {
         switch name.lowercased() {
-        case "weight": return .purple
-        case "water": return .blue
-        case "meals": return .orange
-        case "workout": return .green
-        default: return .gray
+        case "weight": return NexusTheme.Colors.Semantic.purple
+        case "water": return NexusTheme.Colors.Semantic.blue
+        case "meals": return NexusTheme.Colors.Semantic.amber
+        case "workout": return NexusTheme.Colors.Semantic.green
+        default: return NexusTheme.Colors.textTertiary
         }
     }
 }
@@ -101,5 +105,5 @@ struct StreakBadge: View {
         StreakBadgesView(streaks: nil)
     }
     .padding()
-    .background(Color(UIColor.systemGroupedBackground))
+    .background(NexusTheme.Colors.background)
 }

@@ -74,15 +74,15 @@ struct FinanceActivityView: View {
                 HStack(spacing: 6) {
                     if let freshness = viewModel.financeFreshness {
                         Circle()
-                            .fill(freshness.isStale ? Color.nexusWarning : Color.nexusSuccess)
+                            .fill(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                             .frame(width: 6, height: 6)
                         Text(freshness.syncTimeLabel)
                             .font(.caption)
-                            .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
+                            .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : .secondary)
                     } else if let lastUpdated = viewModel.lastUpdated,
                               Date().timeIntervalSince(lastUpdated) > 300 || viewModel.isOffline {
                         Circle()
-                            .fill(viewModel.isOffline ? Color.nexusWarning : Color.nexusSuccess)
+                            .fill(viewModel.isOffline ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                             .frame(width: 6, height: 6)
                         Text("Updated \(lastUpdated, style: .relative) ago")
                             .font(.caption)
@@ -91,7 +91,7 @@ struct FinanceActivityView: View {
                     if viewModel.isOffline {
                         Text("(Offline)")
                             .font(.caption)
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                     Spacer()
                 }
@@ -103,7 +103,7 @@ struct FinanceActivityView: View {
                 Button(action: { showingDateRangePicker = true }) {
                     HStack {
                         Image(systemName: "calendar")
-                            .foregroundColor(.nexusFinance)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                         Text(selectedDateRange.displayName)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -306,7 +306,7 @@ struct ActivityTransactionRow: View {
                     // Corrected badge
                     if transaction.hasCorrection {
                         Image(systemName: "pencil.circle.fill")
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                             .font(.caption2)
                     }
                 }
@@ -334,7 +334,7 @@ struct ActivityTransactionRow: View {
                     } else {
                         Text("Unknown time")
                             .font(.caption)
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                 }
             }
@@ -345,7 +345,7 @@ struct ActivityTransactionRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(formatTransactionAmount(transaction))
                     .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                    .foregroundColor(transaction.amount < 0 ? .primary : .nexusSuccess)
+                    .foregroundColor(transaction.amount < 0 ? .primary : NexusTheme.Colors.Semantic.green)
 
                 // Show original currency if different from default
                 if transaction.currency != AppSettings.shared.defaultCurrency {
@@ -379,16 +379,16 @@ struct ActivityTransactionRow: View {
     private var categoryColor: Color {
         guard let category = transaction.category else { return .gray }
         switch category.lowercased() {
-        case "grocery", "groceries": return .nexusWeight
-        case "restaurant", "food": return .nexusFood
-        case "transport", "transportation": return .nexusWater
-        case "utilities": return .nexusMood
-        case "entertainment": return .nexusPrimaryLight
-        case "health": return .nexusProtein
-        case "shopping": return .nexusPrimary
+        case "grocery", "groceries": return NexusTheme.Colors.Semantic.purple
+        case "restaurant", "food": return NexusTheme.Colors.Semantic.amber
+        case "transport", "transportation": return NexusTheme.Colors.Semantic.blue
+        case "utilities": return NexusTheme.Colors.accent
+        case "entertainment": return NexusTheme.Colors.accent
+        case "health": return NexusTheme.Colors.Semantic.red
+        case "shopping": return NexusTheme.Colors.accent
         case "transfer": return .gray
-        case "income", "salary": return .nexusSuccess
-        default: return .nexusFinance
+        case "income", "salary": return NexusTheme.Colors.Semantic.green
+        default: return NexusTheme.Colors.Semantic.green
         }
     }
 
@@ -442,10 +442,10 @@ struct SourceBadge: View {
 
     private var sourceColor: Color {
         switch source.lowercased() {
-        case "sms": return .nexusWater
-        case "manual": return .nexusMood
-        case "receipt": return .nexusFood
-        case "import": return .nexusSuccess
+        case "sms": return NexusTheme.Colors.Semantic.blue
+        case "manual": return NexusTheme.Colors.accent
+        case "receipt": return NexusTheme.Colors.Semantic.amber
+        case "import": return NexusTheme.Colors.Semantic.green
         default: return .gray
         }
     }

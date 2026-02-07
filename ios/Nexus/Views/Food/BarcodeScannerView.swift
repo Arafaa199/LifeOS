@@ -51,7 +51,7 @@ struct BarcodeScannerView: View {
                                     .fontWeight(.semibold)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(Color.nexusFood)
+                                    .background(NexusTheme.Colors.Semantic.amber)
                                     .foregroundColor(.white)
                                     .cornerRadius(12)
                             }
@@ -75,7 +75,7 @@ struct BarcodeScannerView: View {
                                     .fontWeight(.semibold)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(Color.nexusPrimary)
+                                    .background(NexusTheme.Colors.accent)
                                     .foregroundColor(.white)
                                     .cornerRadius(12)
                             }

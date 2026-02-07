@@ -190,12 +190,12 @@ struct NoteRow: View {
             // Icon
             ZStack {
                 Circle()
-                    .fill(Color.nexusPrimary.opacity(0.15))
+                    .fill(NexusTheme.Colors.accent.opacity(0.15))
                     .frame(width: 40, height: 40)
 
                 Image(systemName: noteIcon)
                     .font(.system(size: 16))
-                    .foregroundColor(.nexusPrimary)
+                    .foregroundColor(NexusTheme.Colors.accent)
             }
 
             // Content
@@ -229,8 +229,8 @@ struct NoteRow: View {
                                 .font(.caption2)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.nexusPrimary.opacity(0.1))
-                                .foregroundColor(.nexusPrimary)
+                                .background(NexusTheme.Colors.accent.opacity(0.1))
+                                .foregroundColor(NexusTheme.Colors.accent)
                                 .clipShape(Capsule())
                         }
                         if tags.count > 3 {
@@ -270,8 +270,8 @@ struct TagChip: View {
                 .font(.subheadline)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.nexusPrimary : Color.nexusPrimary.opacity(0.1))
-                .foregroundColor(isSelected ? .white : .nexusPrimary)
+                .background(isSelected ? NexusTheme.Colors.accent : NexusTheme.Colors.accent.opacity(0.1))
+                .foregroundColor(isSelected ? .white : NexusTheme.Colors.accent)
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)

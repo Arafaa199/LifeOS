@@ -9,7 +9,7 @@ struct HealthTodayView: View {
         ScrollView {
             HealthTodayContent(viewModel: viewModel)
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .refreshable {
             await viewModel.fetchLocalHealthKit()
             SyncCoordinator.shared.syncAll(force: true)
@@ -33,7 +33,7 @@ struct HealthMetricCard<Content: View>: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 }
@@ -76,8 +76,8 @@ enum DataSourceType {
 
     var color: Color {
         switch self {
-        case .whoop: return .nexusWarning
-        case .healthkit: return .nexusProtein
+        case .whoop: return NexusTheme.Colors.Semantic.amber
+        case .healthkit: return NexusTheme.Colors.Semantic.purple
         }
     }
 }
@@ -102,11 +102,11 @@ struct SleepStagesBar: View {
         GeometryReader { geo in
             HStack(spacing: 2) {
                 Rectangle()
-                    .fill(Color.nexusMood)
+                    .fill(NexusTheme.Colors.accent)
                     .frame(width: geo.size.width * CGFloat(deep) / CGFloat(total))
 
                 Rectangle()
-                    .fill(Color.nexusPrimary)
+                    .fill(NexusTheme.Colors.accent)
                     .frame(width: geo.size.width * CGFloat(rem) / CGFloat(total))
 
                 Rectangle()
@@ -119,11 +119,11 @@ struct SleepStagesBar: View {
 
         HStack(spacing: 12) {
             HStack(spacing: 4) {
-                Circle().fill(Color.nexusMood).frame(width: 8, height: 8)
+                Circle().fill(NexusTheme.Colors.accent).frame(width: 8, height: 8)
                 Text("Deep").font(.caption2).foregroundColor(.secondary)
             }
             HStack(spacing: 4) {
-                Circle().fill(Color.nexusPrimary).frame(width: 8, height: 8)
+                Circle().fill(NexusTheme.Colors.accent).frame(width: 8, height: 8)
                 Text("REM").font(.caption2).foregroundColor(.secondary)
             }
             HStack(spacing: 4) {
@@ -142,7 +142,7 @@ struct ComparisonBadge: View {
         HStack(spacing: 4) {
             Image(systemName: value >= 0 ? "arrow.up.right" : "arrow.down.right")
                 .font(.caption2)
-                .foregroundColor(value >= 0 ? .nexusSuccess : .nexusWarning)
+                .foregroundColor(value >= 0 ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.amber)
 
             Text("\(value >= 0 ? "+" : "")\(Int(value))% \(label)")
                 .font(.caption)

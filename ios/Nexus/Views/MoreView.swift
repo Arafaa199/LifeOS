@@ -14,7 +14,7 @@ struct MoreView: View {
                         .navigationTitle("Documents")) {
                         SettingsRow(
                             icon: "doc.text.fill",
-                            iconColor: .nexusPrimary,
+                            iconColor: NexusTheme.Colors.accent,
                             title: "Documents",
                             subtitle: "Passports, visas, IDs"
                         )
@@ -24,7 +24,7 @@ struct MoreView: View {
                         .navigationTitle("Receipts")) {
                         SettingsRow(
                             icon: "receipt",
-                            iconColor: .nexusFood,
+                            iconColor: NexusTheme.Colors.Semantic.amber,
                             title: "Receipts",
                             subtitle: "Grocery shopping + nutrition"
                         )
@@ -120,7 +120,7 @@ struct MoreView: View {
                     NavigationLink(destination: PipelineHealthView()) {
                         SettingsRow(
                             icon: "waveform.path.ecg",
-                            iconColor: .nexusSuccess,
+                            iconColor: NexusTheme.Colors.Semantic.green,
                             title: "Pipeline Health",
                             subtitle: "Data feeds, sync status"
                         )
@@ -138,7 +138,7 @@ struct MoreView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
-            .background(Color.nexusBackground)
+            .background(NexusTheme.Colors.background)
             .navigationTitle("More")
         }
     }

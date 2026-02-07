@@ -72,7 +72,7 @@ struct ReceiptsListView: View {
                 Section {
                     HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.nexusWarning)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                             .imageScale(.medium)
 
                         VStack(alignment: .leading, spacing: 4) {
@@ -100,7 +100,7 @@ struct ReceiptsListView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
     }
 }
 
@@ -111,7 +111,7 @@ struct ReceiptSummaryRow: View {
         HStack(spacing: 12) {
             Image(systemName: "receipt")
                 .font(.title3)
-                .foregroundColor(.nexusPrimary)
+                .foregroundColor(NexusTheme.Colors.accent)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -165,15 +165,15 @@ struct MatchBadge: View {
             if matched > 0 {
                 Image(systemName: "leaf.fill")
                     .font(.caption2)
-                    .foregroundColor(.nexusFood)
+                    .foregroundColor(NexusTheme.Colors.Semantic.amber)
             }
             Text("\(matched)/\(total)")
                 .font(.caption)
-                .foregroundColor(matched > 0 ? .nexusFood : .secondary)
+                .foregroundColor(matched > 0 ? NexusTheme.Colors.Semantic.amber : .secondary)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
-        .background(matched > 0 ? Color.nexusFood.opacity(0.15) : Color.secondary.opacity(0.1))
+        .background(matched > 0 ? NexusTheme.Colors.Semantic.amber.opacity(0.15) : Color.secondary.opacity(0.1))
         .clipShape(Capsule())
     }
 }

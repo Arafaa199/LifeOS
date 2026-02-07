@@ -99,7 +99,7 @@ struct MusicView: View {
 
             Spacer()
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
     }
 
     // MARK: - Main Content
@@ -135,7 +135,7 @@ struct MusicView: View {
             }
             .padding(.top, 8)
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .refreshable {
             await musicService.loadLibraryData()
             await loggingService.fetchTodayEvents()
@@ -235,7 +235,7 @@ struct MusicView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.nexusCardBackground)
+                    .fill(NexusTheme.Colors.card)
                     .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
             )
         }
@@ -359,7 +359,7 @@ struct MusicView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.nexusCardBackground)
+                .fill(NexusTheme.Colors.card)
         )
     }
 
@@ -409,7 +409,7 @@ struct MusicView: View {
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.nexusCardBackground)
+                .fill(NexusTheme.Colors.card)
         )
     }
 

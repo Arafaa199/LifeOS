@@ -167,7 +167,7 @@ private struct QueueEntryRow: View {
             if isCurrent {
                 Image(systemName: "waveform")
                     .font(.caption)
-                    .foregroundColor(.nexusPrimary)
+                    .foregroundColor(NexusTheme.Colors.accent)
                     .symbolEffect(.variableColor.iterative)
             }
         }

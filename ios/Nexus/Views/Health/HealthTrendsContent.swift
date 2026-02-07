@@ -20,11 +20,11 @@ struct HealthTrendsContent: View {
                 if let freshness = viewModel.healthFreshness {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(freshness.isStale ? Color.nexusWarning : Color.nexusSuccess)
+                            .fill(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                             .frame(width: 6, height: 6)
                         Text(freshness.syncTimeLabel)
                             .font(.caption)
-                            .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
+                            .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : .secondary)
                         Spacer()
                     }
                     .padding(.horizontal, 4)
@@ -38,14 +38,14 @@ struct HealthTrendsContent: View {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.caption)
-                        .foregroundColor(.nexusWarning)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     Text("Trends temporarily unavailable — pull to retry")
                         .font(.caption)
-                        .foregroundColor(.nexusWarning)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     Spacer()
                 }
                 .padding(10)
-                .background(Color.nexusWarning.opacity(0.1))
+                .background(NexusTheme.Colors.Semantic.amber.opacity(0.1))
                 .cornerRadius(8)
             }
 
@@ -95,7 +95,7 @@ struct HealthTrendsContent: View {
                         .fontWeight(selectedPeriod == period ? .semibold : .regular)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(selectedPeriod == period ? Color.nexusHealth : Color.nexusCardBackground)
+                        .background(selectedPeriod == period ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.card)
                         .foregroundColor(selectedPeriod == period ? .white : .primary)
                         .cornerRadius(20)
                 }
@@ -116,7 +116,7 @@ struct HealthTrendsContent: View {
     // MARK: - Sleep Trend
 
     private func sleepTrendCard(_ trend: TrendPeriod) -> some View {
-        TrendCard(title: "Sleep", icon: "moon.zzz.fill", color: .nexusMood) {
+        TrendCard(title: "Sleep", icon: "moon.zzz.fill", color: NexusTheme.Colors.accent) {
             if let avgSleep = trend.avgSleepMinutes {
                 let hours = Int(avgSleep) / 60
                 let mins = Int(avgSleep) % 60
@@ -138,7 +138,7 @@ struct HealthTrendsContent: View {
                             return Double(minutes) / 60.0
                         }
                         if sleepData.count >= 3 {
-                            SparklineView(data: sleepData, color: .nexusMood, height: 40)
+                            SparklineView(data: sleepData, color: NexusTheme.Colors.accent, height: 40)
                         } else {
                             noHistoricalDataNote
                         }
@@ -155,7 +155,7 @@ struct HealthTrendsContent: View {
     // MARK: - Recovery Trend
 
     private func recoveryTrendCard(_ trend: TrendPeriod) -> some View {
-        TrendCard(title: "Recovery", icon: "heart.fill", color: .nexusSuccess) {
+        TrendCard(title: "Recovery", icon: "heart.fill", color: NexusTheme.Colors.Semantic.green) {
             if let avgRecovery = trend.avgRecovery {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .bottom, spacing: 8) {
@@ -186,7 +186,7 @@ struct HealthTrendsContent: View {
                             return Double(recovery)
                         }
                         if recoveryData.count >= 3 {
-                            SparklineView(data: recoveryData, color: .nexusSuccess, height: 40)
+                            SparklineView(data: recoveryData, color: NexusTheme.Colors.Semantic.green, height: 40)
                         } else {
                             noHistoricalDataNote
                         }
@@ -203,7 +203,7 @@ struct HealthTrendsContent: View {
     // MARK: - Weight Trend
 
     private func weightTrendCard(_ facts: TodayFacts, trend: TrendPeriod) -> some View {
-        TrendCard(title: "Weight", icon: "scalemass.fill", color: .nexusWeight) {
+        TrendCard(title: "Weight", icon: "scalemass.fill", color: NexusTheme.Colors.Semantic.purple) {
             if let weight = facts.weightKg {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .bottom, spacing: 8) {
@@ -223,13 +223,13 @@ struct HealthTrendsContent: View {
                             Text("\(delta >= 0 ? "+" : "")\(String(format: "%.1f", delta)) kg over 30 days")
                                 .font(.caption)
                         }
-                        .foregroundColor(abs(delta) > 1 ? .nexusWarning : .secondary)
+                        .foregroundColor(abs(delta) > 1 ? NexusTheme.Colors.Semantic.amber : .secondary)
                     }
 
                     if viewModel.hasTimeseriesData {
                         let weightData = filteredTimeseries.compactMap { $0.weight }
                         if weightData.count >= 3 {
-                            SparklineView(data: weightData, color: .nexusWeight, height: 40)
+                            SparklineView(data: weightData, color: NexusTheme.Colors.Semantic.purple, height: 40)
                         } else {
                             noHistoricalDataNote
                         }
@@ -246,7 +246,7 @@ struct HealthTrendsContent: View {
     // MARK: - Activity Consistency
 
     private func activityConsistencyCard(_ facts: TodayFacts) -> some View {
-        TrendCard(title: "Activity Consistency", icon: "figure.walk", color: .nexusWarning) {
+        TrendCard(title: "Activity Consistency", icon: "figure.walk", color: NexusTheme.Colors.Semantic.amber) {
             if let daysWithData = facts.daysWithData7d {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .bottom, spacing: 8) {
@@ -262,14 +262,14 @@ struct HealthTrendsContent: View {
                     HStack(spacing: 4) {
                         ForEach(0..<7, id: \.self) { day in
                             Circle()
-                                .fill(day < daysWithData ? Color.nexusWarning : Color(.tertiarySystemFill))
+                                .fill(day < daysWithData ? NexusTheme.Colors.Semantic.amber : Color(.tertiarySystemFill))
                                 .frame(width: 24, height: 24)
                         }
                     }
 
                     Text(daysWithData >= 5 ? "Good consistency!" : "Try to track more days")
                         .font(.caption)
-                        .foregroundColor(daysWithData >= 5 ? .nexusSuccess : .nexusWarning)
+                        .foregroundColor(daysWithData >= 5 ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.amber)
                 }
             } else {
                 notAvailable
@@ -283,7 +283,7 @@ struct HealthTrendsContent: View {
         VStack(spacing: 16) {
             ForEach(0..<4, id: \.self) { _ in
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.nexusCardBackground)
+                    .fill(NexusTheme.Colors.card)
                     .frame(height: 140)
                     .shimmer()
             }
@@ -347,7 +347,7 @@ struct HealthTrendsContent: View {
     private func freshnessIndicator(lastUpdated: Date, source: HealthViewModel.DataSourceInfo) -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(source == .cache ? Color.nexusWarning : Color.nexusSuccess)
+                .fill(source == .cache ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                 .frame(width: 6, height: 6)
 
             Text("Updated \(lastUpdated, style: .relative) ago")
@@ -357,7 +357,7 @@ struct HealthTrendsContent: View {
             if source == .cache {
                 Text("(Cached)")
                     .font(.caption)
-                    .foregroundColor(.nexusWarning)
+                    .foregroundColor(NexusTheme.Colors.Semantic.amber)
             }
 
             Spacer()
@@ -366,9 +366,9 @@ struct HealthTrendsContent: View {
     }
 
     private func recoveryColor(_ score: Int) -> Color {
-        if score >= 67 { return .nexusSuccess }
-        if score >= 34 { return .nexusWarning }
-        return .nexusError
+        if score >= 67 { return NexusTheme.Colors.Semantic.green }
+        if score >= 34 { return NexusTheme.Colors.Semantic.amber }
+        return NexusTheme.Colors.Semantic.red
     }
 
     private func periodDays(_ period: String) -> Int {

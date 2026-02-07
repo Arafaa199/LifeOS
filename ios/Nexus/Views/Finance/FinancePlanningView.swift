@@ -79,7 +79,7 @@ struct FinanceSettingsView: View {
                 NavigationLink(destination: ReceiptsListView(viewModel: ReceiptsViewModel())) {
                     HStack {
                         Image(systemName: "receipt")
-                            .foregroundColor(.nexusFinance)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                             .frame(width: 24)
                         Text("Receipts")
                         Spacer()
@@ -92,7 +92,7 @@ struct FinanceSettingsView: View {
                 NavigationLink(destination: InstallmentsView(viewModel: FinanceViewModel())) {
                     HStack {
                         Image(systemName: "creditcard.and.123")
-                            .foregroundColor(.nexusMood)
+                            .foregroundColor(NexusTheme.Colors.accent)
                             .frame(width: 24)
                         Text("Installments")
                         Spacer()
@@ -105,7 +105,7 @@ struct FinanceSettingsView: View {
                 NavigationLink(destination: SubscriptionsView()) {
                     HStack {
                         Image(systemName: "repeat")
-                            .foregroundColor(.nexusFinance)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                             .frame(width: 24)
                         Text("Subscriptions")
                         Spacer()
@@ -118,7 +118,7 @@ struct FinanceSettingsView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
     }
 }
 
@@ -363,7 +363,7 @@ struct CategoryRow: View {
         HStack(spacing: 12) {
             Image(systemName: category.displayIcon)
                 .font(.title2)
-                .foregroundColor(category.isExpense ? .nexusError : .nexusSuccess)
+                .foregroundColor(category.isExpense ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.green)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -426,7 +426,7 @@ struct AddCategoryView: View {
                                     .font(.title2)
                                     .foregroundColor(icon == iconName ? .white : .primary)
                                     .frame(width: 44, height: 44)
-                                    .background(icon == iconName ? Color.nexusPrimary : Color(.tertiarySystemBackground))
+                                    .background(icon == iconName ? NexusTheme.Colors.accent : Color(.tertiarySystemBackground))
                                     .cornerRadius(8)
                             }
                             .buttonStyle(.plain)
@@ -504,7 +504,7 @@ struct RecurringItemsListView: View {
                 NavigationLink(destination: SubscriptionsView()) {
                     HStack {
                         Image(systemName: "repeat.circle.fill")
-                            .foregroundColor(.nexusFinance)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                         Text("View Subscriptions")
                         Spacer()
                         Text("\(viewModel.recurringItems.filter { $0.isExpense && $0.cadence == "monthly" }.count)")
@@ -746,8 +746,8 @@ struct MatchingRuleRow: View {
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(Color.nexusPrimary.opacity(0.1))
-                    .foregroundColor(.nexusPrimary)
+                    .background(NexusTheme.Colors.accent.opacity(0.1))
+                    .foregroundColor(NexusTheme.Colors.accent)
                     .cornerRadius(4)
             }
 
@@ -885,7 +885,7 @@ struct RecurringItemRow: View {
             Spacer()
             Text(formatCurrency(item.amount, currency: item.currency))
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(item.isExpense ? .nexusError : .nexusSuccess)
+                .foregroundColor(item.isExpense ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.Semantic.green)
         }
     }
 }

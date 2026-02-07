@@ -43,7 +43,7 @@ struct TestConnectionView: View {
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color.nexusCardBackground)
+                        .background(NexusTheme.Colors.card)
                         .cornerRadius(8)
                 }
             }
@@ -63,7 +63,7 @@ struct TestConnectionView: View {
                         .fontWeight(.semibold)
                 }
             }
-            .nexusPrimaryButton(disabled: isTesting)
+            .nexusAccentButton(disabled: isTesting)
             .disabled(isTesting)
             .padding(.horizontal)
             .padding(.bottom, 32)
@@ -79,9 +79,9 @@ struct TestConnectionView: View {
     }
 
     private var statusColor: Color {
-        if isTesting { return .nexusPrimary }
+        if isTesting { return NexusTheme.Colors.accent }
         if testResult.isEmpty { return .secondary }
-        return testSuccess ? .nexusSuccess : .nexusError
+        return testSuccess ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.red
     }
 
     private var statusTitle: String {

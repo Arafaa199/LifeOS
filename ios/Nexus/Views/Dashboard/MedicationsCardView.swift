@@ -7,11 +7,11 @@ struct MedicationsCardView: View {
     var body: some View {
         if let meds = medications, meds.dueToday > 0 {
             NavigationLink(destination: MedicationsView()) {
-                HStack(spacing: 12) {
+                HStack(spacing: NexusTheme.Spacing.md) {
                     // Icon with adherence indicator
                     ZStack {
                         Circle()
-                            .fill(statusColor.opacity(0.15))
+                            .fill(statusColor.opacity(0.12))
                             .frame(width: 44, height: 44)
                         Image(systemName: "pills.fill")
                             .font(.system(size: 18))
@@ -19,25 +19,25 @@ struct MedicationsCardView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: NexusTheme.Spacing.xxxs) {
                             Text(statusText)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundColor(.primary)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(NexusTheme.Colors.textPrimary)
 
                             if meds.takenToday < meds.dueToday && meds.skippedToday == 0 {
                                 Text("pending")
-                                    .font(.caption2)
+                                    .font(.system(size: 9, weight: .bold))
                                     .foregroundColor(.white)
-                                    .padding(.horizontal, 6)
+                                    .padding(.horizontal, NexusTheme.Spacing.xxs)
                                     .padding(.vertical, 2)
-                                    .background(Color.nexusWarning)
-                                    .cornerRadius(4)
+                                    .background(NexusTheme.Colors.Semantic.amber)
+                                    .cornerRadius(NexusTheme.Radius.xs)
                             }
                         }
 
                         Text(detailText)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
                     }
 
                     Spacer()
@@ -45,30 +45,34 @@ struct MedicationsCardView: View {
                     // Adherence percentage
                     if let pct = medications?.adherencePct {
                         Text("\(Int(pct))%")
-                            .font(.title2.weight(.semibold).monospacedDigit())
+                            .font(.system(size: 22, weight: .semibold).monospacedDigit())
                             .foregroundColor(statusColor)
                     }
 
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(NexusTheme.Colors.textMuted)
                 }
-                .padding()
-                .background(Color.nexusCardBackground)
-                .cornerRadius(12)
+                .padding(NexusTheme.Spacing.lg)
+                .background(NexusTheme.Colors.card)
+                .cornerRadius(NexusTheme.Radius.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                        .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
         }
     }
 
     private var statusColor: Color {
-        guard let meds = medications else { return .gray }
+        guard let meds = medications else { return NexusTheme.Colors.textTertiary }
         if meds.takenToday == meds.dueToday {
-            return .nexusSuccess
+            return NexusTheme.Colors.Semantic.green
         } else if meds.takenToday > 0 {
-            return .nexusWarning
+            return NexusTheme.Colors.Semantic.amber
         } else {
-            return .cyan
+            return NexusTheme.Colors.Semantic.blue
         }
     }
 
@@ -109,5 +113,5 @@ struct MedicationsCardView: View {
         ))
     }
     .padding()
-    .background(Color.nexusBackground)
+    .background(NexusTheme.Colors.background)
 }

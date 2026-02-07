@@ -10,11 +10,11 @@ struct HealthTodayContent: View {
                 if let freshness = viewModel.healthFreshness {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(freshness.isStale ? Color.nexusWarning : Color.nexusSuccess)
+                            .fill(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                             .frame(width: 6, height: 6)
                         Text(freshness.syncTimeLabel)
                             .font(.caption)
-                            .foregroundColor(freshness.isStale ? .nexusWarning : .secondary)
+                            .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : .secondary)
                         Spacer()
                     }
                     .padding(.horizontal, 4)
@@ -144,7 +144,7 @@ struct HealthTodayContent: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
                         Image(systemName: "figure.walk")
-                            .foregroundColor(.nexusWater)
+                            .foregroundColor(NexusTheme.Colors.Semantic.blue)
                         if let steps {
                             Text(formatNumber(steps))
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
@@ -185,7 +185,7 @@ struct HealthTodayContent: View {
                             if let vs7d {
                                 Text(vs7d >= 0 ? "+\(String(format: "%.1f", vs7d)) kg vs 7d" : "\(String(format: "%.1f", vs7d)) kg vs 7d")
                                     .font(.caption)
-                                    .foregroundColor(abs(vs7d) > 1 ? .nexusWarning : .secondary)
+                                    .foregroundColor(abs(vs7d) > 1 ? NexusTheme.Colors.Semantic.amber : .secondary)
                             }
                         }
 
@@ -211,7 +211,7 @@ struct HealthTodayContent: View {
         VStack(spacing: 16) {
             ForEach(0..<4) { _ in
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.nexusCardBackground)
+                    .fill(NexusTheme.Colors.card)
                     .frame(height: 100)
                     .shimmer()
             }
@@ -224,7 +224,7 @@ struct HealthTodayContent: View {
 
             Image(systemName: emptyStateIcon)
                 .font(.system(size: 44, weight: .light))
-                .foregroundColor(hasHealthSourceConnected ? .nexusHealth.opacity(0.5) : .secondary.opacity(0.4))
+                .foregroundColor(hasHealthSourceConnected ? NexusTheme.Colors.Semantic.green.opacity(0.5) : .secondary.opacity(0.4))
 
             VStack(spacing: 8) {
                 Text(emptyStateTitle)
@@ -247,7 +247,7 @@ struct HealthTodayContent: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .background(Color.nexusPrimary)
+                    .background(NexusTheme.Colors.accent)
                     .cornerRadius(10)
                 }
             }
@@ -282,13 +282,13 @@ struct HealthTodayContent: View {
         return HStack(spacing: 10) {
             Image(systemName: isStale ? "clock.badge.exclamationmark" : icon)
                 .font(.title3)
-                .foregroundColor(isStale ? .nexusWarning : .secondary.opacity(0.6))
+                .foregroundColor(isStale ? NexusTheme.Colors.Semantic.amber : .secondary.opacity(0.6))
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(isStale ? staleMessage : pendingMessage)
                     .font(.subheadline)
-                    .foregroundColor(isStale ? .nexusWarning : .secondary)
+                    .foregroundColor(isStale ? NexusTheme.Colors.Semantic.amber : .secondary)
 
                 if let freshness = viewModel.healthFreshness {
                     Text("Last update: \(freshness.syncTimeLabel)")
@@ -307,9 +307,9 @@ struct HealthTodayContent: View {
     }
 
     private func recoveryColor(_ score: Int) -> Color {
-        if score >= 67 { return .nexusSuccess }
-        if score >= 34 { return .nexusWarning }
-        return .nexusError
+        if score >= 67 { return NexusTheme.Colors.Semantic.green }
+        if score >= 34 { return NexusTheme.Colors.Semantic.amber }
+        return NexusTheme.Colors.Semantic.red
     }
 
     private func formatNumber(_ number: Int) -> String {
@@ -321,7 +321,7 @@ struct HealthTodayContent: View {
     private func freshnessIndicator(lastUpdated: Date, source: HealthViewModel.DataSourceInfo) -> some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(source == .cache ? Color.nexusWarning : Color.nexusSuccess)
+                .fill(source == .cache ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
                 .frame(width: 6, height: 6)
 
             Text("Updated \(lastUpdated, style: .relative) ago")
@@ -331,7 +331,7 @@ struct HealthTodayContent: View {
             if source == .cache {
                 Text("(Cached)")
                     .font(.caption)
-                    .foregroundColor(.nexusWarning)
+                    .foregroundColor(NexusTheme.Colors.Semantic.amber)
             }
 
             Spacer()

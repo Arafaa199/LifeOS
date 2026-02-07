@@ -28,7 +28,7 @@ struct AlbumDetailView: View {
             }
             .padding()
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -62,7 +62,7 @@ struct AlbumDetailView: View {
 
                 Text(album.artistName)
                     .font(.headline)
-                    .foregroundColor(.nexusPrimary)
+                    .foregroundColor(NexusTheme.Colors.accent)
 
                 HStack(spacing: 4) {
                     if let releaseDate = album.releaseDate {
@@ -90,7 +90,7 @@ struct AlbumDetailView: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color.nexusPrimary)
+                        .background(NexusTheme.Colors.accent)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                 }
@@ -123,7 +123,7 @@ struct AlbumDetailView: View {
                 }
             }
         }
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
     }
 

@@ -7,8 +7,6 @@ struct CalendarView: View {
     @State private var showingNewEventSheet = false
     @State private var selectedEventForDetail: CalendarDisplayEvent?
 
-    private let haptics = UIImpactFeedbackGenerator(style: .light)
-
     private var year: Int { Calendar.current.component(.year, from: displayedMonth) }
     private var month: Int { Calendar.current.component(.month, from: displayedMonth) }
 
@@ -21,18 +19,20 @@ struct CalendarView: View {
                 VStack(spacing: 0) {
                     monthHeader
                         .padding(.horizontal)
-                        .padding(.top, 8)
+                        .padding(.top, NexusTheme.Spacing.xs)
 
                     weekdayHeader
                         .padding(.horizontal)
-                        .padding(.top, 12)
+                        .padding(.top, NexusTheme.Spacing.md)
 
                     monthGrid
                         .padding(.horizontal)
-                        .padding(.top, 4)
+                        .padding(.top, NexusTheme.Spacing.xxxs)
 
-                    Divider()
-                        .padding(.vertical, 12)
+                    Rectangle()
+                        .fill(NexusTheme.Colors.divider)
+                        .frame(height: 1)
+                        .padding(.vertical, NexusTheme.Spacing.md)
 
                     selectedDayDetail
                         .padding(.horizontal)
@@ -40,13 +40,13 @@ struct CalendarView: View {
                     Spacer(minLength: 40)
                 }
             }
-            .background(Color.nexusBackground)
+            .background(NexusTheme.Colors.background)
             .navigationTitle("Calendar")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
-                        haptics.impactOccurred()
+                        NexusTheme.Haptics.light()
                         showingNewEventSheet = true
                     } label: {
                         Image(systemName: "plus")
@@ -56,14 +56,14 @@ struct CalendarView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Today") {
-                        haptics.impactOccurred()
+                        NexusTheme.Haptics.light()
                         withAnimation {
                             displayedMonth = Date()
                             viewModel.selectedDate = Date()
                         }
                     }
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.nexusPrimary)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(NexusTheme.Colors.accent)
                 }
             }
             .sheet(isPresented: $showingNewEventSheet) {
@@ -91,21 +91,22 @@ struct CalendarView: View {
             Button { changeMonth(-1) } label: {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
-                    .foregroundColor(.nexusPrimary)
+                    .foregroundColor(NexusTheme.Colors.accent)
             }
             .accessibilityLabel("Previous month")
 
             Spacer()
 
             Text(monthYearLabel)
-                .font(.title3.weight(.semibold))
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(NexusTheme.Colors.textPrimary)
 
             Spacer()
 
             Button { changeMonth(1) } label: {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
-                    .foregroundColor(.nexusPrimary)
+                    .foregroundColor(NexusTheme.Colors.accent)
             }
             .accessibilityLabel("Next month")
         }
@@ -117,8 +118,8 @@ struct CalendarView: View {
         LazyVGrid(columns: columns, spacing: 0) {
             ForEach(weekdaySymbols, id: \.self) { symbol in
                 Text(symbol)
-                    .font(.caption2.weight(.medium))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(NexusTheme.Colors.textSecondary)
                     .frame(height: 20)
             }
         }
@@ -127,7 +128,7 @@ struct CalendarView: View {
     // MARK: - Month Grid
 
     private var monthGrid: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
+        LazyVGrid(columns: columns, spacing: NexusTheme.Spacing.xs) {
             ForEach(daysInMonth(), id: \.self) { day in
                 if let day {
                     dayCell(day)
@@ -155,28 +156,28 @@ struct CalendarView: View {
         } label: {
             VStack(spacing: 2) {
                 Text("\(dayNum)")
-                    .font(.subheadline)
+                    .font(.system(size: 14))
                     .fontWeight(isToday ? .bold : .regular)
                     .foregroundColor(
                         isSelected ? .white :
-                        isToday ? .nexusPrimary :
-                        .primary
+                        isToday ? NexusTheme.Colors.accent :
+                        NexusTheme.Colors.textPrimary
                     )
                     .frame(width: 34, height: 34)
                     .background(
                         Circle()
-                            .fill(isSelected ? Color.nexusPrimary : Color.clear)
+                            .fill(isSelected ? NexusTheme.Colors.accent : Color.clear)
                     )
 
                 HStack(spacing: 3) {
                     if eventCount > 0 {
                         Circle()
-                            .fill(isSelected ? Color.white : Color.nexusPrimary)
+                            .fill(isSelected ? Color.white : NexusTheme.Colors.accent)
                             .frame(width: 5, height: 5)
                     }
                     if reminderCount > 0 {
                         Circle()
-                            .fill(isSelected ? Color.white.opacity(0.7) : Color.nexusWarning)
+                            .fill(isSelected ? Color.white.opacity(0.7) : NexusTheme.Colors.Semantic.amber)
                             .frame(width: 5, height: 5)
                     }
                 }
@@ -196,10 +197,10 @@ struct CalendarView: View {
             let allDay = events.filter { $0.isAllDay }
             let timed = events.filter { !$0.isAllDay }
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: NexusTheme.Spacing.md) {
                 Text(selectedDateLabel(date))
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
 
                 if viewModel.isLoadingEvents {
                     HStack {
@@ -207,45 +208,49 @@ struct CalendarView: View {
                         ProgressView()
                         Spacer()
                     }
-                    .padding(.top, 20)
+                    .padding(.top, NexusTheme.Spacing.xxl)
                 } else if allDay.isEmpty && timed.isEmpty && reminders.isEmpty {
                     HStack {
                         Spacer()
-                        VStack(spacing: 8) {
+                        VStack(spacing: NexusTheme.Spacing.xs) {
                             Image(systemName: "calendar")
-                                .font(.title2)
-                                .foregroundColor(.secondary.opacity(0.5))
+                                .font(.system(size: 24))
+                                .foregroundColor(NexusTheme.Colors.textMuted)
                             Text("No events")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .font(.system(size: 14))
+                                .foregroundColor(NexusTheme.Colors.textSecondary)
                         }
                         Spacer()
                     }
-                    .padding(.vertical, 20)
+                    .padding(.vertical, NexusTheme.Spacing.xxl)
                 } else {
                     if !allDay.isEmpty {
                         Text("ALL DAY")
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
 
                         ForEach(allDay) { event in
                             Button {
                                 selectedEventForDetail = event
                             } label: {
                                 Text(event.title)
-                                    .font(.subheadline.weight(.medium))
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, NexusTheme.Spacing.md)
+                                    .padding(.vertical, NexusTheme.Spacing.xs)
+                                    .background(NexusTheme.Colors.accent)
+                                    .cornerRadius(NexusTheme.Radius.xs)
                             }
                             .buttonStyle(.plain)
-                            .nexusChip(color: .nexusPrimary)
                         }
                     }
 
                     if !timed.isEmpty {
                         if !allDay.isEmpty {
                             Text("EVENTS")
-                                .font(.caption.weight(.semibold))
-                                .foregroundColor(.secondary)
-                                .padding(.top, 4)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(NexusTheme.Colors.textSecondary)
+                                .padding(.top, NexusTheme.Spacing.xxxs)
                         }
 
                         ForEach(timed) { event in
@@ -255,9 +260,9 @@ struct CalendarView: View {
 
                     if !reminders.isEmpty {
                         Text("REMINDERS")
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
+                            .padding(.top, NexusTheme.Spacing.xxxs)
 
                         ForEach(reminders) { reminder in
                             inlineReminderRow(reminder)
@@ -274,99 +279,111 @@ struct CalendarView: View {
         Button {
             selectedEventForDetail = event
         } label: {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: NexusTheme.Spacing.xxxs) {
                 Text(event.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
 
-                HStack(spacing: 8) {
+                HStack(spacing: NexusTheme.Spacing.xs) {
                     Text("\(event.startTime) – \(event.endTime)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11))
+                        .foregroundColor(NexusTheme.Colors.textSecondary)
 
                     if !event.durationLabel.isEmpty {
                         Text(event.durationLabel)
-                            .font(.caption2)
-                            .foregroundColor(.nexusPrimary)
-                            .padding(.horizontal, 6)
+                            .font(.system(size: 9))
+                            .foregroundColor(NexusTheme.Colors.accent)
+                            .padding(.horizontal, NexusTheme.Spacing.xxs)
                             .padding(.vertical, 2)
-                            .background(Color.nexusPrimary.opacity(0.1))
-                            .cornerRadius(4)
+                            .background(NexusTheme.Colors.accent.opacity(0.10))
+                            .cornerRadius(NexusTheme.Radius.xs)
                     }
                 }
 
                 if let location = event.location, !location.isEmpty {
-                    HStack(spacing: 4) {
+                    HStack(spacing: NexusTheme.Spacing.xxxs) {
                         Image(systemName: "mappin")
-                            .font(.caption2)
+                            .font(.system(size: 9))
                         Text(location)
-                            .font(.caption)
+                            .font(.system(size: 11))
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundColor(NexusTheme.Colors.textSecondary)
                 }
 
                 if let calendarName = event.calendarName, !calendarName.isEmpty {
                     Text(calendarName)
-                        .font(.caption2)
-                        .foregroundColor(.secondary.opacity(0.7))
+                        .font(.system(size: 9))
+                        .foregroundColor(NexusTheme.Colors.textTertiary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(NexusTheme.Spacing.md)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
-        .nexusCard()
     }
 
     // MARK: - Inline Reminder Row
 
     private func inlineReminderRow(_ reminder: ReminderDisplayItem) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: NexusTheme.Spacing.sm) {
             Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
                 .font(.body)
-                .foregroundColor(reminder.isCompleted ? .nexusSuccess : .secondary)
+                .foregroundColor(reminder.isCompleted ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
+                HStack(spacing: NexusTheme.Spacing.xxxs) {
                     Text(reminder.title ?? "Untitled")
-                        .font(.subheadline.weight(.medium))
+                        .font(.system(size: 14, weight: .medium))
                         .strikethrough(reminder.isCompleted)
-                        .foregroundColor(reminder.isCompleted ? .secondary : .primary)
+                        .foregroundColor(reminder.isCompleted ? NexusTheme.Colors.textSecondary : NexusTheme.Colors.textPrimary)
 
                     if let priority = reminder.priorityLabel {
                         Text(priority)
-                            .font(.caption2)
-                            .foregroundColor(.nexusWarning)
+                            .font(.system(size: 9))
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                 }
 
-                HStack(spacing: 8) {
+                HStack(spacing: NexusTheme.Spacing.xs) {
                     if let time = reminder.dueTime {
                         Text(time)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
                     }
 
                     if let listName = reminder.listName {
                         Text(listName)
-                            .font(.caption2)
-                            .foregroundColor(.nexusWarning.opacity(0.8))
-                            .padding(.horizontal, 6)
+                            .font(.system(size: 9))
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
+                            .padding(.horizontal, NexusTheme.Spacing.xxs)
                             .padding(.vertical, 1)
-                            .background(Color.nexusWarning.opacity(0.1))
-                            .cornerRadius(4)
+                            .background(NexusTheme.Colors.Semantic.amber.opacity(0.10))
+                            .cornerRadius(NexusTheme.Radius.xs)
                     }
                 }
             }
 
             Spacer()
         }
-        .nexusCard()
+        .padding(NexusTheme.Spacing.md)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
     }
 
     // MARK: - Helpers
 
     private func changeMonth(_ delta: Int) {
-        haptics.impactOccurred()
+        NexusTheme.Haptics.light()
         withAnimation(.easeInOut(duration: 0.3)) {
             if let next = Calendar.current.date(byAdding: .month, value: delta, to: displayedMonth) {
                 displayedMonth = next

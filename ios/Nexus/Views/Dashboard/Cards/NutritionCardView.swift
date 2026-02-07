@@ -8,53 +8,56 @@ struct NutritionCardView: View {
 
     var body: some View {
         NavigationLink(destination: NutritionHistoryView()) {
-            VStack(spacing: 12) {
+            VStack(spacing: NexusTheme.Spacing.md) {
                 HStack {
-                    Text("Nutrition")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.primary)
+                    NexusTheme.Typography.cardTitle("Nutrition")
+                        .foregroundColor(NexusTheme.Colors.textTertiary)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11))
+                        .foregroundColor(NexusTheme.Colors.textMuted)
                 }
 
-                HStack(spacing: 16) {
+                HStack(spacing: NexusTheme.Spacing.lg) {
                     if let calories = caloriesConsumed, calories > 0 {
-                        nutritionItem(value: "\(calories)", label: "cal", icon: "flame.fill", color: .orange)
+                        nutritionItem(value: "\(calories)", label: "cal", icon: "flame.fill", color: NexusTheme.Colors.Semantic.amber)
                     }
 
                     if let meals = mealsLogged, meals > 0 {
-                        nutritionItem(value: "\(meals)", label: "meals", icon: "fork.knife", color: .green)
+                        nutritionItem(value: "\(meals)", label: "meals", icon: "fork.knife", color: NexusTheme.Colors.Semantic.green)
                     }
 
                     if let water = waterMl, water > 0 {
-                        nutritionItem(value: "\(water)", label: "ml", icon: "drop.fill", color: .blue)
+                        nutritionItem(value: "\(water)", label: "ml", icon: "drop.fill", color: NexusTheme.Colors.Semantic.blue)
                     }
 
                     Spacer()
                 }
             }
-            .padding(16)
-            .background(Color(UIColor.secondarySystemGroupedBackground))
-            .cornerRadius(12)
+            .padding(NexusTheme.Spacing.lg)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
     }
 
     private func nutritionItem(value: String, label: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: NexusTheme.Spacing.xxs) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.system(size: 11))
                 .foregroundColor(color)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(value)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
                 Text(label)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 10))
+                    .foregroundColor(NexusTheme.Colors.textTertiary)
             }
         }
     }
@@ -68,5 +71,6 @@ struct NutritionCardView: View {
             waterMl: 2000
         )
         .padding()
+        .background(NexusTheme.Colors.background)
     }
 }

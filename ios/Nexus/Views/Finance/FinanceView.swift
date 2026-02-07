@@ -45,7 +45,7 @@ struct FinanceView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gearshape")
-                            .foregroundColor(.nexusFinance)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                     }
                     .accessibilityLabel("Finance settings")
                 }
@@ -92,9 +92,9 @@ struct BudgetStatusInfo {
 
         var color: Color {
             switch self {
-            case .ok: return .nexusSuccess
-            case .warning: return .nexusWarning
-            case .over: return .nexusError
+            case .ok: return NexusTheme.Colors.Semantic.green
+            case .warning: return NexusTheme.Colors.Semantic.amber
+            case .over: return NexusTheme.Colors.Semantic.red
             case .noBudgets: return .gray
             }
         }

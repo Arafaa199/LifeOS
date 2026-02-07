@@ -18,7 +18,7 @@ struct CardContainer<Content: View, EmptyContent: View>: View {
     init(
         title: String? = nil,
         icon: String? = nil,
-        iconColor: Color = .secondary,
+        iconColor: Color = NexusTheme.Colors.textSecondary,
         isLoading: Bool = false,
         isEmpty: Bool = false,
         staleMinutes: Int? = nil,
@@ -38,31 +38,31 @@ struct CardContainer<Content: View, EmptyContent: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: NexusTheme.Spacing.md) {
             // Header (optional)
             if let title = title {
-                HStack(spacing: 8) {
+                HStack(spacing: NexusTheme.Spacing.xs) {
                     if let icon = icon {
                         Image(systemName: icon)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(iconColor)
                     }
 
                     Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(NexusTheme.Colors.textSecondary)
 
                     Spacer()
 
                     // Stale indicator
                     if let minutes = staleMinutes {
-                        HStack(spacing: 4) {
+                        HStack(spacing: NexusTheme.Spacing.xxxs) {
                             Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.caption2)
+                                .font(.system(size: 9))
                             Text("\(minutes)m ago")
-                                .font(.caption2)
+                                .font(.system(size: 9))
                         }
-                        .foregroundColor(.nexusWarning)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                 }
             }
@@ -80,10 +80,14 @@ struct CardContainer<Content: View, EmptyContent: View>: View {
                 content()
             }
         }
-        .padding(16)
+        .padding(NexusTheme.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.nexusCardBackground)
-        .cornerRadius(16)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
     }
 
     private var loadingContent: some View {
@@ -99,10 +103,10 @@ struct CardContainer<Content: View, EmptyContent: View>: View {
     private var defaultEmptyContent: some View {
         HStack {
             Image(systemName: "tray")
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundColor(NexusTheme.Colors.textMuted)
             Text(emptyMessage)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.system(size: 13.5))
+                .foregroundColor(NexusTheme.Colors.textSecondary)
         }
         .frame(minHeight: 40)
     }
@@ -115,7 +119,7 @@ struct SimpleCard<Content: View>: View {
     let padding: CGFloat
     @ViewBuilder let content: () -> Content
 
-    init(padding: CGFloat = 16, @ViewBuilder content: @escaping () -> Content) {
+    init(padding: CGFloat = NexusTheme.Spacing.lg, @ViewBuilder content: @escaping () -> Content) {
         self.padding = padding
         self.content = content
     }
@@ -124,8 +128,12 @@ struct SimpleCard<Content: View>: View {
         content()
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.nexusCardBackground)
-            .cornerRadius(16)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+            )
     }
 }
 
@@ -138,12 +146,16 @@ struct HeroCard<Content: View>: View {
 
     var body: some View {
         content()
-            .padding(20)
+            .padding(NexusTheme.Spacing.xxl)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.nexusCardBackground)
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .fill(NexusTheme.Colors.card)
                     .shadow(color: accentColor.opacity(0.1), radius: 8, x: 0, y: 4)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
             )
     }
 }
@@ -164,37 +176,37 @@ struct FreshnessBadge: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: NexusTheme.Spacing.xxs) {
             Circle()
                 .fill(dotColor)
                 .frame(width: 6, height: 6)
 
             if let date = lastUpdated {
                 Text("Updated \(date, style: .relative) ago")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11))
+                    .foregroundColor(NexusTheme.Colors.textSecondary)
             } else {
                 Text("Never synced")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11))
+                    .foregroundColor(NexusTheme.Colors.textSecondary)
             }
 
             if isOffline {
                 Text("• Offline")
-                    .font(.caption)
-                    .foregroundColor(.nexusWarning)
+                    .font(.system(size: 11))
+                    .foregroundColor(NexusTheme.Colors.Semantic.amber)
             }
         }
     }
 
     private var dotColor: Color {
-        if isOffline { return .nexusWarning }
+        if isOffline { return NexusTheme.Colors.Semantic.amber }
 
         switch freshness {
-        case .fresh, .recent: return .nexusSuccess
-        case .stale: return .nexusWarning
-        case .old: return .nexusError
-        case .unknown: return .gray
+        case .fresh, .recent: return NexusTheme.Colors.Semantic.green
+        case .stale: return NexusTheme.Colors.Semantic.amber
+        case .old: return NexusTheme.Colors.Semantic.red
+        case .unknown: return NexusTheme.Colors.textTertiary
         }
     }
 }
@@ -206,7 +218,7 @@ struct MiniSparkline: View {
     let color: Color
     let height: CGFloat
 
-    init(data: [Double], color: Color = .blue, height: CGFloat = 30) {
+    init(data: [Double], color: Color = NexusTheme.Colors.Semantic.blue, height: CGFloat = 30) {
         self.data = data
         self.color = color
         self.height = height
@@ -260,16 +272,16 @@ struct DeltaBadge: View {
     var body: some View {
         HStack(spacing: 2) {
             Image(systemName: value >= 0 ? "arrow.up.right" : "arrow.down.right")
-                .font(.caption2.weight(.semibold))
+                .font(.system(size: 9, weight: .semibold))
 
             Text("\(value >= 0 ? "+" : "")\(String(format: "%.0f", value))\(suffix)")
-                .font(.caption.weight(.medium))
+                .font(.system(size: 11, weight: .medium))
         }
-        .foregroundColor(isPositive ? .nexusSuccess : .nexusWarning)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background((isPositive ? Color.nexusSuccess : Color.nexusWarning).opacity(0.12))
-        .cornerRadius(8)
+        .foregroundColor(isPositive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.amber)
+        .padding(.horizontal, NexusTheme.Spacing.xs)
+        .padding(.vertical, NexusTheme.Spacing.xxxs)
+        .background((isPositive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.Semantic.amber).opacity(0.12))
+        .cornerRadius(NexusTheme.Radius.xs)
     }
 }
 
@@ -319,7 +331,7 @@ struct HorizontalProgressBar: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Rectangle()
-                    .fill(Color(.tertiarySystemFill))
+                    .fill(NexusTheme.Colors.cardAlt)
 
                 Rectangle()
                     .fill(color)
@@ -341,15 +353,15 @@ struct CardCategoryRow: View {
     let currency: String
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: NexusTheme.Spacing.xxs) {
             HStack {
                 Text(name)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
+                    .font(.system(size: 13.5))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
                 Spacer()
                 Text(formatCurrency(amount, currency: currency))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 13.5, weight: .medium))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
             }
 
             HorizontalProgressBar(progress: progress, color: color)
@@ -361,11 +373,11 @@ struct CardCategoryRow: View {
 
 #Preview("Card States") {
     ScrollView {
-        VStack(spacing: 16) {
+        VStack(spacing: NexusTheme.Spacing.lg) {
             CardContainer(
                 title: "Loading State",
                 icon: "chart.bar",
-                iconColor: .blue,
+                iconColor: NexusTheme.Colors.Semantic.blue,
                 isLoading: true,
                 emptyMessage: "No data"
             ) {
@@ -375,7 +387,7 @@ struct CardCategoryRow: View {
             CardContainer(
                 title: "Empty State",
                 icon: "chart.bar",
-                iconColor: .blue,
+                iconColor: NexusTheme.Colors.Semantic.blue,
                 isEmpty: true,
                 emptyMessage: "No transactions yet"
             ) {
@@ -385,34 +397,39 @@ struct CardCategoryRow: View {
             CardContainer(
                 title: "Partial State",
                 icon: "chart.bar",
-                iconColor: .blue,
+                iconColor: NexusTheme.Colors.Semantic.blue,
                 staleMinutes: 15,
                 emptyMessage: "No data"
             ) {
                 Text("Stale content from 15 min ago")
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
             }
 
             CardContainer(
                 title: "Fresh State",
                 icon: "chart.bar",
-                iconColor: .blue,
+                iconColor: NexusTheme.Colors.Semantic.blue,
                 emptyMessage: "No data"
             ) {
                 Text("Fresh content!")
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
             }
 
-            HeroCard(accentColor: .blue) {
+            HeroCard(accentColor: NexusTheme.Colors.Semantic.blue) {
                 VStack(alignment: .leading) {
                     Text("Hero Card")
-                        .font(.headline)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(NexusTheme.Colors.textPrimary)
                     Text("1,234 AED")
                         .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundColor(NexusTheme.Colors.textPrimary)
                 }
             }
 
             SimpleCard {
                 HStack {
                     Text("Simple Card")
+                        .foregroundColor(NexusTheme.Colors.textPrimary)
                     Spacer()
                     DeltaBadge(12.5)
                 }
@@ -420,10 +437,11 @@ struct CardCategoryRow: View {
 
             FreshnessBadge(lastUpdated: Date().addingTimeInterval(-300))
 
-            MiniSparkline(data: [65, 72, 58, 80, 75, 82, 78], color: .nexusSuccess)
+            MiniSparkline(data: [65, 72, 58, 80, 75, 82, 78], color: NexusTheme.Colors.Semantic.green)
                 .frame(height: 40)
                 .padding()
         }
         .padding()
     }
+    .background(NexusTheme.Colors.background)
 }

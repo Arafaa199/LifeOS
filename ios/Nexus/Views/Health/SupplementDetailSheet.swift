@@ -158,7 +158,7 @@ struct SupplementDetailSheet: View {
 
     private func statusColor(_ status: String) -> Color {
         switch status {
-        case "taken": return .nexusSuccess
+        case "taken": return NexusTheme.Colors.Semantic.green
         case "skipped": return .red
         default: return .orange
         }

@@ -6,40 +6,45 @@ struct MusicCardView: View {
 
     var body: some View {
         if let music = music, music.hasActivity {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Color.pink.opacity(0.15))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: "music.note")
-                        .font(.system(size: 18))
-                        .foregroundColor(.pink)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(summaryText)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(.primary)
-
-                    if let topArtist = music.topArtist {
-                        Text("Top: \(topArtist)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
+            NavigationLink(destination: MusicView()) {
+                HStack(spacing: NexusTheme.Spacing.md) {
+                    ZStack {
+                        Circle()
+                            .fill(NexusTheme.Colors.accent.opacity(0.12))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "music.note")
+                            .font(.system(size: 18))
+                            .foregroundColor(NexusTheme.Colors.accent)
                     }
-                }
 
-                Spacer()
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(summaryText)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(NexusTheme.Colors.textPrimary)
 
-                NavigationLink(destination: MusicView()) {
+                        if let topArtist = music.topArtist {
+                            Text("Top: \(topArtist)")
+                                .font(.system(size: 11))
+                                .foregroundColor(NexusTheme.Colors.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer()
+
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(NexusTheme.Colors.textMuted)
                 }
+                .padding(NexusTheme.Spacing.lg)
+                .background(NexusTheme.Colors.card)
+                .cornerRadius(NexusTheme.Radius.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                        .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+                )
             }
-            .padding()
-            .background(Color.nexusCardBackground)
-            .cornerRadius(12)
+            .buttonStyle(.plain)
         }
     }
 
@@ -67,5 +72,5 @@ struct MusicCardView: View {
         MusicCardView(music: nil)
     }
     .padding()
-    .background(Color.nexusBackground)
+    .background(NexusTheme.Colors.background)
 }

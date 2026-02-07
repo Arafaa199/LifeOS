@@ -24,7 +24,7 @@ struct StateCardView: View {
     let reminderSummary: ReminderSummary?
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: NexusTheme.Spacing.md) {
             HStack(spacing: 0) {
                 RecoveryCardView(
                     recoveryScore: recoveryScore,
@@ -33,13 +33,13 @@ struct StateCardView: View {
                     freshness: healthFreshness
                 )
 
-                Spacer(minLength: 12)
+                Spacer(minLength: NexusTheme.Spacing.md)
 
-                Divider()
-                    .frame(height: 50)
-                    .padding(.horizontal, 4)
+                Rectangle()
+                    .fill(NexusTheme.Colors.divider)
+                    .frame(width: 1, height: 50)
 
-                Spacer(minLength: 12)
+                Spacer(minLength: NexusTheme.Spacing.md)
 
                 BudgetCardView(
                     spendTotal: spendTotal,
@@ -53,65 +53,73 @@ struct StateCardView: View {
 
             // Workout row (only show if there are workouts)
             if let count = workoutCount, count > 0 {
-                Divider()
+                Rectangle()
+                    .fill(NexusTheme.Colors.divider)
+                    .frame(height: 1)
                 workoutRow(count: count, minutes: workoutMinutes ?? 0)
             }
 
             if let reminders = reminderSummary,
                reminders.dueToday > 0 || reminders.overdueCount > 0 {
-                Divider()
+                Rectangle()
+                    .fill(NexusTheme.Colors.divider)
+                    .frame(height: 1)
                 reminderRow(reminders)
             }
         }
-        .padding(20)
-        .background(Color.nexusCardBackground)
-        .cornerRadius(16)
+        .padding(NexusTheme.Spacing.xxl)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
     }
 
     private func workoutRow(count: Int, minutes: Int) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: NexusTheme.Spacing.xxs) {
             Image(systemName: "figure.run")
-                .font(.caption)
-                .foregroundColor(.nexusSuccess)
+                .font(.system(size: 11))
+                .foregroundColor(NexusTheme.Colors.Semantic.green)
 
             Text("\(count) workout\(count == 1 ? "" : "s")")
-                .font(.caption.weight(.medium))
-                .foregroundColor(.secondary)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(NexusTheme.Colors.textSecondary)
 
             Text("\u{00B7}")
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.system(size: 11))
+                .foregroundColor(NexusTheme.Colors.textTertiary)
 
             Text("\(minutes) min")
-                .font(.caption.weight(.medium))
-                .foregroundColor(.secondary)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(NexusTheme.Colors.textSecondary)
 
             Spacer()
         }
     }
 
     private func reminderRow(_ reminders: ReminderSummary) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: NexusTheme.Spacing.xxs) {
             Image(systemName: "bell.fill")
-                .font(.caption)
-                .foregroundColor(reminders.overdueCount > 0 ? .nexusError : .secondary)
+                .font(.system(size: 11))
+                .foregroundColor(reminders.overdueCount > 0 ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.textTertiary)
 
             if reminders.dueToday > 0 {
                 Text("\(reminders.dueToday) due today")
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(NexusTheme.Colors.textSecondary)
             }
 
             if reminders.dueToday > 0 && reminders.overdueCount > 0 {
                 Text("\u{00B7}")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11))
+                    .foregroundColor(NexusTheme.Colors.textTertiary)
             }
 
             if reminders.overdueCount > 0 {
                 Text("\(reminders.overdueCount) overdue")
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(.nexusError)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(NexusTheme.Colors.Semantic.red)
             }
 
             Spacer()
@@ -136,4 +144,5 @@ struct StateCardView: View {
         reminderSummary: nil
     )
     .padding()
+    .background(NexusTheme.Colors.background)
 }

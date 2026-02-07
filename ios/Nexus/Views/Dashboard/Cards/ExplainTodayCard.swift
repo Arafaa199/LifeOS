@@ -6,40 +6,50 @@ struct ExplainTodayCard: View {
 
     var body: some View {
         if let data = explainToday, data.hasData {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: NexusTheme.Spacing.md) {
                 HStack {
                     Image(systemName: "text.quote")
-                        .font(.title3)
-                        .foregroundColor(.nexusPrimary)
+                        .font(.system(size: 18))
+                        .foregroundColor(NexusTheme.Colors.accent)
                     Text("Today's Briefing")
-                        .font(.headline)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(NexusTheme.Colors.textPrimary)
                     Spacer()
                     if let completeness = data.dataCompleteness {
                         Text("\(Int(completeness * 100))% data")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(NexusTheme.Colors.textTertiary)
+                            .padding(.horizontal, NexusTheme.Spacing.xs)
+                            .padding(.vertical, 3)
+                            .background(NexusTheme.Colors.cardAlt)
+                            .cornerRadius(NexusTheme.Radius.xs)
                     }
                 }
 
                 Text(data.briefing)
-                    .font(.body)
-                    .foregroundColor(.primary)
+                    .font(.system(size: 13.5))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
+                    .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if !data.dataGaps.isEmpty {
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
+                            .font(.system(size: 10))
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                         Text("Missing: \(data.dataGaps.joined(separator: ", "))")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
                     }
                 }
             }
-            .padding()
-            .background(Color.nexusCardBackground)
-            .cornerRadius(16)
+            .padding(NexusTheme.Spacing.lg)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+            )
         }
     }
 }
@@ -59,4 +69,5 @@ struct ExplainTodayCard: View {
         nutrition: nil
     ))
     .padding()
+    .background(NexusTheme.Colors.background)
 }

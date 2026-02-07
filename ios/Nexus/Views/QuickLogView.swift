@@ -30,7 +30,7 @@ struct QuickLogView: View {
                 }
                 .padding()
             }
-            .background(Color.nexusBackground)
+            .background(NexusTheme.Colors.background)
             .navigationTitle("Quick Log")
             .navigationBarTitleDisplayMode(.large)
             .alert("Logged", isPresented: $showSuccess) {
@@ -57,12 +57,12 @@ struct QuickLogView: View {
                 Button(action: toggleVoiceInput) {
                     ZStack {
                         Circle()
-                            .fill(speechRecognizer.isRecording ? Color.nexusError.opacity(0.15) : Color.nexusPrimary.opacity(0.15))
+                            .fill(speechRecognizer.isRecording ? NexusTheme.Colors.Semantic.red.opacity(0.15) : NexusTheme.Colors.accent.opacity(0.15))
                             .frame(width: 44, height: 44)
 
                         Image(systemName: speechRecognizer.isRecording ? "mic.fill" : "mic")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(speechRecognizer.isRecording ? .nexusError : .nexusPrimary)
+                            .foregroundColor(speechRecognizer.isRecording ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.accent)
                             .symbolEffect(.pulse, isActive: speechRecognizer.isRecording)
                     }
                 }
@@ -76,7 +76,7 @@ struct QuickLogView: View {
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(speechRecognizer.isRecording ? Color.nexusError : Color.nexusPrimary.opacity(0.3), lineWidth: speechRecognizer.isRecording ? 2 : 1)
+                            .stroke(speechRecognizer.isRecording ? NexusTheme.Colors.Semantic.red : NexusTheme.Colors.accent.opacity(0.3), lineWidth: speechRecognizer.isRecording ? 2 : 1)
                     )
                     .focused($isInputFocused)
                     .disabled(speechRecognizer.isRecording)
@@ -96,12 +96,12 @@ struct QuickLogView: View {
                         VStack(spacing: 4) {
                             Image(systemName: "waveform")
                                 .font(.title2)
-                                .foregroundColor(.nexusError)
+                                .foregroundColor(NexusTheme.Colors.Semantic.red)
                                 .symbolEffect(.variableColor.iterative, isActive: true)
                             Text("Listening...")
                                 .font(.caption)
                                 .fontWeight(.medium)
-                                .foregroundColor(.nexusError)
+                                .foregroundColor(NexusTheme.Colors.Semantic.red)
                         }
                         .padding(12)
                     }
@@ -127,7 +127,7 @@ struct QuickLogView: View {
                     NexusQuickActionCard(
                         title: "Log Food",
                         icon: "fork.knife",
-                        color: .nexusFood
+                        color: NexusTheme.Colors.Semantic.amber
                     )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -136,7 +136,7 @@ struct QuickLogView: View {
                     NexusQuickActionCard(
                         title: "Water",
                         icon: "drop.fill",
-                        color: .nexusWater
+                        color: NexusTheme.Colors.Semantic.blue
                     )
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -152,7 +152,7 @@ struct QuickLogView: View {
                 NexusQuickActionButton(
                     title: "Snack",
                     icon: "leaf.fill",
-                    color: .nexusWeight
+                    color: NexusTheme.Colors.Semantic.purple
                 ) {
                     logQuick("had a snack")
                 }
@@ -160,7 +160,7 @@ struct QuickLogView: View {
                 NexusQuickActionButton(
                     title: "Weight",
                     icon: "scalemass.fill",
-                    color: .nexusFood
+                    color: NexusTheme.Colors.Semantic.amber
                 ) {
                     isInputFocused = true
                     inputText = "weight "
@@ -185,7 +185,7 @@ struct QuickLogView: View {
                     .fontWeight(.semibold)
             }
         }
-        .nexusPrimaryButton(disabled: inputText.isEmpty || isLoading)
+        .nexusAccentButton(disabled: inputText.isEmpty || isLoading)
         .disabled(inputText.isEmpty || isLoading)
     }
 

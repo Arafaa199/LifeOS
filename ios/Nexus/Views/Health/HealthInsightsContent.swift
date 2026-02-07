@@ -58,7 +58,7 @@ struct HealthInsightsContent: View {
                let daysWithData = facts.daysWithData7d {
                 VStack(spacing: 8) {
                     ProgressView(value: Double(daysWithData), total: 7)
-                        .tint(.nexusHealth)
+                        .tint(NexusTheme.Colors.Semantic.green)
 
                     Text("\(daysWithData) of 7 days tracked this week")
                         .font(.caption)
@@ -103,7 +103,7 @@ struct HealthInsightsContent: View {
                 DataSourceIndicator(
                     name: "WHOOP",
                     icon: "w.circle.fill",
-                    color: .nexusWarning,
+                    color: NexusTheme.Colors.Semantic.amber,
                     status: whoopStatus
                 )
 
@@ -113,12 +113,12 @@ struct HealthInsightsContent: View {
                 DataSourceIndicator(
                     name: "HealthKit",
                     icon: "heart.circle.fill",
-                    color: .nexusProtein,
+                    color: NexusTheme.Colors.Semantic.purple,
                     status: healthKitStatus
                 )
             }
             .padding()
-            .background(Color.nexusCardBackground)
+            .background(NexusTheme.Colors.card)
             .cornerRadius(12)
         }
     }

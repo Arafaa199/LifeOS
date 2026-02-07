@@ -11,20 +11,20 @@ struct SiriShortcutsView: View {
             }
 
             Section {
-                ShortcutRow(icon: "drop.fill", iconColor: .nexusWater, title: "Log Water",
+                ShortcutRow(icon: "drop.fill", iconColor: NexusTheme.Colors.Semantic.blue, title: "Log Water",
                            phrase: "\"Hey Siri, log 500 ml water in Nexus\"")
-                ShortcutRow(icon: "face.smiling", iconColor: .nexusMood, title: "Log Mood",
+                ShortcutRow(icon: "face.smiling", iconColor: NexusTheme.Colors.accent, title: "Log Mood",
                            phrase: "\"Hey Siri, log mood 7 in Nexus\"")
-                ShortcutRow(icon: "scalemass", iconColor: .nexusHealth, title: "Log Weight",
+                ShortcutRow(icon: "scalemass", iconColor: NexusTheme.Colors.Semantic.green, title: "Log Weight",
                            phrase: "\"Hey Siri, log weight 75 kilos in Nexus\"")
             } header: {
                 Text("Logging")
             }
 
             Section {
-                ShortcutRow(icon: "timer", iconColor: .nexusWarning, title: "Start Fast",
+                ShortcutRow(icon: "timer", iconColor: NexusTheme.Colors.Semantic.amber, title: "Start Fast",
                            phrase: "\"Hey Siri, start my fast in Nexus\"")
-                ShortcutRow(icon: "fork.knife", iconColor: .nexusFood, title: "Break Fast",
+                ShortcutRow(icon: "fork.knife", iconColor: NexusTheme.Colors.Semantic.amber, title: "Break Fast",
                            phrase: "\"Hey Siri, break my fast in Nexus\"")
             } header: {
                 Text("Fasting")
@@ -38,7 +38,7 @@ struct SiriShortcutsView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Siri Shortcuts")
         .navigationBarTitleDisplayMode(.inline)
     }

@@ -239,7 +239,7 @@ struct MusicPlayerView: View {
             } label: {
                 Image(systemName: "shuffle")
                     .font(.title3)
-                    .foregroundColor(musicService.shuffleMode == .songs ? .nexusPrimary : .white.opacity(0.6))
+                    .foregroundColor(musicService.shuffleMode == .songs ? NexusTheme.Colors.accent : .white.opacity(0.6))
             }
             .accessibilityLabel("Shuffle")
             .accessibilityValue(musicService.shuffleMode == .songs ? "On" : "Off")
@@ -257,7 +257,7 @@ struct MusicPlayerView: View {
             } label: {
                 Image(systemName: repeatIcon)
                     .font(.title3)
-                    .foregroundColor(musicService.repeatMode != .none ? .nexusPrimary : .white.opacity(0.6))
+                    .foregroundColor(musicService.repeatMode != .none ? NexusTheme.Colors.accent : .white.opacity(0.6))
             }
             .accessibilityLabel("Repeat")
             .accessibilityValue(repeatAccessibilityValue)

@@ -6,36 +6,37 @@ struct MoodCardView: View {
 
     var body: some View {
         if let mood = mood, mood.hasData {
-            HStack(spacing: 16) {
+            HStack(spacing: NexusTheme.Spacing.lg) {
                 // Mood
-                VStack(spacing: 4) {
+                VStack(spacing: NexusTheme.Spacing.xxxs) {
                     Text(mood.moodEmoji)
                         .font(.system(size: 28))
                     Text("Mood")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 10))
+                        .foregroundColor(NexusTheme.Colors.textTertiary)
                     if let score = mood.moodScore {
                         Text("\(score)/10")
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(.primary)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(NexusTheme.Colors.textPrimary)
                     }
                 }
                 .frame(maxWidth: .infinity)
 
-                Divider()
-                    .frame(height: 50)
+                Rectangle()
+                    .fill(NexusTheme.Colors.divider)
+                    .frame(width: 1, height: 50)
 
                 // Energy
-                VStack(spacing: 4) {
+                VStack(spacing: NexusTheme.Spacing.xxxs) {
                     Text(mood.energyEmoji)
                         .font(.system(size: 28))
                     Text("Energy")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 10))
+                        .foregroundColor(NexusTheme.Colors.textTertiary)
                     if let score = mood.energyScore {
                         Text("\(score)/10")
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(.primary)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(NexusTheme.Colors.textPrimary)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -44,44 +45,52 @@ struct MoodCardView: View {
 
                 NavigationLink(destination: MoodLogView()) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.nexusMood)
+                        .font(.system(size: 24))
+                        .foregroundColor(NexusTheme.Colors.accent)
                 }
             }
-            .padding()
-            .background(Color.nexusCardBackground)
-            .cornerRadius(12)
+            .padding(NexusTheme.Spacing.lg)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+            )
         } else {
             // No mood logged - show prompt
             NavigationLink(destination: MoodLogView()) {
-                HStack(spacing: 12) {
+                HStack(spacing: NexusTheme.Spacing.md) {
                     ZStack {
                         Circle()
-                            .fill(Color.nexusMood.opacity(0.15))
+                            .fill(NexusTheme.Colors.accent.opacity(0.12))
                             .frame(width: 44, height: 44)
                         Image(systemName: "heart.fill")
                             .font(.system(size: 18))
-                            .foregroundColor(.nexusMood)
+                            .foregroundColor(NexusTheme.Colors.accent)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Log your mood")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundColor(.primary)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(NexusTheme.Colors.textPrimary)
                         Text("Track how you feel today")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
                     }
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(NexusTheme.Colors.textMuted)
                 }
-                .padding()
-                .background(Color.nexusCardBackground)
-                .cornerRadius(12)
+                .padding(NexusTheme.Spacing.lg)
+                .background(NexusTheme.Colors.card)
+                .cornerRadius(NexusTheme.Radius.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                        .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+                )
             }
             .buttonStyle(.plain)
         }
@@ -99,5 +108,5 @@ struct MoodCardView: View {
         MoodCardView(mood: nil)
     }
     .padding()
-    .background(Color.nexusBackground)
+    .background(NexusTheme.Colors.background)
 }

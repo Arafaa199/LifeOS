@@ -88,7 +88,7 @@ struct SupplementsView: View {
                     HStack(spacing: 4) {
                         Text("\(summary.taken)")
                             .font(.title2.bold())
-                            .foregroundColor(.nexusSuccess)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                         Text("of \(summary.totalDosesToday) taken")
                             .foregroundColor(.secondary)
                     }
@@ -156,7 +156,7 @@ struct SupplementsView: View {
     // MARK: - Helpers
 
     private func adherenceColor(_ pct: Int) -> Color {
-        if pct >= 90 { return .nexusSuccess }
+        if pct >= 90 { return NexusTheme.Colors.Semantic.green }
         if pct >= 70 { return .orange }
         return .red
     }
@@ -248,7 +248,7 @@ struct SupplementRow: View {
                         } label: {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title2)
-                                .foregroundColor(.nexusSuccess)
+                                .foregroundColor(NexusTheme.Colors.Semantic.green)
                         }
                         .buttonStyle(.plain)
 
@@ -293,7 +293,7 @@ struct SupplementRow: View {
 
     private var statusColor: Color {
         switch supplement.todayStatus {
-        case "taken": return .nexusSuccess
+        case "taken": return NexusTheme.Colors.Semantic.green
         case "partial": return .orange
         case "skipped": return .red
         default: return .secondary

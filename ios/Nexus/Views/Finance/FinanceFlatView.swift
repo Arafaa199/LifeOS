@@ -19,42 +19,50 @@ struct FinanceFlatView: View {
                     NavigationLink(destination: FinanceActivityView(viewModel: viewModel)) {
                         HStack {
                             Text("All Transactions")
-                                .font(.subheadline.weight(.semibold))
+                                .font(.system(size: 14, weight: .semibold))
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.caption)
+                                .font(.system(size: 11))
                         }
-                        .foregroundColor(.nexusFinance)
-                        .padding()
-                        .background(Color.nexusCardBackground)
-                        .cornerRadius(12)
+                        .foregroundColor(NexusTheme.Colors.Semantic.green)
+                        .padding(NexusTheme.Spacing.lg)
+                        .background(NexusTheme.Colors.card)
+                        .cornerRadius(NexusTheme.Radius.card)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+                        )
                     }
                     .padding(.horizontal)
-                    .padding(.top, 12)
+                    .padding(.top, NexusTheme.Spacing.md)
 
                     NexusSectionHeader(title: "Plan")
                         .padding(.horizontal)
-                        .padding(.top, 16)
+                        .padding(.top, NexusTheme.Spacing.lg)
 
                     NavigationLink(destination: FinancePlanningView()) {
                         HStack {
                             Text("Finance Settings")
-                                .font(.subheadline.weight(.semibold))
+                                .font(.system(size: 14, weight: .semibold))
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.caption)
+                                .font(.system(size: 11))
                         }
-                        .foregroundColor(.nexusFinance)
-                        .padding()
-                        .background(Color.nexusCardBackground)
-                        .cornerRadius(12)
+                        .foregroundColor(NexusTheme.Colors.Semantic.green)
+                        .padding(NexusTheme.Spacing.lg)
+                        .background(NexusTheme.Colors.card)
+                        .cornerRadius(NexusTheme.Radius.card)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+                        )
                     }
                     .padding(.horizontal)
 
                     Spacer(minLength: 40)
                 }
             }
-            .background(Color.nexusBackground)
+            .background(NexusTheme.Colors.background)
             .refreshable {
                 await viewModel.refresh()
             }
@@ -64,8 +72,9 @@ struct FinanceFlatView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gearshape")
-                            .foregroundColor(.nexusFinance)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                     }
+                    .accessibilityLabel("Finance settings")
                 }
             }
             .sheet(isPresented: $showingSettings) {

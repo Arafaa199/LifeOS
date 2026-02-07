@@ -43,7 +43,7 @@ struct MedicationsView: View {
                             Text("\(summary.takenToday)")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(.nexusSuccess)
+                                .foregroundColor(NexusTheme.Colors.Semantic.green)
                             Text("of \(summary.dueToday) taken")
                                 .foregroundColor(.secondary)
                         }
@@ -89,7 +89,7 @@ struct MedicationsView: View {
     }
 
     private func adherenceColor(_ pct: Double) -> Color {
-        if pct >= 90 { return .nexusSuccess }
+        if pct >= 90 { return NexusTheme.Colors.Semantic.green }
         if pct >= 70 { return .orange }
         return .red
     }
@@ -145,7 +145,7 @@ struct MedicationDoseRow: View {
     private var statusColor: Color {
         switch dose.status {
         case "taken":
-            return .nexusSuccess
+            return NexusTheme.Colors.Semantic.green
         case "skipped":
             return .red
         case "pending":

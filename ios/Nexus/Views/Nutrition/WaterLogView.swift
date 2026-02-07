@@ -31,7 +31,7 @@ struct WaterLogView: View {
             }
             .padding()
         }
-        .background(Color.nexusBackground)
+        .background(NexusTheme.Colors.background)
         .navigationTitle("Log Water")
         .navigationBarTitleDisplayMode(.large)
         .task {
@@ -57,7 +57,7 @@ struct WaterLogView: View {
                     .trim(from: 0, to: viewModel.waterProgress)
                     .stroke(
                         LinearGradient(
-                            colors: [.nexusWater, .cyan],
+                            colors: [NexusTheme.Colors.Semantic.blue, .cyan],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
@@ -85,12 +85,12 @@ struct WaterLogView: View {
             if viewModel.totalWaterToday >= NutritionViewModel.waterGoalMl {
                 Label("Goal reached!", systemImage: "checkmark.circle.fill")
                     .font(.subheadline.weight(.medium))
-                    .foregroundColor(.nexusSuccess)
+                    .foregroundColor(NexusTheme.Colors.Semantic.green)
             }
         }
         .padding(.vertical, 20)
         .frame(maxWidth: .infinity)
-        .background(Color.nexusCardBackground)
+        .background(NexusTheme.Colors.card)
         .cornerRadius(16)
     }
 
@@ -109,7 +109,7 @@ struct WaterLogView: View {
                         VStack(spacing: 6) {
                             Image(systemName: "drop.fill")
                                 .font(.title2)
-                                .foregroundColor(.nexusWater)
+                                .foregroundColor(NexusTheme.Colors.Semantic.blue)
 
                             Text(preset.0)
                                 .font(.subheadline.weight(.medium))
@@ -121,7 +121,7 @@ struct WaterLogView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Color.nexusCardBackground)
+                        .background(NexusTheme.Colors.card)
                         .cornerRadius(12)
                     }
                     .disabled(isLogging)
@@ -166,12 +166,12 @@ struct WaterLogView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
-                            .foregroundColor(.nexusWater)
+                            .foregroundColor(NexusTheme.Colors.Semantic.blue)
                     }
                     .disabled(Int(customAmount) == nil || Int(customAmount)! <= 0 || isLogging)
                 }
                 .padding()
-                .background(Color.nexusCardBackground)
+                .background(NexusTheme.Colors.card)
                 .cornerRadius(12)
             }
         }
@@ -195,7 +195,7 @@ struct WaterLogView: View {
                     ForEach(viewModel.waterEntries) { entry in
                         HStack {
                             Image(systemName: "drop.fill")
-                                .foregroundColor(.nexusWater)
+                                .foregroundColor(NexusTheme.Colors.Semantic.blue)
 
                             Text("\(entry.amount_ml)ml")
                                 .font(.subheadline.weight(.medium))
@@ -208,7 +208,7 @@ struct WaterLogView: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(Color.nexusCardBackground)
+                        .background(NexusTheme.Colors.card)
                         .cornerRadius(10)
                     }
                 }

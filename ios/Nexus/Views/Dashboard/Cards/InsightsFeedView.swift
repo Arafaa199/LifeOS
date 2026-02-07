@@ -10,14 +10,14 @@ struct InsightsFeedView: View {
             if let fallback = fallbackInsight {
                 insightRow(
                     icon: "lightbulb.fill",
-                    color: .yellow,
+                    color: NexusTheme.Colors.Semantic.amber,
                     text: fallback,
                     confidence: nil,
                     days: nil
                 )
             }
         } else {
-            VStack(spacing: 10) {
+            VStack(spacing: NexusTheme.Spacing.sm) {
                 ForEach(insights) { insight in
                     insightRow(
                         icon: insight.icon ?? "lightbulb.fill",
@@ -32,57 +32,61 @@ struct InsightsFeedView: View {
     }
 
     private func insightRow(icon: String, color: Color, text: String, confidence: String?, days: Int?) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: NexusTheme.Spacing.md) {
             Image(systemName: icon)
                 .foregroundColor(color)
-                .font(.title3)
+                .font(.system(size: 18))
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(text)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
+                    .font(.system(size: 13.5))
+                    .foregroundColor(NexusTheme.Colors.textPrimary)
 
                 if let confidence, let days {
-                    HStack(spacing: 6) {
+                    HStack(spacing: NexusTheme.Spacing.xxs) {
                         Text(confidence)
-                            .font(.caption2.weight(.medium))
+                            .font(.system(size: 10, weight: .medium))
                             .foregroundColor(confidenceColor(confidence))
                         Text("\u{2022}")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 10))
+                            .foregroundColor(NexusTheme.Colors.textTertiary)
                         Text("\(days)d sample")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 10))
+                            .foregroundColor(NexusTheme.Colors.textTertiary)
                     }
                 }
             }
 
             Spacer()
         }
-        .padding(16)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(12)
+        .padding(NexusTheme.Spacing.lg)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
     }
 
     private func insightColor(_ hint: String?) -> Color {
         switch hint {
-        case "red": return .red
-        case "orange": return .orange
-        case "blue": return .blue
-        case "purple": return .purple
-        case "indigo": return .indigo
-        case "green": return .green
-        case "yellow": return .yellow
-        default: return .yellow
+        case "red": return NexusTheme.Colors.Semantic.red
+        case "orange": return NexusTheme.Colors.Semantic.amber
+        case "blue": return NexusTheme.Colors.Semantic.blue
+        case "purple": return NexusTheme.Colors.Semantic.purple
+        case "indigo": return NexusTheme.Colors.Semantic.purple
+        case "green": return NexusTheme.Colors.Semantic.green
+        case "yellow": return NexusTheme.Colors.Semantic.amber
+        default: return NexusTheme.Colors.Semantic.amber
         }
     }
 
     private func confidenceColor(_ confidence: String) -> Color {
         switch confidence {
-        case "high": return .green
-        case "medium": return .orange
-        default: return .secondary
+        case "high": return NexusTheme.Colors.Semantic.green
+        case "medium": return NexusTheme.Colors.Semantic.amber
+        default: return NexusTheme.Colors.textSecondary
         }
     }
 }
@@ -93,4 +97,5 @@ struct InsightsFeedView: View {
         fallbackInsight: "High recovery - good day for intensity"
     )
     .padding()
+    .background(NexusTheme.Colors.background)
 }

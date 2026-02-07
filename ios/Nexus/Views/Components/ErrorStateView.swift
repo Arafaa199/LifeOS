@@ -23,7 +23,7 @@ struct ErrorStateView: View {
 
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 44, weight: .light))
-                .foregroundColor(.nexusWarning.opacity(0.7))
+                .foregroundColor(NexusTheme.Colors.Semantic.amber.opacity(0.7))
 
             VStack(spacing: 8) {
                 Text(title)
@@ -47,7 +47,7 @@ struct ErrorStateView: View {
                 .foregroundColor(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(Color.nexusPrimary)
+                .background(NexusTheme.Colors.accent)
                 .cornerRadius(12)
             }
 
