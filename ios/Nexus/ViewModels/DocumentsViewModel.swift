@@ -53,18 +53,7 @@ class DocumentsViewModel: ObservableObject {
             documents = response.documents
             logger.info("Fetched \(response.documents.count) documents")
         } catch let decodingError as DecodingError {
-            switch decodingError {
-            case .typeMismatch(let type, let context):
-                logger.error("Decode TypeMismatch: expected \(String(describing: type)), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
-            case .keyNotFound(let key, let context):
-                logger.error("Decode KeyNotFound: \(key.stringValue), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
-            case .valueNotFound(let type, let context):
-                logger.error("Decode ValueNotFound: \(String(describing: type)), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
-            case .dataCorrupted(let context):
-                logger.error("Decode DataCorrupted: \(context.debugDescription)")
-            @unknown default:
-                logger.error("Decode unknown error: \(decodingError.localizedDescription)")
-            }
+            logger.logDecodingError(decodingError)
             errorMessage = "Failed to parse documents"
         } catch {
             logger.error("Fetch error: \(error.localizedDescription)")

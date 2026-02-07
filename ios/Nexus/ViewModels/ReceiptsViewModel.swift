@@ -36,7 +36,7 @@ class ReceiptsViewModel: ObservableObject {
             receipts = response.receipts
             logger.info("Fetched \(response.count) receipts")
         } catch let decodingError as DecodingError {
-            logDecodingError(decodingError)
+            logger.logDecodingError(decodingError)
             errorMessage = "Failed to parse receipts"
         } catch {
             logger.error("Fetch receipts error: \(error.localizedDescription)")
@@ -57,7 +57,7 @@ class ReceiptsViewModel: ObservableObject {
 
             await loadNutritionSummary(id: id)
         } catch let decodingError as DecodingError {
-            logDecodingError(decodingError)
+            logger.logDecodingError(decodingError)
             errorMessage = "Failed to parse receipt detail"
         } catch {
             logger.error("Fetch receipt detail error: \(error.localizedDescription)")
@@ -107,21 +107,6 @@ class ReceiptsViewModel: ObservableObject {
             logger.error("Match item error: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             return false
-        }
-    }
-
-    private func logDecodingError(_ error: DecodingError) {
-        switch error {
-        case .typeMismatch(let type, let context):
-            logger.error("Decode TypeMismatch: expected \(String(describing: type)), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
-        case .keyNotFound(let key, let context):
-            logger.error("Decode KeyNotFound: \(key.stringValue), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
-        case .valueNotFound(let type, let context):
-            logger.error("Decode ValueNotFound: \(String(describing: type)), path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))")
-        case .dataCorrupted(let context):
-            logger.error("Decode DataCorrupted: \(context.debugDescription)")
-        @unknown default:
-            logger.error("Decode unknown error: \(error.localizedDescription)")
         }
     }
 
