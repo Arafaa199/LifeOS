@@ -165,6 +165,16 @@ class NexusAPI: ObservableObject {
         try await post("/webhook/nexus-supplement-log", body: request)
     }
 
+    // MARK: - Workouts
+
+    func fetchWorkouts() async throws -> WorkoutsResponse {
+        try await get("/webhook/nexus-workouts")
+    }
+
+    func logWorkout(_ request: WorkoutLogRequest) async throws -> WorkoutLogResponse {
+        try await post("/webhook/nexus-workout", body: request)
+    }
+
     // MARK: - Finance Methods
 
     func logExpense(_ text: String) async throws -> FinanceResponse {

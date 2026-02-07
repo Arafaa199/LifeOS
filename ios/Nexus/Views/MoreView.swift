@@ -45,6 +45,15 @@ struct MoreView: View {
                             subtitle: "Daily tracking"
                         )
                     }
+
+                    NavigationLink(destination: WorkoutsView()) {
+                        SettingsRow(
+                            icon: "figure.run",
+                            iconColor: .orange,
+                            title: "Workouts",
+                            subtitle: "Activity tracking"
+                        )
+                    }
                 }
 
                 Section("Wellness") {

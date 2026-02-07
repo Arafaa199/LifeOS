@@ -1,0 +1,57 @@
+{
+  "name": "Nexus: Fetch Workouts Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-workouts",
+        "options": { "responseMode": "responseNode" }
+      },
+      "id": "webhook",
+      "name": "Fetch Workouts",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-workouts",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH workout_data AS (\n  SELECT\n    id,\n    date,\n    started_at,\n    ended_at,\n    workout_type,\n    name,\n    duration_min,\n    calories_burned,\n    avg_hr,\n    max_hr,\n    strain,\n    exercises,\n    distance_km,\n    pace_min_per_km,\n    notes,\n    source,\n    created_at\n  FROM health.workouts\n  WHERE date >= (NOW() AT TIME ZONE 'Asia/Dubai')::date - INTERVAL '30 days'\n  ORDER BY date DESC, started_at DESC NULLS LAST\n  LIMIT 50\n),\nweekly_stats AS (\n  SELECT\n    COUNT(*) as workout_count,\n    COALESCE(SUM(duration_min), 0) as total_duration,\n    COALESCE(SUM(calories_burned), 0) as total_calories,\n    COALESCE(AVG(strain), 0) as avg_strain\n  FROM health.workouts\n  WHERE date >= (NOW() AT TIME ZONE 'Asia/Dubai')::date - INTERVAL '7 days'\n),\nwhoop_today AS (\n  SELECT day_strain, avg_hr, max_hr, calories_active\n  FROM health.whoop_strain\n  WHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date\n)\nSELECT\n  jsonb_build_object(\n    'workouts', COALESCE((SELECT jsonb_agg(row_to_json(w)) FROM workout_data w), '[]'::jsonb),\n    'weekly_stats', (SELECT row_to_json(s) FROM weekly_stats s),\n    'whoop_today', (SELECT row_to_json(t) FROM whoop_today t)\n  ) as payload;",
+        "options": {}
+      },
+      "id": "get-workouts",
+      "name": "Get Workouts",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.payload }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [680, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Fetch Workouts": {
+      "main": [[{ "node": "Get Workouts", "type": "main", "index": 0 }]]
+    },
+    "Get Workouts": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "nexus" }]
+}
