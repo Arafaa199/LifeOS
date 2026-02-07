@@ -37,6 +37,15 @@ struct MoreView: View {
                         )
                     }
 
+                    NavigationLink(destination: RemindersView()) {
+                        SettingsRow(
+                            icon: "checklist",
+                            iconColor: .orange,
+                            title: "Reminders",
+                            subtitle: "Tasks and to-dos"
+                        )
+                    }
+
                     NavigationLink(destination: MedicationsView()) {
                         SettingsRow(
                             icon: "pills.fill",
