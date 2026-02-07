@@ -1,5 +1,5 @@
 {
-  "name": "Nexus: Water Log Webhook",
+  "name": "Water Log Webhook",
   "nodes": [
     {
       "parameters": {
@@ -9,123 +9,104 @@
         "options": {}
       },
       "id": "webhook",
-      "name": "Water Log Webhook",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
       "position": [240, 300],
-      "webhookId": "nexus-water",
-      "typeVersion": 2
+      "webhookId": "nexus-water"
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json.body || $input.first().json;\n\nconst amountMl = parseInt(input.amount_ml) || 250;\n\nif (amountMl < 1 || amountMl > 10000) {\n  throw new Error('Water amount must be between 1 and 10000 ml');\n}\n\nreturn {\n  amount_ml: amountMl,\n  source: input.source || 'ios'\n};"
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst amountMl = parseInt(body.amount_ml || body.amountMl || body.amount);\nconst clientId = body.client_id || body.clientId || null;\n\nif (!amountMl || amountMl < 1 || amountMl > 10000) {\n  return [{ json: { valid: false, error: 'amount_ml required (1-10000)' } }];\n}\n\nreturn [{ json: { valid: true, amountMl, clientId } }];"
       },
-      "id": "parse-input",
-      "name": "Parse & Validate",
+      "id": "validate",
+      "name": "Validate Input",
       "type": "n8n-nodes-base.code",
-      "position": [460, 300],
-      "typeVersion": 2
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "id": "valid", "leftValue": "={{ $json.valid }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_valid",
+      "name": "IF Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [640, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO nutrition.water_log (date, amount_ml, source)\nVALUES (\n  (NOW() AT TIME ZONE 'Asia/Dubai')::date,\n  {{ $json.amount_ml }},\n  '{{ $json.source }}'\n)\nRETURNING id, date, amount_ml;",
+        "query": "INSERT INTO nutrition.water_log (amount_ml, client_id, source)\nVALUES ({{ $json.amountMl }}, {{ $json.clientId ? \"'\" + $json.clientId + \"'\" : 'NULL' }}, 'ios-app')\nON CONFLICT (client_id) DO NOTHING\nRETURNING id, date, amount_ml, logged_at",
         "options": {}
       },
-      "id": "insert-water",
+      "id": "postgres",
       "name": "Insert Water Log",
       "type": "n8n-nodes-base.postgres",
-      "position": [680, 300],
       "typeVersion": 2.5,
+      "position": [860, 200],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus DB"
+          "name": "Nexus Postgres"
         }
       }
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT COALESCE(SUM(amount_ml), 0) as total_water_ml\nFROM nutrition.water_log\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date;",
-        "options": {}
+        "jsCode": "const result = $input.first().json;\nreturn [{ json: { success: true, id: result?.id, date: result?.date, amount_ml: result?.amount_ml } }];"
       },
-      "id": "get-daily-total",
-      "name": "Get Daily Total",
-      "type": "n8n-nodes-base.postgres",
-      "position": [900, 300],
-      "typeVersion": 2.5,
-      "credentials": {
-        "postgres": {
-          "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus DB"
-        }
-      }
+      "id": "format_success",
+      "name": "Format Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 200]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"data\": {\n    \"id\": {{ $('Insert Water Log').item.json.id }},\n    \"amount_ml\": {{ $('Insert Water Log').item.json.amount_ml }},\n    \"total_water_ml\": {{ $json.total_water_ml }}\n  }\n}",
+        "responseBody": "={{ $json }}",
         "options": {}
       },
-      "id": "respond",
-      "name": "Respond to Webhook",
+      "id": "respond_success",
+      "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [1120, 300],
-      "typeVersion": 1.1
+      "typeVersion": 1.1,
+      "position": [1260, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": false, \"error\": {{ JSON.stringify($json.error) }} }",
+        "options": { "responseCode": 400 }
+      },
+      "id": "respond_error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [860, 400]
     }
   ],
   "connections": {
-    "Water Log Webhook": {
+    "Webhook": { "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]] },
+    "Validate Input": { "main": [[{ "node": "IF Valid", "type": "main", "index": 0 }]] },
+    "IF Valid": {
       "main": [
-        [
-          {
-            "node": "Parse & Validate",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Insert Water Log", "type": "main", "index": 0 }],
+        [{ "node": "Respond Error", "type": "main", "index": 0 }]
       ]
     },
-    "Parse & Validate": {
-      "main": [
-        [
-          {
-            "node": "Insert Water Log",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Insert Water Log": {
-      "main": [
-        [
-          {
-            "node": "Get Daily Total",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Daily Total": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
+    "Insert Water Log": { "main": [[{ "node": "Format Success", "type": "main", "index": 0 }]] },
+    "Format Success": { "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]] }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "tags": [
-    {
-      "name": "nexus"
-    }
-  ]
+  "active": true,
+  "settings": { "executionOrder": "v1" }
 }

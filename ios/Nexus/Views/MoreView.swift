@@ -38,6 +38,26 @@ struct MoreView: View {
                     }
                 }
 
+                Section("Wellness") {
+                    NavigationLink(destination: WaterLogView()) {
+                        SettingsRow(
+                            icon: "drop.fill",
+                            iconColor: .blue,
+                            title: "Water",
+                            subtitle: "Track hydration"
+                        )
+                    }
+
+                    NavigationLink(destination: MoodLogView()) {
+                        SettingsRow(
+                            icon: "heart.fill",
+                            iconColor: .red,
+                            title: "Mood & Energy",
+                            subtitle: "Log how you feel"
+                        )
+                    }
+                }
+
                 Section("Home") {
                     NavigationLink(destination: HomeControlView(viewModel: homeVM)) {
                         SettingsRow(
