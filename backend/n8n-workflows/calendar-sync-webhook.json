@@ -1,5 +1,5 @@
 {
-  "name": "Calendar Sync Webhook",
+  "name": "Nexus: Calendar Sync Webhook (Bidirectional)",
   "nodes": [
     {
       "parameters": {
@@ -8,74 +8,52 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "name": "Webhook",
+      "id": "webhook",
+      "name": "Calendar Sync Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
       "position": [200, 300],
-      "webhookId": "nexus-calendar-sync"
+      "webhookId": "nexus-calendar-sync",
+      "typeVersion": 2
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT ops.start_sync('calendar', 'n8n') as run_id;",
-        "options": {}
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst source = body.source || 'ios_eventkit';\nconst clientId = body.client_id || null;\nconst events = body.events || [];\n\nif (!Array.isArray(events) || events.length === 0) {\n  return { json: { upsertSql: 'SELECT 1', absenceSql: 'SELECT 1', count: 0 } };\n}\n\nconst esc = (v) => v == null ? null : String(v).replace(/'/g, \"''\");\n\nconst vals = events.map(e => {\n  const eid = esc(e.event_id);\n  if (!eid) return null;\n  const title = e.title != null ? \"'\" + esc(e.title) + \"'\" : 'NULL';\n  const startAt = e.start_at ? \"'\" + esc(e.start_at) + \"'::timestamptz\" : 'NULL';\n  const endAt = e.end_at ? \"'\" + esc(e.end_at) + \"'::timestamptz\" : 'NULL';\n  const isAllDay = e.is_all_day ? 'true' : 'false';\n  const calendarName = e.calendar_name != null ? \"'\" + esc(e.calendar_name) + \"'\" : 'NULL';\n  const location = e.location != null ? \"'\" + esc(e.location) + \"'\" : 'NULL';\n  const notes = e.notes != null ? \"'\" + esc(e.notes) + \"'\" : 'NULL';\n  const recurrenceRule = e.recurrence_rule != null ? \"'\" + esc(e.recurrence_rule) + \"'\" : 'NULL';\n  const cid = clientId ? \"'\" + esc(clientId) + \"'::uuid\" : 'NULL';\n  const src = \"'\" + esc(source) + \"'\";\n  const ekModAt = e.eventkit_modified_at ? \"'\" + esc(e.eventkit_modified_at) + \"'::timestamptz\" : 'NULL';\n  return `('${eid}', ${title}, ${startAt}, ${endAt}, ${isAllDay}, ${calendarName}, ${location}, ${notes}, ${recurrenceRule}, ${cid}, ${src}, ${ekModAt}, CURRENT_TIMESTAMP, 'ios_eventkit')`;\n}).filter(v => v !== null);\n\nif (vals.length === 0) {\n  return { json: { upsertSql: 'SELECT 1', absenceSql: 'SELECT 1', count: 0 } };\n}\n\n// Diff-aware upsert: only update if EK is newer (eventkit_modified_at > existing)\nconst upsertSql = `INSERT INTO raw.calendar_events (\n  event_id, title, start_at, end_at, is_all_day, calendar_name,\n  location, notes, recurrence_rule, client_id, source,\n  eventkit_modified_at, last_seen_at, origin\n)\nVALUES ${vals.join(',\\n')}\nON CONFLICT (event_id, source) DO UPDATE SET\n  title = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n               OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n               THEN EXCLUDED.title ELSE raw.calendar_events.title END,\n  start_at = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n                  OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n                  THEN EXCLUDED.start_at ELSE raw.calendar_events.start_at END,\n  end_at = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n                OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n                THEN EXCLUDED.end_at ELSE raw.calendar_events.end_at END,\n  is_all_day = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n                    OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n                    THEN EXCLUDED.is_all_day ELSE raw.calendar_events.is_all_day END,\n  calendar_name = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n                       OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n                       THEN EXCLUDED.calendar_name ELSE raw.calendar_events.calendar_name END,\n  location = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n                  OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n                  THEN EXCLUDED.location ELSE raw.calendar_events.location END,\n  notes = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n               OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n               THEN EXCLUDED.notes ELSE raw.calendar_events.notes END,\n  recurrence_rule = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n                         OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n                         THEN EXCLUDED.recurrence_rule ELSE raw.calendar_events.recurrence_rule END,\n  eventkit_modified_at = CASE WHEN EXCLUDED.eventkit_modified_at IS NULL OR raw.calendar_events.eventkit_modified_at IS NULL\n                              OR EXCLUDED.eventkit_modified_at > raw.calendar_events.eventkit_modified_at\n                              THEN EXCLUDED.eventkit_modified_at ELSE raw.calendar_events.eventkit_modified_at END,\n  last_seen_at = CURRENT_TIMESTAMP,\n  sync_status = CASE WHEN raw.calendar_events.sync_status = 'pending_push' THEN 'pending_push' ELSE 'synced' END\nWHERE raw.calendar_events.deleted_at IS NULL;`;\n\n// Absence detection: mark events not in this batch as deleted_remote\n// Only if they were previously synced and last_seen recently (within fetch window)\nconst seenIds = events.map(e => \"'\" + esc(e.event_id) + \"'\").join(',');\nconst absenceSql = `UPDATE raw.calendar_events SET\n  sync_status = 'deleted_remote',\n  deleted_at = CURRENT_TIMESTAMP\nWHERE source = '${esc(source)}'\n  AND event_id NOT IN (${seenIds})\n  AND sync_status = 'synced'\n  AND deleted_at IS NULL\n  AND last_seen_at > CURRENT_TIMESTAMP - interval '2 hours';`;\n\nreturn { json: { upsertSql, absenceSql, count: vals.length } };"
       },
-      "name": "Start Sync Run",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.3,
-      "position": [350, 300],
-      "credentials": {
-        "postgres": {
-          "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "// Save run_id and extract events from request body\nconst runId = $input.item.json.run_id;\nconst body = $('Webhook').item.json.body;\n\nif (!body || !body.events || !Array.isArray(body.events)) {\n  return [{ json: { success: false, error: 'Invalid payload: events array required', run_id: runId } }];\n}\n\nconst events = body.events;\nconst clientId = body.client_id || null;\nconst device = body.device || 'unknown';\nconst source = body.source || 'ios_eventkit';\n\nconst formattedEvents = events.map(e => ({\n  event_id: e.event_id,\n  title: e.title || null,\n  start_at: e.start_at,\n  end_at: e.end_at,\n  is_all_day: e.is_all_day || false,\n  calendar_name: e.calendar_name || null,\n  location: e.location || null,\n  notes: e.notes || null,\n  recurrence_rule: e.recurrence_rule || null,\n  client_id: clientId,\n  source: source,\n  run_id: runId\n}));\n\nreturn formattedEvents.map(e => ({ json: e }));"
-      },
-      "name": "Parse Events",
+      "id": "build-sql",
+      "name": "Build SQL",
       "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [500, 300]
+      "position": [420, 300],
+      "typeVersion": 2
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO raw.calendar_events (\n  event_id,\n  title,\n  start_at,\n  end_at,\n  is_all_day,\n  calendar_name,\n  location,\n  notes,\n  recurrence_rule,\n  client_id,\n  source\n)\nVALUES (\n  '{{ $json.event_id }}',\n  {{ $json.title ? \"'\" + $json.title.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.start_at }}'::timestamptz,\n  '{{ $json.end_at }}'::timestamptz,\n  {{ $json.is_all_day }},\n  {{ $json.calendar_name ? \"'\" + $json.calendar_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.location ? \"'\" + $json.location.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.notes ? \"'\" + $json.notes.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.recurrence_rule ? \"'\" + $json.recurrence_rule + \"'\" : 'NULL' }},\n  {{ $json.client_id ? \"'\" + $json.client_id + \"'::uuid\" : 'NULL' }},\n  '{{ $json.source }}'\n)\nON CONFLICT (event_id, source) DO UPDATE SET\n  title = EXCLUDED.title,\n  start_at = EXCLUDED.start_at,\n  end_at = EXCLUDED.end_at,\n  is_all_day = EXCLUDED.is_all_day,\n  calendar_name = EXCLUDED.calendar_name,\n  location = EXCLUDED.location,\n  notes = EXCLUDED.notes,\n  recurrence_rule = EXCLUDED.recurrence_rule\nRETURNING id, (xmax = 0) as was_inserted;",
+        "query": "={{ $json.upsertSql }}",
         "options": {}
       },
+      "id": "upsert",
       "name": "Upsert Calendar Events",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.3,
-      "position": [700, 300],
+      "position": [640, 300],
+      "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
           "name": "Nexus PostgreSQL"
         }
       }
-    },
-    {
-      "parameters": {
-        "jsCode": "const results = $input.all();\nconst inserted = results.filter(r => r.json.was_inserted === true).length;\nconst updated = results.filter(r => r.json.was_inserted === false).length;\nconst runId = $('Parse Events').first().json.run_id;\n\nreturn [{\n  json: {\n    success: true,\n    run_id: runId,\n    inserted: {\n      events: inserted,\n      updated: updated,\n      total: results.length\n    },\n    timestamp: new Date().toISOString()\n  }\n}];"
-      },
-      "name": "Aggregate Results",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [900, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT ops.finish_sync(\n  '{{ $json.run_id }}'::uuid,\n  'success',\n  {{ $json.inserted.total }},\n  NULL,\n  '{{ JSON.stringify({ inserted: $json.inserted.events, updated: $json.inserted.updated }) }}'::jsonb\n);",
+        "query": "={{ $('Build SQL').item.json.absenceSql }}",
         "options": {}
       },
-      "name": "Finish Sync Run",
+      "id": "absence",
+      "name": "Mark Absent as Deleted",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.3,
-      "position": [1100, 300],
+      "position": [860, 300],
+      "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -85,48 +63,34 @@
     },
     {
       "parameters": {
-        "jsCode": "// Pass through the aggregated result for the webhook response\nconst agg = $('Aggregate Results').item.json;\nreturn [{ json: agg }];"
-      },
-      "name": "Build Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1300, 300]
-    },
-    {
-      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"inserted\": {\n    \"events\": {{ $('Build SQL').item.json.count }}\n  },\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
+      "id": "respond",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [1500, 300]
+      "position": [1080, 300],
+      "typeVersion": 1.1
     }
   ],
   "connections": {
-    "Webhook": {
-      "main": [[ { "node": "Start Sync Run", "type": "main", "index": 0 } ]]
+    "Calendar Sync Webhook": {
+      "main": [[{ "node": "Build SQL", "type": "main", "index": 0 }]]
     },
-    "Start Sync Run": {
-      "main": [[ { "node": "Parse Events", "type": "main", "index": 0 } ]]
-    },
-    "Parse Events": {
-      "main": [[ { "node": "Upsert Calendar Events", "type": "main", "index": 0 } ]]
+    "Build SQL": {
+      "main": [[{ "node": "Upsert Calendar Events", "type": "main", "index": 0 }]]
     },
     "Upsert Calendar Events": {
-      "main": [[ { "node": "Aggregate Results", "type": "main", "index": 0 } ]]
+      "main": [[{ "node": "Mark Absent as Deleted", "type": "main", "index": 0 }]]
     },
-    "Aggregate Results": {
-      "main": [[ { "node": "Finish Sync Run", "type": "main", "index": 0 } ]]
-    },
-    "Finish Sync Run": {
-      "main": [[ { "node": "Build Response", "type": "main", "index": 0 } ]]
-    },
-    "Build Response": {
-      "main": [[ { "node": "Respond to Webhook", "type": "main", "index": 0 } ]]
+    "Mark Absent as Deleted": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
     }
   },
   "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "nexus" }],
   "meta": {
-    "notes": "Calendar sync webhook with ops.sync_runs observability.\nEndpoint: POST /webhook/nexus-calendar-sync\nRecords start/finish in ops.sync_runs for freshness tracking."
+    "notes": "Calendar bidirectional sync webhook — diff-aware upsert + absence detection.\nEndpoint: POST /webhook/nexus-calendar-sync\nPayload: { client_id, source, events: [{event_id, title, start_at, end_at, is_all_day, calendar_name, location, notes, eventkit_modified_at}] }\nDiff logic: Only updates fields if eventkit_modified_at > existing. Marks absent events as deleted_remote."
   }
 }

@@ -3,6 +3,8 @@ import SwiftUI
 struct CalendarView: View {
     @StateObject private var viewModel = CalendarViewModel()
     @State private var displayedMonth = Date()
+    @State private var showingNewEventSheet = false
+    @State private var selectedEventForDetail: CalendarDisplayEvent?
 
     private var year: Int { Calendar.current.component(.year, from: displayedMonth) }
     private var month: Int { Calendar.current.component(.month, from: displayedMonth) }
@@ -39,6 +41,14 @@ struct CalendarView: View {
             .navigationTitle("Calendar")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingNewEventSheet = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.body.weight(.medium))
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Today") {
                         withAnimation {
@@ -48,6 +58,14 @@ struct CalendarView: View {
                     }
                     .font(.subheadline.weight(.medium))
                     .foregroundColor(.nexusPrimary)
+                }
+            }
+            .sheet(isPresented: $showingNewEventSheet) {
+                EventEditSheet(viewModel: viewModel, isPresented: $showingNewEventSheet, existingEvent: nil)
+            }
+            .sheet(item: $selectedEventForDetail) { event in
+                NavigationView {
+                    EventDetailView(viewModel: viewModel, event: event)
                 }
             }
         }
@@ -203,9 +221,14 @@ struct CalendarView: View {
                             .foregroundColor(.secondary)
 
                         ForEach(allDay) { event in
-                            Text(event.title)
-                                .font(.subheadline.weight(.medium))
-                                .nexusChip(color: .nexusPrimary)
+                            Button {
+                                selectedEventForDetail = event
+                            } label: {
+                                Text(event.title)
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .buttonStyle(.plain)
+                            .nexusChip(color: .nexusPrimary)
                         }
                     }
 
@@ -240,43 +263,49 @@ struct CalendarView: View {
     // MARK: - Inline Event Row
 
     private func inlineEventRow(_ event: CalendarDisplayEvent) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(event.title)
-                .font(.subheadline.weight(.medium))
+        Button {
+            selectedEventForDetail = event
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(event.title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.primary)
 
-            HStack(spacing: 8) {
-                Text("\(event.startTime) – \(event.endTime)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                if !event.durationLabel.isEmpty {
-                    Text(event.durationLabel)
-                        .font(.caption2)
-                        .foregroundColor(.nexusPrimary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.nexusPrimary.opacity(0.1))
-                        .cornerRadius(4)
-                }
-            }
-
-            if let location = event.location, !location.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "mappin")
-                        .font(.caption2)
-                    Text(location)
+                HStack(spacing: 8) {
+                    Text("\(event.startTime) – \(event.endTime)")
                         .font(.caption)
-                }
-                .foregroundColor(.secondary)
-            }
+                        .foregroundColor(.secondary)
 
-            if let calendarName = event.calendarName, !calendarName.isEmpty {
-                Text(calendarName)
-                    .font(.caption2)
-                    .foregroundColor(.secondary.opacity(0.7))
+                    if !event.durationLabel.isEmpty {
+                        Text(event.durationLabel)
+                            .font(.caption2)
+                            .foregroundColor(.nexusPrimary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.nexusPrimary.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                }
+
+                if let location = event.location, !location.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin")
+                            .font(.caption2)
+                        Text(location)
+                            .font(.caption)
+                    }
+                    .foregroundColor(.secondary)
+                }
+
+                if let calendarName = event.calendarName, !calendarName.isEmpty {
+                    Text(calendarName)
+                        .font(.caption2)
+                        .foregroundColor(.secondary.opacity(0.7))
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
         .nexusCard()
     }
 

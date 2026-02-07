@@ -22,6 +22,7 @@ struct DashboardPayload: Codable {
     let streaks: Streaks?
     let musicToday: MusicSummary?
     let moodToday: MoodSummary?
+    let explainToday: ExplainToday?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -41,6 +42,7 @@ struct DashboardPayload: Codable {
         case streaks
         case musicToday = "music_today"
         case moodToday = "mood_today"
+        case explainToday = "explain_today"
         // Top-level flat fields (fallback when meta object is missing)
         case schemaVersion = "schema_version"
         case generatedAt = "generated_at"
@@ -92,6 +94,7 @@ struct DashboardPayload: Codable {
         streaks = try container.decodeIfPresent(Streaks.self, forKey: .streaks)
         musicToday = try container.decodeIfPresent(MusicSummary.self, forKey: .musicToday)
         moodToday = try container.decodeIfPresent(MoodSummary.self, forKey: .moodToday)
+        explainToday = try container.decodeIfPresent(ExplainToday.self, forKey: .explainToday)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -113,6 +116,7 @@ struct DashboardPayload: Codable {
         try container.encodeIfPresent(streaks, forKey: .streaks)
         try container.encodeIfPresent(musicToday, forKey: .musicToday)
         try container.encodeIfPresent(moodToday, forKey: .moodToday)
+        try container.encodeIfPresent(explainToday, forKey: .explainToday)
     }
 }
 
@@ -888,6 +892,10 @@ struct ExplainToday: Codable {
     let dataCompleteness: Double?
     let computedAt: String?
     let assertions: ExplainTodayAssertions?
+    let health: ExplainTodayHealth?
+    let finance: ExplainTodayFinance?
+    let activity: ExplainTodayActivity?
+    let nutrition: ExplainTodayNutrition?
 
     enum CodingKeys: String, CodingKey {
         case targetDate = "target_date"
@@ -897,6 +905,73 @@ struct ExplainToday: Codable {
         case dataCompleteness = "data_completeness"
         case computedAt = "computed_at"
         case assertions
+        case health, finance, activity, nutrition
+    }
+}
+
+struct ExplainTodayHealth: Codable {
+    let summary: [String]
+    let recoveryScore: Int?
+    let recoveryLabel: String?
+    let hrv: Double?
+    let strain: Double?
+    let sleepHours: Double?
+    let sleepLabel: String?
+    let weightKg: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case summary
+        case recoveryScore = "recovery_score"
+        case recoveryLabel = "recovery_label"
+        case hrv, strain
+        case sleepHours = "sleep_hours"
+        case sleepLabel = "sleep_label"
+        case weightKg = "weight_kg"
+    }
+}
+
+struct ExplainTodayFinance: Codable {
+    let summary: [String]
+    let spendTotal: Double?
+    let spendLabel: String?
+    let transactionCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case summary
+        case spendTotal = "spend_total"
+        case spendLabel = "spend_label"
+        case transactionCount = "transaction_count"
+    }
+}
+
+struct ExplainTodayActivity: Codable {
+    let summary: [String]
+    let fastingHours: Double?
+    let remindersDue: Int?
+    let remindersCompleted: Int?
+    let listeningMinutes: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case summary
+        case fastingHours = "fasting_hours"
+        case remindersDue = "reminders_due"
+        case remindersCompleted = "reminders_completed"
+        case listeningMinutes = "listening_minutes"
+    }
+}
+
+struct ExplainTodayNutrition: Codable {
+    let summary: [String]
+    let calories: Int?
+    let proteinG: Double?
+    let waterMl: Int?
+    let mealsLogged: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case summary, calories
+        case proteinG = "protein_g"
+        case waterMl = "water_ml"
+        case mealsLogged = "meals_logged"
     }
 }
 

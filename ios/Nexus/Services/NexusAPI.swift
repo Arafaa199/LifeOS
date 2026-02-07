@@ -671,6 +671,7 @@ enum APIError: LocalizedError {
     case serverError(Int)
     case decodingError
     case offline
+    case custom(String)
 
     var errorDescription: String? {
         switch self {
@@ -684,6 +685,8 @@ enum APIError: LocalizedError {
             return "Failed to decode response"
         case .offline:
             return "No network connection"
+        case .custom(let message):
+            return message
         }
     }
 }

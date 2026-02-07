@@ -43,6 +43,9 @@ struct TodayView: View {
                             mealConfirmationSection(meal: pendingMeal)
                         }
 
+                        // -- Daily Briefing --
+                        ExplainTodayCard(explainToday: viewModel.dashboardPayload?.explainToday)
+
                         // -- Status --
                         StateCardView(
                             recoveryScore: viewModel.dashboardPayload?.todayFacts?.recoveryScore,

@@ -227,6 +227,86 @@ class CalendarViewModel: ObservableObject {
         isLoadingEvents = false
     }
 
+    // MARK: - CRUD Operations
+
+    func createEvent(title: String, startAt: Date, endAt: Date, isAllDay: Bool = false, calendarName: String? = nil, location: String? = nil, notes: String? = nil) async throws {
+        errorMessage = nil
+        do {
+            _ = try await CalendarSyncService.shared.createEvent(
+                title: title,
+                startAt: startAt,
+                endAt: endAt,
+                isAllDay: isAllDay,
+                calendarName: calendarName,
+                location: location,
+                notes: notes
+            )
+            // Refresh the current month view
+            if let selected = selectedDate {
+                let year = Calendar.current.component(.year, from: selected)
+                let month = Calendar.current.component(.month, from: selected)
+                await fetchMonthEvents(year: year, month: month)
+            }
+            logger.info("Created event: \(title)")
+        } catch {
+            logger.error("Failed to create event: \(error.localizedDescription)")
+            errorMessage = "Failed to create event: \(error.localizedDescription)"
+            throw error
+        }
+    }
+
+    func updateEvent(eventId: String, title: String? = nil, startAt: Date? = nil, endAt: Date? = nil, isAllDay: Bool? = nil, location: String? = nil, notes: String? = nil) async throws {
+        errorMessage = nil
+        do {
+            // Find the EKEvent in EventKit
+            let events = CalendarSyncService.shared.fetchEvents()
+            guard let ekEvent = events.first(where: { $0.eventIdentifier == eventId }) else {
+                throw APIError.custom("Event not found in calendar")
+            }
+
+            try await CalendarSyncService.shared.updateEvent(
+                ekEvent,
+                title: title,
+                startAt: startAt,
+                endAt: endAt,
+                isAllDay: isAllDay,
+                location: location,
+                notes: notes
+            )
+
+            // Refresh the current month view
+            if let selected = selectedDate {
+                let year = Calendar.current.component(.year, from: selected)
+                let month = Calendar.current.component(.month, from: selected)
+                await fetchMonthEvents(year: year, month: month)
+            }
+            logger.info("Updated event: \(eventId)")
+        } catch {
+            logger.error("Failed to update event: \(error.localizedDescription)")
+            errorMessage = "Failed to update event: \(error.localizedDescription)"
+            throw error
+        }
+    }
+
+    func deleteEvent(eventId: String) async throws {
+        errorMessage = nil
+        do {
+            try await CalendarSyncService.shared.deleteEventById(eventId)
+
+            // Refresh the current month view
+            if let selected = selectedDate {
+                let year = Calendar.current.component(.year, from: selected)
+                let month = Calendar.current.component(.month, from: selected)
+                await fetchMonthEvents(year: year, month: month)
+            }
+            logger.info("Deleted event: \(eventId)")
+        } catch {
+            logger.error("Failed to delete event: \(error.localizedDescription)")
+            errorMessage = "Failed to delete event: \(error.localizedDescription)"
+            throw error
+        }
+    }
+
     // MARK: - Helpers
 
     func eventsForDate(_ date: Date) -> [CalendarDisplayEvent] {
@@ -263,6 +343,29 @@ struct CalendarDisplayEvent: Codable, Identifiable {
         case calendarName = "calendar_name"
         case location
         case notes
+    }
+
+    init(eventId: String, title: String, startAt: String, endAt: String, isAllDay: Bool, calendarName: String?, location: String?, notes: String?) {
+        self.eventId = eventId
+        self.title = title
+        self.startAt = startAt
+        self.endAt = endAt
+        self.isAllDay = isAllDay
+        self.calendarName = calendarName
+        self.location = location
+        self.notes = notes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        eventId = try container.decode(String.self, forKey: .eventId)
+        title = try container.decode(String.self, forKey: .title)
+        startAt = try container.decode(String.self, forKey: .startAt)
+        endAt = try container.decode(String.self, forKey: .endAt)
+        isAllDay = try container.decode(Bool.self, forKey: .isAllDay)
+        calendarName = try container.decodeIfPresent(String.self, forKey: .calendarName)
+        location = try container.decodeIfPresent(String.self, forKey: .location)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
     }
 
     var startTime: String {
