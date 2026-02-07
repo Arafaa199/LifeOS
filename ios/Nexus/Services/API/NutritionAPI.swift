@@ -1,0 +1,93 @@
+import Foundation
+
+// MARK: - Nutrition API Client
+
+/// Handles food logging, water, fasting, meal confirmations
+class NutritionAPI: BaseAPIClient {
+    static let shared = NutritionAPI()
+
+    private init() {
+        super.init(category: "nutrition-api")
+    }
+
+    // MARK: - Food Logging
+
+    func logFood(_ text: String, foodId: Int? = nil, mealType: String? = nil) async throws -> NexusResponse {
+        let request = FoodLogRequest(text: text, food_id: foodId, meal_type: mealType)
+        return try await post("/webhook/nexus-food-log", body: request)
+    }
+
+    func searchFoods(query: String, limit: Int = 10) async throws -> FoodSearchResponse {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        return try await get("/webhook/nexus-food-search?q=\(encoded)&limit=\(limit)")
+    }
+
+    func lookupBarcode(_ barcode: String) async throws -> FoodSearchResponse {
+        return try await get("/webhook/nexus-food-search?barcode=\(barcode)")
+    }
+
+    func fetchNutritionHistory(date: String? = nil) async throws -> NutritionHistoryResponse {
+        var endpoint = "/webhook/nexus-nutrition-history"
+        if let date = date {
+            endpoint += "?date=\(date)"
+        }
+        return try await get(endpoint)
+    }
+
+    // MARK: - Water
+
+    func logWater(amountML: Int) async throws -> NexusResponse {
+        let request = try WaterLogRequest(amount_ml: amountML)
+        return try await post("/webhook/nexus-water", body: request)
+    }
+
+    // MARK: - Fasting
+
+    func startFast() async throws -> FastingResponse {
+        struct EmptyBody: Encodable {}
+        return try await post("/webhook/nexus-fast-start", body: EmptyBody())
+    }
+
+    func breakFast() async throws -> FastingResponse {
+        struct EmptyBody: Encodable {}
+        return try await post("/webhook/nexus-fast-break", body: EmptyBody())
+    }
+
+    func getFastingStatus() async throws -> FastingResponse {
+        return try await get("/webhook/nexus-fast-status")
+    }
+
+    // MARK: - Meal Confirmation
+
+    func fetchPendingMealConfirmations(date: Date? = nil) async throws -> [InferredMeal] {
+        var endpoint = "/webhook/nexus-pending-meals"
+        if let date = date {
+            endpoint += "?date=\(Self.dubaiDateString(from: date))"
+        }
+
+        struct Response: Codable {
+            let meals: [InferredMeal]
+        }
+
+        let response: Response = try await get(endpoint)
+        return response.meals
+    }
+
+    func confirmMeal(mealDate: String, mealTime: String, mealType: String, action: String) async throws -> NexusResponse {
+        struct Request: Codable {
+            let meal_date: String
+            let meal_time: String
+            let meal_type: String
+            let action: String
+        }
+
+        let request = Request(
+            meal_date: mealDate,
+            meal_time: mealTime,
+            meal_type: mealType,
+            action: action
+        )
+
+        return try await post("/webhook/nexus-meal-confirmation", body: request)
+    }
+}
