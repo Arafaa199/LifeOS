@@ -1,10 +1,13 @@
 import SwiftUI
 import MusicKit
+import UIKit
 
 /// Compact mini player bar that shows at bottom of screen
 struct MiniPlayerView: View {
     @ObservedObject var musicService: MusicKitService
     @Binding var showFullPlayer: Bool
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
 
     var body: some View {
         if musicService.currentEntry != nil {
@@ -43,7 +46,10 @@ struct MiniPlayerView: View {
 
                 // Controls
                 HStack(spacing: 20) {
-                    Button(action: musicService.togglePlayPause) {
+                    Button {
+                        haptics.impactOccurred()
+                        musicService.togglePlayPause()
+                    } label: {
                         Image(systemName: musicService.isPlaying ? "pause.fill" : "play.fill")
                             .font(.title2)
                             .foregroundColor(.primary)
@@ -51,7 +57,10 @@ struct MiniPlayerView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel(musicService.isPlaying ? "Pause" : "Play")
 
-                    Button(action: musicService.skipToNext) {
+                    Button {
+                        haptics.impactOccurred()
+                        musicService.skipToNext()
+                    } label: {
                         Image(systemName: "forward.fill")
                             .font(.title3)
                             .foregroundColor(.primary)

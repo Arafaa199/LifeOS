@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct QuickExpenseView: View {
     @ObservedObject var viewModel: FinanceViewModel
@@ -7,6 +8,9 @@ struct QuickExpenseView: View {
     @State private var showingAddExpense = false
     @State private var showingAddIncome = false
     @State private var isSubmitting = false
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+    private let successHaptics = UINotificationFeedbackGenerator()
 
     private var overBudgetCategories: [Budget] {
         viewModel.summary.budgets.filter { budget in
@@ -82,9 +86,10 @@ struct QuickExpenseView: View {
 
                 // Manual Entry Buttons
                 HStack(spacing: 12) {
-                    Button(action: {
+                    Button {
+                        haptics.impactOccurred()
                         showingAddExpense = true
-                    }) {
+                    } label: {
                         HStack {
                             Image(systemName: "minus.circle.fill")
                             Text("Add Expense")
@@ -98,9 +103,10 @@ struct QuickExpenseView: View {
                         .shadow(color: Color.nexusError.opacity(0.3), radius: 6, x: 0, y: 3)
                     }
 
-                    Button(action: {
+                    Button {
+                        haptics.impactOccurred()
                         showingAddIncome = true
-                    }) {
+                    } label: {
                         HStack {
                             Image(systemName: "plus.circle.fill")
                             Text("Add Income")
@@ -215,14 +221,17 @@ struct QuickExpenseView: View {
         // Prevent double-submit
         guard !isSubmitting else { return }
 
+        haptics.impactOccurred()
         isSubmitting = true
 
         Task {
             let success = await viewModel.logExpense(expenseText)
 
-            // Always clear on success
             if success {
+                successHaptics.notificationOccurred(.success)
                 expenseText = ""
+            } else {
+                successHaptics.notificationOccurred(.error)
             }
 
             isSubmitting = false

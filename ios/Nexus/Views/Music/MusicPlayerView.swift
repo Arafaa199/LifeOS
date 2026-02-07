@@ -1,5 +1,6 @@
 import SwiftUI
 import MusicKit
+import UIKit
 
 /// Full-screen Apple Music-style player
 struct MusicPlayerView: View {
@@ -7,6 +8,8 @@ struct MusicPlayerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isDragging = false
     @State private var dragValue: Double = 0
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
 
     var body: some View {
         GeometryReader { geometry in
@@ -190,7 +193,10 @@ struct MusicPlayerView: View {
     private var mainControls: some View {
         HStack(spacing: 48) {
             // Previous
-            Button(action: musicService.restartOrPrevious) {
+            Button {
+                haptics.impactOccurred()
+                musicService.restartOrPrevious()
+            } label: {
                 Image(systemName: "backward.fill")
                     .font(.system(size: 32))
                     .foregroundColor(.white)
@@ -198,7 +204,10 @@ struct MusicPlayerView: View {
             .accessibilityLabel("Previous track")
 
             // Play/Pause
-            Button(action: musicService.togglePlayPause) {
+            Button {
+                haptics.impactOccurred()
+                musicService.togglePlayPause()
+            } label: {
                 Image(systemName: musicService.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                     .font(.system(size: 72))
                     .foregroundColor(.white)
@@ -206,7 +215,10 @@ struct MusicPlayerView: View {
             .accessibilityLabel(musicService.isPlaying ? "Pause" : "Play")
 
             // Next
-            Button(action: musicService.skipToNext) {
+            Button {
+                haptics.impactOccurred()
+                musicService.skipToNext()
+            } label: {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 32))
                     .foregroundColor(.white)
@@ -221,7 +233,10 @@ struct MusicPlayerView: View {
     private var secondaryControls: some View {
         HStack(spacing: 48) {
             // Shuffle
-            Button(action: musicService.toggleShuffle) {
+            Button {
+                haptics.impactOccurred()
+                musicService.toggleShuffle()
+            } label: {
                 Image(systemName: "shuffle")
                     .font(.title3)
                     .foregroundColor(musicService.shuffleMode == .songs ? .nexusPrimary : .white.opacity(0.6))
@@ -236,7 +251,10 @@ struct MusicPlayerView: View {
                 .accessibilityHidden(true)
 
             // Repeat
-            Button(action: musicService.toggleRepeat) {
+            Button {
+                haptics.impactOccurred()
+                musicService.toggleRepeat()
+            } label: {
                 Image(systemName: repeatIcon)
                     .font(.title3)
                     .foregroundColor(musicService.repeatMode != .none ? .nexusPrimary : .white.opacity(0.6))
