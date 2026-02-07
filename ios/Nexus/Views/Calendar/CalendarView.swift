@@ -1,10 +1,13 @@
 import SwiftUI
+import UIKit
 
 struct CalendarView: View {
     @StateObject private var viewModel = CalendarViewModel()
     @State private var displayedMonth = Date()
     @State private var showingNewEventSheet = false
     @State private var selectedEventForDetail: CalendarDisplayEvent?
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
 
     private var year: Int { Calendar.current.component(.year, from: displayedMonth) }
     private var month: Int { Calendar.current.component(.month, from: displayedMonth) }
@@ -43,6 +46,7 @@ struct CalendarView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
+                        haptics.impactOccurred()
                         showingNewEventSheet = true
                     } label: {
                         Image(systemName: "plus")
@@ -52,6 +56,7 @@ struct CalendarView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Today") {
+                        haptics.impactOccurred()
                         withAnimation {
                             displayedMonth = Date()
                             viewModel.selectedDate = Date()
@@ -361,6 +366,7 @@ struct CalendarView: View {
     // MARK: - Helpers
 
     private func changeMonth(_ delta: Int) {
+        haptics.impactOccurred()
         withAnimation(.easeInOut(duration: 0.3)) {
             if let next = Calendar.current.date(byAdding: .month, value: delta, to: displayedMonth) {
                 displayedMonth = next

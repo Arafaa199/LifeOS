@@ -1,5 +1,6 @@
 import SwiftUI
 import EventKit
+import UIKit
 import os
 
 struct EventEditSheet: View {
@@ -22,6 +23,8 @@ struct EventEditSheet: View {
     @State private var showingError: Bool = false
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "eventEdit")
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+    private let notificationHaptics = UINotificationFeedbackGenerator()
 
     var isEditing: Bool { existingEvent != nil }
 
@@ -166,6 +169,7 @@ struct EventEditSheet: View {
     private func saveEvent() {
         guard !title.isEmpty else { return }
 
+        haptics.impactOccurred()
         isSaving = true
 
         Task {
@@ -193,11 +197,13 @@ struct EventEditSheet: View {
                 }
 
                 await MainActor.run {
+                    notificationHaptics.notificationOccurred(.success)
                     isPresented = false
                 }
             } catch {
                 logger.error("Failed to save event: \(error.localizedDescription)")
                 await MainActor.run {
+                    notificationHaptics.notificationOccurred(.error)
                     errorMessage = error.localizedDescription
                     showingError = true
                     isSaving = false
