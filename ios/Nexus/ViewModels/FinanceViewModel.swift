@@ -11,13 +11,10 @@ class FinanceViewModel: ObservableObject {
     @Published var recurringItems: [RecurringItem] = []
     @Published var errorMessage: String?
 
-    // MARK: - Stub Properties (for incomplete views - TODO: implement)
+    // MARK: - Planned Features (API not yet implemented)
     @Published var activeDebts: [Debt] = []
-    @Published var totalDebtRemaining: Double = 0
-    @Published var monthlyDebtPayments: Double = 0
     @Published var wishlistItems: [WishlistItem] = []
     @Published var cashflowProjection: [CashflowMonth] = []
-    @Published var spendLimit: Double? = nil
     @Published var pendingMessage: String?  // Shows when item queued locally but not synced
     @Published var queuedCount = 0
     @Published var lastUpdated: Date?
@@ -600,34 +597,6 @@ class FinanceViewModel: ObservableObject {
         return false
     }
 
-    // MARK: - Stub Methods (for incomplete views - TODO: implement)
-
-    func loadDebts() {
-        // TODO: Implement debt loading
-    }
-
-    func createDebt(_ request: CreateDebtRequest) async -> Bool {
-        // TODO: Implement debt creation
-        return false
-    }
-
-    func loadWishlist() {
-        // TODO: Implement wishlist loading
-    }
-
-    func addWishlistItem(_ request: CreateWishlistRequest) async -> Bool {
-        // TODO: Implement wishlist item creation
-        return false
-    }
-
-    func loadCashflowProjection() {
-        // TODO: Implement cashflow projection loading
-    }
-
-    func loadFinancialPlanning() {
-        // TODO: Implement financial planning loading
-    }
-
     // MARK: - Duplicate Detection
 
     /// Finds potential duplicate transactions (same merchant/amount within ±1 day)
@@ -688,7 +657,7 @@ struct RecurringPattern: Identifiable {
     }
 }
 
-// MARK: - Stub Models (for incomplete views - TODO: move to proper files)
+// MARK: - Planned Feature Models (API not yet implemented)
 
 struct Debt: Identifiable, Codable {
     let id: Int

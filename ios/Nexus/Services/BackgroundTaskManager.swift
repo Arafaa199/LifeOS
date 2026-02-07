@@ -1,5 +1,8 @@
 import Foundation
 import BackgroundTasks
+import os
+
+private let logger = Logger(subsystem: "com.nexus.app", category: "background")
 
 class BackgroundTaskManager {
     static let shared = BackgroundTaskManager()
@@ -23,13 +26,9 @@ class BackgroundTaskManager {
 
         do {
             try BGTaskScheduler.shared.submit(request)
-            #if DEBUG
-            print("[BackgroundTask] Health refresh scheduled")
-            #endif
+            logger.debug("Health refresh scheduled")
         } catch {
-            #if DEBUG
-            print("[BackgroundTask] Failed to schedule health refresh: \(error)")
-            #endif
+            logger.error("Failed to schedule health refresh: \(error.localizedDescription)")
         }
     }
 
@@ -65,9 +64,7 @@ class BackgroundTaskManager {
                 rhr: payload.todayFacts?.rhr
             )
 
-            #if DEBUG
-            print("[BackgroundTask] Recovery data updated from coordinator: \(recovery)%")
-            #endif
+            logger.debug("Recovery data updated: \(recovery)%")
         }
 
         if let weight = coordinator.dashboardPayload?.todayFacts?.weightKg {
