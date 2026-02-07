@@ -2,8 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
-    @StateObject private var coordinator = SyncCoordinator.shared
-    @StateObject private var offlineQueue = OfflineQueue.shared
+    @ObservedObject private var coordinator = SyncCoordinator.shared
+    @ObservedObject private var offlineQueue = OfflineQueue.shared
     @State private var webhookURL: String = ""
     @State private var apiKey: String = ""
     @State private var showingSaveConfirmation = false

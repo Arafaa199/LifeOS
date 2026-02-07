@@ -33,10 +33,13 @@ struct MoodLogView: View {
         } message: {
             Text("Mood: \(moodScore)/10, Energy: \(energyScore)/10")
         }
-        .alert("Error", isPresented: .constant(errorMessage != nil)) {
+        .alert("Error", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
             Button("OK") { errorMessage = nil }
         } message: {
-            Text(errorMessage ?? "")
+            Text(errorMessage ?? "An error occurred")
         }
     }
 
@@ -61,6 +64,8 @@ struct MoodLogView: View {
                     set: { moodScore = Int($0) }
                 ), in: 1...10, step: 1)
                 .accentColor(.nexusPrimary)
+                .accessibilityLabel("Mood score")
+                .accessibilityValue("\(moodScore) out of 10")
 
                 Text("10")
                     .font(.caption)
@@ -97,6 +102,8 @@ struct MoodLogView: View {
                     set: { energyScore = Int($0) }
                 ), in: 1...10, step: 1)
                 .accentColor(.orange)
+                .accessibilityLabel("Energy level")
+                .accessibilityValue("\(energyScore) out of 10")
 
                 Text("10")
                     .font(.caption)

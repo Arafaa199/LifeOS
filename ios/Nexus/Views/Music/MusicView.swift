@@ -3,8 +3,8 @@ import MusicKit
 
 /// Main music hub view with Apple Music integration
 struct MusicView: View {
-    @StateObject private var musicService = MusicKitService.shared
-    @StateObject private var loggingService = MusicService.shared
+    @ObservedObject private var musicService = MusicKitService.shared
+    @ObservedObject private var loggingService = MusicService.shared
     @State private var showFullPlayer = false
     @State private var showSearch = false
 

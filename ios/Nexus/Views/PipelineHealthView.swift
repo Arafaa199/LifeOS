@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PipelineHealthView: View {
-    @StateObject private var coordinator = SyncCoordinator.shared
+    @ObservedObject private var coordinator = SyncCoordinator.shared
 
     var body: some View {
         List {

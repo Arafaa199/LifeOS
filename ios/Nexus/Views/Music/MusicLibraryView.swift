@@ -67,6 +67,7 @@ struct PlaylistsTab: View {
 struct AlbumsTab: View {
     @State private var albums: MusicItemCollection<Album> = []
     @State private var isLoading = true
+    @State private var loadError: String?
 
     var body: some View {
         List {
@@ -78,6 +79,16 @@ struct AlbumsTab: View {
         .overlay {
             if isLoading {
                 ProgressView()
+            } else if let error = loadError {
+                ContentUnavailableView {
+                    Label("Unable to Load", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Retry") {
+                        Task { await loadAlbums() }
+                    }
+                }
             } else if albums.isEmpty {
                 ContentUnavailableView(
                     "No Albums",
@@ -92,15 +103,17 @@ struct AlbumsTab: View {
     }
 
     private func loadAlbums() async {
+        isLoading = true
+        loadError = nil
         do {
             let request = MusicLibraryRequest<Album>()
             let response = try await request.response()
             albums = response.items
-            isLoading = false
         } catch {
             musicLogger.warning("Failed to load albums: \(error.localizedDescription)")
-            isLoading = false
+            loadError = "Failed to load albums"
         }
+        isLoading = false
     }
 }
 
@@ -109,6 +122,7 @@ struct AlbumsTab: View {
 struct SongsTab: View {
     @State private var songs: MusicItemCollection<Song> = []
     @State private var isLoading = true
+    @State private var loadError: String?
 
     var body: some View {
         List {
@@ -120,6 +134,16 @@ struct SongsTab: View {
         .overlay {
             if isLoading {
                 ProgressView()
+            } else if let error = loadError {
+                ContentUnavailableView {
+                    Label("Unable to Load", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Retry") {
+                        Task { await loadSongs() }
+                    }
+                }
             } else if songs.isEmpty {
                 ContentUnavailableView(
                     "No Songs",
@@ -134,16 +158,18 @@ struct SongsTab: View {
     }
 
     private func loadSongs() async {
+        isLoading = true
+        loadError = nil
         do {
             var request = MusicLibraryRequest<Song>()
             request.limit = 100
             let response = try await request.response()
             songs = response.items
-            isLoading = false
         } catch {
             musicLogger.warning("Failed to load songs: \(error.localizedDescription)")
-            isLoading = false
+            loadError = "Failed to load songs"
         }
+        isLoading = false
     }
 }
 

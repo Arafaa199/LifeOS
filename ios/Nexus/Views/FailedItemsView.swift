@@ -2,7 +2,7 @@ import SwiftUI
 
 /// View to display and manage permanently failed offline items
 struct FailedItemsView: View {
-    @StateObject private var queue = OfflineQueue.shared
+    @ObservedObject private var queue = OfflineQueue.shared
     @State private var failedItems: [OfflineQueue.FailedEntry] = []
     @State private var showingClearAllAlert = false
 

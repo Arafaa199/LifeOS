@@ -2,7 +2,7 @@ import SwiftUI
 import os
 
 struct RemindersView: View {
-    @StateObject private var syncService = ReminderSyncService.shared
+    @ObservedObject private var syncService = ReminderSyncService.shared
     @State private var reminders: [ReminderDisplayItem] = []
     @State private var isLoading = true
     @State private var errorMessage: String?

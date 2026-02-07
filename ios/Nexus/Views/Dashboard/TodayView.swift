@@ -5,8 +5,8 @@ import Combine
 /// Shows: Recovery + Budget status, up to 3 ranked insights
 struct TodayView: View {
     @ObservedObject var viewModel: DashboardViewModel
-    @StateObject private var networkMonitor = NetworkMonitor.shared
-    @StateObject private var offlineQueue = OfflineQueue.shared
+    @ObservedObject private var networkMonitor = NetworkMonitor.shared
+    @ObservedObject private var offlineQueue = OfflineQueue.shared
     @ObservedObject private var homeViewModel = HomeViewModel.shared
     @State private var isFastingLoading = false
     @State private var fastingElapsed: String = "--:--"
