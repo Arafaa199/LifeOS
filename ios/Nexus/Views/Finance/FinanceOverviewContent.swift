@@ -76,11 +76,6 @@ struct FinanceOverviewContent: View {
                     obligationsSummary
                 }
 
-                // TODO: Uncomment when activeDebts is implemented in FinanceViewModel
-                // if !viewModel.activeDebts.isEmpty {
-                //     debtSummaryCard
-                // }
-
                 if !viewModel.upcomingBills.isEmpty {
                     upcomingBillsCard
                 }
@@ -93,8 +88,6 @@ struct FinanceOverviewContent: View {
         .padding()
         .onAppear {
             viewModel.loadFinanceSummary()
-            // TODO: Uncomment when loadDebts() is implemented
-            // viewModel.loadDebts()
         }
     }
 
@@ -301,39 +294,6 @@ struct FinanceOverviewContent: View {
         .background(Color.nexusCardBackground)
         .cornerRadius(16)
     }
-
-    // MARK: - Debt Summary Card
-    // TODO: Uncomment when activeDebts and totalDebtRemaining are implemented in FinanceViewModel
-    /*
-    private var debtSummaryCard: some View {
-        NavigationLink(destination: DebtsListView(viewModel: viewModel)) {
-            HStack {
-                Image(systemName: "creditcard.fill")
-                    .foregroundColor(.nexusMood)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Debts")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                    Text("\(viewModel.activeDebts.count) active")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-                Text(formatCurrency(viewModel.totalDebtRemaining, currency: AppSettings.shared.defaultCurrency))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.nexusMood)
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color.nexusCardBackground)
-            .cornerRadius(12)
-        }
-        .buttonStyle(.plain)
-    }
-    */
 
     // MARK: - Monthly Obligations Summary
 
