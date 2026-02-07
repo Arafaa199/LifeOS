@@ -47,7 +47,7 @@ struct FinanceOverviewContent: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             // Show error state when there's an error and no meaningful data
             if let error = viewModel.errorMessage, hasNoData {
                 ErrorStateView(
@@ -60,35 +60,68 @@ struct FinanceOverviewContent: View {
                     financeFreshnessIndicator(lastUpdated: lastUpdated, isOffline: viewModel.isOffline)
                 }
 
-                mtdSpendCard
+                // MARK: - Summary Section
+                VStack(spacing: 16) {
+                    mtdSpendCard
+                    cashflowCard
+                }
 
+                // MARK: - Spending Breakdown Section
                 if !topCategories.isEmpty {
-                    topCategoriesCard
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionHeader("SPENDING BREAKDOWN")
+                        topCategoriesCard
+                    }
                 }
 
-                cashflowCard
-
+                // MARK: - Transactions Section
                 if !viewModel.recentTransactions.isEmpty {
-                    recentTransactionsCard
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionHeader("RECENT ACTIVITY")
+                        recentTransactionsCard
+                    }
                 }
 
-                if viewModel.monthlyObligations > 0 {
-                    obligationsSummary
+                // MARK: - Upcoming Section
+                if viewModel.monthlyObligations > 0 || !viewModel.upcomingBills.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionHeader("UPCOMING")
+                        if viewModel.monthlyObligations > 0 {
+                            obligationsSummary
+                        }
+                        if !viewModel.upcomingBills.isEmpty {
+                            upcomingBillsCard
+                        }
+                    }
                 }
 
-                if !viewModel.upcomingBills.isEmpty {
-                    upcomingBillsCard
-                }
-
+                // MARK: - Quick Actions
                 actionRow
 
-                insightsCard
+                // MARK: - Insights Section
+                if !generateInsights().isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionHeader("INSIGHTS")
+                        insightsCard
+                    }
+                }
             }
         }
         .padding()
         .onAppear {
             viewModel.loadFinanceSummary()
         }
+    }
+
+    // MARK: - Section Header
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundColor(.secondary)
+            .tracking(0.5)
+            .padding(.leading, 4)
     }
 
     // MARK: - MTD Spend Card

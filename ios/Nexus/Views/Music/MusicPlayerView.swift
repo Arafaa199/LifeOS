@@ -84,14 +84,15 @@ struct MusicPlayerView: View {
                 Spacer()
 
                 Menu {
-                    Button(action: {}) {
-                        Label("Add to Playlist", systemImage: "plus")
-                    }
-                    Button(action: {}) {
-                        Label("Share Song", systemImage: "square.and.arrow.up")
-                    }
-                    Button(action: {}) {
-                        Label("View Album", systemImage: "music.note.list")
+                    if let song = musicService.currentSong {
+                        Button(action: { shareCurrentSong() }) {
+                            Label("Share Song", systemImage: "square.and.arrow.up")
+                        }
+                        if let album = song.albums?.first {
+                            Button(action: { viewAlbum(album) }) {
+                                Label("View Album", systemImage: "music.note.list")
+                            }
+                        }
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle.fill")
@@ -223,7 +224,7 @@ struct MusicPlayerView: View {
                     .foregroundColor(musicService.shuffleMode == .songs ? .nexusPrimary : .white.opacity(0.6))
             }
 
-            // Volume (placeholder - iOS doesn't allow programmatic volume control easily)
+            // Volume indicator (system volume control via hardware buttons)
             Image(systemName: "speaker.wave.2.fill")
                 .font(.title3)
                 .foregroundColor(.white.opacity(0.6))
@@ -249,6 +250,24 @@ struct MusicPlayerView: View {
         switch musicService.repeatMode {
         case .one: return "repeat.1"
         default: return "repeat"
+        }
+    }
+
+    // MARK: - Actions
+
+    private func shareCurrentSong() {
+        guard let song = musicService.currentSong,
+              let url = song.url else { return }
+        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true)
+        }
+    }
+
+    private func viewAlbum(_ album: Album) {
+        Task {
+            await musicService.playAlbum(album)
         }
     }
 }

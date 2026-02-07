@@ -21,7 +21,7 @@ struct AddExpenseView: View {
                         .autocapitalization(.words)
 
                     HStack {
-                        Text("AED")
+                        Text(AppSettings.shared.defaultCurrency)
                             .foregroundColor(.secondary)
                         TextField("Amount", text: $amount)
                             .keyboardType(.decimalPad)

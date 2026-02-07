@@ -7,6 +7,8 @@ struct SupplementDetailSheet: View {
     let onUpdate: () -> Void
 
     @State private var isEditing = false
+    @State private var isDeactivating = false
+    @State private var showingDeactivateConfirm = false
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "supplements")
 
@@ -77,10 +79,19 @@ struct SupplementDetailSheet: View {
                 // Actions
                 Section {
                     Button(role: .destructive) {
-                        // TODO: Implement delete/deactivate
+                        showingDeactivateConfirm = true
                     } label: {
-                        Label("Deactivate Supplement", systemImage: "trash")
+                        if isDeactivating {
+                            HStack {
+                                ProgressView()
+                                    .tint(.red)
+                                Text("Deactivating...")
+                            }
+                        } else {
+                            Label("Deactivate Supplement", systemImage: "trash")
+                        }
                     }
+                    .disabled(isDeactivating)
                 }
             }
             .listStyle(.insetGrouped)
@@ -90,6 +101,35 @@ struct SupplementDetailSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .confirmationDialog(
+                "Deactivate \(supplement.name)?",
+                isPresented: $showingDeactivateConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Deactivate", role: .destructive) {
+                    deactivateSupplement()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will hide the supplement from your active list. You can reactivate it later.")
+            }
+        }
+    }
+
+    private func deactivateSupplement() {
+        isDeactivating = true
+        Task {
+            do {
+                _ = try await NexusAPI.shared.deactivateSupplement(id: supplement.id)
+                logger.info("Deactivated supplement: \(supplement.name)")
+                await MainActor.run {
+                    onUpdate()
+                    dismiss()
+                }
+            } catch {
+                logger.error("Failed to deactivate supplement: \(error.localizedDescription)")
+                isDeactivating = false
             }
         }
     }

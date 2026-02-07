@@ -165,6 +165,14 @@ class NexusAPI: ObservableObject {
         try await post("/webhook/nexus-supplement-log", body: request)
     }
 
+    func deactivateSupplement(id: Int) async throws -> NexusResponse {
+        struct DeactivateRequest: Codable {
+            let id: Int
+            let active: Bool
+        }
+        return try await post("/webhook/nexus-supplement", body: DeactivateRequest(id: id, active: false))
+    }
+
     // MARK: - Workouts
 
     func fetchWorkouts() async throws -> WorkoutsResponse {

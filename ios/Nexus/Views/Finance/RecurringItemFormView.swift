@@ -23,7 +23,7 @@ struct RecurringItemFormView: View {
                     TextField("Name (e.g., Rent, Netflix)", text: $name)
 
                     HStack {
-                        Text("AED")
+                        Text(AppSettings.shared.defaultCurrency)
                             .foregroundColor(.secondary)
                         TextField("Amount", text: $amount)
                             .keyboardType(.decimalPad)
