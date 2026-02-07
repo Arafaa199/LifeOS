@@ -29,7 +29,10 @@ struct MusicSearchView: View {
                 if !results.albums.isEmpty {
                     Section("Albums") {
                         ForEach(results.albums.prefix(5), id: \.id) { album in
-                            AlbumRow(album: album)
+                            NavigationLink(destination: AlbumDetailView(album: album)) {
+                                AlbumRow(album: album)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -37,7 +40,10 @@ struct MusicSearchView: View {
                 if !results.artists.isEmpty {
                     Section("Artists") {
                         ForEach(results.artists.prefix(5), id: \.id) { artist in
-                            ArtistRow(artist: artist)
+                            NavigationLink(destination: ArtistDetailView(artist: artist)) {
+                                ArtistRow(artist: artist)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -132,38 +138,36 @@ struct SongRow: View {
 
 struct AlbumRow: View {
     let album: Album
-    @ObservedObject var musicService = MusicKitService.shared
 
     var body: some View {
-        Button {
-            Task { await musicService.playAlbum(album) }
-        } label: {
-            HStack(spacing: 12) {
-                if let artwork = album.artwork {
-                    ArtworkImage(artwork, width: 56, height: 56)
-                        .cornerRadius(6)
-                } else {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 56, height: 56)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(album.title)
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-
-                    Text(album.artistName)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
+        HStack(spacing: 12) {
+            if let artwork = album.artwork {
+                ArtworkImage(artwork, width: 56, height: 56)
+                    .cornerRadius(6)
+            } else {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 56, height: 56)
             }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(album.title)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+
+                Text(album.artistName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
-        .buttonStyle(.plain)
     }
 }
 

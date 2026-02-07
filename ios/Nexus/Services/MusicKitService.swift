@@ -182,6 +182,10 @@ final class MusicKitService: ObservableObject {
     }
 
     func toggleRepeat() {
+        cycleRepeatMode()
+    }
+
+    func cycleRepeatMode() {
         let newMode: MusicKit.MusicPlayer.RepeatMode
         switch repeatMode {
         case .none: newMode = .all
@@ -192,6 +196,15 @@ final class MusicKitService: ObservableObject {
         player.state.repeatMode = newMode
         repeatMode = newMode
         logger.debug("Repeat: \(String(describing: newMode))")
+    }
+
+    func clearQueue() {
+        Task {
+            player.queue = []
+            queue = []
+            currentEntry = nil
+            logger.debug("Queue cleared")
+        }
     }
 
     // MARK: - Queue Management
@@ -206,13 +219,32 @@ final class MusicKitService: ObservableObject {
         }
     }
 
-    func playAlbum(_ album: Album) async {
+    func playSongs(_ songs: [Song], shuffle: Bool = false) async {
+        guard !songs.isEmpty else { return }
+        do {
+            player.queue = ApplicationMusicPlayer.Queue(for: songs)
+            if shuffle {
+                player.state.shuffleMode = .songs
+                shuffleMode = .songs
+            }
+            try await player.play()
+            logger.info("Playing \(songs.count) songs (shuffle: \(shuffle))")
+        } catch {
+            logger.error("Failed to play songs: \(error.localizedDescription)")
+        }
+    }
+
+    func playAlbum(_ album: Album, shuffle: Bool = false) async {
         do {
             let detailedAlbum = try await album.with([.tracks])
             if let tracks = detailedAlbum.tracks {
                 player.queue = ApplicationMusicPlayer.Queue(for: tracks)
+                if shuffle {
+                    player.state.shuffleMode = .songs
+                    shuffleMode = .songs
+                }
                 try await player.play()
-                logger.info("Playing album: \(album.title)")
+                logger.info("Playing album: \(album.title) (shuffle: \(shuffle))")
             }
         } catch {
             logger.error("Failed to play album: \(error.localizedDescription)")
