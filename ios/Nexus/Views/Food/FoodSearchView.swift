@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+import os
+
+private let logger = Logger(subsystem: "com.nexus", category: "FoodSearch")
 
 struct FoodSearchView: View {
     let onSelect: (FoodSearchResult) -> Void
@@ -143,6 +146,54 @@ struct FoodResultRow: View {
     }
 }
 
+// MARK: - Food Search Cache
+
+private final class FoodSearchCache {
+    static let shared = FoodSearchCache()
+
+    private let cache = NSCache<NSString, CachedResults>()
+    private let cacheTTL: TimeInterval = 600 // 10 minutes
+
+    private init() {
+        cache.countLimit = 50 // Max 50 queries cached
+    }
+
+    func get(_ query: String) -> [FoodSearchResult]? {
+        let key = normalizeKey(query)
+        guard let cached = cache.object(forKey: key as NSString) else { return nil }
+
+        if Date().timeIntervalSince(cached.timestamp) > cacheTTL {
+            cache.removeObject(forKey: key as NSString)
+            return nil
+        }
+
+        logger.debug("Cache hit for: \(query)")
+        return cached.results
+    }
+
+    func set(_ query: String, results: [FoodSearchResult]) {
+        let key = normalizeKey(query)
+        let cached = CachedResults(results: results, timestamp: Date())
+        cache.setObject(cached, forKey: key as NSString)
+    }
+
+    private func normalizeKey(_ query: String) -> String {
+        query.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private class CachedResults {
+        let results: [FoodSearchResult]
+        let timestamp: Date
+
+        init(results: [FoodSearchResult], timestamp: Date) {
+            self.results = results
+            self.timestamp = timestamp
+        }
+    }
+}
+
+// MARK: - View Model
+
 @MainActor
 class FoodSearchViewModel: ObservableObject {
     @Published var query = ""
@@ -152,6 +203,7 @@ class FoodSearchViewModel: ObservableObject {
 
     private var searchCancellable: AnyCancellable?
     private let api = NexusAPI.shared
+    private let cache = FoodSearchCache.shared
 
     init() {
         searchCancellable = $query
@@ -171,16 +223,26 @@ class FoodSearchViewModel: ObservableObject {
             return
         }
 
+        // Check cache first
+        if let cached = cache.get(trimmed) {
+            results = cached
+            errorMessage = nil
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 
         do {
             let response = try await api.searchFoods(query: trimmed, limit: 20)
-            results = response.data ?? []
+            let fetchedResults = response.data ?? []
+            results = fetchedResults
+            cache.set(trimmed, results: fetchedResults)
             isLoading = false
         } catch {
             isLoading = false
             errorMessage = "Search failed: \(error.localizedDescription)"
+            logger.error("Food search failed: \(error.localizedDescription)")
         }
     }
 }
