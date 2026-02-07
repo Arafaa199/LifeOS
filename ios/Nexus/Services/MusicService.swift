@@ -255,8 +255,38 @@ final class MusicService: ObservableObject {
         return formatter.string(from: date)
     }
     
+    // MARK: - Playback Controls
+
+    func play() {
+        player.play()
+        logger.debug("Playback: play")
+    }
+
+    func pause() {
+        player.pause()
+        logger.debug("Playback: pause")
+    }
+
+    func togglePlayPause() {
+        if isPlaying {
+            pause()
+        } else {
+            play()
+        }
+    }
+
+    func skipToNext() {
+        player.skipToNextItem()
+        logger.debug("Playback: next")
+    }
+
+    func skipToPrevious() {
+        player.skipToPreviousItem()
+        logger.debug("Playback: previous")
+    }
+
     // MARK: - Computed
-    
+
     var pendingCount: Int { pendingEvents.count }
     var hasAuthorization: Bool { authorizationStatus == .authorized }
 }

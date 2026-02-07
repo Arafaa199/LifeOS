@@ -3,10 +3,10 @@ import SwiftUI
 // MARK: - Nexus Brand Colors
 
 extension Color {
-    // Primary brand - dark burgundy/wine
-    static let nexusPrimary = Color(red: 0.306, green: 0.031, blue: 0.082) // #4E0815
-    static let nexusPrimaryDark = Color(red: 0.227, green: 0.024, blue: 0.063) // #3A0610
-    static let nexusPrimaryLight = Color(red: 0.478, green: 0.157, blue: 0.251) // #7A2840
+    // Primary brand - hot pink/magenta
+    static let nexusPrimary = Color(red: 1.0, green: 0.0, blue: 0.369) // #FF005E
+    static let nexusPrimaryDark = Color(red: 0.8, green: 0.0, blue: 0.295) // #CC004B
+    static let nexusPrimaryLight = Color(red: 1.0, green: 0.4, blue: 0.6) // #FF6699
 
     // Secondary accent - warm cream
     static let nexusAccent = Color(red: 0.894, green: 0.835, blue: 0.765) // #E4D5C3
@@ -18,7 +18,7 @@ extension Color {
     static let nexusWeight = Color(red: 0.353, green: 0.620, blue: 0.435) // #5A9E6F sage green
     static let nexusMood = Color(red: 0.545, green: 0.369, blue: 0.514) // #8B5E83 dusty plum
     static let nexusProtein = Color(red: 0.769, green: 0.271, blue: 0.212) // #C44536 brick red
-    static let nexusFinance = Color(red: 0.306, green: 0.031, blue: 0.082) // #4E0815 burgundy
+    static let nexusFinance = Color(red: 1.0, green: 0.0, blue: 0.369) // #FF005E hot pink
     static let nexusHealth = Color(red: 0.353, green: 0.620, blue: 0.435) // #5A9E6F sage green
 
     // Semantic colors (warm-toned)

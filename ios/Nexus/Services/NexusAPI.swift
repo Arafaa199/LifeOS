@@ -320,6 +320,12 @@ class NexusAPI: ObservableObject {
         return try await post("/webhook/nexus-budgets", body: request, decoder: Self.financeDateDecoder)
     }
 
+    // MARK: - Receipts
+
+    func fetchReceipts(limit: Int = 50) async throws -> ReceiptsResponse {
+        return try await get("/webhook/nexus-receipts?limit=\(limit)")
+    }
+
     // MARK: - Transaction Corrections
 
     func createCorrection(_ request: CreateCorrectionRequest) async throws -> CorrectionResponse {

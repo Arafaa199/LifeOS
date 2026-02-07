@@ -3,6 +3,7 @@ import SwiftUI
 struct MoreView: View {
     @EnvironmentObject var settings: AppSettings
     @StateObject private var documentsVM = DocumentsViewModel()
+    @StateObject private var homeVM = HomeViewModel()
 
     var body: some View {
         NavigationView {
@@ -24,6 +25,26 @@ struct MoreView: View {
                             iconColor: .pink,
                             title: "Music",
                             subtitle: "Listening activity"
+                        )
+                    }
+
+                    NavigationLink(destination: MedicationsView()) {
+                        SettingsRow(
+                            icon: "pills.fill",
+                            iconColor: .cyan,
+                            title: "Medications",
+                            subtitle: "Health tracking"
+                        )
+                    }
+                }
+
+                Section("Home") {
+                    NavigationLink(destination: HomeControlView(viewModel: homeVM)) {
+                        SettingsRow(
+                            icon: "house.fill",
+                            iconColor: .orange,
+                            title: "Home Control",
+                            subtitle: "Lights, vacuum, camera"
                         )
                     }
                 }

@@ -66,22 +66,63 @@ struct MusicView: View {
     }
     
     // MARK: - Now Playing
-    
+
     private var nowPlayingSection: some View {
         Section("Now Playing") {
-            if let track = musicService.currentTrack, musicService.isPlaying {
-                NowPlayingRow(track: track)
+            if let track = musicService.currentTrack {
+                VStack(spacing: 16) {
+                    NowPlayingRow(track: track, isPlaying: musicService.isPlaying)
+                    playerControls
+                }
+                .padding(.vertical, 8)
             } else {
-                HStack {
-                    Image(systemName: "pause.circle")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
-                    Text("Not playing")
-                        .foregroundColor(.secondary)
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "pause.circle")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                        Text("Not playing")
+                            .foregroundColor(.secondary)
+                    }
+                    playerControls
                 }
                 .padding(.vertical, 8)
             }
         }
+    }
+
+    // MARK: - Player Controls
+
+    private var playerControls: some View {
+        HStack(spacing: 32) {
+            Button {
+                musicService.skipToPrevious()
+            } label: {
+                Image(systemName: "backward.fill")
+                    .font(.title2)
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                musicService.togglePlayPause()
+            } label: {
+                Image(systemName: musicService.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.nexusPrimary)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                musicService.skipToNext()
+            } label: {
+                Image(systemName: "forward.fill")
+                    .font(.title2)
+                    .foregroundColor(.primary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8)
     }
     
     // MARK: - Today's History
@@ -119,15 +160,16 @@ struct MusicView: View {
 
 private struct NowPlayingRow: View {
     let track: ListeningEvent
-    
+    var isPlaying: Bool = true
+
     var body: some View {
         HStack(spacing: 12) {
             // Animated indicator
             HStack(spacing: 2) {
-                ForEach(0..<3) { i in
+                ForEach(0..<3, id: \.self) { i in
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(Color.nexusPrimary)
-                        .frame(width: 3, height: CGFloat.random(in: 8...16))
+                        .fill(isPlaying ? Color.nexusPrimary : Color.secondary)
+                        .frame(width: 3, height: isPlaying ? CGFloat.random(in: 8...16) : 8)
                 }
             }
             .frame(width: 16)

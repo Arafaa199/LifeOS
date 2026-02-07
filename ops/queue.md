@@ -2302,33 +2302,32 @@ Lane: safe_auto
 ### TASK-PLAN.5: Add Anomaly Detection Alerts for Spending Spikes
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Surface spending anomalies in the dashboard — when today's spending is 2x+ the 30-day daily average, flag it as an insight. Uses existing `facts.daily_finance` data (330 rows) with no new data sources needed.
 
-**Files to Touch:**
-- `backend/migrations/160_spending_anomaly_insight.up.sql`
-- `backend/migrations/160_spending_anomaly_insight.down.sql`
+**Files Changed:**
+- `backend/migrations/161_spending_anomaly_insight.up.sql`
+- `backend/migrations/161_spending_anomaly_insight.down.sql`
 
-**Implementation:**
-- Create `insights.detect_spending_anomaly(target_date DATE)` function:
-  - Compute 30-day rolling average daily spend from `facts.daily_finance`
-  - Compare target_date spend to average
-  - If ratio > 2.0: return `{ type: "spending_spike", severity: "high", today_spend, avg_spend, ratio, detail }`
-  - If ratio > 1.5: return `{ type: "spending_elevated", severity: "medium", ... }`
-  - Else: return NULL
-- Wire into `dashboard.get_payload()` → `daily_insights` array (append to existing category_trends)
-- Schema version stays at 14 (or whatever PLAN.2 sets it to) — just adds to existing insights array
+**Fix Applied:**
+- Created `insights.detect_spending_anomaly(target_date)` function: computes 30-day rolling avg, returns JSON for ratio >= 2.0 (spending_spike/high) or >= 1.5 (spending_elevated/medium), NULL otherwise
+- Wired as Source 9 in `insights.get_ranked_insights()` with score 95 (high) or 75 (medium) — outranks most other insights on spike days
+- Icon: exclamationmark.triangle.fill (spike), arrow.up.right (elevated). Colors: red/orange
+- No schema_version change — anomaly surfaces through existing daily_insights array
 
 **Verification:**
-- [ ] `SELECT insights.detect_spending_anomaly(CURRENT_DATE);` — returns JSON or NULL
-- [ ] `SELECT (dashboard.get_payload())->'daily_insights'->'spending_anomaly';` — returns JSON when anomaly detected
-- [ ] Function handles dates with no spending gracefully (returns NULL, not error)
+- [x] `SELECT insights.detect_spending_anomaly(CURRENT_DATE);` — returns NULL (no spending today, correct)
+- [x] `SELECT insights.detect_spending_anomaly('2026-01-30');` — returns `spending_spike` (1493 AED = 2.91x avg of 514)
+- [x] `SELECT insights.detect_spending_anomaly('2026-01-31');` — returns NULL (145 AED, below threshold)
+- [x] `SELECT insights.get_ranked_insights('2026-01-30');` — spending_spike ranked #1 (score 95)
+- [x] `SELECT (dashboard.get_payload())->'daily_insights';` — works, returns 3 insights
+- [x] `SELECT (dashboard.get_payload('2026-01-30'))->'daily_insights';` — spending_spike appears as #1
 
 **Exit Criteria:**
-- [ ] `SELECT proname FROM pg_proc WHERE proname = 'detect_spending_anomaly' AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'insights');` returns 1 row
-- [ ] Down migration drops function and reverts get_payload
+- [x] `SELECT proname FROM pg_proc WHERE proname = 'detect_spending_anomaly' AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'insights');` returns 1 row
+- [x] Down migration drops function and reverts get_ranked_insights to 8 sources — tested and re-applied
 
 **Done Means:** Dashboard proactively alerts when spending is unusually high compared to recent history.
 

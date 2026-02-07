@@ -74,6 +74,34 @@ struct FinanceSettingsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+
+            Section("Data Sources") {
+                NavigationLink(destination: ReceiptsView()) {
+                    HStack {
+                        Image(systemName: "doc.text")
+                            .foregroundColor(.nexusFinance)
+                            .frame(width: 24)
+                        Text("Receipts")
+                        Spacer()
+                        Text("From email")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                NavigationLink(destination: SubscriptionsView()) {
+                    HStack {
+                        Image(systemName: "repeat")
+                            .foregroundColor(.nexusFinance)
+                            .frame(width: 24)
+                        Text("Subscriptions")
+                        Spacer()
+                        Text("Monthly bills")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
