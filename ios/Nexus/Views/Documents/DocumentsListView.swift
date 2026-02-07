@@ -1,9 +1,12 @@
 import SwiftUI
+import UIKit
 
 struct DocumentsListView: View {
     @ObservedObject var viewModel: DocumentsViewModel
     @State private var showingAddSheet = false
     @State private var selectedDocument: Document?
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
 
     var body: some View {
         Group {
@@ -26,7 +29,10 @@ struct DocumentsListView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showingAddSheet = true }) {
+                Button {
+                    haptics.impactOccurred()
+                    showingAddSheet = true
+                } label: {
                     Image(systemName: "plus")
                 }
                 .accessibilityLabel("Add document")
@@ -77,7 +83,10 @@ struct DocumentsListView: View {
                     .padding(.horizontal, 40)
             }
             
-            Button(action: { showingAddSheet = true }) {
+            Button {
+                haptics.impactOccurred()
+                showingAddSheet = true
+            } label: {
                 Label("Add Your First Document", systemImage: "plus.circle.fill")
                     .font(.subheadline)
                     .fontWeight(.semibold)

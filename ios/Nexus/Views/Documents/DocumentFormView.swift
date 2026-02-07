@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DocumentFormView: View {
     @ObservedObject var viewModel: DocumentsViewModel
@@ -16,6 +17,9 @@ struct DocumentFormView: View {
     @State private var notes = ""
     @State private var remindersEnabled = true
     @State private var isSaving = false
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+    private let successHaptics = UINotificationFeedbackGenerator()
 
     private var isEditing: Bool { editingDocument != nil }
 
@@ -102,6 +106,7 @@ struct DocumentFormView: View {
     }
 
     private func save() async {
+        haptics.impactOccurred()
         isSaving = true
         defer { isSaving = false }
 
@@ -119,7 +124,10 @@ struct DocumentFormView: View {
                 remindersEnabled: remindersEnabled
             )
             if success {
+                successHaptics.notificationOccurred(.success)
                 isPresented = false
+            } else {
+                successHaptics.notificationOccurred(.error)
             }
         } else {
             let success = await viewModel.createDocument(
@@ -134,7 +142,10 @@ struct DocumentFormView: View {
                 remindersEnabled: remindersEnabled
             )
             if success {
+                successHaptics.notificationOccurred(.success)
                 isPresented = false
+            } else {
+                successHaptics.notificationOccurred(.error)
             }
         }
     }
