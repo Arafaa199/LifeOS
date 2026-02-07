@@ -33,7 +33,16 @@ struct MoreView: View {
                             icon: "pills.fill",
                             iconColor: .cyan,
                             title: "Medications",
-                            subtitle: "Health tracking"
+                            subtitle: "HealthKit data"
+                        )
+                    }
+
+                    NavigationLink(destination: SupplementsView()) {
+                        SettingsRow(
+                            icon: "leaf.fill",
+                            iconColor: .green,
+                            title: "Supplements",
+                            subtitle: "Daily tracking"
                         )
                     }
                 }

@@ -118,6 +118,53 @@ class NexusAPI: ObservableObject {
         try await get("/webhook/nexus-installments", decoder: Self.financeDateDecoder)
     }
 
+    // MARK: - Supplements
+
+    func fetchSupplements() async throws -> SupplementsResponse {
+        try await get("/webhook/nexus-supplements")
+    }
+
+    func createSupplement(_ request: SupplementCreateRequest) async throws -> SupplementUpsertResponse {
+        try await post("/webhook/nexus-supplement", body: request)
+    }
+
+    func updateSupplement(id: Int, request: SupplementCreateRequest) async throws -> SupplementUpsertResponse {
+        struct UpdateRequest: Codable {
+            let id: Int
+            let name: String
+            let brand: String?
+            let doseAmount: Double?
+            let doseUnit: String?
+            let frequency: String
+            let timesOfDay: [String]
+            let category: String
+            let notes: String?
+
+            enum CodingKeys: String, CodingKey {
+                case id, name, brand, frequency, category, notes
+                case doseAmount = "dose_amount"
+                case doseUnit = "dose_unit"
+                case timesOfDay = "times_of_day"
+            }
+        }
+        let updateReq = UpdateRequest(
+            id: id,
+            name: request.name,
+            brand: request.brand,
+            doseAmount: request.doseAmount,
+            doseUnit: request.doseUnit,
+            frequency: request.frequency,
+            timesOfDay: request.timesOfDay,
+            category: request.category,
+            notes: request.notes
+        )
+        return try await post("/webhook/nexus-supplement", body: updateReq)
+    }
+
+    func logSupplementDose(_ request: SupplementLogRequest) async throws -> SupplementLogResponse {
+        try await post("/webhook/nexus-supplement-log", body: request)
+    }
+
     // MARK: - Finance Methods
 
     func logExpense(_ text: String) async throws -> FinanceResponse {

@@ -1,0 +1,91 @@
+{
+  "name": "Nexus: Supplement Log Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-supplement-log",
+        "options": { "responseMode": "responseNode" }
+      },
+      "id": "webhook",
+      "name": "Log Supplement Dose",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "nexus-supplement-log",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\n\nconst supplementId = parseInt(input.supplement_id);\nconst status = (input.status || 'taken').toLowerCase();\nconst timeSlot = input.time_slot || null;\nconst notes = input.notes || null;\n\nif (!supplementId) {\n  throw new Error('supplement_id is required');\n}\n\nif (!['taken', 'skipped'].includes(status)) {\n  throw new Error('status must be taken or skipped');\n}\n\nconst esc = (s) => (s || '').toString().replace(/'/g, \"''\");\n\nreturn {\n  supplementId,\n  status,\n  timeSlot: timeSlot ? `'${esc(timeSlot)}'` : 'NULL',\n  notes: notes ? `'${esc(notes)}'` : 'NULL'\n};"
+      },
+      "id": "validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT health.log_supplement_dose(\n  {{ $json.supplementId }},\n  '{{ $json.status }}',\n  {{ $json.timeSlot }},\n  {{ $json.notes }}\n) AS medication_id;",
+        "options": {}
+      },
+      "id": "log-dose",
+      "name": "Log Dose",
+      "type": "n8n-nodes-base.postgres",
+      "position": [680, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(*) FILTER (WHERE status = 'taken') AS taken_today,\n  COUNT(*) FILTER (WHERE status = 'skipped') AS skipped_today,\n  COUNT(*) FILTER (WHERE status = 'pending') AS pending_today\nFROM health.v_todays_supplements;",
+        "options": {}
+      },
+      "id": "get-summary",
+      "name": "Get Summary",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"medication_id\": {{ $('Log Dose').item.json.medication_id }},\n  \"summary\": {\n    \"taken_today\": {{ $json.taken_today }},\n    \"skipped_today\": {{ $json.skipped_today }},\n    \"pending_today\": {{ $json.pending_today }}\n  }\n}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1120, 300],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "Log Supplement Dose": {
+      "main": [[{ "node": "Validate Input", "type": "main", "index": 0 }]]
+    },
+    "Validate Input": {
+      "main": [[{ "node": "Log Dose", "type": "main", "index": 0 }]]
+    },
+    "Log Dose": {
+      "main": [[{ "node": "Get Summary", "type": "main", "index": 0 }]]
+    },
+    "Get Summary": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "nexus" }]
+}
