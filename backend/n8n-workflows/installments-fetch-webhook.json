@@ -17,7 +17,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  id,\n  source,\n  merchant,\n  total_amount,\n  installments_total,\n  installments_paid,\n  installment_amount,\n  currency,\n  purchase_date,\n  next_due_date,\n  final_due_date,\n  status,\n  (installments_total - installments_paid) as remaining_payments,\n  ((installments_total - installments_paid) * installment_amount) as remaining_amount\nFROM finance.scheduled_payments\nWHERE status = 'active'\nORDER BY next_due_date ASC NULLS LAST;",
+        "query": "SELECT * FROM finance.v_active_installments;",
         "options": {}
       },
       "id": "get-active",
