@@ -556,9 +556,22 @@ class HealthKitManager: ObservableObject {
         var results: [String: Bool] = [:]
 
         // Sync weight
-        if let (weight, _) = try? await fetchLatestWeight() {
-            let response = try? await NexusAPI.shared.logWeight(kg: weight)
-            results["weight"] = response?.success ?? false
+        do {
+            if let (weight, _) = try await fetchLatestWeight() {
+                do {
+                    let response = try await NexusAPI.shared.logWeight(kg: weight)
+                    results["weight"] = response.success
+                    if !response.success {
+                        logger.warning("[HealthKit] Weight sync returned success=false")
+                    }
+                } catch {
+                    logger.error("[HealthKit] Weight sync failed: \(error.localizedDescription)")
+                    results["weight"] = false
+                }
+            }
+        } catch {
+            logger.error("[HealthKit] Failed to fetch weight: \(error.localizedDescription)")
+            results["weight"] = false
         }
 
         return results

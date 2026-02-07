@@ -183,7 +183,11 @@ struct RemindersView: View {
                     logger.info("Toggled reminder: \(reminder.reminderId)")
                     await loadReminders()
                     // Trigger sync to push to EventKit
-                    try? await syncService.syncAllData()
+                    do {
+                        try await syncService.syncAllData()
+                    } catch {
+                        logger.warning("Sync after toggle failed: \(error.localizedDescription)")
+                    }
                 }
             } catch {
                 logger.error("Failed to toggle reminder: \(error.localizedDescription)")
@@ -199,7 +203,11 @@ struct RemindersView: View {
                     logger.info("Deleted reminder: \(reminder.reminderId)")
                     await loadReminders()
                     // Trigger sync to delete from EventKit
-                    try? await syncService.syncAllData()
+                    do {
+                        try await syncService.syncAllData()
+                    } catch {
+                        logger.warning("Sync after delete failed: \(error.localizedDescription)")
+                    }
                 }
             } catch {
                 logger.error("Failed to delete reminder: \(error.localizedDescription)")

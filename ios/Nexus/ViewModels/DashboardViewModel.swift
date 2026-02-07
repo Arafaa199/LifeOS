@@ -351,16 +351,21 @@ class DashboardViewModel: ObservableObject {
 
     func confirmMeal(_ meal: InferredMeal, action: String) async {
         do {
-            _ = try await api.confirmMeal(
+            let response = try await api.confirmMeal(
                 mealDate: meal.mealDate,
                 mealTime: meal.mealTime,
                 mealType: meal.mealType,
                 action: action
             )
 
-            pendingMeals.removeAll { $0.id == meal.id }
+            if response.success {
+                pendingMeals.removeAll { $0.id == meal.id }
+            } else {
+                errorMessage = response.message ?? "Failed to save meal confirmation"
+            }
         } catch {
             errorMessage = "Failed to save meal confirmation"
+            logger.error("confirmMeal error: \(error.localizedDescription)")
         }
     }
 

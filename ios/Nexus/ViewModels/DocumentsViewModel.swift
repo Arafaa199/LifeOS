@@ -162,9 +162,14 @@ class DocumentsViewModel: ObservableObject {
     func deleteDocument(id: Int) async -> Bool {
         errorMessage = nil
         do {
-            let _: DeleteDocumentResponse = try await api.delete("/webhook/nexus-document?id=\(id)")
-            documents.removeAll { $0.id == id }
-            return true
+            let response: DeleteDocumentResponse = try await api.delete("/webhook/nexus-document?id=\(id)")
+            if response.success {
+                documents.removeAll { $0.id == id }
+                return true
+            } else {
+                errorMessage = response.message ?? "Failed to delete document"
+                return false
+            }
         } catch {
             errorMessage = error.localizedDescription
             return false
