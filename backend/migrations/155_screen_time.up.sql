@@ -1,3 +1,5 @@
+BEGIN;
+
 -- Migration 155: Screen Time tracking
 -- Data comes from iOS Shortcuts automation (daily POST to n8n webhook)
 
@@ -39,3 +41,8 @@ VALUES ('screen_time', '48:00:00')
 ON CONFLICT (source) DO NOTHING;
 
 COMMENT ON TABLE life.screen_time_daily IS 'Daily screen time data from iOS Shortcuts automation';
+
+INSERT INTO ops.schema_migrations (filename) VALUES ('155_screen_time.up.sql')
+ON CONFLICT (filename) DO NOTHING;
+
+COMMIT;
