@@ -1,5 +1,33 @@
 import AppIntents
 import Foundation
+import os
+
+// MARK: - Meal Type Enum for App Intents
+
+@available(iOS 17.0, *)
+enum MealTypeIntent: String, AppEnum, CaseIterable {
+    case breakfast = "breakfast"
+    case lunch = "lunch"
+    case dinner = "dinner"
+    case snack = "snack"
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation {
+        TypeDisplayRepresentation(name: "Meal Type")
+    }
+
+    static var caseDisplayRepresentations: [MealTypeIntent: DisplayRepresentation] {
+        [
+            .breakfast: DisplayRepresentation(title: "Breakfast", subtitle: "Morning meal"),
+            .lunch: DisplayRepresentation(title: "Lunch", subtitle: "Midday meal"),
+            .dinner: DisplayRepresentation(title: "Dinner", subtitle: "Evening meal"),
+            .snack: DisplayRepresentation(title: "Snack", subtitle: "Between meals")
+        ]
+    }
+
+    var displayName: String {
+        rawValue.capitalized
+    }
+}
 
 // MARK: - Quick Water Log Intent
 
@@ -197,34 +225,63 @@ struct BreakFastIntent: AppIntent {
 @available(iOS 17.0, *)
 struct LogFoodIntent: AppIntent {
     static var title: LocalizedStringResource = "Log Food"
-    static var description = IntentDescription("Quickly log a meal or snack")
+    static var description = IntentDescription("Log what you ate to Nexus")
+    static var openAppWhenRun: Bool = false
 
-    @Parameter(title: "Description")
+    @Parameter(title: "Food Description", description: "What did you eat?")
     var foodDescription: String
+
+    @Parameter(title: "Meal Type", description: "Which meal is this?", default: .snack)
+    var mealType: MealTypeIntent
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Log \(\.$foodDescription) as \(\.$mealType)")
+    }
 
     init() {
         self.foodDescription = ""
+        self.mealType = .snack
     }
 
-    init(foodDescription: String) {
+    init(foodDescription: String, mealType: MealTypeIntent = .snack) {
         self.foodDescription = foodDescription
+        self.mealType = mealType
     }
 
-    func perform() async throws -> some IntentResult {
-        guard !foodDescription.isEmpty else {
-            return .result(dialog: IntentDialog("Please provide a food description"))
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let logger = Logger(subsystem: "com.nexus", category: "LogFoodIntent")
+        let trimmed = foodDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmed.isEmpty else {
+            logger.warning("Empty food description")
+            return .result(dialog: "Please tell me what you ate")
         }
 
+        guard trimmed.count >= 2 else {
+            logger.warning("Description too short: \(trimmed)")
+            return .result(dialog: "Please provide more detail about what you ate")
+        }
+
+        logger.info("Logging '\(trimmed)' as \(mealType.rawValue)")
+
         do {
-            let response = try await NexusAPI.shared.logFood(foodDescription)
+            let response = try await NexusAPI.shared.logFood(
+                trimmed,
+                foodId: nil,
+                mealType: mealType.rawValue
+            )
 
             if response.success {
-                return .result(dialog: IntentDialog("Logged: \(foodDescription)"))
+                logger.info("Successfully logged food")
+                return .result(dialog: "Logged \(trimmed) as \(mealType.displayName)")
             } else {
-                return .result(dialog: IntentDialog("Failed to log food"))
+                let errorMsg = response.message ?? "Unknown error"
+                logger.error("API returned failure: \(errorMsg)")
+                return .result(dialog: "Failed to log food: \(errorMsg)")
             }
         } catch {
-            return .result(dialog: IntentDialog("Error: \(error.localizedDescription)"))
+            logger.error("Network error: \(error.localizedDescription)")
+            return .result(dialog: "Could not connect to Nexus: \(error.localizedDescription)")
         }
     }
 }
@@ -288,11 +345,13 @@ struct NexusAppShortcuts: AppShortcutsProvider {
             intent: LogFoodIntent(),
             phrases: [
                 "Log food in \(.applicationName)",
+                "Log \(\.$mealType) in \(.applicationName)",
                 "Add meal to \(.applicationName)",
-                "Track food in \(.applicationName)"
+                "Track food in \(.applicationName)",
+                "I ate in \(.applicationName)"
             ],
             shortTitle: "Log Food",
-            systemImageName: "fork.knife"
+            systemImageName: "leaf.fill"
         )
 
         // Mood logging
