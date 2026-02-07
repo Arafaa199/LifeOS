@@ -361,10 +361,10 @@ struct FastingResponse: Codable, Sendable {
     }
 
     // Convenience to get values from either top-level or result
-    var effectiveSuccess: Bool { success ?? result?.success ?? false }
-    var effectiveSessionId: Int? { sessionId ?? result?.sessionId }
-    var effectiveElapsedHours: Double? { elapsedHours ?? result?.elapsedHours }
-    var effectiveDurationHours: Double? { durationHours ?? result?.durationHours }
+    nonisolated var effectiveSuccess: Bool { success ?? result?.success ?? false }
+    nonisolated var effectiveSessionId: Int? { sessionId ?? result?.sessionId }
+    nonisolated var effectiveElapsedHours: Double? { elapsedHours ?? result?.elapsedHours }
+    nonisolated var effectiveDurationHours: Double? { durationHours ?? result?.durationHours }
 }
 
 struct FastingResult: Codable, Sendable {
