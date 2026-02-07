@@ -18,6 +18,7 @@ final class QuickActionManager: ObservableObject {
         case logWater = "com.nexus.quickaction.logwater"
         case logMood = "com.nexus.quickaction.logmood"
         case startFast = "com.nexus.quickaction.startfast"
+        case breakFast = "com.nexus.quickaction.breakfast"
 
         var shortcutItem: UIApplicationShortcutItem {
             switch self {
@@ -45,6 +46,14 @@ final class QuickActionManager: ObservableObject {
                     icon: UIApplicationShortcutIcon(systemImageName: "timer"),
                     userInfo: nil
                 )
+            case .breakFast:
+                return UIApplicationShortcutItem(
+                    type: rawValue,
+                    localizedTitle: "Break Fast",
+                    localizedSubtitle: "End fasting session",
+                    icon: UIApplicationShortcutIcon(systemImageName: "checkmark.circle"),
+                    userInfo: nil
+                )
             }
         }
     }
@@ -56,7 +65,8 @@ final class QuickActionManager: ObservableObject {
         UIApplication.shared.shortcutItems = [
             QuickActionType.logWater.shortcutItem,
             QuickActionType.logMood.shortcutItem,
-            QuickActionType.startFast.shortcutItem
+            QuickActionType.startFast.shortcutItem,
+            QuickActionType.breakFast.shortcutItem
         ]
     }
 
@@ -89,6 +99,8 @@ final class QuickActionManager: ObservableObject {
             break
         case .startFast:
             await executeStartFast()
+        case .breakFast:
+            await executeBreakFast()
         }
     }
 
@@ -109,6 +121,8 @@ final class QuickActionManager: ObservableObject {
         do {
             let response = try await NexusAPI.shared.startFast()
             if response.effectiveSuccess {
+                // Schedule fasting milestone notifications
+                await NotificationManager.shared.scheduleFastingMilestones(startTime: Date())
                 showNotification(title: "Fast Started", body: "Your fasting session has begun")
             } else {
                 let errorMsg = response.error ?? "Unknown error"
@@ -116,6 +130,28 @@ final class QuickActionManager: ObservableObject {
             }
         } catch {
             showNotification(title: "Failed", body: "Could not start fast")
+        }
+    }
+
+    private func executeBreakFast() async {
+        do {
+            let response = try await NexusAPI.shared.breakFast()
+            if response.effectiveSuccess {
+                // Cancel pending fasting notifications
+                await NotificationManager.shared.cancelFastingNotifications()
+                if let duration = response.effectiveDurationHours {
+                    let hours = Int(duration)
+                    let minutes = Int((duration - Double(hours)) * 60)
+                    showNotification(title: "Fast Complete", body: "Duration: \(hours)h \(minutes)m. Well done!")
+                } else {
+                    showNotification(title: "Fast Complete", body: "Your fast has ended")
+                }
+            } else {
+                let errorMsg = response.error ?? "Unknown error"
+                showNotification(title: "Break Fast Failed", body: errorMsg)
+            }
+        } catch {
+            showNotification(title: "Failed", body: "Could not break fast")
         }
     }
 

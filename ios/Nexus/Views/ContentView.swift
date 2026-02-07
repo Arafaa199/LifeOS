@@ -114,7 +114,7 @@ struct ContentView: View {
 
     private func handleQuickAction(_ action: QuickActionManager.QuickActionType) {
         switch action {
-        case .logWater, .startFast:
+        case .logWater, .startFast, .breakFast:
             // Execute in background - feedback via notification
             Task {
                 await quickActionManager.executePendingAction()

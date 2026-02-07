@@ -12,13 +12,48 @@ class NotificationManager {
     private var alertedBudgetsToday: Set<String> = []
     private var lastAlertResetDate: Date?
 
+    // Fasting milestone hours to notify
+    private let fastingMilestones: [Int] = [12, 16, 18, 20, 24]
+
     // MARK: - Notification Identifiers
 
     private enum NotificationID {
         static let budgetAlert = "com.nexus.budget-alert"
+        static let fastingMilestone = "com.nexus.fasting-milestone"
     }
 
-    private init() {}
+    // MARK: - Notification Categories
+
+    private enum NotificationCategory {
+        static let fasting = "FASTING_MILESTONE"
+    }
+
+    private init() {
+        registerCategories()
+    }
+
+    private func registerCategories() {
+        let breakFastAction = UNNotificationAction(
+            identifier: "BREAK_FAST",
+            title: "Break Fast",
+            options: [.foreground]
+        )
+
+        let continueAction = UNNotificationAction(
+            identifier: "CONTINUE_FAST",
+            title: "Keep Going",
+            options: []
+        )
+
+        let fastingCategory = UNNotificationCategory(
+            identifier: NotificationCategory.fasting,
+            actions: [continueAction, breakFastAction],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        center.setNotificationCategories([fastingCategory])
+    }
 
     // MARK: - Permission
 
@@ -116,6 +151,82 @@ class NotificationManager {
             alertedBudgetsToday.removeAll()
             lastAlertResetDate = Date()
             logger.debug("[notifications] reset daily alert tracking")
+        }
+    }
+
+    // MARK: - Fasting Notifications
+
+    /// Schedule notifications for fasting milestones when a fast starts
+    /// - Parameter startTime: When the fast began
+    func scheduleFastingMilestones(startTime: Date) async {
+        guard await isAuthorized else {
+            logger.debug("[notifications] skipping fasting schedule — not authorized")
+            return
+        }
+
+        // Cancel any existing fasting notifications first
+        await cancelFastingNotifications()
+
+        let now = Date()
+
+        for hours in fastingMilestones {
+            let milestoneTime = startTime.addingTimeInterval(TimeInterval(hours * 3600))
+
+            // Only schedule if milestone is in the future
+            guard milestoneTime > now else {
+                logger.debug("[notifications] skipping \(hours)h milestone — already passed")
+                continue
+            }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Fasting Milestone 🎉"
+            content.body = fastingMilestoneMessage(hours: hours)
+            content.sound = .default
+            content.categoryIdentifier = NotificationCategory.fasting
+            content.threadIdentifier = "fasting"
+            content.userInfo = [
+                "type": "fasting_milestone",
+                "hours": hours
+            ]
+
+            let trigger = UNTimeIntervalNotificationTrigger(
+                timeInterval: milestoneTime.timeIntervalSince(now),
+                repeats: false
+            )
+
+            let identifier = "\(NotificationID.fastingMilestone)-\(hours)h"
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+
+            do {
+                try await center.add(request)
+                logger.info("[notifications] scheduled fasting milestone: \(hours)h at \(milestoneTime)")
+            } catch {
+                logger.error("[notifications] failed to schedule fasting milestone: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Cancel all pending fasting notifications (called when fast ends)
+    func cancelFastingNotifications() async {
+        let identifiers = fastingMilestones.map { "\(NotificationID.fastingMilestone)-\($0)h" }
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        logger.debug("[notifications] cancelled fasting notifications")
+    }
+
+    private func fastingMilestoneMessage(hours: Int) -> String {
+        switch hours {
+        case 12:
+            return "You've been fasting for 12 hours! Fat burning is ramping up."
+        case 16:
+            return "16 hours! Autophagy is kicking in. Great progress!"
+        case 18:
+            return "18 hours of fasting! Your body is in deep ketosis."
+        case 20:
+            return "20 hours! You're in the optimization zone. Amazing discipline!"
+        case 24:
+            return "24 hours! A full day of fasting. Incredible achievement!"
+        default:
+            return "You've been fasting for \(hours) hours. Keep going!"
         }
     }
 

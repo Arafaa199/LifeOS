@@ -372,12 +372,18 @@ class DashboardViewModel: ObservableObject {
     // MARK: - Fasting
 
     func startFast() async throws {
-        _ = try await api.startFast()
+        let response = try await api.startFast()
+        if response.effectiveSuccess {
+            // Schedule fasting milestone notifications
+            await NotificationManager.shared.scheduleFastingMilestones(startTime: Date())
+        }
         await refresh()
     }
 
     func breakFast() async throws {
         _ = try await api.breakFast()
+        // Cancel any pending fasting notifications
+        await NotificationManager.shared.cancelFastingNotifications()
         await refresh()
     }
 
