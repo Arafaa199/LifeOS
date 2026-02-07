@@ -2195,31 +2195,32 @@ Lane: safe_auto
 ### TASK-PLAN.2: Add Music Listening Summary to Dashboard Payload
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Music data flows to `life.listening_events` but isn't surfaced in the dashboard. Add a `music_today` key to `dashboard.get_payload()` showing today's listening stats (tracks played, total minutes, top artist) so the iOS app can display it.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/158_music_dashboard.up.sql`
 - `backend/migrations/158_music_dashboard.down.sql`
 - `ios/Nexus/Models/DashboardPayload.swift`
 
-**Implementation:**
-- Create `life.v_daily_music_summary` VIEW: day (Dubai tz), tracks_played, total_minutes, unique_artists, top_artist, top_album
-- Add `music_today` key to `dashboard.get_payload()`: `COALESCE((SELECT row_to_json(m) FROM life.v_daily_music_summary m WHERE m.day = target), '{"tracks_played":0,"total_minutes":0}'::jsonb)`
-- Schema version bump 13 → 14
-- iOS: Add optional `MusicSummary` struct to `DashboardPayload.swift` (tracks_played, total_minutes, top_artist)
+**Fix Applied:**
+- Created `life.v_daily_music_summary` VIEW: day (Dubai tz), tracks_played, total_minutes, unique_artists, top_artist (by frequency), top_album (by frequency)
+- Added `music_today` key to `dashboard.get_payload()` with zero-value fallback
+- Schema version bumped 13 → 14
+- iOS: Added `MusicSummary` Codable struct (tracksPlayed, totalMinutes, uniqueArtists, topArtist, topAlbum) with `hasActivity` computed property
+- Added `musicToday: MusicSummary?` optional field to DashboardPayload with decode/encode support
 
 **Verification:**
-- [ ] `SELECT (dashboard.get_payload())->'music_today';` — returns JSON with tracks_played key
-- [ ] `SELECT (dashboard.get_payload())->>'schema_version';` — returns '14'
-- [ ] `xcodebuild -scheme Nexus build` succeeds
-- [ ] Down migration reverts to schema v13, removes music_today key
+- [x] `SELECT (dashboard.get_payload())->'music_today';` — returns `{"top_album": null, "top_artist": null, "total_minutes": 0, "tracks_played": 0, "unique_artists": 0}`
+- [x] `SELECT (dashboard.get_payload())->>'schema_version';` — returns '14'
+- [x] `xcodebuild -scheme Nexus build` succeeds → BUILD SUCCEEDED
+- [x] Down migration reverts to schema v13, removes music_today key ✓
 
 **Exit Criteria:**
-- [ ] `SELECT (dashboard.get_payload())->'music_today' IS NOT NULL;` returns true
-- [ ] `grep 'MusicSummary\|musicToday' ios/Nexus/Models/DashboardPayload.swift` returns matches
+- [x] `SELECT (dashboard.get_payload())->'music_today' IS NOT NULL;` returns true
+- [x] `grep 'MusicSummary\|musicToday' ios/Nexus/Models/DashboardPayload.swift` returns 5 matches
 
 **Done Means:** Dashboard payload includes today's music listening summary, decodable by iOS app.
 

@@ -20,6 +20,7 @@ struct DashboardPayload: Codable {
     let fasting: FastingStatus?
     let medicationsToday: MedicationsSummary?
     let streaks: Streaks?
+    let musicToday: MusicSummary?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -37,6 +38,7 @@ struct DashboardPayload: Codable {
         case fasting
         case medicationsToday = "medications_today"
         case streaks
+        case musicToday = "music_today"
         // Top-level flat fields (fallback when meta object is missing)
         case schemaVersion = "schema_version"
         case generatedAt = "generated_at"
@@ -86,6 +88,7 @@ struct DashboardPayload: Codable {
         fasting = try container.decodeIfPresent(FastingStatus.self, forKey: .fasting)
         medicationsToday = try container.decodeIfPresent(MedicationsSummary.self, forKey: .medicationsToday)
         streaks = try container.decodeIfPresent(Streaks.self, forKey: .streaks)
+        musicToday = try container.decodeIfPresent(MusicSummary.self, forKey: .musicToday)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -105,6 +108,7 @@ struct DashboardPayload: Codable {
         try container.encodeIfPresent(fasting, forKey: .fasting)
         try container.encodeIfPresent(medicationsToday, forKey: .medicationsToday)
         try container.encodeIfPresent(streaks, forKey: .streaks)
+        try container.encodeIfPresent(musicToday, forKey: .musicToday)
     }
 }
 
@@ -816,6 +820,26 @@ struct StreakData: Codable {
 
     /// True if currently at personal best
     var isAtBest: Bool { current > 0 && current >= best }
+}
+
+// MARK: - Music Summary
+
+struct MusicSummary: Codable {
+    let tracksPlayed: Int
+    let totalMinutes: Double
+    let uniqueArtists: Int
+    let topArtist: String?
+    let topAlbum: String?
+
+    enum CodingKeys: String, CodingKey {
+        case tracksPlayed = "tracks_played"
+        case totalMinutes = "total_minutes"
+        case uniqueArtists = "unique_artists"
+        case topArtist = "top_artist"
+        case topAlbum = "top_album"
+    }
+
+    var hasActivity: Bool { tracksPlayed > 0 }
 }
 
 // MARK: - Explain Today
