@@ -2,7 +2,7 @@
 
 > **Single Source of Truth** for all API endpoint contracts.
 >
-> Last Updated: 2026-02-09 | Schema Version: v16
+> Last Updated: 2026-02-09 | Schema Version: v17
 
 ## Directory Structure
 
@@ -127,6 +127,7 @@ All error responses follow this shape:
 
 | Date | Change |
 |------|--------|
+| 2026-02-09 | Schema v17: Added `deep_sleep_minutes`, `rem_sleep_minutes` to dashboard today_facts (was missing from API) |
 | 2026-02-09 | **JSON Schema rewrite**: Rewrote all 17 response schemas to JSON Schema draft 2020-12; created 26 new request schemas for POST/PUT/DELETE endpoints |
 | 2026-02-09 | Added Error Response Contract with standard error codes; added Error Responses to all endpoints |
 | 2026-02-09 | Path alignment: iOS `nexus-summary` → `nexus-dashboard-today`; contracts updated for `nexus-fast-*`, `nexus-supplement`, `nexus-create-correction` |
