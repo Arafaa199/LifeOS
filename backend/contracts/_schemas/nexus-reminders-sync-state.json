@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-reminders-sync-state.json",
+  "title": "Reminders Sync State Response",
+  "description": "Sync state for reminders",
+  "type": "object",
+  "required": ["success", "data"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "reminder_id", "sync_status"],
+        "properties": {
+          "id": { "type": "integer" },
+          "reminder_id": { "type": "string" },
+          "sync_status": { "type": "string", "enum": ["synced", "pending", "deleted", "conflict"] },
+          "last_synced_at": { "type": ["string", "null"], "format": "date-time" },
+          "eventkit_modified_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    }
+  }
+}

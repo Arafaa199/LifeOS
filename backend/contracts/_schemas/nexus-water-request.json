@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-water-request.json",
+  "title": "Water Log Request",
+  "description": "Log water intake",
+  "type": "object",
+  "required": ["amount_ml"],
+  "properties": {
+    "amount_ml": { "type": "integer", "minimum": 1, "maximum": 10000 }
+  }
+}

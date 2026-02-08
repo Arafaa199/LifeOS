@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-health-timeseries.json",
+  "title": "Health Timeseries Response",
+  "description": "Health metrics over time",
+  "type": "object",
+  "required": ["success", "data"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date"],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "recovery_score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+          "hrv": { "type": ["number", "null"] },
+          "rhr": { "type": ["integer", "null"] },
+          "strain": { "type": ["number", "null"] },
+          "sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+          "weight_kg": { "type": ["number", "null"] },
+          "steps": { "type": ["integer", "null"], "minimum": 0 }
+        }
+      }
+    }
+  }
+}

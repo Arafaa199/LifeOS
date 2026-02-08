@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-food-log-request.json",
+  "title": "Food Log Request",
+  "description": "Log food via natural language or food ID",
+  "type": "object",
+  "anyOf": [
+    { "required": ["text"] },
+    { "required": ["food_id"] }
+  ],
+  "properties": {
+    "text": { "type": ["string", "null"], "description": "Natural language food description" },
+    "food_id": { "type": ["integer", "null"], "description": "ID from food search" },
+    "meal_type": { "type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"] },
+    "source": { "type": "string", "default": "ios" }
+  }
+}

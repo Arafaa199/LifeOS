@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-music-events-request.json",
+  "title": "Music Events Request",
+  "description": "Log music listening events",
+  "type": "object",
+  "required": ["events"],
+  "properties": {
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["session_id", "track_title", "artist", "started_at"],
+        "properties": {
+          "session_id": { "type": "string", "format": "uuid" },
+          "track_title": { "type": "string" },
+          "artist": { "type": "string" },
+          "album": { "type": ["string", "null"] },
+          "duration_sec": { "type": ["integer", "null"], "minimum": 0 },
+          "apple_music_id": { "type": ["string", "null"] },
+          "started_at": { "type": "string", "format": "date-time" },
+          "ended_at": { "type": ["string", "null"], "format": "date-time" },
+          "source": { "type": "string", "enum": ["apple_music", "spotify"], "default": "apple_music" }
+        }
+      }
+    }
+  }
+}

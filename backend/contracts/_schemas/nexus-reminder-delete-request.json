@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-reminder-delete-request.json",
+  "title": "Reminder Delete Request",
+  "description": "Delete a reminder",
+  "type": "object",
+  "required": ["id"],
+  "properties": {
+    "id": { "type": "integer" },
+    "reminder_id": { "type": ["string", "null"], "description": "EventKit UUID" }
+  }
+}

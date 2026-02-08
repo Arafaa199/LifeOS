@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-supplement-log-request.json",
+  "title": "Supplement Log Request",
+  "description": "Log supplement intake",
+  "type": "object",
+  "required": ["supplement_id", "status"],
+  "properties": {
+    "supplement_id": { "type": "integer" },
+    "status": { "type": "string", "enum": ["taken", "skipped"] },
+    "time_slot": { "type": "string", "enum": ["morning", "afternoon", "evening", "night"] },
+    "notes": { "type": ["string", "null"] }
+  }
+}

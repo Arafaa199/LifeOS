@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-document-request.json",
+  "title": "Document Create Request",
+  "description": "Create a new document",
+  "type": "object",
+  "required": ["client_id", "doc_type", "label"],
+  "properties": {
+    "client_id": { "type": "string", "format": "uuid", "description": "Idempotency key" },
+    "doc_type": {
+      "type": "string",
+      "enum": ["passport", "national_id", "drivers_license", "visa", "residence_permit", "insurance", "card", "other"]
+    },
+    "label": { "type": "string", "minLength": 1 },
+    "issuer": { "type": ["string", "null"] },
+    "issuing_country": { "type": ["string", "null"], "minLength": 2, "maxLength": 2 },
+    "doc_number": { "type": ["string", "null"] },
+    "issue_date": { "type": ["string", "null"], "format": "date" },
+    "expiry_date": { "type": ["string", "null"], "format": "date" },
+    "notes": { "type": ["string", "null"] },
+    "reminders_enabled": { "type": "boolean", "default": true }
+  }
+}

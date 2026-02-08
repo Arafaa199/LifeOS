@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-document-renew-request.json",
+  "title": "Document Renew Request",
+  "description": "Renew a document with new expiry date",
+  "type": "object",
+  "required": ["id", "new_expiry_date"],
+  "properties": {
+    "id": { "type": "integer" },
+    "new_expiry_date": { "type": "string", "format": "date" },
+    "new_doc_number": { "type": ["string", "null"] },
+    "notes": { "type": ["string", "null"] }
+  }
+}

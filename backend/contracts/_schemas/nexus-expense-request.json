@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-expense-request.json",
+  "title": "Quick Expense Request",
+  "description": "Natural language expense logging",
+  "type": "object",
+  "required": ["text", "client_id"],
+  "properties": {
+    "text": { "type": "string", "minLength": 1, "description": "Natural language expense, e.g. 'Coffee 25 AED'" },
+    "client_id": { "type": "string", "format": "uuid", "description": "Idempotency key" }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-home-control-request.json",
+  "title": "Home Control Request",
+  "description": "Control a Home Assistant device",
+  "type": "object",
+  "required": ["action", "entity_id"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["toggle", "turn_on", "turn_off", "start", "stop", "return", "locate"]
+    },
+    "entity_id": { "type": "string", "pattern": "^[a-z_]+\\.[a-z0-9_]+$" },
+    "data": {
+      "type": ["object", "null"],
+      "properties": {
+        "brightness": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "color_temp": { "type": ["integer", "null"] },
+        "rgb_color": {
+          "type": ["array", "null"],
+          "items": { "type": "integer", "minimum": 0, "maximum": 255 },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    }
+  }
+}

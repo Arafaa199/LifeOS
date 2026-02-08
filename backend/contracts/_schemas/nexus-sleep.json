@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-sleep.json",
+  "title": "Sleep Response",
+  "description": "Sleep data for a specific date",
+  "type": "object",
+  "required": ["success", "date"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "date": { "type": "string", "format": "date" },
+    "sleep": {
+      "type": "object",
+      "properties": {
+        "sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "deep_sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "rem_sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "light_sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "sleep_efficiency": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "sleep_performance": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "respiratory_rate": { "type": ["number", "null"] },
+        "bedtime": { "type": ["string", "null"], "pattern": "^\\d{2}:\\d{2}$" },
+        "wake_time": { "type": ["string", "null"], "pattern": "^\\d{2}:\\d{2}$" }
+      }
+    }
+  }
+}

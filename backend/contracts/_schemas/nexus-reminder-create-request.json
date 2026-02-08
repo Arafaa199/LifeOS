@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-reminder-create-request.json",
+  "title": "Reminder Create Request",
+  "description": "Create a new reminder",
+  "type": "object",
+  "required": ["title"],
+  "properties": {
+    "title": { "type": "string", "minLength": 1 },
+    "notes": { "type": ["string", "null"] },
+    "due_date": { "type": ["string", "null"], "format": "date" },
+    "priority": { "type": ["integer", "null"], "minimum": 0, "maximum": 9 },
+    "list_name": { "type": ["string", "null"] }
+  }
+}

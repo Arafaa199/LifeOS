@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-income-request.json",
+  "title": "Income Request",
+  "description": "Log income",
+  "type": "object",
+  "required": ["source", "amount", "client_id"],
+  "properties": {
+    "source": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number", "minimum": 0 },
+    "category": { "type": ["string", "null"] },
+    "notes": { "type": ["string", "null"] },
+    "date": { "type": ["string", "null"], "format": "date" },
+    "is_recurring": { "type": "boolean", "default": false },
+    "client_id": { "type": "string", "format": "uuid", "description": "Idempotency key" }
+  }
+}

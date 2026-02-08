@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-notes-search.json",
+  "title": "Notes Search Response",
+  "description": "Obsidian notes search results",
+  "type": "object",
+  "required": ["success", "notes"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "relative_path", "title"],
+        "properties": {
+          "id": { "type": "integer" },
+          "relative_path": { "type": "string" },
+          "title": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "word_count": { "type": ["integer", "null"], "minimum": 0 },
+          "file_modified_at": { "type": ["string", "null"], "format": "date-time" },
+          "indexed_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    },
+    "count": { "type": "integer", "minimum": 0 }
+  }
+}

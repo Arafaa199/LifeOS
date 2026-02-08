@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-categories.json",
+  "title": "Categories Response",
+  "description": "Expense/income categories",
+  "type": "object",
+  "required": ["success", "data"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type"],
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "type": { "type": "string", "enum": ["expense", "income"] },
+          "icon": { "type": ["string", "null"] },
+          "color": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "is_active": { "type": "boolean" },
+          "display_order": { "type": ["integer", "null"] }
+        }
+      }
+    }
+  }
+}

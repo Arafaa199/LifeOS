@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-recurring-request.json",
+  "title": "Recurring Item Request",
+  "description": "Create a recurring item (bill, subscription)",
+  "type": "object",
+  "required": ["name", "amount", "type", "cadence"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number" },
+    "currency": { "type": "string", "default": "AED" },
+    "type": { "type": "string", "enum": ["expense", "income"] },
+    "cadence": { "type": "string", "enum": ["daily", "weekly", "monthly", "yearly"] },
+    "day_of_month": { "type": ["integer", "null"], "minimum": 1, "maximum": 31 },
+    "category_id": { "type": ["integer", "null"] },
+    "merchant_pattern": { "type": ["string", "null"] },
+    "auto_create": { "type": "boolean", "default": false },
+    "notes": { "type": ["string", "null"] }
+  }
+}

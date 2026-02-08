@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-meal-confirmation-request.json",
+  "title": "Meal Confirmation Request",
+  "description": "Confirm or adjust a pending meal",
+  "type": "object",
+  "required": ["meal_id", "confirmed"],
+  "properties": {
+    "meal_id": { "type": "integer" },
+    "confirmed": { "type": "boolean" },
+    "adjusted_calories": { "type": ["integer", "null"], "minimum": 0 }
+  }
+}

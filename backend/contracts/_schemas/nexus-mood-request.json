@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-mood-request.json",
+  "title": "Mood Log Request",
+  "description": "Log mood and energy levels",
+  "type": "object",
+  "required": ["mood", "energy"],
+  "properties": {
+    "mood": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "energy": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "notes": { "type": ["string", "null"] }
+  }
+}

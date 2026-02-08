@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ops-health.json",
+  "title": "Ops Health Response",
+  "description": "System health check results",
+  "type": "object",
+  "required": ["status", "checks", "timestamp"],
+  "properties": {
+    "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "checks": {
+      "type": "object",
+      "properties": {
+        "transactions": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
+            "last_transaction_at": { "type": ["string", "null"], "format": "date-time" },
+            "hours_since_last": { "type": ["number", "null"] }
+          }
+        },
+        "whoop": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
+            "last_sync_at": { "type": ["string", "null"], "format": "date-time" },
+            "hours_since_sync": { "type": ["number", "null"] }
+          }
+        },
+        "recurring_items": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
+            "active_count": { "type": ["integer", "null"] },
+            "due_soon_count": { "type": ["integer", "null"] }
+          }
+        },
+        "daily_facts": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
+            "latest_date": { "type": ["string", "null"], "format": "date" },
+            "days_since_latest": { "type": ["integer", "null"] }
+          }
+        },
+        "database": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
+            "connection_time_ms": { "type": ["number", "null"] },
+            "size_mb": { "type": ["number", "null"] }
+          }
+        }
+      }
+    }
+  }
+}

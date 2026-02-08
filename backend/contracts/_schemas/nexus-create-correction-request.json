@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-create-correction-request.json",
+  "title": "Transaction Correction Request",
+  "description": "Create a transaction correction",
+  "type": "object",
+  "required": ["transaction_id", "reason"],
+  "properties": {
+    "transaction_id": { "type": "integer" },
+    "amount": { "type": ["number", "null"] },
+    "category": { "type": ["string", "null"] },
+    "merchant_name": { "type": ["string", "null"] },
+    "date": { "type": ["string", "null"], "format": "date" },
+    "reason": {
+      "type": "string",
+      "enum": ["wrong_category", "wrong_amount", "wrong_merchant", "wrong_date", "duplicate", "other"]
+    },
+    "notes": { "type": ["string", "null"] },
+    "created_by": { "type": "string", "default": "ios_app" }
+  }
+}

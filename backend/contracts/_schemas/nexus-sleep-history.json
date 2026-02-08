@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-sleep-history.json",
+  "title": "Sleep History Response",
+  "description": "Sleep history for multiple days",
+  "type": "object",
+  "required": ["success", "days"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date"],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+          "deep_sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+          "rem_sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+          "sleep_efficiency": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "recovery_score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 }
+        }
+      }
+    }
+  }
+}

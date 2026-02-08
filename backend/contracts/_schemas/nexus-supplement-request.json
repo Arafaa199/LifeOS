@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-supplement-request.json",
+  "title": "Supplement Create/Update Request",
+  "description": "Create or update a supplement (UPSERT)",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "id": { "type": ["integer", "null"], "description": "Include to update existing" },
+    "name": { "type": "string", "minLength": 1 },
+    "brand": { "type": ["string", "null"] },
+    "dose_amount": { "type": ["number", "null"], "minimum": 0 },
+    "dose_unit": { "type": ["string", "null"], "enum": ["mg", "g", "mcg", "IU", "ml", "capsule", "tablet"] },
+    "frequency": { "type": "string", "enum": ["daily", "weekly", "as_needed"], "default": "daily" },
+    "times_of_day": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["morning", "afternoon", "evening", "night"] }
+    },
+    "category": { "type": "string", "enum": ["vitamin", "mineral", "supplement", "medication"], "default": "supplement" },
+    "notes": { "type": ["string", "null"] },
+    "active": { "type": "boolean", "default": true }
+  }
+}

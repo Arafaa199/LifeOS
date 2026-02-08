@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-weight-request.json",
+  "title": "Weight Log Request",
+  "description": "Log weight measurement",
+  "type": "object",
+  "required": ["weight_kg"],
+  "properties": {
+    "weight_kg": { "type": "number", "minimum": 20, "maximum": 500 }
+  }
+}

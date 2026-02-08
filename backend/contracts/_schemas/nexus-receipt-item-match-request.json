@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-receipt-item-match-request.json",
+  "title": "Receipt Item Match Request",
+  "description": "Link a receipt item to a food",
+  "type": "object",
+  "required": ["item_id", "food_id"],
+  "properties": {
+    "item_id": { "type": "integer" },
+    "food_id": { "type": "integer" },
+    "is_user_confirmed": { "type": "boolean", "default": true }
+  }
+}

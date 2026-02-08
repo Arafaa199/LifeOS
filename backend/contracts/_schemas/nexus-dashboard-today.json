@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-dashboard-today.json",
+  "title": "Dashboard Today Response",
+  "description": "Complete dashboard payload for today",
+  "type": "object",
+  "required": ["meta", "today_facts"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["schema_version", "for_date"],
+      "properties": {
+        "schema_version": { "type": "integer", "minimum": 1 },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "for_date": { "type": "string", "format": "date" },
+        "timezone": { "type": "string" }
+      }
+    },
+    "today_facts": {
+      "type": "object",
+      "required": ["day"],
+      "properties": {
+        "day": { "type": "string", "format": "date" },
+        "recovery_score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "hrv": { "type": ["number", "null"] },
+        "rhr": { "type": ["integer", "null"] },
+        "sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "deep_sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "rem_sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
+        "sleep_efficiency": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "strain": { "type": ["number", "null"] },
+        "steps": { "type": ["integer", "null"], "minimum": 0 },
+        "weight_kg": { "type": ["number", "null"] },
+        "spend_total": { "type": ["number", "null"] },
+        "spend_groceries": { "type": ["number", "null"] },
+        "spend_restaurants": { "type": ["number", "null"] },
+        "income_total": { "type": ["number", "null"] },
+        "transaction_count": { "type": ["integer", "null"], "minimum": 0 },
+        "meals_logged": { "type": ["integer", "null"], "minimum": 0 },
+        "water_ml": { "type": ["integer", "null"], "minimum": 0 },
+        "calories_consumed": { "type": ["integer", "null"], "minimum": 0 },
+        "data_completeness": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "trends": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string" },
+          "avg_recovery": { "type": ["number", "null"] },
+          "avg_sleep_minutes": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "feed_status": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "feed": { "type": "string" },
+          "status": { "type": "string", "enum": ["healthy", "stale", "error"] },
+          "lastSync": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    },
+    "stale_feeds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "recent_events": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "daily_insights": {
+      "type": "object",
+      "properties": {
+        "ranked_insights": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string" },
+              "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "data_freshness": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["healthy", "stale", "error"] },
+          "last_sync": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    },
+    "fasting": {
+      "type": ["object", "null"],
+      "properties": {
+        "is_active": { "type": "boolean" },
+        "hours_since_meal": { "type": ["number", "null"] },
+        "last_meal_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "streaks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "current": { "type": "integer", "minimum": 0 },
+          "best": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "explain_today": {
+      "type": ["object", "null"],
+      "properties": {
+        "target_date": { "type": "string", "format": "date" },
+        "has_data": { "type": "boolean" },
+        "briefing": { "type": "string" },
+        "data_gaps": { "type": "array", "items": { "type": "string" } },
+        "data_completeness": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "medications_today": {
+      "type": ["object", "null"],
+      "properties": {
+        "due_today": { "type": "integer", "minimum": 0 },
+        "taken_today": { "type": "integer", "minimum": 0 },
+        "skipped_today": { "type": "integer", "minimum": 0 },
+        "adherence_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "music_today": {
+      "type": ["object", "null"],
+      "properties": {
+        "tracks_played": { "type": "integer", "minimum": 0 },
+        "total_minutes": { "type": "integer", "minimum": 0 },
+        "unique_artists": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "mood_today": {
+      "type": ["object", "null"],
+      "properties": {
+        "mood_score": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "energy_score": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "logged_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

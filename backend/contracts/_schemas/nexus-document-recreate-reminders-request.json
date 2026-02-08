@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-document-recreate-reminders-request.json",
+  "title": "Document Recreate Reminders Request",
+  "description": "Recreate reminders for a document",
+  "type": "object",
+  "required": ["id"],
+  "properties": {
+    "id": { "type": "integer" }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-workout-request.json",
+  "title": "Workout Log Request",
+  "description": "Log a workout",
+  "type": "object",
+  "required": ["date", "workout_type"],
+  "properties": {
+    "date": { "type": "string", "format": "date" },
+    "workout_type": {
+      "type": "string",
+      "enum": ["strength", "cardio", "cycling", "running", "swimming", "yoga", "hiit", "other"]
+    },
+    "name": { "type": ["string", "null"] },
+    "duration_min": { "type": ["integer", "null"], "minimum": 1 },
+    "calories_burned": { "type": ["integer", "null"], "minimum": 0 },
+    "avg_hr": { "type": ["integer", "null"], "minimum": 30, "maximum": 250 },
+    "max_hr": { "type": ["integer", "null"], "minimum": 30, "maximum": 250 },
+    "strain": { "type": ["number", "null"], "minimum": 0, "maximum": 21 },
+    "exercises": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "sets": { "type": ["integer", "null"], "minimum": 1 },
+          "reps": { "type": ["integer", "null"], "minimum": 1 },
+          "weight": { "type": ["number", "null"], "minimum": 0 },
+          "weight_unit": { "type": "string", "enum": ["kg", "lb"], "default": "kg" }
+        }
+      }
+    },
+    "distance_km": { "type": ["number", "null"], "minimum": 0 },
+    "notes": { "type": ["string", "null"] },
+    "source": { "type": "string", "enum": ["manual", "apple_watch", "whoop"], "default": "manual" },
+    "started_at": { "type": ["string", "null"], "format": "date-time" },
+    "ended_at": { "type": ["string", "null"], "format": "date-time" },
+    "external_id": { "type": ["string", "null"], "description": "HealthKit UUID for deduplication" }
+  }
+}

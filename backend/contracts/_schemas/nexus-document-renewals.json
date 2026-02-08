@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-document-renewals.json",
+  "title": "Document Renewals Response",
+  "description": "Renewal history for a document",
+  "type": "object",
+  "required": ["success", "data"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "document_id", "renewed_at"],
+        "properties": {
+          "id": { "type": "integer" },
+          "document_id": { "type": "integer" },
+          "previous_expiry_date": { "type": ["string", "null"], "format": "date" },
+          "new_expiry_date": { "type": "string", "format": "date" },
+          "previous_doc_number": { "type": ["string", "null"] },
+          "new_doc_number": { "type": ["string", "null"] },
+          "notes": { "type": ["string", "null"] },
+          "renewed_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

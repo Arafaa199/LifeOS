@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-universal-request.json",
+  "title": "Universal Log Request",
+  "description": "Natural language health/wellness logging",
+  "type": "object",
+  "required": ["text"],
+  "properties": {
+    "text": { "type": "string", "minLength": 1, "description": "Natural language input, e.g. 'Weight 75.5kg, feeling good today'" },
+    "source": { "type": "string", "default": "ios" },
+    "context": { "type": "string", "default": "auto" }
+  }
+}

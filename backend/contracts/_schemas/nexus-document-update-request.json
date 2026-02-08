@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-document-update-request.json",
+  "title": "Document Update Request",
+  "description": "Update an existing document",
+  "type": "object",
+  "required": ["id"],
+  "properties": {
+    "id": { "type": "integer" },
+    "label": { "type": ["string", "null"] },
+    "notes": { "type": ["string", "null"] },
+    "reminders_enabled": { "type": ["boolean", "null"] }
+  }
+}

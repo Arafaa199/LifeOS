@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "nexus-documents.json",
+  "title": "Documents Response",
+  "description": "All tracked documents",
+  "type": "object",
+  "required": ["success", "documents"],
+  "properties": {
+    "success": { "type": "boolean", "const": true },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "doc_type", "label"],
+        "properties": {
+          "id": { "type": "integer" },
+          "client_id": { "type": ["string", "null"], "format": "uuid" },
+          "doc_type": {
+            "type": "string",
+            "enum": ["passport", "national_id", "drivers_license", "visa", "residence_permit", "insurance", "card", "other"]
+          },
+          "label": { "type": "string" },
+          "issuer": { "type": ["string", "null"] },
+          "issuing_country": { "type": ["string", "null"], "minLength": 2, "maxLength": 2 },
+          "doc_number": { "type": ["string", "null"] },
+          "issue_date": { "type": ["string", "null"], "format": "date" },
+          "expiry_date": { "type": ["string", "null"], "format": "date" },
+          "notes": { "type": ["string", "null"] },
+          "reminders_enabled": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["active", "expired", "archived"] },
+          "days_until_expiry": { "type": ["integer", "null"] },
+          "urgency": {
+            "type": "string",
+            "enum": ["ok", "warning", "urgent", "critical", "expired"]
+          },
+          "renewal_count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "count": { "type": "integer", "minimum": 0 }
+  }
+}
