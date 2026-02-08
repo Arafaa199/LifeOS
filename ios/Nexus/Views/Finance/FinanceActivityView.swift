@@ -15,6 +15,59 @@ struct FinanceActivityView: View {
     @State private var showingDateRangePicker = false
     @State private var showingExport = false
     @State private var csvURL: URL?
+    @State private var transactionToDelete: Transaction?
+    @State private var showingDeleteConfirmation = false
+    @State private var groupingMode: GroupingMode = .byDay
+
+    enum GroupingMode: String, CaseIterable {
+        case byDay = "Day"
+        case byWeek = "Week"
+        case byCategory = "Category"
+
+        var icon: String {
+            switch self {
+            case .byDay: return "calendar"
+            case .byWeek: return "calendar.badge.clock"
+            case .byCategory: return "folder"
+            }
+        }
+    }
+
+    // MARK: - Sync Status Helpers
+
+    private var syncStatusColor: Color {
+        if viewModel.isOffline {
+            return NexusTheme.Colors.Semantic.amber
+        } else if viewModel.isLoading {
+            return NexusTheme.Colors.Semantic.blue
+        } else if let freshness = viewModel.financeFreshness, freshness.isStale {
+            return NexusTheme.Colors.Semantic.amber
+        } else {
+            return NexusTheme.Colors.Semantic.green
+        }
+    }
+
+    private var syncStatusIcon: String {
+        if viewModel.isOffline {
+            return "wifi.slash"
+        } else if viewModel.isLoading {
+            return "arrow.triangle.2.circlepath"
+        } else if let freshness = viewModel.financeFreshness, freshness.isStale {
+            return "clock"
+        } else {
+            return "checkmark.circle"
+        }
+    }
+
+    private var syncStatusTitle: String {
+        if viewModel.isOffline {
+            return "Offline Mode"
+        } else if viewModel.isLoading {
+            return "Syncing..."
+        } else {
+            return "Transactions"
+        }
+    }
 
     private var filteredTransactions: [Transaction] {
         let dateRange = selectedDateRange == .custom ?
@@ -55,64 +108,186 @@ struct FinanceActivityView: View {
     }
 
     private var groupedTransactions: [(String, [Transaction])] {
-        let grouped = Dictionary(grouping: filteredTransactions) { transaction -> String in
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            return formatter.string(from: transaction.date)
-        }
+        switch groupingMode {
+        case .byDay:
+            let grouped = Dictionary(grouping: filteredTransactions) { transaction -> String in
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM-dd"
+                return formatter.string(from: transaction.date)
+            }
+            return grouped.sorted { $0.key > $1.key }.map { (key, transactions) in
+                let displayDate = formatSectionDate(key)
+                return (displayDate, transactions.sorted { $0.date > $1.date })
+            }
 
-        return grouped.sorted { $0.key > $1.key }.map { (key, transactions) in
-            let displayDate = formatSectionDate(key)
-            return (displayDate, transactions.sorted { $0.date > $1.date })
+        case .byWeek:
+            let grouped = Dictionary(grouping: filteredTransactions) { transaction -> String in
+                let calendar = Calendar.current
+                let weekOfYear = calendar.component(.weekOfYear, from: transaction.date)
+                let year = calendar.component(.yearForWeekOfYear, from: transaction.date)
+                return "\(year)-W\(String(format: "%02d", weekOfYear))"
+            }
+            return grouped.sorted { $0.key > $1.key }.map { (key, transactions) in
+                let displayWeek = formatWeekLabel(key)
+                return (displayWeek, transactions.sorted { $0.date > $1.date })
+            }
+
+        case .byCategory:
+            let grouped = Dictionary(grouping: filteredTransactions) { transaction -> String in
+                transaction.category ?? "Uncategorized"
+            }
+            return grouped.sorted { $0.key < $1.key }.map { (category, transactions) in
+                let total = transactions.reduce(0) { $0 + abs($1.amount) }
+                let displayCategory = "\(category.capitalized) (\(formatCurrency(total, currency: AppSettings.shared.defaultCurrency)))"
+                return (displayCategory, transactions.sorted { $0.date > $1.date })
+            }
+        }
+    }
+
+    private func formatWeekLabel(_ weekKey: String) -> String {
+        // Parse "2024-W05" format
+        let parts = weekKey.split(separator: "-W")
+        guard parts.count == 2,
+              let year = Int(parts[0]),
+              let week = Int(parts[1]) else { return weekKey }
+
+        let calendar = Calendar.current
+        var components = DateComponents()
+        components.yearForWeekOfYear = year
+        components.weekOfYear = week
+        components.weekday = calendar.firstWeekday
+
+        guard let weekStart = calendar.date(from: components) else { return weekKey }
+        let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+
+        if calendar.component(.month, from: weekStart) == calendar.component(.month, from: weekEnd) {
+            // Same month: "Jan 1-7"
+            let endDay = DateFormatter()
+            endDay.dateFormat = "d"
+            return "\(formatter.string(from: weekStart))-\(endDay.string(from: weekEnd))"
+        } else {
+            // Different months: "Jan 28 - Feb 3"
+            return "\(formatter.string(from: weekStart)) - \(formatter.string(from: weekEnd))"
         }
     }
 
     var body: some View {
         List {
-            // Freshness indicator
+            // Sync status indicator
             Section {
-                HStack(spacing: 6) {
-                    if let freshness = viewModel.financeFreshness {
+                HStack(spacing: 10) {
+                    // Status icon
+                    ZStack {
                         Circle()
-                            .fill(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
-                            .frame(width: 6, height: 6)
-                        Text(freshness.syncTimeLabel)
-                            .font(.caption)
-                            .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : .secondary)
-                    } else if let lastUpdated = viewModel.lastUpdated,
-                              Date().timeIntervalSince(lastUpdated) > 300 || viewModel.isOffline {
-                        Circle()
-                            .fill(viewModel.isOffline ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
-                            .frame(width: 6, height: 6)
-                        Text("Updated \(lastUpdated, style: .relative) ago")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    if viewModel.isOffline {
-                        Text("(Offline)")
-                            .font(.caption)
-                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
-                    }
-                    Spacer()
-                }
-            }
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            .fill(syncStatusColor.opacity(0.15))
+                            .frame(width: 28, height: 28)
 
-            // Date range selector
-            Section {
-                Button(action: { showingDateRangePicker = true }) {
-                    HStack {
-                        Image(systemName: "calendar")
-                            .foregroundColor(NexusTheme.Colors.Semantic.green)
-                        Text(selectedDateRange.displayName)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else {
+                            Image(systemName: syncStatusIcon)
+                                .font(.caption)
+                                .foregroundColor(syncStatusColor)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(syncStatusTitle)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(viewModel.isOffline ? NexusTheme.Colors.Semantic.amber : .primary)
+
+                        if let freshness = viewModel.financeFreshness {
+                            Text(freshness.syncTimeLabel)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else if let lastUpdated = viewModel.lastUpdated {
+                            Text("Updated \(lastUpdated, style: .relative) ago")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    // Queued items badge
+                    if viewModel.queuedCount > 0 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.circle")
+                                .font(.caption)
+                            Text("\(viewModel.queuedCount) pending")
+                                .font(.caption)
+                        }
+                        .foregroundColor(NexusTheme.Colors.Semantic.blue)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(NexusTheme.Colors.Semantic.blue.opacity(0.12))
+                        .cornerRadius(NexusTheme.Radius.xs)
                     }
                 }
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(viewModel.isOffline ? NexusTheme.Colors.Semantic.amber.opacity(0.08) : Color.clear)
+
+            // Date range and grouping controls
+            Section {
+                HStack(spacing: 16) {
+                    // Date range button
+                    Button(action: { showingDateRangePicker = true }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar")
+                                .foregroundColor(NexusTheme.Colors.Semantic.green)
+                                .font(.subheadline)
+                            Text(selectedDateRange.displayName)
+                                .font(.subheadline)
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.secondary)
+                                .font(.caption2)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(NexusTheme.Colors.cardAlt)
+                        .cornerRadius(NexusTheme.Radius.sm)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+
+                    // Grouping mode picker
+                    Menu {
+                        ForEach(GroupingMode.allCases, id: \.self) { mode in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    groupingMode = mode
+                                }
+                            } label: {
+                                Label(mode.rawValue, systemImage: mode.icon)
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: groupingMode.icon)
+                                .foregroundColor(NexusTheme.Colors.accent)
+                                .font(.subheadline)
+                            Text("Group: \(groupingMode.rawValue)")
+                                .font(.subheadline)
+                            Image(systemName: "chevron.down")
+                                .foregroundColor(.secondary)
+                                .font(.caption2)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(NexusTheme.Colors.cardAlt)
+                        .cornerRadius(NexusTheme.Radius.sm)
+                    }
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
 
             // Category filters
             if !categories.isEmpty {
@@ -141,6 +316,37 @@ struct FinanceActivityView: View {
                 .listRowInsets(EdgeInsets())
             }
 
+            // Transaction summary header
+            if !filteredTransactions.isEmpty {
+                Section {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(filteredTransactions.count) transactions")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text(selectedDateRange.displayName)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        VStack(alignment: .trailing, spacing: 2) {
+                            let totalSpent = filteredTransactions.filter { $0.amount < 0 }.reduce(0) { $0 + abs($1.amount) }
+                            Text(formatCurrency(totalSpent, currency: AppSettings.shared.defaultCurrency))
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(NexusTheme.Colors.Semantic.red)
+                            Text("total spent")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(NexusTheme.Colors.card)
+            }
+
             // Transactions grouped by date
             ForEach(groupedTransactions, id: \.0) { dateString, transactions in
                 Section(header: Text(dateString)) {
@@ -151,6 +357,21 @@ struct FinanceActivityView: View {
                             ActivityTransactionRow(transaction: transaction)
                         }
                         .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                transactionToDelete = transaction
+                                showingDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+
+                            Button {
+                                selectedTransaction = transaction
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(NexusTheme.Colors.Semantic.blue)
+                        }
                     }
                 }
             }
@@ -158,20 +379,37 @@ struct FinanceActivityView: View {
             // Empty state
             if filteredTransactions.isEmpty {
                 Section {
-                    VStack(spacing: 12) {
-                        Image(systemName: "tray")
-                            .font(.system(size: 40))
-                            .foregroundColor(.secondary)
-                        Text("No transactions")
-                            .font(.headline)
-                        Text(searchText.isEmpty && selectedCategory == nil ?
-                             "Transactions will appear here" :
-                             "Try adjusting your filters")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    ThemeEmptyState(
+                        icon: "tray",
+                        headline: "No Transactions",
+                        description: searchText.isEmpty && selectedCategory == nil
+                            ? "Transactions will appear here once recorded."
+                            : "Try adjusting your filters."
+                    )
+                }
+                .listRowBackground(Color.clear)
+            }
+
+            // Pagination - manual button only (no auto-load on appear)
+            if viewModel.hasMoreTransactions && !filteredTransactions.isEmpty {
+                Section {
+                    HStack {
+                        Spacer()
+                        if viewModel.isLoadingMore {
+                            ProgressView()
+                                .accessibilityLabel("Loading more transactions")
+                        } else {
+                            Button("Load More") {
+                                Task {
+                                    await viewModel.loadMoreTransactions()
+                                }
+                            }
+                            .accessibilityLabel("Load more transactions")
+                            .accessibilityHint("Double tap to load additional transactions")
+                        }
+                        Spacer()
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 40)
+                    .frame(minHeight: 44)
                 }
             }
         }
@@ -202,6 +440,23 @@ struct FinanceActivityView: View {
         .sheet(isPresented: $showingExport) {
             if let url = csvURL {
                 ShareSheet(items: [url])
+            }
+        }
+        .alert("Delete Transaction", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                transactionToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let transaction = transactionToDelete, let id = transaction.id {
+                    Task {
+                        await viewModel.deleteTransaction(id: id)
+                    }
+                }
+                transactionToDelete = nil
+            }
+        } message: {
+            if let transaction = transactionToDelete {
+                Text("Are you sure you want to delete \"\(transaction.merchantName)\" for \(formatCurrency(abs(transaction.amount), currency: transaction.currency))?")
             }
         }
     }

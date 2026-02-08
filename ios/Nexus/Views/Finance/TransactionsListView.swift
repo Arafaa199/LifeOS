@@ -68,6 +68,8 @@ struct TransactionsListView: View {
                             .font(.caption)
                     }
                 }
+                .accessibilityLabel("Date range filter")
+                .accessibilityHint("Currently showing \(selectedDateRange.displayName). Double tap to change date range")
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
 
@@ -80,6 +82,8 @@ struct TransactionsListView: View {
                                 isSelected: selectedCategory == nil,
                                 action: { selectedCategory = nil }
                             )
+                            .accessibilityLabel("All categories filter")
+                            .accessibilityHint("Tap to show all transactions")
 
                             ForEach(categories, id: \.self) { category in
                                 FilterChip(
@@ -89,31 +93,74 @@ struct TransactionsListView: View {
                                         selectedCategory = selectedCategory == category ? nil : category
                                     }
                                 )
+                                .accessibilityLabel("\(category) category filter")
+                                .accessibilityHint("Tap to filter transactions by \(category)")
                             }
                         }
                         .padding(.horizontal, 4)
                     }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Category filters")
                 }
                 .listRowInsets(EdgeInsets())
             }
 
-            Section {
-                ForEach(filteredTransactions) { transaction in
-                    Button(action: {
-                        selectedTransaction = transaction
-                    }) {
-                        TransactionRow(transaction: transaction)
-                    }
-                    .buttonStyle(.plain)
+            if filteredTransactions.isEmpty {
+                Section {
+                    ThemeEmptyState(
+                        icon: "doc.text",
+                        headline: "No Transactions Found",
+                        description: searchText.isEmpty && selectedCategory == nil
+                            ? "Transactions will appear here once recorded."
+                            : "No transactions match your filters. Try adjusting your search or date range."
+                    )
                 }
-            } header: {
-                if !searchText.isEmpty || selectedCategory != nil {
-                    Text("\(filteredTransactions.count) transaction(s)")
+                .listRowBackground(Color.clear)
+            } else {
+                Section {
+                    ForEach(filteredTransactions) { transaction in
+                        Button(action: {
+                            selectedTransaction = transaction
+                        }) {
+                            TransactionRow(transaction: transaction)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(transaction.merchantName), \(formatTransactionAmount(transaction.amount, currency: transaction.currency)), \(transaction.category ?? "Uncategorized")")
+                        .accessibilityHint("Double tap to view transaction details")
+                    }
+                } header: {
+                    if !searchText.isEmpty || selectedCategory != nil {
+                        Text("\(filteredTransactions.count) transaction(s)")
+                    }
                 }
             }
-        }
+
+                // Pagination trigger — manual button only (no auto-load on appear)
+                if viewModel.hasMoreTransactions && !filteredTransactions.isEmpty {
+                    Section {
+                        HStack {
+                            Spacer()
+                            if viewModel.isLoadingMore {
+                                ProgressView()
+                                    .accessibilityLabel("Loading more transactions")
+                            } else {
+                                Button("Load More") {
+                                    Task {
+                                        await viewModel.loadMoreTransactions()
+                                    }
+                                }
+                                .accessibilityLabel("Load more transactions")
+                                .accessibilityHint("Double tap to load additional transactions")
+                            }
+                            Spacer()
+                        }
+                        .frame(minHeight: 44)
+                    }
+                }
+            }
         .listStyle(.plain)
         .searchable(text: $searchText, prompt: "Search transactions")
+        .accessibilityLabel("Search transactions by merchant, category, or notes")
         .refreshable {
             await viewModel.refresh()
         }
@@ -122,6 +169,8 @@ struct TransactionsListView: View {
                 Button(action: exportToCSV) {
                     Image(systemName: "square.and.arrow.up")
                 }
+                .accessibilityLabel("Export transactions")
+                .accessibilityHint("Double tap to export transactions as CSV file")
                 .disabled(viewModel.recentTransactions.isEmpty)
             }
         }
@@ -183,5 +232,9 @@ struct TransactionsListView: View {
             return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
         }
         return field
+    }
+
+    private func formatTransactionAmount(_ amount: Double, currency: String) -> String {
+        String(format: "%.2f %@", abs(amount), currency)
     }
 }

@@ -16,10 +16,6 @@ class FinanceViewModel: ObservableObject {
     @Published var hasMoreTransactions = true
     @Published var isLoadingMore = false
 
-    // MARK: - Planned Features (API not yet implemented)
-    @Published var activeDebts: [Debt] = []
-    @Published var wishlistItems: [WishlistItem] = []
-    @Published var cashflowProjection: [CashflowMonth] = []
     @Published var pendingMessage: String?  // Shows when item queued locally but not synced
     @Published var queuedCount = 0
     @Published var lastUpdated: Date?
@@ -256,6 +252,7 @@ class FinanceViewModel: ObservableObject {
 
         // Only update UI totals when server confirms
         if let response = response, response.success {
+            pendingMessage = nil  // Clear pending message on success
             if let data = response.data {
                 if let totalSpent = data.totalSpent {
                     summary.totalSpent = totalSpent
@@ -353,6 +350,7 @@ class FinanceViewModel: ObservableObject {
         }
 
         // Only update summary when server confirms
+        pendingMessage = nil  // Clear pending message on success
         let spentAmount = abs(amount)
         summary.totalSpent += spentAmount
         if category == "Grocery" {
@@ -461,6 +459,7 @@ class FinanceViewModel: ObservableObject {
             return true
         }
 
+        pendingMessage = nil  // Clear pending message on success
         generator.notificationOccurred(.success)
 
         // Refresh in background, don't block success
@@ -488,6 +487,7 @@ class FinanceViewModel: ObservableObject {
             }
 
             // Check if intervals are similar (within 7 days tolerance)
+            guard !intervals.isEmpty else { continue }
             let avgInterval = intervals.reduce(0, +) / Double(intervals.count)
             let isRecurring = intervals.allSatisfy { abs($0 - avgInterval) < 7 * 24 * 60 * 60 }
 
@@ -714,116 +714,3 @@ struct RecurringPattern: Identifiable {
     }
 }
 
-// MARK: - Planned Feature Models (API not yet implemented)
-
-struct Debt: Identifiable, Codable {
-    let id: Int
-    let name: String
-    let totalAmount: Double
-    let remainingAmount: Double
-    let monthlyPayment: Double?
-    let interestRate: Double?
-    let dueDate: String?
-    let isActive: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case id, name
-        case totalAmount = "total_amount"
-        case remainingAmount = "remaining_amount"
-        case monthlyPayment = "monthly_payment"
-        case interestRate = "interest_rate"
-        case dueDate = "due_date"
-        case isActive = "is_active"
-    }
-}
-
-struct CreateDebtRequest: Codable {
-    let name: String
-    let totalAmount: Double
-    let remainingAmount: Double
-    let monthlyPayment: Double?
-    let interestRate: Double?
-    let dueDate: String?
-
-    enum CodingKeys: String, CodingKey {
-        case name
-        case totalAmount = "total_amount"
-        case remainingAmount = "remaining_amount"
-        case monthlyPayment = "monthly_payment"
-        case interestRate = "interest_rate"
-        case dueDate = "due_date"
-    }
-}
-
-struct WishlistItem: Identifiable, Codable {
-    let id: Int
-    let name: String
-    let estimatedCost: Double
-    let priority: Int?
-    let notes: String?
-    let targetDate: String?
-    let url: String?
-    let status: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, name, priority, notes, url, status
-        case estimatedCost = "estimated_cost"
-        case targetDate = "target_date"
-    }
-
-    var statusIcon: String {
-        switch status?.lowercased() {
-        case "purchased": return "checkmark.circle.fill"
-        case "saved": return "bookmark.fill"
-        default: return "star"
-        }
-    }
-}
-
-struct CreateWishlistRequest: Codable {
-    let name: String
-    let estimatedCost: Double
-    let currency: String?
-    let priority: Int?
-    let targetDate: String?
-    let url: String?
-    let notes: String?
-
-    enum CodingKeys: String, CodingKey {
-        case name, priority, notes, url, currency
-        case estimatedCost = "estimated_cost"
-        case targetDate = "target_date"
-    }
-}
-
-struct CashflowMonth: Identifiable, Codable {
-    var id: String { month }
-    let month: String
-    let projectedIncome: Double
-    let projectedExpenses: Double
-    let projectedNet: Double
-    let cumulativeSavings: Double?
-    let activeDebtsRemaining: Double?
-
-    enum CodingKeys: String, CodingKey {
-        case month
-        case projectedIncome = "projected_income"
-        case projectedExpenses = "projected_expenses"
-        case projectedNet = "projected_net"
-        case cumulativeSavings = "cumulative_savings"
-        case activeDebtsRemaining = "active_debts_remaining"
-    }
-
-    var isPositiveNet: Bool { projectedNet >= 0 }
-
-    var monthLabel: String {
-        // Parse "2026-02" format and return "Feb 2026"
-        let parts = month.split(separator: "-")
-        guard parts.count == 2,
-              let monthNum = Int(parts[1]) else { return month }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        let monthName = formatter.shortMonthSymbols[monthNum - 1]
-        return "\(monthName) \(parts[0])"
-    }
-}

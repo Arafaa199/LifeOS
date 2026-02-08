@@ -571,7 +571,7 @@ struct InsightsView: View {
             summary += "\nBudget status:\n"
             for budget in viewModel.summary.budgets {
                 let spent = budget.spent ?? 0
-                let percentage = (spent / budget.budgetAmount) * 100
+                let percentage = budget.budgetAmount > 0 ? (spent / budget.budgetAmount) * 100 : 0
                 summary += "- \(budget.category): \(String(format: "%.0f%%", percentage)) used\n"
             }
         }

@@ -180,12 +180,12 @@ struct BudgetCard: View {
     let budget: Budget
 
     private var progress: Double {
-        guard let spent = budget.spent else { return 0 }
+        guard let spent = budget.spent, budget.budgetAmount > 0 else { return 0 }
         return min(spent / budget.budgetAmount, 1.0)
     }
 
     private var isOverBudget: Bool {
-        guard let spent = budget.spent else { return false }
+        guard let spent = budget.spent, budget.budgetAmount > 0 else { return false }
         return spent > budget.budgetAmount
     }
 
@@ -256,12 +256,17 @@ struct FilterChip: View {
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        return controller
+    init(items: [Any]) {
+        self.items = items
     }
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
-        // No update needed
+    init(activityItems: [Any]) {
+        self.items = activityItems
     }
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
