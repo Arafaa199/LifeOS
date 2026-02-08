@@ -47,8 +47,11 @@
         "amount": { "type": "number" },
         "currency": { "type": "string", "default": "AED" },
         "category": { "type": ["string", "null"] },
+        "subcategory": { "type": ["string", "null"] },
         "is_grocery": { "type": "boolean" },
-        "is_restaurant": { "type": "boolean" }
+        "is_restaurant": { "type": "boolean" },
+        "notes": { "type": ["string", "null"] },
+        "tags": { "type": ["array", "null"], "items": { "type": "string" } }
       }
     },
     "budget": {

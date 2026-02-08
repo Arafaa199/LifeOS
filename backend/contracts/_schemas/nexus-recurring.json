@@ -18,11 +18,21 @@
           "amount": { "type": "number" },
           "currency": { "type": "string", "default": "AED" },
           "type": { "type": "string", "enum": ["expense", "income"] },
-          "cadence": { "type": "string", "enum": ["daily", "weekly", "monthly", "yearly"] },
+          "cadence": { "type": "string", "enum": ["daily", "weekly", "biweekly", "monthly", "quarterly", "yearly"] },
           "day_of_month": { "type": ["integer", "null"], "minimum": 1, "maximum": 31 },
+          "day_of_week": { "type": ["integer", "null"], "minimum": 0, "maximum": 6 },
           "next_due_date": { "type": ["string", "null"], "format": "date" },
+          "last_occurrence": { "type": ["string", "null"], "format": "date" },
+          "category_id": { "type": ["integer", "null"] },
+          "merchant_pattern": { "type": ["string", "null"] },
           "is_active": { "type": "boolean" },
-          "auto_create": { "type": "boolean" }
+          "auto_create": { "type": "boolean" },
+          "notes": { "type": ["string", "null"] },
+          "created_at": { "type": ["string", "null"], "format": "date-time" },
+          "updated_at": { "type": ["string", "null"], "format": "date-time" },
+          "category_name": { "type": ["string", "null"] },
+          "category_icon": { "type": ["string", "null"] },
+          "days_until_due": { "type": ["integer", "null"] }
         }
       }
     }

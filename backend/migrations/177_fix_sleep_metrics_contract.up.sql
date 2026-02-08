@@ -164,6 +164,11 @@ BEGIN
             'sleep_efficiency', facts_row.sleep_efficiency, 'strain', facts_row.strain,
             'weight_kg', COALESCE(facts_row.weight_kg, latest_weight),
             'spend_total', facts_row.spend_total,
+            -- Include finance fields in today_facts for iOS compatibility
+            'spend_groceries', COALESCE(facts_row.spend_groceries, 0),
+            'spend_restaurants', COALESCE(facts_row.spend_restaurants, 0),
+            'income_total', COALESCE(facts_row.income_total, 0),
+            'transaction_count', COALESCE(facts_row.transaction_count, 0),
             'spend_vs_7d', ROUND(((facts_row.spend_total - (SELECT AVG(spend_total) FROM life.daily_facts WHERE day BETWEEN the_date - 7 AND the_date - 1)) / NULLIF((SELECT AVG(spend_total) FROM life.daily_facts WHERE day BETWEEN the_date - 7 AND the_date - 1), 0) * 100)::numeric, 1),
             'spend_unusual', facts_row.spend_total > COALESCE((SELECT AVG(spend_total) + 2 * STDDEV(spend_total) FROM life.daily_facts WHERE day BETWEEN the_date - 30 AND the_date - 1), 9999),
             'meals_logged', COALESCE(facts_row.meals_logged, 0), 'water_ml', COALESCE(facts_row.water_ml, 0),

@@ -29,8 +29,11 @@ Fetches finance summary including today's spend, MTD totals, transactions, budge
         "amount": -45.00,
         "currency": "AED",
         "category": "Grocery",
+        "subcategory": null,
         "is_grocery": true,
-        "is_restaurant": false
+        "is_restaurant": false,
+        "notes": null,
+        "tags": []
       }
     ],
     "budgets": [
@@ -490,9 +493,19 @@ Fetches recurring items (bills, subscriptions).
       "type": "expense",
       "cadence": "monthly",
       "day_of_month": 15,
+      "day_of_week": null,
       "next_due_date": "2026-02-15",
+      "last_occurrence": "2026-01-15",
+      "category_id": 5,
+      "merchant_pattern": "NETFLIX",
       "is_active": true,
-      "auto_create": false
+      "auto_create": false,
+      "notes": null,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2026-01-15T12:00:00Z",
+      "category_name": "Entertainment",
+      "category_icon": "tv.fill",
+      "days_until_due": 7
     }
   ]
 }
@@ -505,6 +518,7 @@ Fetches recurring items (bills, subscriptions).
 | iOS Model | `FinanceModels.swift` → `RecurringItemsResponse`, `RecurringItem` |
 | n8n Workflow | `finance-planning-api.json` |
 | DB Table | `finance.recurring_items` |
+| DB View | `finance.upcoming_recurring` |
 | Schema | `_schemas/nexus-recurring.json` |
 
 ### Error Responses

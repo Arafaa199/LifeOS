@@ -15,7 +15,7 @@ Fetches the complete dashboard payload for today.
 ```json
 {
   "meta": {
-    "schema_version": 16,
+    "schema_version": 17,
     "generated_at": "2026-02-08T12:00:00Z",
     "for_date": "2026-02-08",
     "timezone": "Asia/Dubai"
@@ -26,21 +26,27 @@ Fetches the complete dashboard payload for today.
     "hrv": 45.2,
     "rhr": 52,
     "sleep_minutes": 420,
+    "sleep_hours": 7.0,
     "deep_sleep_minutes": 90,
     "rem_sleep_minutes": 110,
+    "deep_sleep_hours": 1.5,
     "sleep_efficiency": 0.92,
     "strain": 12.5,
-    "steps": 8500,
     "weight_kg": 75.5,
     "spend_total": 150.00,
     "spend_groceries": 45.00,
     "spend_restaurants": 35.00,
     "income_total": 0,
     "transaction_count": 3,
+    "spend_vs_7d": -12.5,
+    "spend_unusual": false,
     "meals_logged": 2,
     "water_ml": 2000,
     "calories_consumed": 1800,
-    "data_completeness": 0.85
+    "protein_g": 120.5,
+    "data_completeness": 0.85,
+    "avg_mood": 7,
+    "avg_energy": 6
   },
   "trends": [
     { "period": "7d", "avg_recovery": 72, "avg_sleep_minutes": 400 }
