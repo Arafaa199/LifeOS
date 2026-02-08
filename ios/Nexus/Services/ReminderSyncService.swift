@@ -164,8 +164,9 @@ class ReminderSyncService: ObservableObject {
             calendars: nil
         )
 
+        let fourteenDaysAgo = calendar.date(byAdding: .day, value: -14, to: Date()) ?? Date().addingTimeInterval(-14 * 24 * 60 * 60)
         let completedPredicate = eventStore.predicateForCompletedReminders(
-            withCompletionDateStarting: calendar.date(byAdding: .day, value: -14, to: Date())!,
+            withCompletionDateStarting: fourteenDaysAgo,
             ending: Date(),
             calendars: nil
         )
@@ -228,7 +229,7 @@ class ReminderSyncService: ObservableObject {
 
         let payload = ReminderSyncPayload(
             client_id: UUID().uuidString,
-            device: await UIDevice.current.name,
+            device: UIDevice.current.name,
             source: "ios_eventkit",
             captured_at: isoFormatter.string(from: Date()),
             reminders: reminders

@@ -136,7 +136,8 @@ struct LogWeightIntent: AppIntent {
     }
 
     init() {
-        self.weightKg = 70.0
+        // No default - user must provide actual weight to avoid logging incorrect data
+        self.weightKg = 0.0
     }
 
     init(weightKg: Double) {
@@ -144,8 +145,8 @@ struct LogWeightIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard weightKg > 0, weightKg <= 500 else {
-            return .result(dialog: "Please enter a valid weight between 1 and 500 kg.")
+        guard weightKg >= 20, weightKg <= 500 else {
+            return .result(dialog: "Please enter your actual weight (20-500 kg).")
         }
 
         do {
@@ -323,6 +324,121 @@ struct UniversalLogIntent: AppIntent {
     }
 }
 
+// MARK: - Log Expense Intent
+
+@available(iOS 17.0, *)
+struct LogExpenseIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log Expense"
+    static var description = IntentDescription("Log an expense to Nexus")
+    static var openAppWhenRun: Bool = false
+
+    @Parameter(title: "Description", description: "What did you spend on?")
+    var expenseDescription: String
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Log expense: \(\.$expenseDescription)")
+    }
+
+    init() {
+        self.expenseDescription = ""
+    }
+
+    init(expenseDescription: String) {
+        self.expenseDescription = expenseDescription
+    }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let logger = Logger(subsystem: "com.nexus", category: "LogExpenseIntent")
+        let trimmed = expenseDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard trimmed.count >= 2 else {
+            return .result(dialog: "Please describe what you spent on, e.g. 'coffee 15 AED'")
+        }
+
+        logger.info("Logging expense: '\(trimmed)'")
+
+        do {
+            let response = try await NexusAPI.shared.logExpense(trimmed)
+            if response.success {
+                if let amount = response.data?.totalSpent {
+                    return .result(dialog: "Logged expense: \(trimmed). Total spent today: \(String(format: "%.0f", amount)) \(response.data?.currency ?? "AED").")
+                }
+                return .result(dialog: "Logged expense: \(trimmed).")
+            } else {
+                return .result(dialog: "Failed to log expense: \(response.message ?? "Unknown error")")
+            }
+        } catch {
+            logger.error("Network error: \(error.localizedDescription)")
+            return .result(dialog: "Could not connect to Nexus: \(error.localizedDescription)")
+        }
+    }
+}
+
+// MARK: - Check Recovery Intent
+
+@available(iOS 17.0, *)
+struct CheckRecoveryIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check Recovery"
+    static var description = IntentDescription("Get your WHOOP recovery score from Nexus")
+    static var openAppWhenRun: Bool = false
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Check recovery score")
+    }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let response = try await NexusAPI.shared.refreshWHOOP()
+            if response.success, let recovery = response.recovery {
+                let score = Int(recovery)
+                let label: String
+                if score >= 67 { label = "Green — well recovered" }
+                else if score >= 34 { label = "Yellow — moderate recovery" }
+                else { label = "Red — take it easy" }
+                return .result(dialog: "Recovery: \(score)%. \(label).")
+            } else {
+                return .result(dialog: "Could not fetch recovery. \(response.message ?? "Try again later.")")
+            }
+        } catch {
+            return .result(dialog: "Could not connect to Nexus: \(error.localizedDescription)")
+        }
+    }
+}
+
+// MARK: - Budget Status Intent
+
+@available(iOS 17.0, *)
+struct CheckBudgetIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check Budget"
+    static var description = IntentDescription("Get your budget status from Nexus")
+    static var openAppWhenRun: Bool = false
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Check budget status")
+    }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        do {
+            let response = try await NexusAPI.shared.fetchBudgets()
+            guard response.success, let budgets = response.data?.budgets, !budgets.isEmpty else {
+                return .result(dialog: "No budgets configured yet.")
+            }
+
+            let lines = budgets.prefix(5).map { budget -> String in
+                let spent = budget.spent ?? 0
+                let remaining = budget.remaining ?? (budget.budgetAmount - spent)
+                let pct = budget.budgetAmount > 0 ? Int(spent / budget.budgetAmount * 100) : 0
+                let warning = pct >= 90 ? " ⚠" : ""
+                return "\(budget.category): \(Int(remaining)) left (\(pct)%)\(warning)"
+            }
+
+            return .result(dialog: "Budget status:\n\(lines.joined(separator: "\n"))")
+        } catch {
+            return .result(dialog: "Could not connect to Nexus: \(error.localizedDescription)")
+        }
+    }
+}
+
 // MARK: - App Shortcuts Provider
 
 @available(iOS 17.0, *)
@@ -412,6 +528,43 @@ struct NexusAppShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Log to Nexus",
             systemImageName: "plus.circle.fill"
+        )
+
+        // Log expense
+        AppShortcut(
+            intent: LogExpenseIntent(),
+            phrases: [
+                "Log expense in \(.applicationName)",
+                "Add expense to \(.applicationName)",
+                "I spent in \(.applicationName)",
+                "Track spending in \(.applicationName)"
+            ],
+            shortTitle: "Log Expense",
+            systemImageName: "creditcard.fill"
+        )
+
+        // Check recovery
+        AppShortcut(
+            intent: CheckRecoveryIntent(),
+            phrases: [
+                "Check recovery in \(.applicationName)",
+                "What's my recovery in \(.applicationName)",
+                "How recovered am I in \(.applicationName)"
+            ],
+            shortTitle: "Check Recovery",
+            systemImageName: "heart.fill"
+        )
+
+        // Check budget
+        AppShortcut(
+            intent: CheckBudgetIntent(),
+            phrases: [
+                "Check budget in \(.applicationName)",
+                "Budget status in \(.applicationName)",
+                "How much have I spent in \(.applicationName)"
+            ],
+            shortTitle: "Check Budget",
+            systemImageName: "chart.bar.fill"
         )
     }
 }

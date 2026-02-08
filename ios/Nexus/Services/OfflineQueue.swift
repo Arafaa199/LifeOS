@@ -256,14 +256,21 @@ class OfflineQueue: ObservableObject {
 
     // MARK: - Add to Queue
 
-    func enqueue(_ request: QueuedEntry.QueuedRequest, priority: QueuedEntry.Priority = .normal) {
+    private static let maxEnqueueRetries = 3
+
+    func enqueue(_ request: QueuedEntry.QueuedRequest, priority: QueuedEntry.Priority = .normal, retryAttempt: Int = 0) {
         // Guard against concurrent modification: don't allow enqueue while processQueue is iterating
         guard !isProcessing else {
-            logger.debug("Cannot enqueue while queue is processing - will retry shortly")
-            // Schedule a retry of the enqueue operation
-            Task {
+            // Prevent infinite recursion with max retry limit
+            guard retryAttempt < Self.maxEnqueueRetries else {
+                logger.warning("Enqueue failed after \(Self.maxEnqueueRetries) retries - dropping request: \(request.endpoint)")
+                return
+            }
+            logger.debug("Cannot enqueue while queue is processing - will retry shortly (attempt \(retryAttempt + 1)/\(Self.maxEnqueueRetries))")
+            // Schedule a retry of the enqueue operation with bounded retries
+            Task { [weak self] in
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
-                self.enqueue(request, priority: priority)
+                self?.enqueue(request, priority: priority, retryAttempt: retryAttempt + 1)
             }
             return
         }

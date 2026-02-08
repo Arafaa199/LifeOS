@@ -1,9 +1,11 @@
 import Foundation
+import os
 
 @MainActor
 final class NetworkConfig {
     static let shared = NetworkConfig()
 
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "network")
     private let userDefaultsKey = "webhookBaseURL"
     private let defaultBaseURL = "https://n8n.rfanw"
 
@@ -19,6 +21,11 @@ final class NetworkConfig {
     }
 
     func url(for endpoint: String) -> URL? {
-        URL(string: "\(baseURL)\(endpoint)")
+        let urlString = "\(baseURL)\(endpoint)"
+        guard let url = URL(string: urlString) else {
+            logger.error("Failed to construct URL from: \(urlString, privacy: .public)")
+            return nil
+        }
+        return url
     }
 }

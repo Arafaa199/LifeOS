@@ -84,13 +84,16 @@ class HealthKitManager: ObservableObject {
         }
     }
 
+    private var leanBodyMassType: HKQuantityType { HKQuantityType(.leanBodyMass) }
+    private var exerciseTimeType: HKQuantityType { HKQuantityType(.appleExerciseTime) }
+
     private var allReadTypes: Set<HKObjectType> {
         [
             weightType, bodyFatType,
-            HKQuantityType.quantityType(forIdentifier: .leanBodyMass)!,
+            leanBodyMassType,
             hrvType, rhrType, heartRateType, respiratoryRateType, oxygenSatType,
             stepsType, activeCaloriesType,
-            HKQuantityType.quantityType(forIdentifier: .appleExerciseTime)!,
+            exerciseTimeType,
             sleepType,
             HKObjectType.workoutType()
         ]
