@@ -289,4 +289,12 @@ final class MusicService: ObservableObject {
 
     var pendingCount: Int { pendingEvents.count }
     var hasAuthorization: Bool { authorizationStatus == .authorized }
+
+    // MARK: - Cleanup
+
+    deinit {
+        // Remove NotificationCenter observers to prevent retain cycles
+        NotificationCenter.default.removeObserver(self)
+        player.endGeneratingPlaybackNotifications()
+    }
 }

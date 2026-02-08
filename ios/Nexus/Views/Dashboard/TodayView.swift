@@ -12,8 +12,9 @@ struct TodayView: View {
     @State private var fastingElapsed: String = "--:--"
     @State private var showingQuickLog = false
     @State private var showingHomeControl = false
+    @State private var fastingTimerCancellable: AnyCancellable?
 
-    private let fastingTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private let fastingTimer = Timer.publish(every: 1, on: .main, in: .common)
 
     var body: some View {
         ScrollView {
@@ -60,9 +61,17 @@ struct TodayView: View {
         .sheet(isPresented: $showingHomeControl) {
             HomeControlView()
         }
-        .onReceive(fastingTimer) { _ in updateFastingElapsed() }
         .onAppear {
             updateFastingElapsed()
+            // Start timer when view appears
+            fastingTimerCancellable = fastingTimer
+                .autoconnect()
+                .sink { _ in updateFastingElapsed() }
+        }
+        .onDisappear {
+            // Stop timer when view disappears to prevent background updates
+            fastingTimerCancellable?.cancel()
+            fastingTimerCancellable = nil
         }
     }
 

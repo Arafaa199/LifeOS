@@ -118,6 +118,8 @@ final class MusicKitService: ObservableObject {
         Task {
             do {
                 try await player.play()
+                // Restart the playback time timer
+                startPlaybackTimeUpdates()
                 logger.debug("Playback started")
             } catch {
                 logger.error("Failed to play: \(error.localizedDescription)")
@@ -127,6 +129,9 @@ final class MusicKitService: ObservableObject {
 
     func pause() {
         player.pause()
+        // Stop the playback time timer when paused to avoid unnecessary updates
+        playbackTimeTimer?.invalidate()
+        playbackTimeTimer = nil
         logger.debug("Playback paused")
     }
 

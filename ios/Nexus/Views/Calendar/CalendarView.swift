@@ -13,6 +13,38 @@ struct CalendarView: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
     private let weekdaySymbols = Calendar.current.veryShortWeekdaySymbols
 
+    // Static DateFormatters to avoid repeated instantiation
+    private static let dayKeyFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        return fmt
+    }()
+
+    private static let monthYearFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMMM yyyy"
+        return fmt
+    }()
+
+    private static let todayFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "'Today,' MMM d"
+        return fmt
+    }()
+
+    private static let tomorrowFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "'Tomorrow,' MMM d"
+        return fmt
+    }()
+
+    private static let weekdayFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "EEEE, MMM d"
+        return fmt
+    }()
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -79,7 +111,7 @@ struct CalendarView: View {
             viewModel.selectedDate = Date()
             await loadMonth()
         }
-        .onChange(of: displayedMonth) { _ in
+        .onChange(of: displayedMonth) {
             Task { await loadMonth() }
         }
     }
@@ -148,6 +180,7 @@ struct CalendarView: View {
         let key = dayKey(date)
         let eventCount = viewModel.monthEvents[key]?.count ?? 0
         let reminderCount = viewModel.monthReminders[key]?.count ?? 0
+        let medCount = viewModel.monthMedications[key]?.count ?? 0
 
         return Button {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -180,6 +213,11 @@ struct CalendarView: View {
                             .fill(isSelected ? Color.white.opacity(0.7) : NexusTheme.Colors.Semantic.amber)
                             .frame(width: 5, height: 5)
                     }
+                    if medCount > 0 {
+                        Circle()
+                            .fill(isSelected ? Color.white.opacity(0.7) : NexusTheme.Colors.Semantic.green)
+                            .frame(width: 5, height: 5)
+                    }
                 }
                 .frame(height: 6)
             }
@@ -194,6 +232,7 @@ struct CalendarView: View {
         if let date = viewModel.selectedDate {
             let events = viewModel.eventsForDate(date)
             let reminders = viewModel.remindersForDate(date)
+            let medications = viewModel.medicationsForDate(date)
             let allDay = events.filter { $0.isAllDay }
             let timed = events.filter { !$0.isAllDay }
 
@@ -209,7 +248,7 @@ struct CalendarView: View {
                         Spacer()
                     }
                     .padding(.top, NexusTheme.Spacing.xxl)
-                } else if allDay.isEmpty && timed.isEmpty && reminders.isEmpty {
+                } else if allDay.isEmpty && timed.isEmpty && reminders.isEmpty && medications.isEmpty {
                     HStack {
                         Spacer()
                         VStack(spacing: NexusTheme.Spacing.xs) {
@@ -258,6 +297,19 @@ struct CalendarView: View {
                         }
                     }
 
+                    // MEDICATIONS SECTION
+                    if !medications.isEmpty {
+                        Text("MEDICATIONS")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
+                            .padding(.top, NexusTheme.Spacing.xxxs)
+
+                        ForEach(medications) { med in
+                            inlineMedicationRow(med)
+                        }
+                    }
+
+                    // REMINDERS SECTION (now interactive)
                     if !reminders.isEmpty {
                         Text("REMINDERS")
                             .font(.system(size: 10, weight: .semibold))
@@ -328,56 +380,148 @@ struct CalendarView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Inline Reminder Row
+    // MARK: - Inline Reminder Row (Interactive — tap to toggle completion)
 
     private func inlineReminderRow(_ reminder: ReminderDisplayItem) -> some View {
-        HStack(spacing: NexusTheme.Spacing.sm) {
-            Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
-                .font(.body)
-                .foregroundColor(reminder.isCompleted ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
+        Button {
+            NexusTheme.Haptics.light()
+            Task {
+                try? await viewModel.toggleReminderCompletion(reminderId: reminder.reminderId)
+            }
+        } label: {
+            HStack(spacing: NexusTheme.Spacing.sm) {
+                Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .font(.body)
+                    .foregroundColor(reminder.isCompleted ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: NexusTheme.Spacing.xxxs) {
-                    Text(reminder.title ?? "Untitled")
-                        .font(.system(size: 14, weight: .medium))
-                        .strikethrough(reminder.isCompleted)
-                        .foregroundColor(reminder.isCompleted ? NexusTheme.Colors.textSecondary : NexusTheme.Colors.textPrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: NexusTheme.Spacing.xxxs) {
+                        Text(reminder.title ?? "Untitled")
+                            .font(.system(size: 14, weight: .medium))
+                            .strikethrough(reminder.isCompleted)
+                            .foregroundColor(reminder.isCompleted ? NexusTheme.Colors.textSecondary : NexusTheme.Colors.textPrimary)
 
-                    if let priority = reminder.priorityLabel {
-                        Text(priority)
-                            .font(.system(size: 9))
-                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
+                        if let priority = reminder.priorityLabel {
+                            Text(priority)
+                                .font(.system(size: 9))
+                                .foregroundColor(NexusTheme.Colors.Semantic.amber)
+                        }
+                    }
+
+                    HStack(spacing: NexusTheme.Spacing.xs) {
+                        if let time = reminder.dueTime {
+                            Text(time)
+                                .font(.system(size: 11))
+                                .foregroundColor(NexusTheme.Colors.textSecondary)
+                        }
+
+                        if let listName = reminder.listName {
+                            Text(listName)
+                                .font(.system(size: 9))
+                                .foregroundColor(NexusTheme.Colors.Semantic.amber)
+                                .padding(.horizontal, NexusTheme.Spacing.xxs)
+                                .padding(.vertical, 1)
+                                .background(NexusTheme.Colors.Semantic.amber.opacity(0.10))
+                                .cornerRadius(NexusTheme.Radius.xs)
+                        }
                     }
                 }
 
-                HStack(spacing: NexusTheme.Spacing.xs) {
-                    if let time = reminder.dueTime {
-                        Text(time)
-                            .font(.system(size: 11))
-                            .foregroundColor(NexusTheme.Colors.textSecondary)
-                    }
+                Spacer()
+            }
+            .padding(NexusTheme.Spacing.md)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
 
-                    if let listName = reminder.listName {
-                        Text(listName)
+    // MARK: - Inline Medication Row (Interactive — tap to cycle status)
+
+    private func inlineMedicationRow(_ med: MedicationCalendarEntry) -> some View {
+        Button {
+            NexusTheme.Haptics.light()
+            let nextStatus: String
+            switch med.status {
+            case "scheduled", "pending": nextStatus = "taken"
+            case "taken": nextStatus = "skipped"
+            case "skipped": nextStatus = "scheduled"
+            default: nextStatus = "taken"
+            }
+            Task {
+                try? await viewModel.toggleDoseStatus(
+                    medicationId: med.medicationId,
+                    scheduledDate: med.scheduledDate,
+                    scheduledTime: med.scheduledTime,
+                    newStatus: nextStatus
+                )
+            }
+        } label: {
+            HStack(spacing: NexusTheme.Spacing.sm) {
+                Image(systemName: medStatusIcon(med.status))
+                    .font(.body)
+                    .foregroundColor(medStatusColor(med.status))
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(med.medicationName)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(NexusTheme.Colors.textPrimary)
+
+                    HStack(spacing: NexusTheme.Spacing.xs) {
+                        if let time = med.timeLabel {
+                            Text(time)
+                                .font(.system(size: 11))
+                                .foregroundColor(NexusTheme.Colors.textSecondary)
+                        }
+
+                        Text(med.dosageLabel)
                             .font(.system(size: 9))
-                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                             .padding(.horizontal, NexusTheme.Spacing.xxs)
                             .padding(.vertical, 1)
-                            .background(NexusTheme.Colors.Semantic.amber.opacity(0.10))
+                            .background(NexusTheme.Colors.Semantic.green.opacity(0.10))
                             .cornerRadius(NexusTheme.Radius.xs)
                     }
                 }
-            }
 
-            Spacer()
+                Spacer()
+
+                Text(med.status.capitalized)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(medStatusColor(med.status))
+            }
+            .padding(NexusTheme.Spacing.md)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                    .stroke(NexusTheme.Colors.Semantic.green.opacity(0.3), lineWidth: 1)
+            )
         }
-        .padding(NexusTheme.Spacing.md)
-        .background(NexusTheme.Colors.card)
-        .cornerRadius(NexusTheme.Radius.card)
-        .overlay(
-            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
-                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
-        )
+        .buttonStyle(.plain)
+    }
+
+    private func medStatusIcon(_ status: String) -> String {
+        switch status {
+        case "taken": return "checkmark.circle.fill"
+        case "skipped": return "xmark.circle.fill"
+        case "missed": return "exclamationmark.circle.fill"
+        default: return "clock.fill"
+        }
+    }
+
+    private func medStatusColor(_ status: String) -> Color {
+        switch status {
+        case "taken": return NexusTheme.Colors.Semantic.green
+        case "skipped": return .red
+        case "missed": return .orange
+        default: return NexusTheme.Colors.textSecondary
+        }
     }
 
     // MARK: - Helpers
@@ -392,10 +536,6 @@ struct CalendarView: View {
     }
 
     private func loadMonth() async {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-
         var comps = DateComponents()
         comps.year = year
         comps.month = month
@@ -403,11 +543,14 @@ struct CalendarView: View {
         let startDate = Calendar.current.date(from: comps) ?? Date()
         let endDate = Calendar.current.date(byAdding: DateComponents(month: 1, day: -1), to: startDate) ?? startDate
 
-        let startStr = fmt.string(from: startDate)
-        let endStr = fmt.string(from: endDate)
+        let startStr = Self.dayKeyFormatter.string(from: startDate)
+        let endStr = Self.dayKeyFormatter.string(from: endDate)
 
-        await viewModel.fetchMonthEvents(year: year, month: month)
-        await viewModel.fetchReminders(start: startStr, end: endStr)
+        // Fetch events, reminders, and medications in parallel
+        async let eventsTask: Void = viewModel.fetchMonthEvents(year: year, month: month)
+        async let remindersTask: Void = viewModel.fetchReminders(start: startStr, end: endStr)
+        async let medsTask: Void = viewModel.fetchMedications(start: startStr, end: endStr)
+        _ = await (eventsTask, remindersTask, medsTask)
     }
 
     private func daysInMonth() -> [Date?] {
@@ -434,28 +577,21 @@ struct CalendarView: View {
     }
 
     private func dayKey(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
-        fmt.locale = Locale(identifier: "en_US_POSIX")
-        return fmt.string(from: date)
+        Self.dayKeyFormatter.string(from: date)
     }
 
     private var monthYearLabel: String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "MMMM yyyy"
-        return fmt.string(from: displayedMonth)
+        Self.monthYearFormatter.string(from: displayedMonth)
     }
 
     private func selectedDateLabel(_ date: Date) -> String {
-        let fmt = DateFormatter()
         if Calendar.current.isDateInToday(date) {
-            fmt.dateFormat = "'Today,' MMM d"
+            return Self.todayFormatter.string(from: date)
         } else if Calendar.current.isDateInTomorrow(date) {
-            fmt.dateFormat = "'Tomorrow,' MMM d"
+            return Self.tomorrowFormatter.string(from: date)
         } else {
-            fmt.dateFormat = "EEEE, MMM d"
+            return Self.weekdayFormatter.string(from: date)
         }
-        return fmt.string(from: date)
     }
 
     private func isSameDay(_ a: Date?, _ b: Date?) -> Bool {

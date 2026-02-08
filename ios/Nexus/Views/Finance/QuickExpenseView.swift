@@ -14,14 +14,14 @@ struct QuickExpenseView: View {
 
     private var overBudgetCategories: [Budget] {
         viewModel.summary.budgets.filter { budget in
-            guard let spent = budget.spent else { return false }
+            guard let spent = budget.spent, budget.budgetAmount > 0 else { return false }
             return spent > budget.budgetAmount
         }
     }
 
     private var nearBudgetCategories: [Budget] {
         viewModel.summary.budgets.filter { budget in
-            guard let spent = budget.spent else { return false }
+            guard let spent = budget.spent, budget.budgetAmount > 0 else { return false }
             let percentage = spent / budget.budgetAmount
             return percentage >= 0.8 && percentage <= 1.0
         }
@@ -53,6 +53,8 @@ struct QuickExpenseView: View {
                             .onSubmit {
                                 submitExpense()
                             }
+                            .accessibilityLabel("Expense amount")
+                            .accessibilityHint("Enter amount and description, for example: 45 groceries at Carrefour")
 
                         Text("Try: \"45 groceries at Carrefour\" or \"spent 12 on coffee\"")
                             .font(.caption)
@@ -73,6 +75,8 @@ struct QuickExpenseView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
+                        .accessibilityLabel("Log expense")
+                        .accessibilityHint("Double tap to log this expense")
                         .disabled(expenseText.isEmpty || isSubmitting || viewModel.isLoading)
                     }
                 }
@@ -102,6 +106,9 @@ struct QuickExpenseView: View {
                         .cornerRadius(12)
                         .shadow(color: NexusTheme.Colors.Semantic.red.opacity(0.3), radius: 6, x: 0, y: 3)
                     }
+                    .accessibilityLabel("Add expense")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Double tap to open expense entry form")
 
                     Button {
                         haptics.impactOccurred()
@@ -119,6 +126,9 @@ struct QuickExpenseView: View {
                         .cornerRadius(12)
                         .shadow(color: NexusTheme.Colors.Semantic.green.opacity(0.3), radius: 6, x: 0, y: 3)
                     }
+                    .accessibilityLabel("Add income")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Double tap to open income entry form")
                 }
 
                 // Recent Transactions
@@ -201,6 +211,9 @@ struct QuickExpenseView: View {
                         .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(category.rawValue) category")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint("Double tap to select \(category.rawValue) as expense category")
                 }
             }
         }

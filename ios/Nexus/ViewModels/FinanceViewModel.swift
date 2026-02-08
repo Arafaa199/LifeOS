@@ -11,6 +11,11 @@ class FinanceViewModel: ObservableObject {
     @Published var recurringItems: [RecurringItem] = []
     @Published var errorMessage: String?
 
+    // MARK: - Pagination State
+    @Published var transactionsPage = 0
+    @Published var hasMoreTransactions = true
+    @Published var isLoadingMore = false
+
     // MARK: - Planned Features (API not yet implemented)
     @Published var activeDebts: [Debt] = []
     @Published var wishlistItems: [WishlistItem] = []
@@ -165,15 +170,56 @@ class FinanceViewModel: ObservableObject {
     }
 
     func loadFinanceSummary() {
+        // Cancel any in-flight load to prevent race conditions on rapid refresh
+        loadTask?.cancel()
+
         // Delegate to coordinator — the Combine subscription handles the response.
         // isLoading is computed from coordinator sync state.
-        Task {
+        // Also reset pagination when loading fresh data
+        transactionsPage = 0
+        hasMoreTransactions = true
+        loadTask = Task {
             await coordinator.sync(.finance)
             if coordinator.domainStates[.finance]?.lastError != nil {
                 errorMessage = "Could not fetch latest data. Showing cached data."
             }
         }
         loadRecurringItems()
+    }
+
+    func loadMoreTransactions() async {
+        guard hasMoreTransactions && !isLoadingMore else { return }
+
+        isLoadingMore = true
+        errorMessage = nil
+
+        do {
+            let offset = transactionsPage * 50
+            let response = try await api.fetchTransactions(offset: offset, limit: 50)
+
+            if response.success, let data = response.data, let newTransactions = data.recentTransactions {
+                // Append new transactions to existing list
+                let normalizedTransactions = newTransactions.map { $0.normalized() }
+                recentTransactions.append(contentsOf: normalizedTransactions)
+
+                // Check if we got fewer results than requested
+                if normalizedTransactions.count < 50 {
+                    hasMoreTransactions = false
+                } else {
+                    transactionsPage += 1
+                }
+
+                lastUpdated = Date()
+                cache.saveFinanceSummary(summary, transactions: recentTransactions)
+            } else {
+                hasMoreTransactions = false
+            }
+        } catch {
+            logger.error("Load more transactions error: \(error.localizedDescription)")
+            errorMessage = "Failed to load more transactions"
+        }
+
+        isLoadingMore = false
     }
 
     /// Logs a quick expense from natural language. Returns true on success.
@@ -236,6 +282,10 @@ class FinanceViewModel: ObservableObject {
     }
 
     func refresh() async {
+        transactionsPage = 0
+        hasMoreTransactions = true
+        isLoadingMore = false
+        recentTransactions = []
         await coordinator.sync(.finance)
         if coordinator.domainStates[.finance]?.lastError != nil {
             errorMessage = "Could not fetch latest data. Showing cached data."
