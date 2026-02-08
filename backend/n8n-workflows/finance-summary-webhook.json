@@ -17,10 +17,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get today's spending totals\nSELECT \n  COALESCE(SUM(ABS(amount)), 0) as total_spent,\n  COALESCE(SUM(CASE WHEN is_grocery THEN ABS(amount) ELSE 0 END), 0) as grocery_spent,\n  COALESCE(SUM(CASE WHEN is_restaurant THEN ABS(amount) ELSE 0 END), 0) as eating_out_spent,\n  MAX(currency) as currency\nFROM finance.transactions\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date;",
+        "query": "-- Get all finance summary data in a single query\nWITH daily AS (\n  SELECT \n    COALESCE(SUM(ABS(amount)), 0) as total_spent,\n    COALESCE(SUM(CASE WHEN is_grocery THEN ABS(amount) ELSE 0 END), 0) as grocery_spent,\n    COALESCE(SUM(CASE WHEN is_restaurant THEN ABS(amount) ELSE 0 END), 0) as eating_out_spent,\n    MAX(currency) as currency\n  FROM finance.transactions\n  WHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date\n),\nmtd AS (\n  SELECT \n    COALESCE(SUM(spend_total), 0) as mtd_spend,\n    COALESCE(SUM(income_total), 0) as mtd_income\n  FROM life.daily_facts\n  WHERE day >= date_trunc('month', life.dubai_today())\n    AND day <= life.dubai_today()\n)\nSELECT \n  d.total_spent, d.grocery_spent, d.eating_out_spent, d.currency,\n  m.mtd_spend, m.mtd_income\nFROM daily d, mtd m;",
         "options": {}
       },
-      "name": "Get Daily Totals",
+      "name": "Get Summary",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [450, 200],
@@ -34,13 +34,13 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get recent transactions (last 30 days)\nSELECT \n  id,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  subcategory,\n  is_grocery,\n  is_restaurant,\n  notes,\n  tags\nFROM finance.transactions\nWHERE date >= (NOW() AT TIME ZONE 'Asia/Dubai')::date - INTERVAL '30 days'\nORDER BY date DESC, id DESC\nLIMIT 100;",
+        "query": "-- Get recent transactions (last 30 days)\nSELECT \n  id, date, merchant_name, amount, currency, category, subcategory,\n  is_grocery, is_restaurant, notes, tags\nFROM finance.transactions\nWHERE date >= (NOW() AT TIME ZONE 'Asia/Dubai')::date - INTERVAL '30 days'\nORDER BY date DESC, id DESC\nLIMIT 100;",
         "options": {}
       },
-      "name": "Get Recent Transactions",
+      "name": "Get Transactions",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [450, 300],
+      "position": [650, 200],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -51,13 +51,13 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get budgets for current month with spending\nSELECT \n  b.id,\n  b.month,\n  b.category,\n  b.budget_amount,\n  COALESCE(SUM(ABS(t.amount)), 0) as spent,\n  b.budget_amount - COALESCE(SUM(ABS(t.amount)), 0) as remaining\nFROM finance.budgets b\nLEFT JOIN finance.transactions t ON \n  t.category = b.category \n  AND DATE_TRUNC('month', t.date) = b.month\nWHERE b.month = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Dubai')::date)\nGROUP BY b.id, b.month, b.category, b.budget_amount\nORDER BY b.category;",
+        "query": "-- Get budgets for current month with spending\nSELECT \n  b.id, b.month, b.category, b.budget_amount,\n  COALESCE(SUM(ABS(t.amount)), 0) as spent,\n  b.budget_amount - COALESCE(SUM(ABS(t.amount)), 0) as remaining\nFROM finance.budgets b\nLEFT JOIN finance.transactions t ON t.category = b.category AND DATE_TRUNC('month', t.date) = b.month\nWHERE b.month = DATE_TRUNC('month', (NOW() AT TIME ZONE 'Asia/Dubai')::date)\nGROUP BY b.id, b.month, b.category, b.budget_amount\nORDER BY b.category;",
         "options": {}
       },
       "name": "Get Budgets",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [450, 400],
+      "position": [850, 200],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -68,13 +68,13 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Get category breakdown for current month\nSELECT \n  category,\n  SUM(ABS(amount)) as total\nFROM finance.transactions\nWHERE TO_CHAR(date, 'YYYY-MM') = TO_CHAR((NOW() AT TIME ZONE 'Asia/Dubai')::date, 'YYYY-MM')\n  AND category IS NOT NULL\nGROUP BY category\nORDER BY total DESC;",
+        "query": "-- Get category breakdown for current month\nSELECT category, SUM(ABS(amount)) as total\nFROM finance.transactions\nWHERE TO_CHAR(date, 'YYYY-MM') = TO_CHAR((NOW() AT TIME ZONE 'Asia/Dubai')::date, 'YYYY-MM')\n  AND category IS NOT NULL\nGROUP BY category\nORDER BY total DESC;",
         "options": {}
       },
-      "name": "Get Category Breakdown",
+      "name": "Get Categories",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [450, 500],
+      "position": [1050, 200],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -84,62 +84,41 @@
     },
     {
       "parameters": {
-        "jsCode": "// Convert category breakdown array to object\nconst categoryData = $input.item.json;\nconst categoryBreakdown = {};\n\nfor (const item of categoryData) {\n  categoryBreakdown[item.category] = item.total;\n}\n\nreturn { categoryBreakdown };"
+        "jsCode": "// Build the response from all query results\nconst summary = $('Get Summary').first().json;\nconst transactions = $('Get Transactions').all();\nconst budgets = $('Get Budgets').all();\nconst categoryData = $('Get Categories').all();\n\n// Convert category breakdown to object\nconst categoryBreakdown = {};\nfor (const item of categoryData) {\n  categoryBreakdown[item.json.category] = parseFloat(item.json.total);\n}\n\nreturn {\n  json: {\n    success: true,\n    data: {\n      total_spent: parseFloat(summary.total_spent) || 0,\n      grocery_spent: parseFloat(summary.grocery_spent) || 0,\n      eating_out_spent: parseFloat(summary.eating_out_spent) || 0,\n      currency: summary.currency || 'AED',\n      total_income: parseFloat(summary.mtd_income) || 0,\n      mtd_spend: parseFloat(summary.mtd_spend) || 0,\n      recent_transactions: transactions,\n      budgets: budgets,\n      category_breakdown: categoryBreakdown\n    }\n  }\n};"
       },
-      "name": "Format Category Breakdown",
+      "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [650, 500]
+      "position": [1250, 200]
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"data\": {\n    \"total_spent\": {{ $('Get Daily Totals').item.json.total_spent }},\n    \"grocery_spent\": {{ $('Get Daily Totals').item.json.grocery_spent }},\n    \"eating_out_spent\": {{ $('Get Daily Totals').item.json.eating_out_spent }},\n    \"currency\": \"{{ $('Get Daily Totals').item.json.currency || 'AED' }}\",\n    \"recent_transactions\": {{ JSON.stringify($('Get Recent Transactions').all()) }},\n    \"budgets\": {{ JSON.stringify($('Get Budgets').all()) }},\n    \"category_breakdown\": {{ JSON.stringify($('Format Category Breakdown').item.json.categoryBreakdown) }}\n  }\n}",
+        "respondWith": "firstIncomingItem",
         "options": {}
       },
       "name": "Response",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [850, 300]
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error fetching finance summary: {{ $json.message }}\"\n}",
-        "options": {
-          "responseCode": 500
-        }
-      },
-      "name": "Error Response",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [850, 500]
+      "typeVersion": 1.1,
+      "position": [1450, 200]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [
-        [
-          {"node": "Get Daily Totals", "type": "main", "index": 0},
-          {"node": "Get Recent Transactions", "type": "main", "index": 0},
-          {"node": "Get Budgets", "type": "main", "index": 0},
-          {"node": "Get Category Breakdown", "type": "main", "index": 0}
-        ]
-      ]
+      "main": [[{"node": "Get Summary", "type": "main", "index": 0}]]
     },
-    "Get Daily Totals": {
-      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+    "Get Summary": {
+      "main": [[{"node": "Get Transactions", "type": "main", "index": 0}]]
     },
-    "Get Recent Transactions": {
-      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+    "Get Transactions": {
+      "main": [[{"node": "Get Budgets", "type": "main", "index": 0}]]
     },
     "Get Budgets": {
-      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+      "main": [[{"node": "Get Categories", "type": "main", "index": 0}]]
     },
-    "Get Category Breakdown": {
-      "main": [[{"node": "Format Category Breakdown", "type": "main", "index": 0}]]
+    "Get Categories": {
+      "main": [[{"node": "Build Response", "type": "main", "index": 0}]]
     },
-    "Format Category Breakdown": {
+    "Build Response": {
       "main": [[{"node": "Response", "type": "main", "index": 0}]]
     }
   },

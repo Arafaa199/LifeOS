@@ -136,6 +136,10 @@ class FinanceViewModel: ObservableObject {
         }
         if let transactions = data.recentTransactions {
             recentTransactions = transactions.map { $0.normalized() }
+            // Calculate pages loaded: initial fetch is 100, pagination uses 50 per page
+            // So 100 transactions = 2 pages, next "Load More" should fetch offset 100
+            transactionsPage = max(1, (transactions.count + 49) / 50)
+            hasMoreTransactions = transactions.count >= 50
         }
         if let budgets = data.budgets {
             summary.budgets = budgets
