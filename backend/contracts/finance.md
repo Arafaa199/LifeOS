@@ -511,6 +511,13 @@ Fetches recurring items (bills, subscriptions).
 }
 ```
 
+### Field Values
+
+| Field | Valid Values |
+|-------|--------------|
+| `type` | `expense`, `income` |
+| `cadence` | `daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `yearly` |
+
 ### References
 
 | Type | Reference |
@@ -552,6 +559,13 @@ Creates a recurring item.
   "notes": null
 }
 ```
+
+### Field Values
+
+| Field | Valid Values |
+|-------|--------------|
+| `type` | `expense`, `income` |
+| `cadence` | `daily`, `weekly`, `biweekly`, `monthly`, `quarterly`, `yearly` |
 
 ### Response
 
