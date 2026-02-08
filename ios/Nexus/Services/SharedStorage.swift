@@ -1,8 +1,11 @@
 import Foundation
+import os
 
 // Shared storage between app and widgets using App Groups
 // Note: Requires App Group capability enabled in Xcode
 // App Group ID: group.com.rfanw.nexus
+
+private let sharedStorageLogger = Logger(subsystem: "com.nexus.lifeos", category: "shared-storage")
 
 // MARK: - Helper Extensions
 
@@ -22,6 +25,9 @@ class SharedStorage {
 
     private init() {
         defaults = UserDefaults(suiteName: appGroupID)
+        if defaults == nil {
+            sharedStorageLogger.error("Failed to initialize UserDefaults for app group '\(self.appGroupID)' — shared storage will not work")
+        }
     }
 
     // MARK: - Keys

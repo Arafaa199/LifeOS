@@ -47,18 +47,35 @@ class HealthKitSyncService: ObservableObject {
         var quantitySamples: [HealthKitSample] = []
         var sleepSamples: [HealthKitSleepSample] = []
         var workoutSamples: [HealthKitWorkoutSample] = []
+        var successfulQueries = 0
 
-        do { quantitySamples = try await fetchQuantitySamples(since: startDate) }
-        catch { logger.error("Failed to fetch quantity samples: \(error.localizedDescription)") }
+        do {
+            quantitySamples = try await fetchQuantitySamples(since: startDate)
+            successfulQueries += 1
+        } catch {
+            logger.error("Failed to fetch quantity samples: \(error.localizedDescription)")
+        }
 
-        do { sleepSamples = try await fetchSleepSamples(since: startDate) }
-        catch { logger.error("Failed to fetch sleep samples: \(error.localizedDescription)") }
+        do {
+            sleepSamples = try await fetchSleepSamples(since: startDate)
+            successfulQueries += 1
+        } catch {
+            logger.error("Failed to fetch sleep samples: \(error.localizedDescription)")
+        }
 
-        do { workoutSamples = try await fetchWorkoutSamples(since: startDate) }
-        catch { logger.error("Failed to fetch workout samples: \(error.localizedDescription)") }
+        do {
+            workoutSamples = try await fetchWorkoutSamples(since: startDate)
+            successfulQueries += 1
+        } catch {
+            logger.error("Failed to fetch workout samples: \(error.localizedDescription)")
+        }
 
-        // Any query completing (even with empty results) proves HK access works
-        HealthKitManager.shared.markQuerySuccess()
+        // Only mark query success if at least one query actually succeeded
+        if successfulQueries > 0 {
+            HealthKitManager.shared.markQuerySuccess()
+        } else {
+            logger.warning("All HealthKit queries failed — not marking query success")
+        }
 
         let totalCount = quantitySamples.count + sleepSamples.count + workoutSamples.count
 
@@ -66,7 +83,7 @@ class HealthKitSyncService: ObservableObject {
         if totalCount > 0 {
             let payload = HealthKitBatchPayload(
                 client_id: UUID().uuidString,
-                device: await UIDevice.current.name,
+                device: UIDevice.current.name,
                 source_bundle_id: Bundle.main.bundleIdentifier ?? "com.rfanw.nexus",
                 captured_at: Constants.Dubai.iso8601String(from: Date()),
                 samples: quantitySamples,
@@ -111,32 +128,58 @@ class HealthKitSyncService: ObservableObject {
         }
     }
 
+    // MARK: - Timeout Helper for Continuation-Based Queries
+
+    /// Wraps async operations with a timeout to prevent indefinite hangs if callbacks never fire
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw CancellationError()
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
+    }
+
     // MARK: - Direct Weight Sync (uses working /nexus-weight endpoint)
 
     private func syncLatestWeight() async throws -> Bool {
         let weightType = HKQuantityType(.bodyMass)
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
-        let sample: HKQuantitySample? = try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: weightType,
-                predicate: nil,
-                limit: 1,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
+        let sample: HKQuantitySample? = try await withTimeout(seconds: 30) {
+            try await withCheckedThrowingContinuation { continuation in
+                let query = HKSampleQuery(
+                    sampleType: weightType,
+                    predicate: nil,
+                    limit: 1,
+                    sortDescriptors: [sortDescriptor]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    continuation.resume(returning: samples?.first as? HKQuantitySample)
                 }
-                continuation.resume(returning: samples?.first as? HKQuantitySample)
+                self.healthStore.execute(query)
             }
-            healthStore.execute(query)
         }
 
         guard let weightSample = sample else { return false }
 
         let weightKg = weightSample.quantity.doubleValue(for: .gramUnit(with: .kilo))
-        let response = try await NexusAPI.shared.logWeight(kg: weightKg)
+
+        // Validate weight is within acceptable range
+        guard let validatedWeight = HealthKitValueValidator.validateWeight(weightKg) else {
+            return false
+        }
+
+        let response = try await NexusAPI.shared.logWeight(kg: validatedWeight)
         return response.success
     }
 
@@ -166,33 +209,42 @@ class HealthKitSyncService: ObservableObject {
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date())
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: 100, // Limit to last 100 samples per type
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
+        return try await withTimeout(seconds: 30) {
+            try await withCheckedThrowingContinuation { continuation in
+                let query = HKSampleQuery(
+                    sampleType: type,
+                    predicate: predicate,
+                    limit: 100, // Limit to last 100 samples per type
+                    sortDescriptors: [sortDescriptor]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+
+                    let results: [HealthKitSample] = (samples as? [HKQuantitySample])?.compactMap { sample -> HealthKitSample? in
+                        let rawValue = sample.quantity.doubleValue(for: unit)
+
+                        // Validate the metric value is within acceptable range
+                        guard let validatedValue = HealthKitValueValidator.validateQuantitySample(rawValue, typeIdentifier: identifier) else {
+                            return nil
+                        }
+
+                        return HealthKitSample(
+                            sample_id: sample.uuid.uuidString,
+                            type: identifier,
+                            value: validatedValue,
+                            unit: unit.unitString,
+                            start_date: Constants.Dubai.iso8601String(from: sample.startDate),
+                            end_date: Constants.Dubai.iso8601String(from: sample.endDate)
+                        )
+                    } ?? []
+
+                    continuation.resume(returning: results)
                 }
 
-                let results = (samples as? [HKQuantitySample])?.map { sample in
-                    HealthKitSample(
-                        sample_id: sample.uuid.uuidString,
-                        type: identifier,
-                        value: sample.quantity.doubleValue(for: unit),
-                        unit: unit.unitString,
-                        start_date: Constants.Dubai.iso8601String(from: sample.startDate),
-                        end_date: Constants.Dubai.iso8601String(from: sample.endDate)
-                    )
-                } ?? []
-
-                continuation.resume(returning: results)
+                self.healthStore.execute(query)
             }
-
-            healthStore.execute(query)
         }
     }
 
@@ -201,33 +253,41 @@ class HealthKitSyncService: ObservableObject {
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date())
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: sleepType,
-                predicate: predicate,
-                limit: 100,
-                sortDescriptors: [sortDescriptor]
-            ) { [weak self] _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
+        return try await withTimeout(seconds: 30) {
+            try await withCheckedThrowingContinuation { continuation in
+                let query = HKSampleQuery(
+                    sampleType: sleepType,
+                    predicate: predicate,
+                    limit: 100,
+                    sortDescriptors: [sortDescriptor]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+
+                    let results = (samples as? [HKCategorySample])?.compactMap { sample -> HealthKitSleepSample? in
+                        guard let stage = HealthKitSyncService.sleepStageStringStatic(for: sample.value) else { return nil }
+
+                        // Validate sleep duration (in minutes)
+                        let durationMinutes = sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+                        guard HealthKitValueValidator.validateSleep(durationMinutes) != nil else {
+                            return nil
+                        }
+
+                        return HealthKitSleepSample(
+                            sleep_id: sample.uuid.uuidString,
+                            stage: stage,
+                            start_date: Constants.Dubai.iso8601String(from: sample.startDate),
+                            end_date: Constants.Dubai.iso8601String(from: sample.endDate)
+                        )
+                    } ?? []
+
+                    continuation.resume(returning: results)
                 }
 
-                let results = (samples as? [HKCategorySample])?.compactMap { sample -> HealthKitSleepSample? in
-                    guard let stage = HealthKitSyncService.sleepStageStringStatic(for: sample.value) else { return nil }
-
-                    return HealthKitSleepSample(
-                        sleep_id: sample.uuid.uuidString,
-                        stage: stage,
-                        start_date: Constants.Dubai.iso8601String(from: sample.startDate),
-                        end_date: Constants.Dubai.iso8601String(from: sample.endDate)
-                    )
-                } ?? []
-
-                continuation.resume(returning: results)
+                self.healthStore.execute(query)
             }
-
-            healthStore.execute(query)
         }
     }
 
@@ -235,38 +295,53 @@ class HealthKitSyncService: ObservableObject {
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date())
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: HKWorkoutType.workoutType(),
-                predicate: predicate,
-                limit: 50,
-                sortDescriptors: [sortDescriptor]
-            ) { _, samples, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
+        return try await withTimeout(seconds: 30) {
+            try await withCheckedThrowingContinuation { continuation in
+                let query = HKSampleQuery(
+                    sampleType: HKWorkoutType.workoutType(),
+                    predicate: predicate,
+                    limit: 50,
+                    sortDescriptors: [sortDescriptor]
+                ) { _, samples, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+
+                    let results: [HealthKitWorkoutSample] = (samples as? [HKWorkout])?.compactMap { workout in
+                        // Validate workout duration (max 24 hours / 1440 minutes)
+                        let durationMinutes = workout.duration / 60.0
+                        guard HealthKitValueValidator.validateSleep(durationMinutes) != nil else {
+                            // Duration is too long, skip this workout
+                            return nil
+                        }
+
+                        // Extract calories from statistics if available
+                        let energyType = HKQuantityType(.activeEnergyBurned)
+                        var calories = workout.statistics(for: energyType)?.sumQuantity()?.doubleValue(for: .kilocalorie())
+
+                        // Validate calories are reasonable (must be non-negative and not exceed 10000 kcal in a single session)
+                        if let calorieValue = calories, calorieValue < 0 || calorieValue > 10000 {
+                            logger.warning("Invalid calorie reading for workout filtered: \(calorieValue, privacy: .public) kcal (valid range: 0-10000 kcal)")
+                            calories = nil
+                        }
+
+                        return HealthKitWorkoutSample(
+                            workout_id: workout.uuid.uuidString,
+                            type: "HKWorkoutActivityType\(workout.workoutActivityType.rawValue)",
+                            duration_min: durationMinutes,
+                            calories: calories,
+                            distance_m: workout.totalDistance?.doubleValue(for: .meter()),
+                            start_date: Constants.Dubai.iso8601String(from: workout.startDate),
+                            end_date: Constants.Dubai.iso8601String(from: workout.endDate)
+                        )
+                    } ?? []
+
+                    continuation.resume(returning: results)
                 }
 
-                let results: [HealthKitWorkoutSample] = (samples as? [HKWorkout])?.map { workout in
-                    // Extract calories from statistics if available
-                    let energyType = HKQuantityType(.activeEnergyBurned)
-                    let calories = workout.statistics(for: energyType)?.sumQuantity()?.doubleValue(for: .kilocalorie())
-
-                    return HealthKitWorkoutSample(
-                        workout_id: workout.uuid.uuidString,
-                        type: "HKWorkoutActivityType\(workout.workoutActivityType.rawValue)",
-                        duration_min: workout.duration / 60.0,
-                        calories: calories,
-                        distance_m: workout.totalDistance?.doubleValue(for: .meter()),
-                        start_date: Constants.Dubai.iso8601String(from: workout.startDate),
-                        end_date: Constants.Dubai.iso8601String(from: workout.endDate)
-                    )
-                } ?? []
-
-                continuation.resume(returning: results)
+                self.healthStore.execute(query)
             }
-
-            healthStore.execute(query)
         }
     }
 
@@ -354,7 +429,7 @@ class HealthKitSyncService: ObservableObject {
 
         let payload = MedicationsBatchPayload(
             client_id: UUID().uuidString,
-            device: await UIDevice.current.name,
+            device: UIDevice.current.name,
             source_bundle_id: Bundle.main.bundleIdentifier ?? "com.rfanw.nexus",
             captured_at: Constants.Dubai.iso8601String(from: Date()),
             medications: samples

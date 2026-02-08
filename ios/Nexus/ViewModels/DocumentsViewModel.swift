@@ -93,9 +93,12 @@ class DocumentsViewModel: ObservableObject {
 
             if let newDoc = response.document {
                 documents.append(newDoc)
+                // Background refresh to sync with server state (no loading indicator)
+                Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    await self?.loadDocuments()
+                }
             }
-
-            await loadDocuments()
             return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription
@@ -138,8 +141,7 @@ class DocumentsViewModel: ObservableObject {
                let index = documents.firstIndex(where: { $0.id == id }) {
                 documents[index] = updatedDoc
             }
-
-            await loadDocuments()
+            // Skip redundant reload - local state is already updated
             return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription
@@ -182,8 +184,7 @@ class DocumentsViewModel: ObservableObject {
                let index = documents.firstIndex(where: { $0.id == id }) {
                 documents[index] = renewedDoc
             }
-
-            await loadDocuments()
+            // Skip redundant reload - local state is already updated
             return true  // Success - POST worked
         } catch {
             errorMessage = error.localizedDescription

@@ -371,9 +371,12 @@ class ReminderSyncService: ObservableObject {
             newCal.title = name
             newCal.source = eventStore.defaultCalendarForNewReminders()?.source
                 ?? eventStore.sources.first(where: { $0.sourceType == .local })
-            if let _ = try? eventStore.saveCalendar(newCal, commit: true) {
+            do {
+                try eventStore.saveCalendar(newCal, commit: true)
                 logger.info("[ReminderSync] Created calendar: \(name)")
                 return newCal
+            } catch {
+                logger.error("[ReminderSync] Failed to create calendar '\(name)': \(error.localizedDescription)")
             }
         }
         guard let calendar = eventStore.defaultCalendarForNewReminders() ?? eventStore.calendars(for: .reminder).first else {

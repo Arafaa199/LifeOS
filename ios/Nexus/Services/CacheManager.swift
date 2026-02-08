@@ -1,8 +1,10 @@
 import Foundation
+import os
 
 class CacheManager {
     static let shared = CacheManager()
 
+    private let logger = Logger(subsystem: "com.nexus.lifeos", category: "cache")
     private let defaults = UserDefaults.standard
     private let fileManager = FileManager.default
 
@@ -17,7 +19,11 @@ class CacheManager {
 
     private func createCacheDirectory() {
         if !fileManager.fileExists(atPath: cacheDirectory.path) {
-            try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+            do {
+                try fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+            } catch {
+                logger.error("Failed to create cache directory: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -27,12 +33,14 @@ class CacheManager {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
 
-        if let encoded = try? encoder.encode(object) {
+        do {
+            let encoded = try encoder.encode(object)
             let fileURL = cacheDirectory.appendingPathComponent("\(key).json")
-            try? encoded.write(to: fileURL)
-
+            try encoded.write(to: fileURL)
             // Save timestamp
             defaults.set(Date(), forKey: "\(key)_timestamp")
+        } catch {
+            logger.error("Failed to save cache for key '\(key)': \(error.localizedDescription)")
         }
     }
 

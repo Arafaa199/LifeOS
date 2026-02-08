@@ -294,8 +294,15 @@ class OfflineQueue: ObservableObject {
         } else {
             // New request, add to queue
             if queue.count >= self.maxQueueSize {
-                logger.warning("Queue at capacity, removing \(queue.count - self.maxQueueSize + 1) oldest items")
-                queue.removeFirst(queue.count - self.maxQueueSize + 1)
+                let itemsToRemove = queue.count - self.maxQueueSize + 1
+                logger.warning("Queue at capacity, removing \(itemsToRemove) oldest items")
+                queue.removeFirst(itemsToRemove)
+                // Notify UI that items were dropped
+                NotificationCenter.default.post(
+                    name: .offlineQueueItemsDropped,
+                    object: nil,
+                    userInfo: ["count": itemsToRemove]
+                )
             }
 
             let entry = QueuedEntry(
@@ -513,11 +520,17 @@ class OfflineQueue: ObservableObject {
     // MARK: - Persistence
 
     private func loadQueue() -> [QueuedEntry] {
-        guard let data = UserDefaults.standard.data(forKey: queueKey),
-              let queue = try? JSONDecoder().decode([QueuedEntry].self, from: data) else {
+        guard let data = UserDefaults.standard.data(forKey: queueKey) else {
             return []
         }
-        return queue
+        do {
+            return try JSONDecoder().decode([QueuedEntry].self, from: data)
+        } catch {
+            logger.error("Failed to decode offline queue (\(data.count) bytes): \(error.localizedDescription) — queue data lost")
+            // Clear corrupted data to prevent repeated decode failures
+            UserDefaults.standard.removeObject(forKey: queueKey)
+            return []
+        }
     }
 
     private func saveQueue(_ queue: [QueuedEntry]) {
@@ -532,11 +545,15 @@ class OfflineQueue: ObservableObject {
     // MARK: - Failed Items Persistence
 
     private func loadFailedItems() -> [FailedEntry] {
-        guard let data = UserDefaults.standard.data(forKey: failedKey),
-              let items = try? JSONDecoder().decode([FailedEntry].self, from: data) else {
+        guard let data = UserDefaults.standard.data(forKey: failedKey) else {
             return []
         }
-        return items
+        do {
+            return try JSONDecoder().decode([FailedEntry].self, from: data)
+        } catch {
+            logger.error("Failed to decode failed items (\(data.count) bytes): \(error.localizedDescription)")
+            return []
+        }
     }
 
     private func saveFailedItems(_ items: [FailedEntry]) {
@@ -619,6 +636,7 @@ class OfflineQueue: ObservableObject {
 
 extension Notification.Name {
     static let offlineItemPermanentlyFailed = Notification.Name("offlineItemPermanentlyFailed")
+    static let offlineQueueItemsDropped = Notification.Name("offlineQueueItemsDropped")
 }
 
 // MARK: - Enhanced NexusAPI with Offline Support
