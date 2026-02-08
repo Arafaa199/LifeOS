@@ -226,6 +226,10 @@ class FinanceViewModel: ObservableObject {
     @discardableResult
     func logExpense(_ text: String) async -> Bool {
         guard !text.isEmpty else { return false }
+        guard !operationInProgress else {
+            logger.debug("logExpense: Ignoring duplicate request while operation in progress")
+            return false
+        }
 
         operationInProgress = true
         errorMessage = nil
@@ -294,6 +298,11 @@ class FinanceViewModel: ObservableObject {
     }
 
     func triggerSMSImport() async {
+        guard !operationInProgress else {
+            logger.debug("triggerSMSImport: Ignoring duplicate request")
+            return
+        }
+
         operationInProgress = true
         errorMessage = nil
 
@@ -321,6 +330,11 @@ class FinanceViewModel: ObservableObject {
     /// Only sets errorMessage on actual failure, not for offline queue.
     @discardableResult
     func addManualTransaction(merchantName: String, amount: Double, category: String, notes: String?, date: Date) async -> Bool {
+        guard !operationInProgress else {
+            logger.debug("addManualTransaction: Ignoring duplicate request")
+            return false
+        }
+
         operationInProgress = true
         errorMessage = nil
 
@@ -369,6 +383,11 @@ class FinanceViewModel: ObservableObject {
     }
 
     func updateTransaction(id: Int, merchantName: String, amount: Double, category: String, notes: String?, date: Date) async {
+        guard !operationInProgress else {
+            logger.debug("updateTransaction: Ignoring duplicate request")
+            return
+        }
+
         operationInProgress = true
         errorMessage = nil
 
@@ -397,6 +416,11 @@ class FinanceViewModel: ObservableObject {
     }
 
     func deleteTransaction(id: Int) async {
+        guard !operationInProgress else {
+            logger.debug("deleteTransaction: Ignoring duplicate request")
+            return
+        }
+
         operationInProgress = true
         errorMessage = nil
 
@@ -427,6 +451,11 @@ class FinanceViewModel: ObservableObject {
     /// Income amounts are always stored as positive values.
     @discardableResult
     func addIncome(source: String, amount: Double, category: String, notes: String?, date: Date, isRecurring: Bool) async -> Bool {
+        guard !operationInProgress else {
+            logger.debug("addIncome: Ignoring duplicate request")
+            return false
+        }
+
         operationInProgress = true
         errorMessage = nil
 
@@ -531,6 +560,11 @@ class FinanceViewModel: ObservableObject {
         reason: CorrectionReason,
         notes: String?
     ) async -> Bool {
+        guard !operationInProgress else {
+            logger.debug("createCorrection: Ignoring duplicate request")
+            return false
+        }
+
         operationInProgress = true
         errorMessage = nil
 
@@ -568,6 +602,11 @@ class FinanceViewModel: ObservableObject {
     }
 
     func deactivateCorrection(correctionId: Int) async {
+        guard !operationInProgress else {
+            logger.debug("deactivateCorrection: Ignoring duplicate request")
+            return
+        }
+
         operationInProgress = true
         errorMessage = nil
 
@@ -608,10 +647,19 @@ class FinanceViewModel: ObservableObject {
 
     @discardableResult
     func createRecurringItem(_ request: CreateRecurringItemRequest) async -> Bool {
+        guard !operationInProgress else {
+            logger.debug("createRecurringItem: Ignoring duplicate request")
+            return false
+        }
+
+        operationInProgress = true
+        errorMessage = nil
+
         do {
             let response = try await api.createRecurringItem(request)
             if response.success {
                 loadRecurringItems()
+                operationInProgress = false
                 return true
             }
             errorMessage = "Failed to create recurring item"
@@ -619,15 +667,26 @@ class FinanceViewModel: ObservableObject {
             logger.error("Create recurring item failed: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
         }
+
+        operationInProgress = false
         return false
     }
 
     @discardableResult
     func updateRecurringItem(_ request: UpdateRecurringItemRequest) async -> Bool {
+        guard !operationInProgress else {
+            logger.debug("updateRecurringItem: Ignoring duplicate request")
+            return false
+        }
+
+        operationInProgress = true
+        errorMessage = nil
+
         do {
             let response = try await api.updateRecurringItem(request)
             if response.success {
                 loadRecurringItems()
+                operationInProgress = false
                 return true
             }
             errorMessage = "Failed to update recurring item"
@@ -635,15 +694,26 @@ class FinanceViewModel: ObservableObject {
             logger.error("Update recurring item failed: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
         }
+
+        operationInProgress = false
         return false
     }
 
     @discardableResult
     func deleteRecurringItem(id: Int) async -> Bool {
+        guard !operationInProgress else {
+            logger.debug("deleteRecurringItem: Ignoring duplicate request")
+            return false
+        }
+
+        operationInProgress = true
+        errorMessage = nil
+
         do {
             let response = try await api.deleteRecurringItem(id: id)
             if response.success {
                 recurringItems.removeAll { $0.id == id }
+                operationInProgress = false
                 return true
             }
             errorMessage = "Failed to delete recurring item"
@@ -651,6 +721,8 @@ class FinanceViewModel: ObservableObject {
             logger.error("Delete recurring item failed: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
         }
+
+        operationInProgress = false
         return false
     }
 
