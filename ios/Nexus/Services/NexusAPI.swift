@@ -108,6 +108,10 @@ class NexusAPI: ObservableObject {
         try await health.logWorkout(request)
     }
 
+    func createMedication(_ request: MedicationCreateRequest) async throws -> MedicationCreateResponse {
+        try await health.createMedication(request)
+    }
+
     // MARK: - Finance (delegate to FinanceAPI)
 
     func logExpense(_ text: String) async throws -> FinanceResponse {
@@ -148,6 +152,10 @@ class NexusAPI: ObservableObject {
 
     func fetchFinanceSummary() async throws -> FinanceResponse {
         try await finance.fetchFinanceSummary()
+    }
+
+    func fetchTransactions(offset: Int = 0, limit: Int = 50) async throws -> FinanceResponse {
+        try await finance.fetchTransactions(offset: offset, limit: limit)
     }
 
     func triggerSMSImport() async throws -> NexusResponse {

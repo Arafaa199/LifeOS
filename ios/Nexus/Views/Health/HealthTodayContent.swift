@@ -4,6 +4,12 @@ struct HealthTodayContent: View {
     @ObservedObject var viewModel: HealthViewModel
     var showFreshness: Bool = true
 
+    // MARK: - Dynamic Type Scaling
+    @ScaledMetric(relativeTo: .title) private var recoveryTextSize: CGFloat = 18
+    @ScaledMetric(relativeTo: .title) private var sleepTextSize: CGFloat = 28
+    @ScaledMetric(relativeTo: .title) private var activityTextSize: CGFloat = 22
+    @ScaledMetric(relativeTo: .title) private var bodyTextSize: CGFloat = 24
+
     var body: some View {
         VStack(spacing: 16) {
             if showFreshness {
@@ -31,6 +37,7 @@ struct HealthTodayContent: View {
                 sleepCard(facts)
                 activityCard(facts)
                 bodyCard(facts)
+                allMetricsLink(facts)
             } else {
                 emptyState
             }
@@ -59,7 +66,7 @@ struct HealthTodayContent: View {
                             .rotationEffect(.degrees(-90))
 
                         Text("\(recovery)%")
-                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .font(.system(size: recoveryTextSize, weight: .bold, design: .rounded))
                             .foregroundColor(recoveryColor(recovery))
                     }
 
@@ -77,6 +84,8 @@ struct HealthTodayContent: View {
 
                     Spacer()
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Recovery score: \(recovery) percent. Status: \(recoveryStatus(recovery))")
             } else {
                 dataStateView(
                     metric: "Recovery",
@@ -100,7 +109,7 @@ struct HealthTodayContent: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("\(hours)h \(mins)m")
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .font(.system(size: sleepTextSize, weight: .bold, design: .rounded))
 
                             if let efficiency = facts.sleepEfficiency {
                                 Text("\(Int(efficiency))% efficiency")
@@ -123,6 +132,8 @@ struct HealthTodayContent: View {
                         ComparisonBadge(value: vs7d, label: "vs 7-day avg")
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Sleep: \(hours) hours \(mins) minutes\(facts.sleepEfficiency.map { ", \(Int($0)) percent efficiency" } ?? "")")
             } else {
                 dataStateView(
                     metric: "Sleep",
@@ -147,10 +158,10 @@ struct HealthTodayContent: View {
                             .foregroundColor(NexusTheme.Colors.Semantic.blue)
                         if let steps {
                             Text(formatNumber(steps))
-                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .font(.system(size: activityTextSize, weight: .bold, design: .rounded))
                         } else {
                             Text("—")
-                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .font(.system(size: activityTextSize, weight: .bold, design: .rounded))
                                 .foregroundStyle(.tertiary)
                                 .accessibilityLabel("No step data available")
                         }
@@ -165,13 +176,21 @@ struct HealthTodayContent: View {
 
                 Spacer()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(steps.map { "Activity: \(formatNumber($0)) steps" } ?? "Activity: No step data available")
         }
     }
 
     // MARK: - Body Card
 
     private func bodyCard(_ facts: TodayFacts) -> some View {
-        let weight = facts.weightKg ?? viewModel.localWeight
+        // Prefer API weight (today's facts). Only fall back to HealthKit if recorded in last 48h.
+        let weight: Double? = facts.weightKg ?? {
+            guard let lw = viewModel.localWeight,
+                  let lwDate = viewModel.localWeightDate,
+                  lwDate > Date().addingTimeInterval(-48 * 3600) else { return nil }
+            return lw
+        }()
         let vs7d = facts.weightVs7d
 
         return HealthMetricCard(title: "Body") {
@@ -180,7 +199,7 @@ struct HealthTodayContent: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(String(format: "%.1f kg", weight))
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .font(.system(size: bodyTextSize, weight: .bold, design: .rounded))
 
                             if let vs7d {
                                 Text(vs7d >= 0 ? "+\(String(format: "%.1f", vs7d)) kg vs 7d" : "\(String(format: "%.1f", vs7d)) kg vs 7d")
@@ -194,6 +213,8 @@ struct HealthTodayContent: View {
                         SourceBadgeSmall(source: .healthkit)
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Body: \(String(format: "%.1f", weight)) kilograms\(vs7d.map { delta in delta >= 0 ? ", plus \(String(format: "%.1f", delta)) kilograms vs 7-day average" : ", minus \(String(format: "%.1f", abs(delta))) kilograms vs 7-day average" } ?? "")")
             } else {
                 dataStateView(
                     metric: "Weight",
@@ -312,6 +333,12 @@ struct HealthTodayContent: View {
         return NexusTheme.Colors.Semantic.red
     }
 
+    private func recoveryStatus(_ score: Int) -> String {
+        if score >= 67 { return "excellent" }
+        if score >= 34 { return "good" }
+        return "fair"
+    }
+
     private func formatNumber(_ number: Int) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -337,5 +364,41 @@ struct HealthTodayContent: View {
             Spacer()
         }
         .padding(.horizontal, 4)
+    }
+
+    // MARK: - All Metrics Link
+
+    private func allMetricsLink(_ facts: TodayFacts) -> some View {
+        NavigationLink(destination: HealthMetricsDetailView(facts: facts)) {
+            HStack(spacing: 12) {
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(NexusTheme.Colors.accent)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("All Health Metrics")
+                        .font(.subheadline.weight(.semibold))
+
+                    Text("HRV, RHR, sleep stages, hydration & more")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondary)
+                    .font(.caption.weight(.semibold))
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(12)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("All Health Metrics")
+            .accessibilityHint("Opens detailed view with HRV, RHR, sleep stages, hydration, and more metrics")
+        }
+        .foregroundColor(.primary)
     }
 }

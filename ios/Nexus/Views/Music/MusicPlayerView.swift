@@ -54,8 +54,9 @@ struct MusicPlayerView: View {
         ZStack {
             if let artwork = musicService.artwork {
                 ArtworkImage(artwork, width: UIScreen.main.bounds.width)
-                    .blur(radius: 100)
-                    .scaleEffect(1.5)
+                    .blur(radius: 80)
+                    .scaleEffect(1.2)
+                    .clipped()
             }
             Color.black.opacity(0.6)
         }
@@ -113,8 +114,10 @@ struct MusicPlayerView: View {
         Group {
             if let artwork = musicService.artwork {
                 ArtworkImage(artwork, width: size, height: size)
+                    .frame(width: size, height: size)
                     .cornerRadius(12)
-                    .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+                    .clipped()
+                    .shadow(color: Color.black.opacity(0.4), radius: 20, y: 10)
             } else {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.gray.opacity(0.3))

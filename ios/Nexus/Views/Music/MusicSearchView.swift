@@ -20,38 +20,46 @@ struct MusicSearchView: View {
             } else if let results = searchResults {
                 if !results.songs.isEmpty {
                     Section("Songs") {
-                        ForEach(results.songs.prefix(5), id: \.id) { song in
-                            SongRow(song: song)
+                        LazyVStack(spacing: 0) {
+                            ForEach(results.songs.prefix(5), id: \.id) { song in
+                                SongRow(song: song)
+                            }
                         }
                     }
                 }
 
                 if !results.albums.isEmpty {
                     Section("Albums") {
-                        ForEach(results.albums.prefix(5), id: \.id) { album in
-                            NavigationLink(destination: AlbumDetailView(album: album)) {
-                                AlbumRow(album: album)
+                        LazyVStack(spacing: 0) {
+                            ForEach(results.albums.prefix(5), id: \.id) { album in
+                                NavigationLink(destination: AlbumDetailView(album: album)) {
+                                    AlbumRow(album: album)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
 
                 if !results.artists.isEmpty {
                     Section("Artists") {
-                        ForEach(results.artists.prefix(5), id: \.id) { artist in
-                            NavigationLink(destination: ArtistDetailView(artist: artist)) {
-                                ArtistRow(artist: artist)
+                        LazyVStack(spacing: 0) {
+                            ForEach(results.artists.prefix(5), id: \.id) { artist in
+                                NavigationLink(destination: ArtistDetailView(artist: artist)) {
+                                    ArtistRow(artist: artist)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
 
                 if !results.playlists.isEmpty {
                     Section("Playlists") {
-                        ForEach(results.playlists.prefix(5), id: \.id) { playlist in
-                            PlaylistRow(playlist: playlist)
+                        LazyVStack(spacing: 0) {
+                            ForEach(results.playlists.prefix(5), id: \.id) { playlist in
+                                PlaylistRow(playlist: playlist)
+                            }
                         }
                     }
                 }
@@ -98,7 +106,9 @@ struct SongRow: View {
             HStack(spacing: 12) {
                 if let artwork = song.artwork {
                     ArtworkImage(artwork, width: 48, height: 48)
+                        .frame(width: 48, height: 48)
                         .cornerRadius(4)
+                        .clipped()
                 } else {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.gray.opacity(0.3))
@@ -143,7 +153,9 @@ struct AlbumRow: View {
         HStack(spacing: 12) {
             if let artwork = album.artwork {
                 ArtworkImage(artwork, width: 56, height: 56)
+                    .frame(width: 56, height: 56)
                     .cornerRadius(6)
+                    .clipped()
             } else {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.gray.opacity(0.3))
@@ -178,7 +190,9 @@ struct ArtistRow: View {
         HStack(spacing: 12) {
             if let artwork = artist.artwork {
                 ArtworkImage(artwork, width: 56, height: 56)
+                    .frame(width: 56, height: 56)
                     .clipShape(Circle())
+                    .clipped()
             } else {
                 Circle()
                     .fill(Color.gray.opacity(0.3))
@@ -208,7 +222,9 @@ struct PlaylistRow: View {
             HStack(spacing: 12) {
                 if let artwork = playlist.artwork {
                     ArtworkImage(artwork, width: 56, height: 56)
+                        .frame(width: 56, height: 56)
                         .cornerRadius(6)
+                        .clipped()
                 } else {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.gray.opacity(0.3))

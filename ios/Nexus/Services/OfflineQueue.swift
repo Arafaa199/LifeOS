@@ -41,13 +41,24 @@ enum ErrorClassification: CustomStringConvertible {
         if let apiError = error as? APIError {
             switch apiError {
             case .serverError(let code):
+                // 409 Conflict — client request conflicts with server state (not a server error!)
+                // Server auto-resolved the conflict, so treat as client error (don't retry)
+                if code == 409 {
+                    return .clientError
+                }
+                // Distinguish auth errors first
                 if code == 401 || code == 403 {
                     return .authError
-                } else if code >= 400 && code < 500 {
+                }
+                // Then client errors (4xx except 401/403)
+                if code >= 400 && code < 500 {
                     return .clientError
-                } else if code >= 500 {
+                }
+                // Server errors (5xx) are transient — should retry
+                if code >= 500 {
                     return .transient
                 }
+                // Success codes shouldn't reach here, but treat as permanent
                 return .permanent
             case .offline:
                 return .transient
@@ -55,6 +66,8 @@ enum ErrorClassification: CustomStringConvertible {
                 return .permanent
             case .custom:
                 return .clientError
+            case .rateLimited:
+                return .transient
             }
         }
 
@@ -131,6 +144,8 @@ class OfflineQueue: ObservableObject {
     private let maxQueueSize = 1000
     private let baseRetryDelay: TimeInterval = 5.0
     private let maxRetryDelay: TimeInterval = 60.0
+    private let failedItemsTTL: TimeInterval = 604800  // 7 days in seconds
+    private let maxFailedItems = 100
     private var processingTask: Task<Void, Never>?
     private var isProcessing = false
     private var networkCancellable: AnyCancellable?
@@ -174,6 +189,12 @@ class OfflineQueue: ObservableObject {
             case expense(text: String, clientId: String)
             case transaction(merchant: String, amount: Double, category: String?, clientId: String)
             case income(source: String, amount: Double, category: String, clientId: String)
+            case medicationToggle(medicationId: String, scheduledDate: String, scheduledTime: String?, newStatus: String)
+            case reminderToggle(reminderId: String)
+            case medicationCreate(medicationName: String, brand: String?, doseQuantity: Double?, doseUnit: String?, frequency: String, timesOfDay: [String], notes: String?)
+            case supplementLog(supplementId: Int, status: String, timeSlot: String?, notes: String?)
+            case supplementCreate(name: String, brand: String?, doseAmount: Double?, doseUnit: String?, frequency: String, timesOfDay: [String], category: String, notes: String?)
+            case workoutLog(workoutType: String, duration: Int, caloriesBurned: Double?, notes: String?)
 
             var endpoint: String {
                 switch self {
@@ -185,6 +206,12 @@ class OfflineQueue: ObservableObject {
                 case .expense: return "/webhook/nexus-expense"
                 case .transaction: return "/webhook/nexus-transaction"
                 case .income: return "/webhook/nexus-income"
+                case .medicationToggle: return "/webhook/nexus-medication-toggle"
+                case .reminderToggle: return "/webhook/nexus-reminder-toggle"
+                case .medicationCreate: return "/webhook/nexus-medication-create"
+                case .supplementLog: return "/webhook/nexus-supplement-log"
+                case .supplementCreate: return "/webhook/nexus-supplement-upsert"
+                case .workoutLog: return "/webhook/nexus-workout-log"
                 }
             }
         }
@@ -214,8 +241,9 @@ class OfflineQueue: ObservableObject {
     }
 
     private func retryDelay(forAttempt attempt: Int) -> TimeInterval {
-        let delay = baseRetryDelay * pow(2.0, Double(attempt))
-        return min(delay, maxRetryDelay)
+        let exponential = baseRetryDelay * pow(2.0, Double(attempt))
+        let jitter = exponential * Double.random(in: 0.5...1.5) // ±50% jitter prevents thundering herd
+        return min(jitter, maxRetryDelay)
     }
 
     private func scheduleProcessing() {
@@ -229,28 +257,55 @@ class OfflineQueue: ObservableObject {
     // MARK: - Add to Queue
 
     func enqueue(_ request: QueuedEntry.QueuedRequest, priority: QueuedEntry.Priority = .normal) {
-        var queue = loadQueue()
-
-        if queue.count >= self.maxQueueSize {
-            logger.warning("Queue at capacity, removing \(queue.count - self.maxQueueSize + 1) oldest items")
-            queue.removeFirst(queue.count - self.maxQueueSize + 1)
+        // Guard against concurrent modification: don't allow enqueue while processQueue is iterating
+        guard !isProcessing else {
+            logger.debug("Cannot enqueue while queue is processing - will retry shortly")
+            // Schedule a retry of the enqueue operation
+            Task {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+                self.enqueue(request, priority: priority)
+            }
+            return
         }
 
-        let entry = QueuedEntry(
-            id: UUID(),
-            type: describeRequest(request),
-            payload: "",
-            timestamp: Date(),
-            retryCount: 0,
-            priority: priority,
-            originalRequest: request
-        )
+        var queue = loadQueue()
 
-        queue.append(entry)
+        // Deduplication: check if an item with same endpoint already exists
+        let newEndpoint = request.endpoint
+        if let existingIndex = queue.firstIndex(where: { $0.originalRequest.endpoint == newEndpoint }) {
+            // Replace existing item with same endpoint (update timestamp)
+            queue[existingIndex] = QueuedEntry(
+                id: queue[existingIndex].id,
+                type: describeRequest(request),
+                payload: "",
+                timestamp: Date(),
+                retryCount: 0,
+                priority: priority,
+                originalRequest: request
+            )
+            logger.info("Deduplicated request for \(newEndpoint) - updated existing entry")
+        } else {
+            // New request, add to queue
+            if queue.count >= self.maxQueueSize {
+                logger.warning("Queue at capacity, removing \(queue.count - self.maxQueueSize + 1) oldest items")
+                queue.removeFirst(queue.count - self.maxQueueSize + 1)
+            }
+
+            let entry = QueuedEntry(
+                id: UUID(),
+                type: describeRequest(request),
+                payload: "",
+                timestamp: Date(),
+                retryCount: 0,
+                priority: priority,
+                originalRequest: request
+            )
+
+            queue.append(entry)
+            logger.info("Enqueued \(entry.type) with priority \(priority.rawValue)")
+        }
+
         saveQueue(queue)
-
-        logger.info("Enqueued \(entry.type) with priority \(priority.rawValue)")
-
         scheduleProcessing()
     }
 
@@ -281,6 +336,7 @@ class OfflineQueue: ObservableObject {
         var retrying: [QueuedEntry] = []
         var permanentlyFailed: [(entry: QueuedEntry, error: String)] = []
 
+        // Process ALL items regardless of failures — don't stop on first error
         for var entry in queue {
             if Task.isCancelled { break }
 
@@ -290,15 +346,51 @@ class OfflineQueue: ObservableObject {
                 logger.info("Successfully synced: \(entry.type)")
 
             } catch {
-                entry.retryCount += 1
+                let errorClassification = ErrorClassification.classify(error)
 
-                if entry.retryCount >= self.maxRetries {
+                switch errorClassification {
+                case .transient:
+                    // Network/5xx — keep for retry
+                    entry.retryCount += 1
+                    if entry.retryCount >= self.maxRetries {
+                        processed.append(entry.id)
+                        permanentlyFailed.append((entry, error.localizedDescription))
+                        logger.error("Permanent failure: Max retries (\(entry.retryCount)) exceeded for \(entry.type) after transient failures: \(error.localizedDescription)")
+                    } else {
+                        retrying.append(entry)
+                        logger.warning("Transient error (will retry \(entry.retryCount)/\(self.maxRetries)) for \(entry.type): \(error.localizedDescription)")
+                    }
+
+                case .clientError:
+                    // Check if it's a 409 conflict (not a real error — server resolved it)
+                    if let apiError = error as? APIError, case .serverError(409) = apiError {
+                        // Conflict detected — server resolved it, remove from queue
+                        processed.append(entry.id)
+                        logger.info("Conflict resolved by server for: \(entry.type)")
+
+                        // Notify ConflictResolver in an async context
+                        Task {
+                            // Extract basic description for the conflict
+                            _ = await ConflictResolver.shared.handleConflictResponse(Data(), for: entry.type)
+                        }
+                    } else {
+                        // Real client error — discard
+                        processed.append(entry.id)
+                        permanentlyFailed.append((entry, error.localizedDescription))
+                        logger.error("Permanent failure: Client error (4xx) for \(entry.type): \(error.localizedDescription)")
+                    }
+
+                case .authError:
+                    // 401/403 — don't retry, discard with logging (auth issue must be fixed by user)
                     processed.append(entry.id)
                     permanentlyFailed.append((entry, error.localizedDescription))
-                    logger.error("Max retries reached for \(entry.type): \(error.localizedDescription)")
-                } else {
-                    retrying.append(entry)
-                    logger.warning("Retry \(entry.retryCount)/\(self.maxRetries) for \(entry.type): \(error.localizedDescription)")
+                    logger.error("Permanent failure: Authentication error for \(entry.type): \(error.localizedDescription)")
+
+                case .permanent:
+                    // Invalid URL, decoding error — won't succeed on retry, discard
+                    processed.append(entry.id)
+                    permanentlyFailed.append((entry, error.localizedDescription))
+                    logger.error("Permanent failure: Non-retryable error for \(entry.type): \(error.localizedDescription)")
                 }
             }
         }
@@ -318,7 +410,7 @@ class OfflineQueue: ObservableObject {
 
         saveQueue(queue)
 
-        logger.info("Queue processing complete. Remaining: \(queue.count), Failed: \(permanentlyFailed.count)")
+        logger.info("Queue processing complete. Removed: \(processed.count), Remaining: \(queue.count), Permanently failed: \(permanentlyFailed.count)")
 
         if !queue.isEmpty && !Task.isCancelled {
             let maxAttempt = queue.map(\.retryCount).max() ?? 0
@@ -347,6 +439,18 @@ class OfflineQueue: ObservableObject {
             originalRequest: entry.originalRequest
         )
         failedItems.append(failedEntry)
+
+        // Apply TTL: remove items older than failedItemsTTL
+        let now = Date()
+        failedItems = failedItems.filter { now.timeIntervalSince($0.failedAt) < failedItemsTTL }
+
+        // Enforce max count: keep only the most recent maxFailedItems
+        if failedItems.count > maxFailedItems {
+            failedItems.sort { $0.failedAt > $1.failedAt } // Sort descending by failedAt
+            failedItems = Array(failedItems.prefix(maxFailedItems))
+            logger.warning("Failed items exceeded limit, pruned oldest items to keep \(self.maxFailedItems)")
+        }
+
         saveFailedItems(failedItems)
         logger.warning("Moved to failed items: \(entry.type) - \(lastError)")
 
@@ -378,6 +482,24 @@ class OfflineQueue: ObservableObject {
             _ = try await api.addTransactionWithClientId(merchant: merchant, amount: amount, category: category, clientId: clientId)
         case .income(let source, let amount, let category, let clientId):
             _ = try await api.addIncomeWithClientId(source: source, amount: amount, category: category, clientId: clientId)
+        case .medicationToggle(let medicationId, let scheduledDate, let scheduledTime, let newStatus):
+            struct MedToggle: Encodable { let medication_id, scheduled_date: String; let scheduled_time: String?; let new_status: String }
+            _ = try await api.post("/webhook/nexus-medication-toggle", body: MedToggle(medication_id: medicationId, scheduled_date: scheduledDate, scheduled_time: scheduledTime, new_status: newStatus))
+        case .reminderToggle(let reminderId):
+            struct RemToggle: Encodable { let reminder_id: String }
+            _ = try await api.post("/webhook/nexus-reminder-toggle", body: RemToggle(reminder_id: reminderId))
+        case .medicationCreate(let name, let brand, let qty, let unit, let freq, let times, let notes):
+            struct MedCreate: Encodable { let medication_name: String; let brand: String?; let dose_quantity: Double?; let dose_unit: String?; let frequency: String; let times_of_day: [String]; let notes: String? }
+            _ = try await api.post("/webhook/nexus-medication-create", body: MedCreate(medication_name: name, brand: brand, dose_quantity: qty, dose_unit: unit, frequency: freq, times_of_day: times, notes: notes))
+        case .supplementLog(let supplementId, let status, let timeSlot, let notes):
+            struct SupLog: Encodable { let supplement_id: Int; let status: String; let time_slot: String?; let notes: String? }
+            _ = try await api.post("/webhook/nexus-supplement-log", body: SupLog(supplement_id: supplementId, status: status, time_slot: timeSlot, notes: notes))
+        case .supplementCreate(let name, let brand, let doseAmount, let doseUnit, let freq, let times, let category, let notes):
+            struct SupCreate: Encodable { let name: String; let brand: String?; let dose_amount: Double?; let dose_unit: String?; let frequency: String; let times_of_day: [String]; let category: String; let notes: String? }
+            _ = try await api.post("/webhook/nexus-supplement-upsert", body: SupCreate(name: name, brand: brand, dose_amount: doseAmount, dose_unit: doseUnit, frequency: freq, times_of_day: times, category: category, notes: notes))
+        case .workoutLog(let workoutType, let duration, let caloriesBurned, let notes):
+            struct WorkLog: Encodable { let workout_type: String; let duration: Int; let calories_burned: Double?; let notes: String? }
+            _ = try await api.post("/webhook/nexus-workout-log", body: WorkLog(workout_type: workoutType, duration: duration, calories_burned: caloriesBurned, notes: notes))
         }
     }
 
@@ -476,6 +598,12 @@ class OfflineQueue: ObservableObject {
         case .expense(let text, _): return "Expense: \(text)"
         case .transaction(let merchant, let amount, _, _): return "Transaction: \(merchant) \(amount)"
         case .income(let source, let amount, _, _): return "Income: \(source) \(amount)"
+        case .medicationToggle(_, let date, _, let status): return "Medication: \(status) on \(date)"
+        case .reminderToggle(let id): return "Reminder toggle: \(id)"
+        case .medicationCreate(let name, _, _, _, _, _, _): return "Create medication: \(name)"
+        case .supplementLog(let id, let status, _, _): return "Supplement \(id): \(status)"
+        case .supplementCreate(let name, _, _, _, _, _, _, _): return "Create supplement: \(name)"
+        case .workoutLog(let type, let duration, _, _): return "Workout: \(type) (\(duration)min)"
         }
     }
 }

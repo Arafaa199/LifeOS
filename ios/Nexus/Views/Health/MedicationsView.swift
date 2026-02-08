@@ -3,7 +3,9 @@ import os
 
 struct MedicationsView: View {
     @StateObject private var coordinator = SyncCoordinator.shared
+    @State private var showingAddMedication = false
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "medications")
+    private let api = NexusAPI.shared
 
     private var medications: MedicationsSummary? {
         coordinator.dashboardPayload?.medicationsToday
@@ -23,6 +25,19 @@ struct MedicationsView: View {
         }
         .navigationTitle("Medications")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: { showingAddMedication = true }) {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel("Add medication")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Double tap to add a new medication")
+            }
+        }
+        .sheet(isPresented: $showingAddMedication) {
+            AddMedicationSheet(onSave: { Task { await refresh() } })
+        }
         .refreshable {
             await coordinator.sync(.dashboard)
         }
@@ -76,16 +91,59 @@ struct MedicationsView: View {
                 }
             }
 
-            // Doses Section
+            // Doses Section (interactive — tap to cycle status)
             if let doses = summary.medications, !doses.isEmpty {
                 Section("Schedule") {
                     ForEach(doses) { dose in
-                        MedicationDoseRow(dose: dose)
+                        MedicationDoseRow(dose: dose) {
+                            Task { await toggleDose(dose) }
+                        }
                     }
+                }
+
+                Section {
+                    Text("Tap a dose to cycle: Pending → Taken → Skipped")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    private func toggleDose(_ dose: MedicationDose) async {
+        let nextStatus: String
+        switch dose.status {
+        case "pending", "scheduled": nextStatus = "taken"
+        case "taken": nextStatus = "skipped"
+        case "skipped": nextStatus = "scheduled"
+        default: nextStatus = "taken"
+        }
+
+        let todayStr: String = {
+            let fmt = DateFormatter()
+            fmt.dateFormat = "yyyy-MM-dd"
+            fmt.locale = Locale(identifier: "en_US_POSIX")
+            return fmt.string(from: Date())
+        }()
+
+        do {
+            let _: NexusResponse = try await api.post(
+                "/webhook/nexus-medication-toggle",
+                body: MedicationToggleRequest(
+                    medication_id: dose.name,
+                    scheduled_date: todayStr,
+                    scheduled_time: dose.scheduledTime,
+                    new_status: nextStatus
+                )
+            )
+            NexusTheme.Haptics.success()
+            // Refresh dashboard to update medications summary
+            await coordinator.sync(.dashboard)
+        } catch {
+            NexusTheme.Haptics.error()
+            logger.error("Failed to toggle dose: \(error.localizedDescription)")
+        }
     }
 
     private func adherenceColor(_ pct: Double) -> Color {
@@ -93,40 +151,56 @@ struct MedicationsView: View {
         if pct >= 70 { return .orange }
         return .red
     }
+
+    private func refresh() async {
+        await coordinator.sync(.dashboard)
+    }
 }
 
-// MARK: - Dose Row
+// MARK: - Dose Row (now accepts an onTap action)
 
 struct MedicationDoseRow: View {
     let dose: MedicationDose
+    var onTap: (() -> Void)?
 
     var body: some View {
-        HStack {
-            // Status Icon
-            Image(systemName: statusIcon)
-                .font(.title3)
-                .foregroundColor(statusColor)
-                .frame(width: 28)
+        Button {
+            onTap?()
+        } label: {
+            HStack {
+                // Status Icon
+                Image(systemName: statusIcon)
+                    .font(.title3)
+                    .foregroundColor(statusColor)
+                    .frame(width: 28)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(dose.name)
-                    .font(.body)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(dose.name)
+                        .font(.body)
+                        .foregroundColor(.primary)
 
-                if let time = dose.scheduledTime {
-                    Text(time)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if let time = dose.scheduledTime {
+                        Text(time)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
+
+                Spacer()
+
+                Text(statusText)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(statusColor)
             }
-
-            Spacer()
-
-            Text(statusText)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundColor(statusColor)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(dose.name)\(dose.scheduledTime.map { ", scheduled at \($0)" } ?? ""), status: \(statusText)")
+        .accessibilityHint("Double tap to cycle through: Pending, Taken, Skipped")
+        .accessibilityAddTraits(.isButton)
     }
 
     private var statusIcon: String {

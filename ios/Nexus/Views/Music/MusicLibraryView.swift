@@ -42,20 +42,40 @@ struct MusicLibraryView: View {
 
 struct PlaylistsTab: View {
     @ObservedObject var musicService = MusicKitService.shared
+    @State private var searchText = ""
+
+    private var filteredPlaylists: [Playlist] {
+        let playlists = Array(musicService.userPlaylists)
+        if searchText.isEmpty {
+            return playlists
+        }
+        return playlists.filter { playlist in
+            playlist.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
 
     var body: some View {
         List {
-            ForEach(musicService.userPlaylists, id: \.id) { playlist in
-                PlaylistRow(playlist: playlist)
+            LazyVStack(spacing: 0) {
+                ForEach(filteredPlaylists, id: \.id) { playlist in
+                    PlaylistRow(playlist: playlist)
+                }
             }
         }
         .listStyle(.plain)
+        .searchable(text: $searchText, prompt: "Search playlists")
         .overlay {
             if musicService.userPlaylists.isEmpty {
                 ContentUnavailableView(
                     "No Playlists",
                     systemImage: "music.note.list",
                     description: Text("Your playlists will appear here")
+                )
+            } else if filteredPlaylists.isEmpty {
+                ContentUnavailableView(
+                    "No Results",
+                    systemImage: "magnifyingglass",
+                    description: Text("No playlists match your search")
                 )
             }
         }
@@ -68,14 +88,29 @@ struct AlbumsTab: View {
     @State private var albums: MusicItemCollection<Album> = []
     @State private var isLoading = true
     @State private var loadError: String?
+    @State private var searchText = ""
+
+    private var filteredAlbums: [Album] {
+        if searchText.isEmpty {
+            return albums.map { $0 }
+        }
+        return albums.filter { album in
+            let albumNameMatch = album.title.localizedCaseInsensitiveContains(searchText)
+            let artistMatch = album.artistName.localizedCaseInsensitiveContains(searchText)
+            return albumNameMatch || artistMatch
+        }
+    }
 
     var body: some View {
         List {
-            ForEach(albums, id: \.id) { album in
-                AlbumRow(album: album)
+            LazyVStack(spacing: 0) {
+                ForEach(filteredAlbums, id: \.id) { album in
+                    AlbumRow(album: album)
+                }
             }
         }
         .listStyle(.plain)
+        .searchable(text: $searchText, prompt: "Search albums")
         .overlay {
             if isLoading {
                 ProgressView()
@@ -94,6 +129,12 @@ struct AlbumsTab: View {
                     "No Albums",
                     systemImage: "square.stack",
                     description: Text("Albums you've added will appear here")
+                )
+            } else if filteredAlbums.isEmpty {
+                ContentUnavailableView(
+                    "No Results",
+                    systemImage: "magnifyingglass",
+                    description: Text("No albums match your search")
                 )
             }
         }
@@ -123,14 +164,30 @@ struct SongsTab: View {
     @State private var songs: MusicItemCollection<Song> = []
     @State private var isLoading = true
     @State private var loadError: String?
+    @State private var searchText = ""
+
+    private var filteredSongs: [Song] {
+        if searchText.isEmpty {
+            return songs.map { $0 }
+        }
+        return songs.filter { song in
+            let titleMatch = song.title.localizedCaseInsensitiveContains(searchText)
+            let artistMatch = song.artistName.localizedCaseInsensitiveContains(searchText)
+            let albumMatch = (song.albumTitle?.localizedCaseInsensitiveContains(searchText) ?? false)
+            return titleMatch || artistMatch || albumMatch
+        }
+    }
 
     var body: some View {
         List {
-            ForEach(songs, id: \.id) { song in
-                SongRow(song: song)
+            LazyVStack(spacing: 0) {
+                ForEach(filteredSongs, id: \.id) { song in
+                    SongRow(song: song)
+                }
             }
         }
         .listStyle(.plain)
+        .searchable(text: $searchText, prompt: "Search songs")
         .overlay {
             if isLoading {
                 ProgressView()
@@ -149,6 +206,12 @@ struct SongsTab: View {
                     "No Songs",
                     systemImage: "music.note",
                     description: Text("Songs you've added will appear here")
+                )
+            } else if filteredSongs.isEmpty {
+                ContentUnavailableView(
+                    "No Results",
+                    systemImage: "magnifyingglass",
+                    description: Text("No songs match your search")
                 )
             }
         }

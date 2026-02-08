@@ -37,7 +37,7 @@ struct MonthlyTrendsView: View {
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal)
-                    .onChange(of: selectedPeriod) { _ in
+                    .onChange(of: selectedPeriod) {
                         Task {
                             await loadMonthlyData()
                         }
@@ -160,11 +160,10 @@ struct MonthlyTrendsView: View {
                 .font(.headline)
                 .padding(.horizontal)
 
-            if monthlyData.count >= 2 {
-                let current = monthlyData.last!
+            if monthlyData.count >= 2, let current = monthlyData.last {
                 let previous = monthlyData[monthlyData.count - 2]
                 let change = current.totalSpent - previous.totalSpent
-                let percentChange = (change / previous.totalSpent) * 100
+                let percentChange = previous.totalSpent != 0 ? (change / previous.totalSpent) * 100 : 0
 
                 HStack(spacing: 12) {
                     MonthCard(

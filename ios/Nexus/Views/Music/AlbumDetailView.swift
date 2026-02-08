@@ -42,8 +42,10 @@ struct AlbumDetailView: View {
         VStack(spacing: 16) {
             if let artwork = album.artwork {
                 ArtworkImage(artwork, width: 240, height: 240)
+                    .frame(width: 240, height: 240)
                     .cornerRadius(12)
-                    .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+                    .clipped()
+                    .shadow(color: Color.black.opacity(0.3), radius: 20, y: 10)
             } else {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.gray.opacity(0.3))

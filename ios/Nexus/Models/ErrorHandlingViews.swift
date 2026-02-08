@@ -311,23 +311,23 @@ extension View {
 
 // MARK: - Preview Helpers
 
-#Preview("Error Alert") {
-    struct PreviewWrapper: View {
-        @State private var error: NexusError? = .network(URLError(.notConnectedToInternet))
-        
-        var body: some View {
-            VStack {
-                Button("Show Error") {
-                    error = .offline(queuedItemCount: 5)
-                }
-            }
-            .handleError($error) {
-                print("Retry tapped")
+private struct ErrorAlertPreview: View {
+    @State private var error: NexusError? = .network(URLError(.notConnectedToInternet))
+
+    var body: some View {
+        VStack {
+            Button("Show Error") {
+                error = .offline(queuedItemCount: 5)
             }
         }
+        .handleError($error) {
+            print("Retry tapped")
+        }
     }
-    
-    return PreviewWrapper()
+}
+
+#Preview("Error Alert") {
+    ErrorAlertPreview()
 }
 
 #Preview("Inline Error") {

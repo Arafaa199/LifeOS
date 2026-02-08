@@ -49,8 +49,10 @@ struct ArtistDetailView: View {
         VStack(spacing: 16) {
             if let artwork = artist.artwork {
                 ArtworkImage(artwork, width: 200, height: 200)
+                    .frame(width: 200, height: 200)
                     .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+                    .clipped()
+                    .shadow(color: Color.black.opacity(0.3), radius: 20, y: 10)
             } else {
                 Circle()
                     .fill(Color.gray.opacity(0.3))
@@ -109,49 +111,53 @@ struct ArtistDetailView: View {
             Text("Top Songs")
                 .font(.title2.bold())
 
-            ForEach(Array(songs.prefix(10).enumerated()), id: \.element.id) { index, song in
-                HStack(spacing: 12) {
-                    Text("\(index + 1)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .frame(width: 24)
-
-                    if let artwork = song.artwork {
-                        ArtworkImage(artwork, width: 44, height: 44)
-                            .cornerRadius(4)
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(song.title)
+            LazyVStack(spacing: 0) {
+                ForEach(Array(songs.prefix(10).enumerated()), id: \.element.id) { index, song in
+                    HStack(spacing: 12) {
+                        Text("\(index + 1)")
                             .font(.subheadline)
-                            .lineLimit(1)
-
-                        Text(song.albumTitle ?? "")
-                            .font(.caption)
                             .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
+                            .frame(width: 24)
 
-                    Spacer()
+                        if let artwork = song.artwork {
+                            ArtworkImage(artwork, width: 44, height: 44)
+                                .frame(width: 44, height: 44)
+                                .cornerRadius(4)
+                                .clipped()
+                        }
 
-                    Menu {
-                        Button(action: { Task { await musicService.playSong(song) }}) {
-                            Label("Play", systemImage: "play.fill")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(song.title)
+                                .font(.subheadline)
+                                .lineLimit(1)
+
+                            Text(song.albumTitle ?? "")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
                         }
-                        Button(action: { Task { await musicService.playNext(song) }}) {
-                            Label("Play Next", systemImage: "text.insert")
+
+                        Spacer()
+
+                        Menu {
+                            Button(action: { Task { await musicService.playSong(song) }}) {
+                                Label("Play", systemImage: "play.fill")
+                            }
+                            Button(action: { Task { await musicService.playNext(song) }}) {
+                                Label("Play Next", systemImage: "text.insert")
+                            }
+                            Button(action: { Task { await musicService.addToQueue(song) }}) {
+                                Label("Add to Queue", systemImage: "plus")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .foregroundColor(.secondary)
                         }
-                        Button(action: { Task { await musicService.addToQueue(song) }}) {
-                            Label("Add to Queue", systemImage: "plus")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .foregroundColor(.secondary)
                     }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    Task { await musicService.playSong(song) }
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        Task { await musicService.playSong(song) }
+                    }
                 }
             }
         }
@@ -170,7 +176,9 @@ struct ArtistDetailView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             if let artwork = album.artwork {
                                 ArtworkImage(artwork, width: 150, height: 150)
+                                    .frame(width: 150, height: 150)
                                     .cornerRadius(8)
+                                    .clipped()
                             } else {
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(Color.gray.opacity(0.3))
