@@ -240,7 +240,7 @@ Logs a workout.
 
 ### Idempotency
 
-`external_id` for HealthKit deduplication.
+`external_id` (HealthKit UUID) — Deduplication via database trigger. Duplicate `external_id` values are silently ignored.
 
 ### References
 

@@ -99,6 +99,10 @@ Removes note from index (does not delete actual file).
 | Auth | X-API-Key header |
 | Query Params | `id` (note ID) |
 
+### Delete Semantics
+
+**SOFT DELETE** — Sets `deleted_at = NOW()` in `raw.notes_index`. The actual Obsidian file is unchanged.
+
 ### Response
 
 ```json

@@ -32,6 +32,10 @@ Logs food via natural language or food ID.
 }
 ```
 
+### Idempotency
+
+**NONE** — No duplicate protection. Retries will create duplicate entries. iOS should track locally before retrying.
+
 ### References
 
 | Type | Reference |
@@ -196,6 +200,10 @@ Logs water intake.
   }
 }
 ```
+
+### Idempotency
+
+**NONE** — No duplicate protection. Retries will create duplicate entries. iOS should track locally before retrying.
 
 ### References
 

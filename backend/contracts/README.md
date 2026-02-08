@@ -114,19 +114,82 @@ All error responses follow this shape:
 | `RATE_LIMITED` | 429 | Too many requests, retry after backoff |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
 
+## DELETE Semantics
+
+| Endpoint | Type | Behavior |
+|----------|------|----------|
+| `DELETE /nexus-delete-transaction` | **HARD** | Permanently removes row from `finance.transactions` |
+| `DELETE /nexus-document` | Soft | Sets `deleted_at = NOW()`, `status = 'expired'` |
+| `DELETE /nexus-recurring` | Soft | Sets `is_active = false` |
+| `POST /nexus-reminder-delete` | Soft | Sets `deleted_at`, `sync_status = 'deleted_local'` |
+| `DELETE /nexus-note-delete` | Soft | Sets `deleted_at = NOW()` (Obsidian file unchanged) |
+
+**Note**: Transaction delete is the only hard delete. All others preserve data for recovery.
+
 ## Idempotency
 
-| Pattern | Used By |
-|---------|---------|
-| `client_id` UUID | Transactions, documents, reminders |
-| `external_id` | HealthKit workouts, WHOOP data |
-| `(session_id, started_at)` | Music listening events |
-| UPSERT by date | Weight, mood, daily aggregates |
+### Summary by Pattern
+
+| Pattern | Used By | Behavior |
+|---------|---------|----------|
+| `client_id` UUID | Transactions, expenses, income, documents | `ON CONFLICT DO NOTHING` |
+| `external_id` | HealthKit workouts | Dedup via trigger |
+| `(session_id, started_at)` | Music listening events | `ON CONFLICT DO NOTHING` |
+| `(month, category)` | Budgets | `ON CONFLICT DO UPDATE` |
+| `(recorded_at, source, metric_type)` | Weight, health metrics | `ON CONFLICT DO UPDATE` |
+| `(supplement_id, date, time_slot)` | Supplement logs | UPSERT via trigger |
+
+### Full Mutation Reference
+
+| Endpoint | Method | Idempotency Key | On Duplicate |
+|----------|--------|-----------------|--------------|
+| **Finance** |
+| `/nexus-expense` | POST | `client_id` | IGNORE |
+| `/nexus-transaction` | POST | `client_id` | IGNORE |
+| `/nexus-income` | POST | `client_id` | IGNORE |
+| `/nexus-update-transaction` | POST | ID lookup | N/A (update) |
+| `/nexus-delete-transaction` | DELETE | ID lookup | N/A (delete) |
+| `/nexus-budgets` | POST | `(month, category)` | UPDATE |
+| `/nexus-recurring` | POST | **NONE** | ERROR |
+| `/nexus-create-correction` | POST | **NONE** | INSERT always |
+| **Health** |
+| `/nexus-weight` | POST | `(recorded_at, source, metric_type)` | UPDATE |
+| `/nexus-mood` | POST | `(date)` implicit | Aggregates |
+| `/nexus-workout` | POST | `external_id` | Dedup via trigger |
+| `/nexus-supplement` | POST | ID (if provided) | UPSERT |
+| `/nexus-supplement-log` | POST | `(supplement_id, date, time_slot)` | UPSERT |
+| **Documents & Reminders** |
+| `/nexus-document` | POST | `client_id` | IGNORE |
+| `/nexus-document-update` | POST | ID lookup | N/A (update) |
+| `/nexus-document-renew` | POST | ID lookup | N/A (update) |
+| `/nexus-reminder-create` | POST | **NONE** | INSERT always |
+| `/nexus-reminder-update` | POST | ID lookup | N/A (update) |
+| `/nexus-reminder-delete` | POST | ID lookup | N/A (delete) |
+| **Nutrition** |
+| `/nexus-food-log` | POST | **NONE** | INSERT always |
+| `/nexus-water` | POST | **NONE** | INSERT always |
+| `/nexus-fast-start` | POST | Active session check | ERROR if active |
+| `/nexus-fast-break` | POST | Active session lookup | ERROR if none |
+| `/nexus-meal-confirmation` | POST | ID lookup | N/A (update) |
+| **Music** |
+| `/nexus-music-events` | POST | `(session_id, started_at)` | IGNORE |
+| **Receipts** |
+| `/nexus-receipt-item-match` | POST | ID lookup | N/A (update) |
+| **Notes** |
+| `/nexus-note-update` | PUT | ID lookup | N/A (update) |
+| `/nexus-note-delete` | DELETE | ID lookup | N/A (delete) |
+
+**Legend**:
+- **IGNORE**: Duplicate silently ignored, returns success
+- **UPDATE**: Duplicate updates existing record
+- **ERROR**: Duplicate returns 409 Conflict
+- **NONE**: No protection, duplicates inserted (use caution with retries)
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-02-09 | Added DELETE semantics (soft vs hard) and full idempotency specs for all mutation endpoints |
 | 2026-02-09 | Schema v17: Added `deep_sleep_minutes`, `rem_sleep_minutes` to dashboard today_facts (was missing from API) |
 | 2026-02-09 | **JSON Schema rewrite**: Rewrote all 17 response schemas to JSON Schema draft 2020-12; created 26 new request schemas for POST/PUT/DELETE endpoints |
 | 2026-02-09 | Added Error Response Contract with standard error codes; added Error Responses to all endpoints |

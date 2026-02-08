@@ -159,6 +159,10 @@ Deletes a document.
 | Auth | X-API-Key header |
 | Query Params | `id` (document ID) |
 
+### Delete Semantics
+
+**SOFT DELETE** — Sets `deleted_at = NOW()` and `status = 'expired'`. Row remains in `life.documents` for history.
+
 ### Response
 
 ```json
@@ -430,6 +434,10 @@ Deletes a reminder.
   "reminder_id": "eventkit-uuid"
 }
 ```
+
+### Delete Semantics
+
+**SOFT DELETE** — Sets `deleted_at = NOW()` and `sync_status = 'deleted_local'`. Row remains in `raw.reminders` for sync tracking.
 
 ### Response
 

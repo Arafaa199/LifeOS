@@ -263,6 +263,10 @@ Deletes a transaction.
 | Auth | X-API-Key header |
 | Query Params | `id` (transaction ID) |
 
+### Delete Semantics
+
+**HARD DELETE** — Row is permanently removed from `finance.transactions`. This is irreversible.
+
 ### Response
 
 ```json
@@ -567,6 +571,10 @@ Deletes a recurring item.
 | Method | DELETE |
 | Auth | X-API-Key header |
 | Query Params | `id` (recurring item ID) |
+
+### Delete Semantics
+
+**SOFT DELETE** — Sets `is_active = false`. Row remains in `finance.recurring_items` for history.
 
 ### Response
 
