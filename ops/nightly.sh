@@ -16,6 +16,12 @@ DRY_RUN=false
 
 mkdir -p "$REPORTS_DIR"
 
+# macOS doesn't have GNU timeout — use perl as a portable alternative
+run_with_timeout() {
+  local secs="$1"; shift
+  /usr/bin/perl -e 'alarm shift; exec @ARGV' "$secs" "$@"
+}
+
 if [ ! -f "$RUNBOOK" ]; then
   echo "ERROR: runbook.yaml not found at $RUNBOOK"
   exit 1
@@ -69,7 +75,7 @@ while IFS='|' read -r name script args artifact timeout on_failure critical; do
   # Execute with timeout
   START_TS=$(date +%s)
   # shellcheck disable=SC2086
-  OUTPUT=$(timeout "$timeout" bash "$FULL_SCRIPT" $args 2>&1)
+  OUTPUT=$(run_with_timeout "$timeout" bash "$FULL_SCRIPT" $args </dev/null 2>&1)
   EXIT_CODE=$?
   END_TS=$(date +%s)
   DURATION=$((END_TS - START_TS))

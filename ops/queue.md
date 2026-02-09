@@ -2400,6 +2400,197 @@ Lane: safe_auto
 
 ---
 
+---
+
+## PLANNED TASKS (Auditor-Generated 2026-02-09)
+
+### TASK-PLAN.1: Fix Nightly Ops Runner — Replace `timeout` with macOS-Compatible Alternative
+Priority: P1
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** The nightly ops runner (`ops/nightly.sh`) has been failing with exit 127 for 3+ consecutive days because macOS's launchd environment doesn't have GNU `timeout` in PATH. Fix by replacing `timeout` with a POSIX-compatible alternative so all 4 nightly checks resume running.
+
+**Files Changed:**
+- `ops/nightly.sh`
+
+**Fix Applied:**
+- Added `run_with_timeout()` shell function using `/usr/bin/perl -e 'alarm shift; exec @ARGV'` (perl always available on macOS)
+- Replaced `timeout "$timeout" bash "$FULL_SCRIPT" $args` with `run_with_timeout "$timeout" bash "$FULL_SCRIPT" $args </dev/null`
+- Added `</dev/null` to prevent child scripts from consuming the process substitution's stdin (secondary bug that caused only 1 of 4 checks to run)
+
+**Verification:**
+- [x] `bash ops/nightly.sh --dry-run` exits 0 — 4 DRY RUN entries
+- [x] `bash ops/nightly.sh` runs all 4 checks: smoke-tests PASS, schema-snapshot PASS, sms-replay FAIL (exit 1, legitimate), ops-health-probe PASS
+- [x] `grep 'exit 127' ops/reports/ops-report-2026-02-09.md` returns 0 matches
+
+**Exit Criteria:**
+- [x] `bash ops/nightly.sh --dry-run 2>&1 | grep -c 'DRY RUN'` returns 4
+- [x] No exit 127 in any check results
+
+**Done Means:** Nightly ops monitoring resumes after 3+ days of blindness. All checks execute and produce actionable status.
+
+---
+
+### TASK-PLAN.2: Create ops/contracts/ Directory with Endpoint Contract Schemas
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** `check.sh` iterates `$CONTRACTS_DIR/*.json` for webhook contract validation, but `ops/contracts/` doesn't exist. Without contracts, all 16 webhook endpoint checks silently skip validation. Create contract JSON files for the most critical endpoints so smoke tests actually verify API response shapes.
+
+**Files to Touch:**
+- `ops/contracts/nexus-dashboard-today.json` (new)
+- `ops/contracts/nexus-budgets.json` (new)
+- `ops/contracts/nexus-categories.json` (new)
+- `ops/contracts/nexus-recurring.json` (new)
+- `ops/contracts/ops-health.json` (new)
+
+**Implementation:**
+- Each contract file follows the schema expected by `validate-contract.sh`: `{ "endpoint": "...", "required_keys": [{ "path": ".field", "type": "string|number|array|object|boolean" }] }`
+- Dashboard contract: verify `.today_facts`, `.feed_status`, `.daily_insights`, `.schema_version` exist with correct types
+- Budgets contract: verify response is array or has `.budgets` key
+- Start with 5 most critical contracts (dashboard, budgets, categories, recurring, ops-health)
+
+**Verification:**
+- [ ] `ls ops/contracts/*.json | wc -l` returns ≥5
+- [ ] `bash ops/lib/validate-contract.sh ops/contracts/nexus-dashboard-today.json -` accepts valid dashboard JSON
+- [ ] `bash ops/check.sh 2>&1 | grep -c 'healthy'` returns >0 (contracts pass validation)
+
+**Exit Criteria:**
+- [ ] `[ -d ops/contracts ]` returns true
+- [ ] `ls ops/contracts/*.json | wc -l` ≥ 5
+
+**Done Means:** Webhook smoke tests validate response schemas instead of silently skipping. Contract violations are caught automatically.
+
+---
+
+### TASK-PLAN.3: Add BJJ to MoreView Navigation
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** BJJ tracking is fully implemented (BJJView, BJJLogSheet, BJJViewModel, BJJCardView, n8n webhooks, migration 178) but the full BJJ view is only accessible via the dashboard card's NavigationLink. Users can't find it from the More tab — the primary discovery point for all features. Add a BJJ entry to MoreView.
+
+**Files to Touch:**
+- `ios/Nexus/Views/MoreView.swift`
+
+**Implementation:**
+- Add `NavigationLink(destination: BJJView())` in the "Life Data" section, after "Workouts" (line ~85)
+- Icon: `figure.martial.arts` (SF Symbol), color: `.blue`
+- Subtitle: "Training log & streaks"
+
+**Verification:**
+- [ ] `grep 'BJJView' ios/Nexus/Views/MoreView.swift` returns match
+- [ ] `xcodebuild -scheme Nexus build 2>&1 | grep 'BUILD SUCCEEDED'` passes
+
+**Exit Criteria:**
+- [ ] `grep -c 'BJJView' ios/Nexus/Views/MoreView.swift` returns ≥1
+- [ ] iOS build succeeds
+
+**Done Means:** User can navigate to full BJJ training log from the More tab.
+
+---
+
+### TASK-PLAN.4: Wire BJJ Session Count into Dashboard Payload
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** The BJJ card on TodayView calls `HealthAPI.fetchBJJStreak()` — a separate API call on every dashboard load. Wire BJJ summary into `dashboard.get_payload()` so the card renders from the existing dashboard fetch without an extra network round-trip.
+
+**Files to Touch:**
+- `backend/migrations/179_bjj_dashboard_payload.up.sql`
+- `backend/migrations/179_bjj_dashboard_payload.down.sql`
+- `ios/Nexus/Models/DashboardPayload.swift`
+
+**Implementation:**
+- Add `bjj_summary` key to `dashboard.get_payload()`: `{ current_streak, longest_streak, total_sessions, sessions_this_week, sessions_this_month, last_session_date }`
+- Query `health.get_bjj_streaks()` + `MAX(session_date)` from `health.bjj_sessions`
+- Add `BJJSummary` Codable struct to DashboardPayload with optional decode
+- Schema version bump (current → +1)
+
+**Verification:**
+- [ ] `ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c \"SELECT (dashboard.get_payload())->'bjj_summary' IS NOT NULL;\""` returns true
+- [ ] `xcodebuild -scheme Nexus build 2>&1 | grep 'BUILD SUCCEEDED'` passes
+- [ ] Down migration tested
+
+**Exit Criteria:**
+- [ ] Dashboard payload includes `bjj_summary` key
+- [ ] iOS DashboardPayload decodes it
+- [ ] iOS build succeeds
+
+**Done Means:** BJJ card on TodayView can render from cached dashboard data without extra API calls.
+
+---
+
+### TASK-PLAN.5: Add Supplements Feed Status Trigger
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** The `supplements` feed shows `unknown` status permanently. The `supplement-log-webhook.json` calls `health.log_supplement_dose()` but no trigger updates `life.feed_status_live`. Add an AFTER INSERT trigger on `health.supplement_log` so feed status transitions from "unknown" to "ok" when the user logs a dose.
+
+**Files to Touch:**
+- `backend/migrations/180_supplements_feed_trigger.up.sql`
+- `backend/migrations/180_supplements_feed_trigger.down.sql`
+
+**Implementation:**
+- Create `health.update_feed_status_supplements()` trigger function (same pattern as screen_time trigger from migration 159)
+- Create `trg_supplement_log_feed_status` AFTER INSERT OR UPDATE trigger on `health.supplement_log`
+- Upsert into `life.feed_status_live` with source='supplements'
+
+**Verification:**
+- [ ] `ssh nexus "docker exec nexus-db psql -U nexus -d nexus -c \"SELECT trigger_name FROM information_schema.triggers WHERE event_object_table = 'supplement_log';\""` returns trigger name
+- [ ] Test: insert a row into `health.supplement_log` → `SELECT status FROM life.feed_status WHERE source = 'supplements';` returns 'ok'
+- [ ] Down migration drops trigger and function
+
+**Exit Criteria:**
+- [ ] `SELECT proname FROM pg_proc WHERE proname = 'update_feed_status_supplements';` returns 1 row
+- [ ] Test insert transitions status from 'unknown' to 'ok'
+
+**Done Means:** Supplement adherence tracking properly reflected in system health dashboard.
+
+---
+
+### TASK-PLAN.6: Add BJJ Feed Status Tracking
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** BJJ sessions are logged via `health.bjj_sessions` (migration 178) but have no feed status entry. Add feed status tracking so the Pipeline Health view shows BJJ data freshness alongside other domains.
+
+**Files to Touch:**
+- `backend/migrations/181_bjj_feed_status.up.sql`
+- `backend/migrations/181_bjj_feed_status.down.sql`
+
+**Implementation:**
+- Insert `bjj` source into `life.feed_status_live` with `expected_interval = '7 days'` (weekly training frequency)
+- Create `health.update_feed_status_bjj()` trigger function
+- Create `trg_bjj_sessions_feed_status` AFTER INSERT OR UPDATE trigger on `health.bjj_sessions`
+- Idempotent: use IF NOT EXISTS / ON CONFLICT patterns
+
+**Verification:**
+- [ ] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'bjj';` returns `bjj | 7 days`
+- [ ] Test: insert into `health.bjj_sessions` → status transitions to 'ok'
+- [ ] Down migration drops trigger, function, and feed entry
+
+**Exit Criteria:**
+- [ ] Feed status entry exists for 'bjj'
+- [ ] Trigger fires on INSERT to bjj_sessions
+
+**Done Means:** BJJ training frequency visible in Pipeline Health alongside all other data sources.
+
+---
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)

@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-07T17:00:00+04:00
+Last updated: 2026-02-09T16:25:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -168,6 +168,11 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-FEAT.19: Transaction Search | DONE | **Already implemented.** `FinanceActivityView.swift` has full search functionality: `@State private var searchText` (line 6), `filteredTransactions` computed property filters by merchant/category/notes (lines 16-46), `.searchable(text: $searchText, prompt: "Search transactions")` (line 176), category filter chips (lines 114-139), date range picker (lines 98-112). Uses native iOS `.searchable()` modifier which provides standard search bar UX with built-in debounce. 0 files changed (already complete). iOS build: BUILD SUCCEEDED. |
 | TASK-FEAT.20: Subscription Monitor View | DONE | Created `SubscriptionsView.swift` (237 LOC): monthly total header, "Due Soon" section for items due within 7 days, all subscriptions list. Category-aware icons (TV for Netflix/Disney, music note for Spotify, etc.) and colors. Filters recurring items by monthly cadence OR subscription-like names. Added NavigationLink to SubscriptionsView in FinancePlanningView Recurring tab. 2 files changed (+251). iOS build: BUILD SUCCEEDED. Commit `0fdb9f1`. |
 | TASK-FEAT.21: Error Boundary Views | DONE | Created `ErrorStateView.swift` (66 LOC) in new `Views/Components/` directory: warning triangle icon, configurable title/message, "Try Again" button with retry callback. Updated `TodayView.swift` to show error state when `errorMessage != nil && dashboardPayload == nil`. Updated `FinanceOverviewContent.swift` to show error state when `errorMessage != nil && hasNoData` (spent/income both 0 and no transactions). 3 files changed (+109/-31). iOS build: BUILD SUCCEEDED. Commit `c9409f7`. |
+
+### Recent (Feb 9)
+| Task | Status | Summary |
+|------|--------|---------|
+| TASK-PLAN.1: Fix Nightly Ops Runner | DONE | Replaced GNU `timeout` (not available on macOS) with `run_with_timeout()` function using `/usr/bin/perl -e 'alarm shift; exec @ARGV'`. Also fixed secondary stdin consumption bug — child scripts consumed the process substitution's fd, causing only 1 of 4 checks to run; fixed by adding `</dev/null`. Before: 4 checks × exit 127 (3+ days blind). After: smoke-tests PASS, schema-snapshot PASS, sms-replay FAIL (legitimate exit 1), ops-health-probe PASS. 1 file changed (ops/nightly.sh, +8/-1). Dry-run: 4 DRY RUN entries. Zero exit 127 in report. |
 
 ### Recent (Feb 7)
 | Task | Status | Summary |
@@ -429,3 +434,39 @@ Comprehensive iOS architecture audit completed across 3 phases. All critical iss
 5. PLAN.5 is independent — pure backend function, no dependencies
 6. PLAN.6 is independent — test infrastructure only
 7. PLAN.7 is lowest priority — advisory, already-applied migration hardening
+
+---
+
+## Auditor Planning Mode (2026-02-09)
+
+## Planning Rationale
+
+### Why These Tasks Were Chosen
+
+1. **TASK-PLAN.1 (Fix nightly runner)** — **Highest priority.** The ops monitoring infrastructure has been blind for 3+ days (Feb 6-8, all showing exit 127). Root cause: macOS launchd doesn't have GNU `timeout` in PATH. This is a 15-minute fix that restores visibility into all infrastructure checks. Without it, webhook failures, schema drift, and replay regressions go undetected.
+
+2. **TASK-PLAN.2 (Create contracts)** — **Unblocks meaningful monitoring.** Even after PLAN.1 fixes `timeout`, `check.sh` iterates `ops/contracts/*.json` which doesn't exist — so all 16 webhook checks would either skip or fail differently. Creating the 5 most critical contracts means smoke tests actually validate API response shapes. Directly complements PLAN.1.
+
+3. **TASK-PLAN.3 (BJJ in MoreView)** — **Quick win, high discoverability.** BJJ is fully implemented end-to-end (DB, n8n, iOS views) but hidden behind the dashboard card. Every other feature (Music, Supplements, Workouts, Documents, etc.) is accessible from MoreView. This is a 2-line change that makes the feature discoverable.
+
+4. **TASK-PLAN.4 (BJJ in dashboard payload)** — **Performance fix.** Currently BJJCardView on TodayView fires a separate `HealthAPI.fetchBJJStreak()` call on every dashboard load. Wiring it into `dashboard.get_payload()` eliminates the extra round-trip and follows the established pattern (GitHub, Calendar, Reminders, Music all in payload).
+
+5. **TASK-PLAN.5 (Supplements feed trigger)** — **Dashboard cleanliness.** `supplements` shows permanent "unknown" in Pipeline Health. The logging webhook exists and works, but no trigger updates feed_status_live. Same fix pattern used for screen_time (migration 159) and music (migration 157).
+
+6. **TASK-PLAN.6 (BJJ feed status)** — **Completeness.** BJJ is the newest data domain with no feed status tracking. Adding it follows the pattern established for every other domain and ensures the Pipeline Health view is comprehensive.
+
+### What Was Deliberately Excluded
+
+- **Debt/Wishlist views** — Require both backend CRUD endpoints AND new iOS views. Multi-session effort that exceeds single-task scope. Better as a dedicated feature sprint.
+- **Apple Watch companion** — New target, significant effort, not aligned with current sprint priorities.
+- **Receipt→Nutrition matching improvement** — High effort, needs fuzzy matching research. Not a quick win.
+- **Unit test expansion** — Blocked on Xcode target configuration (requires user action in Xcode GUI).
+- **Health Score Composite (SUGG-05)** — Interesting but speculative. No user request driving it. Would need product design discussion.
+- **Smart Hydration Reminders** — Requires Home Assistant automation + n8n workflow. Cross-system change that's better done in a dedicated session.
+
+### Task Ordering Rationale
+
+1. **PLAN.1 → PLAN.2**: Sequential dependency — fix the runner first, then give it contracts to validate against. Together they restore full monitoring coverage.
+2. **PLAN.3**: Independent, iOS-only, 5 minutes. Quick win the coder can ship immediately.
+3. **PLAN.4**: Backend + iOS change, medium effort. Reduces network calls on every dashboard load.
+4. **PLAN.5 → PLAN.6**: Independent feed status triggers. Both follow established patterns, ~10 minutes each. Clean up the remaining "unknown" entries in Pipeline Health.
