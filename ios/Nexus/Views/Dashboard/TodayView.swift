@@ -108,6 +108,9 @@ struct TodayView: View {
         StateCardView(
             recoveryScore: viewModel.dashboardPayload?.todayFacts?.recoveryScore,
             sleepMinutes: viewModel.dashboardPayload?.todayFacts?.sleepMinutes,
+            deepSleepMinutes: viewModel.dashboardPayload?.todayFacts?.deepSleepMinutes,
+            remSleepMinutes: viewModel.dashboardPayload?.todayFacts?.remSleepMinutes,
+            sleepEfficiency: viewModel.dashboardPayload?.todayFacts?.sleepEfficiency,
             healthStatus: viewModel.dashboardPayload?.dataFreshness?.health?.status,
             healthFreshness: viewModel.healthFreshness,
             spendTotal: viewModel.dashboardPayload?.todayFacts?.spendTotal,
@@ -120,6 +123,9 @@ struct TodayView: View {
             workoutMinutes: viewModel.dashboardPayload?.todayFacts?.workoutMinutes,
             reminderSummary: viewModel.dashboardPayload?.reminderSummary
         )
+
+        // Financial Position Quick Card
+        FinanceQuickCard()
 
         // Streaks
         StreakBadgesView(streaks: viewModel.dashboardPayload?.streaks)
@@ -150,6 +156,7 @@ struct TodayView: View {
                 if hasNutritionData {
                     NutritionCardView(
                         caloriesConsumed: viewModel.dashboardPayload?.todayFacts?.caloriesConsumed,
+                        proteinG: viewModel.dashboardPayload?.todayFacts?.proteinG,
                         mealsLogged: viewModel.dashboardPayload?.todayFacts?.mealsLogged,
                         waterMl: viewModel.dashboardPayload?.todayFacts?.waterMl
                     )

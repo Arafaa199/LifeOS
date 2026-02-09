@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Nutrition card showing calories, meals, and water
+/// Nutrition card showing calories, protein, meals, and water
 struct NutritionCardView: View {
     let caloriesConsumed: Int?
+    let proteinG: Double?
     let mealsLogged: Int?
     let waterMl: Int?
 
@@ -21,6 +22,10 @@ struct NutritionCardView: View {
                 HStack(spacing: NexusTheme.Spacing.lg) {
                     if let calories = caloriesConsumed, calories > 0 {
                         nutritionItem(value: "\(calories)", label: "cal", icon: "flame.fill", color: NexusTheme.Colors.Semantic.amber)
+                    }
+
+                    if let protein = proteinG, protein > 0 {
+                        nutritionItem(value: "\(Int(protein))g", label: "protein", icon: "figure.strengthtraining.traditional", color: NexusTheme.Colors.Semantic.purple)
                     }
 
                     if let meals = mealsLogged, meals > 0 {
@@ -67,6 +72,7 @@ struct NutritionCardView: View {
     NavigationView {
         NutritionCardView(
             caloriesConsumed: 1500,
+            proteinG: 85.5,
             mealsLogged: 3,
             waterMl: 2000
         )

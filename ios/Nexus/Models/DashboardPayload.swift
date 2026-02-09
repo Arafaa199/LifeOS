@@ -275,6 +275,7 @@ struct TodayFacts: Codable {
     let mealsLogged: Int?
     let waterMl: Int?
     let caloriesConsumed: Int?
+    let proteinG: Double?
     let dataCompleteness: Double?
     let factsComputedAt: String?
 
@@ -324,6 +325,7 @@ struct TodayFacts: Codable {
         case mealsLogged = "meals_logged"
         case waterMl = "water_ml"
         case caloriesConsumed = "calories_consumed"
+        case proteinG = "protein_g"
         case dataCompleteness = "data_completeness"
         case factsComputedAt = "facts_computed_at"
         case workoutCount = "workout_count"
@@ -1018,4 +1020,21 @@ struct DashboardResponse: Codable {
     enum CodingKeys: String, CodingKey {
         case success, data, error
     }
+}
+
+// MARK: - Medication Creation Models
+
+struct MedicationCreateRequest: Codable {
+    let medication_name: String
+    let brand: String?
+    let dose_quantity: Double?
+    let dose_unit: String?
+    let frequency: String
+    let times_of_day: [String]
+    let notes: String?
+}
+
+struct MedicationCreateResponse: Codable {
+    let success: Bool
+    let medication_id: Int
 }

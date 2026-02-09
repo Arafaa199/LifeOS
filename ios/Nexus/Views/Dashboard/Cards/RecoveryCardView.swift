@@ -1,11 +1,22 @@
 import SwiftUI
 
-/// Recovery ring with score, sleep duration, and sync freshness
+/// Recovery ring with score, sleep duration, composition breakdown, and sync freshness
 struct RecoveryCardView: View {
     let recoveryScore: Int?
     let sleepMinutes: Int?
+    let deepSleepMinutes: Int?
+    let remSleepMinutes: Int?
+    let sleepEfficiency: Double?
     let healthStatus: String?
     let freshness: DomainFreshness?
+
+    // Computed light sleep
+    private var lightSleepMinutes: Int? {
+        guard let total = sleepMinutes, let deep = deepSleepMinutes, let rem = remSleepMinutes else {
+            return nil
+        }
+        return max(0, total - deep - rem)
+    }
 
     var body: some View {
         HStack(spacing: NexusTheme.Spacing.md) {
@@ -29,9 +40,22 @@ struct RecoveryCardView: View {
             .accessibilityLabel("Recovery \(recoveryText)")
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Recovery")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(NexusTheme.Colors.textPrimary)
+                HStack(spacing: 4) {
+                    Text("Recovery")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(NexusTheme.Colors.textPrimary)
+
+                    // Sleep efficiency badge
+                    if let efficiency = sleepEfficiency {
+                        Text("\(Int(efficiency * 100))%")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(efficiencyColor(efficiency))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(efficiencyColor(efficiency).opacity(0.15))
+                            .cornerRadius(4)
+                    }
+                }
 
                 if recoveryScore == nil {
                     if healthStatus == "healthy" || healthStatus == nil {
@@ -51,12 +75,67 @@ struct RecoveryCardView: View {
                         .foregroundColor(NexusTheme.Colors.textSecondary)
                 }
 
+                // Sleep composition breakdown
+                if let deep = deepSleepMinutes, let rem = remSleepMinutes, let light = lightSleepMinutes, let total = sleepMinutes, total > 0 {
+                    sleepCompositionView(deep: deep, rem: rem, light: light, total: total)
+                }
+
                 if let freshness {
                     Text(freshness.syncTimeLabel)
                         .font(.system(size: 10))
                         .foregroundColor(freshness.isStale ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.textTertiary)
                 }
             }
+        }
+    }
+
+    // MARK: - Sleep Composition
+
+    @ViewBuilder
+    private func sleepCompositionView(deep: Int, rem: Int, light: Int, total: Int) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            // Horizontal composition bar
+            GeometryReader { geo in
+                HStack(spacing: 1) {
+                    Rectangle()
+                        .fill(NexusTheme.Colors.Semantic.purple)
+                        .frame(width: geo.size.width * CGFloat(deep) / CGFloat(total))
+                    Rectangle()
+                        .fill(NexusTheme.Colors.Semantic.blue)
+                        .frame(width: geo.size.width * CGFloat(rem) / CGFloat(total))
+                    Rectangle()
+                        .fill(NexusTheme.Colors.textTertiary.opacity(0.5))
+                        .frame(width: geo.size.width * CGFloat(light) / CGFloat(total))
+                }
+                .cornerRadius(2)
+            }
+            .frame(height: 4)
+
+            // Stat pills
+            HStack(spacing: 4) {
+                sleepPill(label: "Deep", minutes: deep, color: NexusTheme.Colors.Semantic.purple)
+                sleepPill(label: "REM", minutes: rem, color: NexusTheme.Colors.Semantic.blue)
+                sleepPill(label: "Light", minutes: light, color: NexusTheme.Colors.textTertiary)
+            }
+        }
+    }
+
+    private func sleepPill(label: String, minutes: Int, color: Color) -> some View {
+        HStack(spacing: 2) {
+            Circle()
+                .fill(color)
+                .frame(width: 5, height: 5)
+            Text("\(minutes / 60)h\(minutes % 60 > 0 ? "\(minutes % 60)m" : "")")
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(NexusTheme.Colors.textTertiary)
+        }
+    }
+
+    private func efficiencyColor(_ efficiency: Double) -> Color {
+        switch efficiency {
+        case 0.85...: return NexusTheme.Colors.Semantic.green
+        case 0.70..<0.85: return NexusTheme.Colors.Semantic.amber
+        default: return NexusTheme.Colors.Semantic.red
         }
     }
 
@@ -106,12 +185,29 @@ struct RecoveryCardView: View {
 }
 
 #Preview {
-    RecoveryCardView(
-        recoveryScore: 72,
-        sleepMinutes: 420,
-        healthStatus: "healthy",
-        freshness: nil
-    )
+    VStack(spacing: 20) {
+        // With sleep composition
+        RecoveryCardView(
+            recoveryScore: 72,
+            sleepMinutes: 420,
+            deepSleepMinutes: 90,
+            remSleepMinutes: 105,
+            sleepEfficiency: 0.92,
+            healthStatus: "healthy",
+            freshness: nil
+        )
+
+        // Without sleep composition (nil values)
+        RecoveryCardView(
+            recoveryScore: 65,
+            sleepMinutes: 380,
+            deepSleepMinutes: nil,
+            remSleepMinutes: nil,
+            sleepEfficiency: nil,
+            healthStatus: "healthy",
+            freshness: nil
+        )
+    }
     .padding()
     .background(NexusTheme.Colors.card)
 }

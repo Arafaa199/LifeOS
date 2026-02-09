@@ -5,6 +5,9 @@ struct StateCardView: View {
     // Recovery data
     let recoveryScore: Int?
     let sleepMinutes: Int?
+    let deepSleepMinutes: Int?
+    let remSleepMinutes: Int?
+    let sleepEfficiency: Double?
     let healthStatus: String?
     let healthFreshness: DomainFreshness?
 
@@ -29,6 +32,9 @@ struct StateCardView: View {
                 RecoveryCardView(
                     recoveryScore: recoveryScore,
                     sleepMinutes: sleepMinutes,
+                    deepSleepMinutes: deepSleepMinutes,
+                    remSleepMinutes: remSleepMinutes,
+                    sleepEfficiency: sleepEfficiency,
                     healthStatus: healthStatus,
                     freshness: healthFreshness
                 )
@@ -131,6 +137,9 @@ struct StateCardView: View {
     StateCardView(
         recoveryScore: 72,
         sleepMinutes: 420,
+        deepSleepMinutes: 90,
+        remSleepMinutes: 105,
+        sleepEfficiency: 0.92,
         healthStatus: "healthy",
         healthFreshness: nil,
         spendTotal: 150.0,
