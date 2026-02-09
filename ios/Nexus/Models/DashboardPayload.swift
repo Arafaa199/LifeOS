@@ -23,6 +23,7 @@ struct DashboardPayload: Codable {
     let musicToday: MusicSummary?
     let moodToday: MoodSummary?
     let explainToday: ExplainToday?
+    let bjjSummary: BJJSummary?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -43,6 +44,7 @@ struct DashboardPayload: Codable {
         case musicToday = "music_today"
         case moodToday = "mood_today"
         case explainToday = "explain_today"
+        case bjjSummary = "bjj_summary"
         // Top-level flat fields (fallback when meta object is missing)
         case schemaVersion = "schema_version"
         case generatedAt = "generated_at"
@@ -95,6 +97,7 @@ struct DashboardPayload: Codable {
         musicToday = try container.decodeIfPresent(MusicSummary.self, forKey: .musicToday)
         moodToday = try container.decodeIfPresent(MoodSummary.self, forKey: .moodToday)
         explainToday = try container.decodeIfPresent(ExplainToday.self, forKey: .explainToday)
+        bjjSummary = try container.decodeIfPresent(BJJSummary.self, forKey: .bjjSummary)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -117,6 +120,7 @@ struct DashboardPayload: Codable {
         try container.encodeIfPresent(musicToday, forKey: .musicToday)
         try container.encodeIfPresent(moodToday, forKey: .moodToday)
         try container.encodeIfPresent(explainToday, forKey: .explainToday)
+        try container.encodeIfPresent(bjjSummary, forKey: .bjjSummary)
     }
 }
 
@@ -882,6 +886,28 @@ struct MoodSummary: Codable {
         let index = max(0, min(score - 1, emojis.count - 1))
         return emojis[index]
     }
+}
+
+// MARK: - BJJ Summary
+
+struct BJJSummary: Codable {
+    let currentStreak: Int
+    let longestStreak: Int
+    let totalSessions: Int
+    let sessionsThisWeek: Int
+    let sessionsThisMonth: Int
+    let lastSessionDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case currentStreak = "current_streak"
+        case longestStreak = "longest_streak"
+        case totalSessions = "total_sessions"
+        case sessionsThisWeek = "sessions_this_week"
+        case sessionsThisMonth = "sessions_this_month"
+        case lastSessionDate = "last_session_date"
+    }
+
+    var hasData: Bool { totalSessions > 0 }
 }
 
 // MARK: - Explain Today
