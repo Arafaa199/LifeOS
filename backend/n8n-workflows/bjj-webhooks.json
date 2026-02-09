@@ -48,14 +48,24 @@
     },
     {
       "parameters": {
+        "jsCode": "const b = $input.first().json.body;\n\nconst sessionDate = b.session_date;\nconst sessionType = b.session_type || 'nogi';\nconst durationMinutes = b.duration_minutes || 60;\nconst startTime = b.start_time ? `'${b.start_time}'::time` : 'NULL';\nconst endTime = b.end_time ? `'${b.end_time}'::time` : 'NULL';\nconst strain = b.strain !== undefined && b.strain !== null ? b.strain : 'NULL';\nconst hrAvg = b.hr_avg !== undefined && b.hr_avg !== null ? b.hr_avg : 'NULL';\nconst calories = b.calories !== undefined && b.calories !== null ? b.calories : 'NULL';\nconst techniques = b.techniques && b.techniques.length > 0 \n  ? `ARRAY[${b.techniques.map(t => `'${t.replace(/'/g, \"''\")}'`).join(',')}]` \n  : 'NULL';\nconst notes = b.notes ? `'${b.notes.replace(/'/g, \"''\")}'` : 'NULL';\nconst source = b.source || 'manual';\n\nconst query = `\nINSERT INTO health.bjj_sessions (\n  session_date, session_type, duration_minutes, start_time, end_time,\n  strain, hr_avg, calories, techniques, notes, source\n) VALUES (\n  '${sessionDate}'::date,\n  '${sessionType}',\n  ${durationMinutes},\n  ${startTime},\n  ${endTime},\n  ${strain},\n  ${hrAvg},\n  ${calories},\n  ${techniques},\n  ${notes},\n  '${source}'\n)\nON CONFLICT (session_date) DO UPDATE SET\n  session_type = EXCLUDED.session_type,\n  duration_minutes = EXCLUDED.duration_minutes,\n  start_time = COALESCE(EXCLUDED.start_time, health.bjj_sessions.start_time),\n  end_time = COALESCE(EXCLUDED.end_time, health.bjj_sessions.end_time),\n  strain = COALESCE(EXCLUDED.strain, health.bjj_sessions.strain),\n  hr_avg = COALESCE(EXCLUDED.hr_avg, health.bjj_sessions.hr_avg),\n  calories = COALESCE(EXCLUDED.calories, health.bjj_sessions.calories),\n  techniques = COALESCE(EXCLUDED.techniques, health.bjj_sessions.techniques),\n  notes = COALESCE(EXCLUDED.notes, health.bjj_sessions.notes),\n  source = EXCLUDED.source,\n  updated_at = NOW()\nRETURNING *, (xmax = 0) as is_new;\n`;\n\nreturn [{ json: { query } }];"
+      },
+      "id": "build-log-query",
+      "name": "Build Log Query",
+      "type": "n8n-nodes-base.code",
+      "position": [440, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \nconst b = $json.body;\nconst sessionDate = b.session_date;\nconst sessionType = b.session_type || 'nogi';\nconst durationMinutes = b.duration_minutes || 60;\nconst startTime = b.start_time ? `'${b.start_time}'::time` : 'NULL';\nconst endTime = b.end_time ? `'${b.end_time}'::time` : 'NULL';\nconst strain = b.strain || 'NULL';\nconst hrAvg = b.hr_avg || 'NULL';\nconst calories = b.calories || 'NULL';\nconst techniques = b.techniques && b.techniques.length > 0 ? `ARRAY[${b.techniques.map(t => `'${t.replace(/'/g, \"''\")}'`).join(',')}]` : 'NULL';\nconst notes = b.notes ? `'${b.notes.replace(/'/g, \"''\")}'` : 'NULL';\nconst source = b.source || 'manual';\n\nreturn `\nINSERT INTO health.bjj_sessions (\n  session_date, session_type, duration_minutes, start_time, end_time,\n  strain, hr_avg, calories, techniques, notes, source\n) VALUES (\n  '${sessionDate}'::date,\n  '${sessionType}',\n  ${durationMinutes},\n  ${startTime},\n  ${endTime},\n  ${strain},\n  ${hrAvg},\n  ${calories},\n  ${techniques},\n  ${notes},\n  '${source}'\n)\nON CONFLICT (session_date) DO UPDATE SET\n  session_type = EXCLUDED.session_type,\n  duration_minutes = EXCLUDED.duration_minutes,\n  start_time = COALESCE(EXCLUDED.start_time, health.bjj_sessions.start_time),\n  end_time = COALESCE(EXCLUDED.end_time, health.bjj_sessions.end_time),\n  strain = COALESCE(EXCLUDED.strain, health.bjj_sessions.strain),\n  hr_avg = COALESCE(EXCLUDED.hr_avg, health.bjj_sessions.hr_avg),\n  calories = COALESCE(EXCLUDED.calories, health.bjj_sessions.calories),\n  techniques = COALESCE(EXCLUDED.techniques, health.bjj_sessions.techniques),\n  notes = COALESCE(EXCLUDED.notes, health.bjj_sessions.notes),\n  source = EXCLUDED.source,\n  updated_at = NOW()\nRETURNING *, (xmax = 0) as is_new;\n`;\n}}",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "upsert-session",
       "name": "Upsert Session",
       "type": "n8n-nodes-base.postgres",
-      "position": [480, 200],
+      "position": [640, 200],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
@@ -73,19 +83,29 @@
       "id": "respond-log",
       "name": "Respond Log",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [720, 200],
+      "position": [840, 200],
       "typeVersion": 1.1
     },
     {
       "parameters": {
+        "jsCode": "const q = $input.first().json.query || {};\nconst limit = q.limit ? parseInt(q.limit) : 20;\nconst offset = q.offset ? parseInt(q.offset) : 0;\n\nconst query = `\nWITH sessions AS (\n  SELECT\n    id,\n    session_date,\n    session_type,\n    duration_minutes,\n    start_time::text,\n    end_time::text,\n    strain,\n    hr_avg,\n    calories,\n    source,\n    techniques,\n    notes,\n    created_at,\n    updated_at\n  FROM health.bjj_sessions\n  ORDER BY session_date DESC\n  LIMIT ${limit}\n  OFFSET ${offset}\n),\nstreak AS (\n  SELECT * FROM health.get_bjj_streaks()\n),\ntotal AS (\n  SELECT COUNT(*)::int as cnt FROM health.bjj_sessions\n)\nSELECT\n  json_build_object(\n    'success', true,\n    'sessions', COALESCE((SELECT json_agg(s) FROM sessions s), '[]'::json),\n    'count', (SELECT COUNT(*)::int FROM sessions),\n    'total', (SELECT cnt FROM total),\n    'streak', (SELECT row_to_json(streak) FROM streak)\n  ) as result;\n`;\n\nreturn [{ json: { query } }];"
+      },
+      "id": "build-history-query",
+      "name": "Build History Query",
+      "type": "n8n-nodes-base.code",
+      "position": [440, 500],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "={{ \nconst limit = $json.query?.limit ? parseInt($json.query.limit) : 20;\nconst offset = $json.query?.offset ? parseInt($json.query.offset) : 0;\nreturn `\nWITH sessions AS (\n  SELECT\n    id,\n    session_date,\n    session_type,\n    duration_minutes,\n    start_time::text,\n    end_time::text,\n    strain,\n    hr_avg,\n    calories,\n    source,\n    techniques,\n    notes,\n    created_at,\n    updated_at\n  FROM health.bjj_sessions\n  ORDER BY session_date DESC\n  LIMIT ${limit}\n  OFFSET ${offset}\n),\nstreak AS (\n  SELECT * FROM health.get_bjj_streaks()\n),\ntotal AS (\n  SELECT COUNT(*)::int as cnt FROM health.bjj_sessions\n)\nSELECT\n  json_build_object(\n    'success', true,\n    'sessions', COALESCE((SELECT json_agg(s) FROM sessions s), '[]'::json),\n    'count', (SELECT COUNT(*)::int FROM sessions),\n    'total', (SELECT cnt FROM total),\n    'streak', (SELECT row_to_json(streak) FROM streak)\n  ) as result;\n`;\n}}",
+        "query": "={{ $json.query }}",
         "options": {}
       },
       "id": "fetch-history",
       "name": "Fetch History",
       "type": "n8n-nodes-base.postgres",
-      "position": [480, 500],
+      "position": [640, 500],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
@@ -103,7 +123,7 @@
       "id": "respond-history",
       "name": "Respond History",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [720, 500],
+      "position": [840, 500],
       "typeVersion": 1.1
     },
     {
@@ -142,6 +162,17 @@
       "main": [
         [
           {
+            "node": "Build Log Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Log Query": {
+      "main": [
+        [
+          {
             "node": "Upsert Session",
             "type": "main",
             "index": 0
@@ -161,6 +192,17 @@
       ]
     },
     "GET /nexus-bjj-history": {
+      "main": [
+        [
+          {
+            "node": "Build History Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build History Query": {
       "main": [
         [
           {
