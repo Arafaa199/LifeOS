@@ -13,7 +13,8 @@ struct NotesView: View {
     @State private var showEditSheet = false
     @State private var editingNote: Note?
     @State private var editingTitle = ""
-    @State private var editingTags = ""
+    @State private var editingTags: [String] = []
+    @State private var newTagInput = ""
     @State private var isDeleting = false
     @State private var isUpdating = false
     @State private var showUpdateError = false
@@ -95,7 +96,7 @@ struct NotesView: View {
                                 onEdit: {
                                     editingNote = note
                                     editingTitle = note.title ?? note.displayTitle
-                                    editingTags = (note.tags ?? []).joined(separator: ", ")
+                                    editingTags = note.tags ?? []
                                     showEditSheet = true
                                 }
                             )
@@ -105,7 +106,7 @@ struct NotesView: View {
                                 onEdit: {
                                     editingNote = note
                                     editingTitle = note.title ?? note.displayTitle
-                                    editingTags = (note.tags ?? []).joined(separator: ", ")
+                                    editingTags = note.tags ?? []
                                     showEditSheet = true
                                 },
                                 onDelete: {
@@ -199,9 +200,42 @@ struct NotesView: View {
                 }
 
                 Section("Tags") {
-                    TextField("Comma-separated tags", text: $editingTags)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                    // Existing tags as removable chips
+                    if !editingTags.isEmpty {
+                        FlowLayout(spacing: 8) {
+                            ForEach(editingTags, id: \.self) { tag in
+                                HStack(spacing: 4) {
+                                    Text(tag)
+                                        .font(.system(size: 13))
+                                    Button {
+                                        editingTags.removeAll { $0 == tag }
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(NexusTheme.Colors.textTertiary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(NexusTheme.Colors.accent.opacity(0.12))
+                                .foregroundColor(NexusTheme.Colors.accent)
+                                .clipShape(Capsule())
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    // Add new tag
+                    HStack {
+                        TextField("Add tag", text: $newTagInput)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onSubmit { addTag() }
+
+                        Button("Add") { addTag() }
+                            .disabled(newTagInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
                 }
 
                 if let note = editingNote {
@@ -221,7 +255,8 @@ struct NotesView: View {
                         showEditSheet = false
                         editingNote = nil
                         editingTitle = ""
-                        editingTags = ""
+                        editingTags = []
+                        newTagInput = ""
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -234,6 +269,26 @@ struct NotesView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Tag Helpers
+
+    private func addTag() {
+        // Strip # prefix and whitespace
+        var tag = newTagInput.trimmingCharacters(in: .whitespaces)
+        if tag.hasPrefix("#") {
+            tag = String(tag.dropFirst())
+        }
+        tag = tag.trimmingCharacters(in: .whitespaces)
+
+        // Don't add empty or duplicate tags
+        guard !tag.isEmpty, !editingTags.contains(tag) else {
+            newTagInput = ""
+            return
+        }
+
+        editingTags.append(tag)
+        newTagInput = ""
     }
 
     // MARK: - API
@@ -296,7 +351,7 @@ struct NotesView: View {
             showEditSheet = false
             editingNote = nil
             editingTitle = ""
-            editingTags = ""
+            editingTags = []
         }
 
         isDeleting = true
@@ -331,18 +386,12 @@ struct NotesView: View {
             return
         }
 
-        // Parse comma-separated tags
-        let tagsArray = editingTags
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-
         isUpdating = true
         do {
             let _: NoteUpdateResponse = try await DocumentsAPI.shared.updateNote(
                 id: noteId,
                 title: editingTitle.isEmpty ? nil : editingTitle,
-                tags: tagsArray.isEmpty ? nil : tagsArray
+                tags: editingTags.isEmpty ? nil : editingTags
             )
             // Reload notes to get updated data from server
             await loadNotes()
@@ -350,7 +399,8 @@ struct NotesView: View {
             showEditSheet = false
             editingNote = nil
             editingTitle = ""
-            editingTags = ""
+            editingTags = []
+            newTagInput = ""
             logger.info("Note updated: \(note.displayTitle)")
         } catch {
             // Show error alert but preserve editing state so user doesn't lose their edits
