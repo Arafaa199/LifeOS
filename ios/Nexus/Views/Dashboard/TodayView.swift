@@ -136,6 +136,9 @@ struct TodayView: View {
         // Streaks
         StreakBadgesView(streaks: viewModel.dashboardPayload?.streaks)
 
+        // BJJ Training
+        BJJCardView()
+
         // Nutrition + Fasting
         nutritionAndFastingSection
 
