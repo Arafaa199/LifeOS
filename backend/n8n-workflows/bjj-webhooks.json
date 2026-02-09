@@ -49,10 +49,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO health.bjj_sessions (\n  session_date,\n  session_type,\n  duration_minutes,\n  start_time,\n  end_time,\n  strain,\n  hr_avg,\n  calories,\n  techniques,\n  notes,\n  source\n) VALUES (\n  $1::date,\n  COALESCE($2, 'bjj'),\n  COALESCE($3, 60),\n  $4::time,\n  $5::time,\n  $6,\n  $7,\n  $8,\n  $9::text[],\n  $10,\n  COALESCE($11, 'manual')\n)\nON CONFLICT (session_date) DO UPDATE SET\n  session_type = COALESCE(EXCLUDED.session_type, health.bjj_sessions.session_type),\n  duration_minutes = COALESCE(EXCLUDED.duration_minutes, health.bjj_sessions.duration_minutes),\n  start_time = COALESCE(EXCLUDED.start_time, health.bjj_sessions.start_time),\n  end_time = COALESCE(EXCLUDED.end_time, health.bjj_sessions.end_time),\n  strain = COALESCE(EXCLUDED.strain, health.bjj_sessions.strain),\n  hr_avg = COALESCE(EXCLUDED.hr_avg, health.bjj_sessions.hr_avg),\n  calories = COALESCE(EXCLUDED.calories, health.bjj_sessions.calories),\n  techniques = COALESCE(EXCLUDED.techniques, health.bjj_sessions.techniques),\n  notes = COALESCE(EXCLUDED.notes, health.bjj_sessions.notes),\n  source = COALESCE(EXCLUDED.source, health.bjj_sessions.source),\n  updated_at = NOW()\nRETURNING *,\n  (xmax = 0) as is_new;",
-        "options": {
-          "queryParams": "={{ [\n  $json.body.session_date,\n  $json.body.session_type,\n  $json.body.duration_minutes,\n  $json.body.start_time || null,\n  $json.body.end_time || null,\n  $json.body.strain || null,\n  $json.body.hr_avg || null,\n  $json.body.calories || null,\n  $json.body.techniques ? '{' + $json.body.techniques.join(',') + '}' : null,\n  $json.body.notes || null,\n  $json.body.source\n] }}"
-        }
+        "query": "={{ \nconst b = $json.body;\nconst sessionDate = b.session_date;\nconst sessionType = b.session_type || 'nogi';\nconst durationMinutes = b.duration_minutes || 60;\nconst startTime = b.start_time ? `'${b.start_time}'::time` : 'NULL';\nconst endTime = b.end_time ? `'${b.end_time}'::time` : 'NULL';\nconst strain = b.strain || 'NULL';\nconst hrAvg = b.hr_avg || 'NULL';\nconst calories = b.calories || 'NULL';\nconst techniques = b.techniques && b.techniques.length > 0 ? `ARRAY[${b.techniques.map(t => `'${t.replace(/'/g, \"''\")}'`).join(',')}]` : 'NULL';\nconst notes = b.notes ? `'${b.notes.replace(/'/g, \"''\")}'` : 'NULL';\nconst source = b.source || 'manual';\n\nreturn `\nINSERT INTO health.bjj_sessions (\n  session_date, session_type, duration_minutes, start_time, end_time,\n  strain, hr_avg, calories, techniques, notes, source\n) VALUES (\n  '${sessionDate}'::date,\n  '${sessionType}',\n  ${durationMinutes},\n  ${startTime},\n  ${endTime},\n  ${strain},\n  ${hrAvg},\n  ${calories},\n  ${techniques},\n  ${notes},\n  '${source}'\n)\nON CONFLICT (session_date) DO UPDATE SET\n  session_type = EXCLUDED.session_type,\n  duration_minutes = EXCLUDED.duration_minutes,\n  start_time = COALESCE(EXCLUDED.start_time, health.bjj_sessions.start_time),\n  end_time = COALESCE(EXCLUDED.end_time, health.bjj_sessions.end_time),\n  strain = COALESCE(EXCLUDED.strain, health.bjj_sessions.strain),\n  hr_avg = COALESCE(EXCLUDED.hr_avg, health.bjj_sessions.hr_avg),\n  calories = COALESCE(EXCLUDED.calories, health.bjj_sessions.calories),\n  techniques = COALESCE(EXCLUDED.techniques, health.bjj_sessions.techniques),\n  notes = COALESCE(EXCLUDED.notes, health.bjj_sessions.notes),\n  source = EXCLUDED.source,\n  updated_at = NOW()\nRETURNING *, (xmax = 0) as is_new;\n`;\n}}",
+        "options": {}
       },
       "id": "upsert-session",
       "name": "Upsert Session",
@@ -81,10 +79,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH sessions AS (\n  SELECT\n    id,\n    session_date,\n    session_type,\n    duration_minutes,\n    start_time::text,\n    end_time::text,\n    strain,\n    hr_avg,\n    calories,\n    source,\n    techniques,\n    notes,\n    created_at,\n    updated_at\n  FROM health.bjj_sessions\n  ORDER BY session_date DESC\n  LIMIT $1\n  OFFSET $2\n),\nstreak AS (\n  SELECT * FROM health.get_bjj_streaks()\n),\ntotal AS (\n  SELECT COUNT(*) as cnt FROM health.bjj_sessions\n)\nSELECT\n  json_build_object(\n    'success', true,\n    'sessions', COALESCE((SELECT json_agg(s) FROM sessions s), '[]'::json),\n    'count', (SELECT COUNT(*) FROM sessions),\n    'total', (SELECT cnt FROM total),\n    'streak', (SELECT row_to_json(streak) FROM streak)\n  ) as result;",
-        "options": {
-          "queryParams": "={{ [\n  $json.query.limit ? parseInt($json.query.limit) : 20,\n  $json.query.offset ? parseInt($json.query.offset) : 0\n] }}"
-        }
+        "query": "={{ \nconst limit = $json.query?.limit ? parseInt($json.query.limit) : 20;\nconst offset = $json.query?.offset ? parseInt($json.query.offset) : 0;\nreturn `\nWITH sessions AS (\n  SELECT\n    id,\n    session_date,\n    session_type,\n    duration_minutes,\n    start_time::text,\n    end_time::text,\n    strain,\n    hr_avg,\n    calories,\n    source,\n    techniques,\n    notes,\n    created_at,\n    updated_at\n  FROM health.bjj_sessions\n  ORDER BY session_date DESC\n  LIMIT ${limit}\n  OFFSET ${offset}\n),\nstreak AS (\n  SELECT * FROM health.get_bjj_streaks()\n),\ntotal AS (\n  SELECT COUNT(*)::int as cnt FROM health.bjj_sessions\n)\nSELECT\n  json_build_object(\n    'success', true,\n    'sessions', COALESCE((SELECT json_agg(s) FROM sessions s), '[]'::json),\n    'count', (SELECT COUNT(*)::int FROM sessions),\n    'total', (SELECT cnt FROM total),\n    'streak', (SELECT row_to_json(streak) FROM streak)\n  ) as result;\n`;\n}}",
+        "options": {}
       },
       "id": "fetch-history",
       "name": "Fetch History",
@@ -113,7 +109,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n  current_streak,\n  longest_streak,\n  total_sessions,\n  sessions_this_month,\n  sessions_this_week\nFROM health.get_bjj_streaks();",
+        "query": "SELECT\n  current_streak,\n  longest_streak,\n  total_sessions::int,\n  sessions_this_month::int,\n  sessions_this_week::int\nFROM health.get_bjj_streaks();",
         "options": {}
       },
       "id": "fetch-streak",
