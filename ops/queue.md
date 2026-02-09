@@ -2564,29 +2564,29 @@ Lane: safe_auto
 ### TASK-PLAN.6: Add BJJ Feed Status Tracking
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** BJJ sessions are logged via `health.bjj_sessions` (migration 178) but have no feed status entry. Add feed status tracking so the Pipeline Health view shows BJJ data freshness alongside other domains.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/181_bjj_feed_status.up.sql`
 - `backend/migrations/181_bjj_feed_status.down.sql`
 
-**Implementation:**
-- Insert `bjj` source into `life.feed_status_live` with `expected_interval = '7 days'` (weekly training frequency)
-- Create `health.update_feed_status_bjj()` trigger function
-- Create `trg_bjj_sessions_feed_status` AFTER INSERT OR UPDATE trigger on `health.bjj_sessions`
-- Idempotent: use IF NOT EXISTS / ON CONFLICT patterns
+**Fix Applied:**
+- Inserted `bjj` source into `life.feed_status_live` with `expected_interval = '7 days'` (weekly training frequency)
+- Created `health.update_feed_status_bjj()` trigger function with ON CONFLICT upsert pattern
+- Created `trg_bjj_sessions_feed_status` AFTER INSERT OR UPDATE trigger on `health.bjj_sessions`
+- Idempotent: ON CONFLICT (source) DO NOTHING for feed entry, ON CONFLICT DO UPDATE for trigger upsert
 
 **Verification:**
-- [ ] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'bjj';` returns `bjj | 7 days`
-- [ ] Test: insert into `health.bjj_sessions` → status transitions to 'ok'
-- [ ] Down migration drops trigger, function, and feed entry
+- [x] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'bjj';` returns `bjj | 7 days`
+- [x] Test: insert into `health.bjj_sessions` → status transitions from `unknown` to `ok`, events_today = 1
+- [x] Down migration drops trigger, function, and feed entry — tested and re-applied
 
 **Exit Criteria:**
-- [ ] Feed status entry exists for 'bjj'
-- [ ] Trigger fires on INSERT to bjj_sessions
+- [x] Feed status entry exists for 'bjj'
+- [x] Trigger fires on INSERT to bjj_sessions (INSERT + UPDATE)
 
 **Done Means:** BJJ training frequency visible in Pipeline Health alongside all other data sources.
 

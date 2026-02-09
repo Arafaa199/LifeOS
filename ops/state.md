@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-10T00:30:00+04:00
+Last updated: 2026-02-09T18:40:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -177,6 +177,7 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-PLAN.3: Add BJJ to MoreView | DONE | Added `NavigationLink(destination: BJJView())` to MoreView.swift in "Life Data" section after Workouts. Icon: `figure.martial.arts`, color `.blue`, subtitle "Training log & streaks". BJJ was fully implemented (BJJView, BJJLogSheet, BJJViewModel, BJJCardView, n8n webhooks, migration 178) but only accessible via dashboard card — now discoverable from More tab. `grep -c 'BJJView' MoreView.swift` = 1. 1 file changed (MoreView.swift, +9). iOS build: BUILD SUCCEEDED. |
 | TASK-PLAN.4: BJJ Dashboard Payload | DONE | Migration 179: Added `bjj_summary` key to `dashboard.get_payload()` using `health.get_bjj_streaks()` + `MAX(session_date)`. Returns `{ current_streak, longest_streak, total_sessions, sessions_this_week, sessions_this_month, last_session_date }`. Error handling via BEGIN/EXCEPTION so BJJ query failures don't break the dashboard. Added `BJJSummary` Codable struct to iOS `DashboardPayload.swift` with optional decode (backward compatible). Schema version 17→18. Down migration tested (reverts to v17). 3 files changed. iOS build: BUILD SUCCEEDED. Commit `4bcb4c0`. |
 | TASK-PLAN.5: Supplements Feed Trigger | DONE | Migration 180: Created `health.update_feed_status_supplements()` trigger function with ON CONFLICT upsert pattern (same as migration 159 screen_time). Created `trg_supplement_log_feed_status` AFTER INSERT OR UPDATE trigger on `health.supplement_log`. Updated `expected_interval` from 24h to 48h (daily but user may skip). Test: inserted test supplement dose → `feed_status_live.last_event_at` set, `events_today = 1`, `status = 'ok'` (was `unknown`). Down migration tested (drops trigger+function, reverts to 24h) and re-applied. 2 files created. |
+| TASK-PLAN.6: BJJ Feed Status | DONE | Migration 181: Inserted `bjj` source into `life.feed_status_live` with `expected_interval = '7 days'` (weekly training). Created `health.update_feed_status_bjj()` trigger function with ON CONFLICT upsert pattern. Created `trg_bjj_sessions_feed_status` AFTER INSERT OR UPDATE trigger on `health.bjj_sessions`. Test: inserted test BJJ session → status `unknown`→`ok`, `events_today = 1`. Cleaned up test row. Down migration tested (drops trigger+function+feed entry) and re-applied. 2 files created. |
 
 ### Recent (Feb 7)
 | Task | Status | Summary |
