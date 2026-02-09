@@ -2436,32 +2436,33 @@ Lane: safe_auto
 ### TASK-PLAN.2: Create ops/contracts/ Directory with Endpoint Contract Schemas
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
-**Objective:** `check.sh` iterates `$CONTRACTS_DIR/*.json` for webhook contract validation, but `ops/contracts/` doesn't exist. Without contracts, all 16 webhook endpoint checks silently skip validation. Create contract JSON files for the most critical endpoints so smoke tests actually verify API response shapes.
+**Objective:** `check.sh` iterates `$CONTRACTS_DIR/*.json` for webhook contract validation, but `ops/contracts/` had stale schemas that didn't match the actual API. Create accurate contract JSON files for the most critical endpoints so smoke tests actually verify API response shapes.
 
-**Files to Touch:**
-- `ops/contracts/nexus-dashboard-today.json` (new)
-- `ops/contracts/nexus-budgets.json` (new)
-- `ops/contracts/nexus-categories.json` (new)
-- `ops/contracts/nexus-recurring.json` (new)
-- `ops/contracts/ops-health.json` (new)
+**Files Changed:**
+- `ops/contracts/nexus-dashboard-today.json` (rewritten — 9 required keys matching live API)
+- `ops/contracts/nexus-budgets.json` (rewritten — success/data/budgets)
+- `ops/contracts/nexus-categories.json` (rewritten — success/data/categories)
+- `ops/contracts/nexus-recurring.json` (rewritten — success/data/recurring_items)
+- `ops/contracts/ops-health.json` (rewritten — status/timestamp/checks)
 
-**Implementation:**
-- Each contract file follows the schema expected by `validate-contract.sh`: `{ "endpoint": "...", "required_keys": [{ "path": ".field", "type": "string|number|array|object|boolean" }] }`
-- Dashboard contract: verify `.today_facts`, `.feed_status`, `.daily_insights`, `.schema_version` exist with correct types
-- Budgets contract: verify response is array or has `.budgets` key
-- Start with 5 most critical contracts (dashboard, budgets, categories, recurring, ops-health)
+**Fix Applied:**
+- Replaced stale contracts (referenced `.meta`, `.trends`, `.recent_events`, `.data_pipeline` — none exist in actual API) with accurate schemas validated against live endpoints
+- Dashboard contract: 9 required keys (schema_version, generated_at, target_date, today_facts, today_facts.day, feed_status, daily_insights, finance_summary, stale_feeds)
+- Finance contracts (budgets, categories, recurring): standard `{ success, data, data.<collection> }` pattern
+- ops-health contract: `{ status, timestamp, checks }` pattern
+- All contracts use validate-contract.sh format: `{ endpoint, required_keys: [{ path, type }] }`
 
 **Verification:**
-- [ ] `ls ops/contracts/*.json | wc -l` returns ≥5
-- [ ] `bash ops/lib/validate-contract.sh ops/contracts/nexus-dashboard-today.json -` accepts valid dashboard JSON
-- [ ] `bash ops/check.sh 2>&1 | grep -c 'healthy'` returns >0 (contracts pass validation)
+- [x] `ls ops/contracts/*.json | wc -l` returns 5
+- [x] All 5 contracts pass `validate-contract.sh` against live API responses
+- [x] `bash ops/check.sh` returns 8/8 healthy (3 infra + 5 webhooks, 0 critical, 0 unknown)
 
 **Exit Criteria:**
-- [ ] `[ -d ops/contracts ]` returns true
-- [ ] `ls ops/contracts/*.json | wc -l` ≥ 5
+- [x] `[ -d ops/contracts ]` returns true
+- [x] `ls ops/contracts/*.json | wc -l` = 5
 
 **Done Means:** Webhook smoke tests validate response schemas instead of silently skipping. Contract violations are caught automatically.
 
@@ -2470,26 +2471,26 @@ Lane: safe_auto
 ### TASK-PLAN.3: Add BJJ to MoreView Navigation
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** BJJ tracking is fully implemented (BJJView, BJJLogSheet, BJJViewModel, BJJCardView, n8n webhooks, migration 178) but the full BJJ view is only accessible via the dashboard card's NavigationLink. Users can't find it from the More tab — the primary discovery point for all features. Add a BJJ entry to MoreView.
 
-**Files to Touch:**
+**Files Changed:**
 - `ios/Nexus/Views/MoreView.swift`
 
-**Implementation:**
-- Add `NavigationLink(destination: BJJView())` in the "Life Data" section, after "Workouts" (line ~85)
+**Fix Applied:**
+- Added `NavigationLink(destination: BJJView())` in the "Life Data" section, after "Workouts"
 - Icon: `figure.martial.arts` (SF Symbol), color: `.blue`
 - Subtitle: "Training log & streaks"
 
 **Verification:**
-- [ ] `grep 'BJJView' ios/Nexus/Views/MoreView.swift` returns match
-- [ ] `xcodebuild -scheme Nexus build 2>&1 | grep 'BUILD SUCCEEDED'` passes
+- [x] `grep 'BJJView' ios/Nexus/Views/MoreView.swift` returns match
+- [x] `xcodebuild -scheme Nexus build 2>&1 | grep 'BUILD SUCCEEDED'` passes
 
 **Exit Criteria:**
-- [ ] `grep -c 'BJJView' ios/Nexus/Views/MoreView.swift` returns ≥1
-- [ ] iOS build succeeds
+- [x] `grep -c 'BJJView' ios/Nexus/Views/MoreView.swift` returns 1
+- [x] iOS build succeeds
 
 **Done Means:** User can navigate to full BJJ training log from the More tab.
 

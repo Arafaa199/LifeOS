@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-09T16:25:00+04:00
+Last updated: 2026-02-09T17:00:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -173,6 +173,8 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | Task | Status | Summary |
 |------|--------|---------|
 | TASK-PLAN.1: Fix Nightly Ops Runner | DONE | Replaced GNU `timeout` (not available on macOS) with `run_with_timeout()` function using `/usr/bin/perl -e 'alarm shift; exec @ARGV'`. Also fixed secondary stdin consumption bug — child scripts consumed the process substitution's fd, causing only 1 of 4 checks to run; fixed by adding `</dev/null`. Before: 4 checks × exit 127 (3+ days blind). After: smoke-tests PASS, schema-snapshot PASS, sms-replay FAIL (legitimate exit 1), ops-health-probe PASS. 1 file changed (ops/nightly.sh, +8/-1). Dry-run: 4 DRY RUN entries. Zero exit 127 in report. |
+| TASK-PLAN.2: Create ops/contracts/ | DONE | Rewrote 5 contract JSON files in `ops/contracts/` for `validate-contract.sh` consumption. Old contracts had stale paths (`.meta`, `.trends`, `.recent_events`, `.data_pipeline`, `.domains_status`) that didn't match actual API responses. New contracts validated against live endpoints: `nexus-dashboard-today` (9 keys: schema_version, generated_at, target_date, today_facts, today_facts.day, feed_status, daily_insights, finance_summary, stale_feeds), `nexus-budgets` (success/data/budgets), `nexus-categories` (success/data/categories), `nexus-recurring` (success/data/recurring_items), `ops-health` (status/timestamp/checks). All 5 pass `validate-contract.sh`. `check.sh` returns 8/8 healthy (3 infra + 5 webhook contracts, 0 critical, 0 unknown). 5 files changed. Commit `46670c3`. |
+| TASK-PLAN.3: Add BJJ to MoreView | DONE | Added `NavigationLink(destination: BJJView())` to MoreView.swift in "Life Data" section after Workouts. Icon: `figure.martial.arts`, color `.blue`, subtitle "Training log & streaks". BJJ was fully implemented (BJJView, BJJLogSheet, BJJViewModel, BJJCardView, n8n webhooks, migration 178) but only accessible via dashboard card — now discoverable from More tab. `grep -c 'BJJView' MoreView.swift` = 1. 1 file changed (MoreView.swift, +9). iOS build: BUILD SUCCEEDED. |
 
 ### Recent (Feb 7)
 | Task | Status | Summary |

@@ -83,6 +83,15 @@ struct MoreView: View {
                             subtitle: "Activity tracking"
                         )
                     }
+
+                    NavigationLink(destination: BJJView()) {
+                        SettingsRow(
+                            icon: "figure.martial.arts",
+                            iconColor: .blue,
+                            title: "BJJ",
+                            subtitle: "Training log & streaks"
+                        )
+                    }
                 }
 
                 Section("Wellness") {
