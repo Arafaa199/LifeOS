@@ -4,7 +4,7 @@ struct BJJLogSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: BJJViewModel
 
-    @State private var sessionType: BJJSessionType = .bjj
+    @State private var sessionType: BJJSessionType = .nogi
     @State private var sessionDate = Date()
     @State private var durationMinutes = 60
     @State private var techniques: [String] = []
