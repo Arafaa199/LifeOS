@@ -1,15 +1,8 @@
 {
-  "endpoint": "/webhook/ops-health",
-  "method": "GET",
+  "endpoint": "ops-health",
   "required_keys": [
-    {"path": ".status", "type": "string"},
-    {"path": ".checks", "type": "object"},
-    {"path": ".checks.transactions", "type": "object"},
-    {"path": ".checks.whoop", "type": "object"},
-    {"path": ".checks.recurring_items", "type": "object"},
-    {"path": ".checks.daily_facts", "type": "object"},
-    {"path": ".checks.database", "type": "object"},
-    {"path": ".timestamp", "type": "string"}
-  ],
-  "version": "2026-02-02"
+    { "path": ".status", "type": "string" },
+    { "path": ".timestamp", "type": "string" },
+    { "path": ".checks", "type": "object" }
+  ]
 }

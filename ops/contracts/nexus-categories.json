@@ -1,10 +1,8 @@
 {
-  "endpoint": "/webhook/nexus-categories",
-  "method": "GET",
+  "endpoint": "nexus-categories",
   "required_keys": [
-    {"path": ".success", "type": "boolean"},
-    {"path": ".data", "type": "object"},
-    {"path": ".data.categories", "type": "array"}
-  ],
-  "version": "2026-02-02"
+    { "path": ".success", "type": "boolean" },
+    { "path": ".data", "type": "object" },
+    { "path": ".data.categories", "type": "array" }
+  ]
 }

@@ -1,23 +1,14 @@
 {
-  "endpoint": "/webhook/nexus-dashboard-today",
-  "method": "GET",
+  "endpoint": "nexus-dashboard-today",
   "required_keys": [
-    {"path": ".meta", "type": "object"},
-    {"path": ".meta.for_date", "type": "string"},
-    {"path": ".meta.schema_version", "type": "number"},
-    {"path": ".today_facts", "type": "object"},
-    {"path": ".today_facts.recovery_score", "type": "number"},
-    {"path": ".today_facts.spend_total", "type": "number"},
-    {"path": ".today_facts.sleep_minutes", "type": "number"},
-    {"path": ".feed_status", "type": "array"},
-    {"path": ".trends", "type": "array"},
-    {"path": ".recent_events", "type": "array"},
-    {"path": ".daily_insights", "type": "object"},
-    {"path": ".data_pipeline", "type": "object"},
-    {"path": ".domains_status", "type": "array"},
-    {"path": ".github_activity", "type": "object"},
-    {"path": ".calendar_summary", "type": "object"},
-    {"path": ".reminder_summary", "type": "object"}
-  ],
-  "version": "2026-02-02"
+    { "path": ".schema_version", "type": "number" },
+    { "path": ".generated_at", "type": "string" },
+    { "path": ".target_date", "type": "string" },
+    { "path": ".today_facts", "type": "object" },
+    { "path": ".today_facts.day", "type": "string" },
+    { "path": ".feed_status", "type": "array" },
+    { "path": ".daily_insights", "type": "array" },
+    { "path": ".finance_summary", "type": "object" },
+    { "path": ".stale_feeds", "type": "array" }
+  ]
 }
