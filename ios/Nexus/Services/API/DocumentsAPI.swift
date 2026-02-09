@@ -19,11 +19,12 @@ class DocumentsAPI: BaseAPIClient {
     // MARK: - Reminders
 
     func fetchReminders(start: String? = nil, end: String? = nil) async throws -> RemindersDisplayResponse {
-        var params: [String] = []
-        if let start = start { params.append("start=\(start)") }
-        if let end = end { params.append("end=\(end)") }
-        let queryString = params.isEmpty ? "" : "?\(params.joined(separator: "&"))"
-        return try await get("/webhook/nexus-reminders\(queryString)")
+        let base = "/webhook/nexus-reminders"
+        var queryParams: [String: String] = [:]
+        if let start = start { queryParams["start"] = start }
+        if let end = end { queryParams["end"] = end }
+        let endpoint = queryParams.isEmpty ? base : buildPath(base, query: queryParams)
+        return try await get(endpoint)
     }
 
     func createReminder(_ request: ReminderCreateRequest) async throws -> ReminderCreateResponse {
@@ -58,18 +59,30 @@ class DocumentsAPI: BaseAPIClient {
     // MARK: - Notes
 
     func searchNotes(query: String? = nil, tag: String? = nil, limit: Int = 50) async throws -> NotesSearchResponse {
-        var params: [String] = []
+        var queryParams: [String: String] = [:]
         if let query = query, !query.isEmpty {
-            let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-            params.append("q=\(encoded)")
+            queryParams["q"] = query
         }
         if let tag = tag, !tag.isEmpty {
-            let encoded = tag.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tag
-            params.append("tag=\(encoded)")
+            queryParams["tag"] = tag
         }
-        params.append("limit=\(limit)")
+        queryParams["limit"] = "\(limit)"
 
-        let queryString = params.joined(separator: "&")
-        return try await get("/webhook/nexus-notes-search?\(queryString)")
+        let path = buildPath("/webhook/nexus-notes-search", query: queryParams)
+        return try await get(path)
+    }
+
+    func updateNote(id: Int, title: String?, tags: [String]?) async throws -> NoteUpdateResponse {
+        struct Body: Encodable {
+            let title: String?
+            let tags: [String]?
+        }
+        let path = buildPath("/webhook/nexus-note-update", query: ["id": "\(id)"])
+        return try await put(path, body: Body(title: title, tags: tags))
+    }
+
+    func deleteNote(id: Int) async throws -> NoteDeleteResponse {
+        let path = buildPath("/webhook/nexus-note-delete", query: ["id": "\(id)"])
+        return try await delete(path)
     }
 }

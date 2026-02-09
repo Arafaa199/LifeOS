@@ -12,7 +12,8 @@ struct NotesView: View {
     @State private var showDeleteConfirmation = false
     @State private var showEditSheet = false
     @State private var editingNote: Note?
-    @State private var editingContent = ""
+    @State private var editingTitle = ""
+    @State private var editingTags = ""
     @State private var isDeleting = false
     @State private var isUpdating = false
 
@@ -90,7 +91,8 @@ struct NotesView: View {
                             note: note,
                             onEdit: {
                                 editingNote = note
-                                editingContent = ""
+                                editingTitle = note.title ?? note.displayTitle
+                                editingTags = (note.tags ?? []).joined(separator: ", ")
                                 showEditSheet = true
                             },
                             onDelete: {
@@ -173,9 +175,23 @@ struct NotesView: View {
     private var editNoteSheet: some View {
         NavigationView {
             Form {
-                Section("Note Content") {
-                    TextEditor(text: $editingContent)
-                        .frame(minHeight: 200)
+                Section("Title") {
+                    TextField("Note title", text: $editingTitle)
+                }
+
+                Section("Tags") {
+                    TextField("Comma-separated tags", text: $editingTags)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
+
+                if let note = editingNote {
+                    Section {
+                        LabeledContent("Path", value: note.relativePath)
+                        if let wordCount = note.wordCount {
+                            LabeledContent("Words", value: "\(wordCount)")
+                        }
+                    }
                 }
             }
             .navigationTitle("Edit Note")
@@ -185,7 +201,8 @@ struct NotesView: View {
                     Button("Cancel") {
                         showEditSheet = false
                         editingNote = nil
-                        editingContent = ""
+                        editingTitle = ""
+                        editingTags = ""
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -194,7 +211,7 @@ struct NotesView: View {
                             Task { await updateNote(note) }
                         }
                     }
-                    .disabled(isUpdating || editingContent.isEmpty)
+                    .disabled(isUpdating || editingTitle.isEmpty)
                 }
             }
         }
@@ -259,7 +276,8 @@ struct NotesView: View {
         if editingNote?.id == note.id {
             showEditSheet = false
             editingNote = nil
-            editingContent = ""
+            editingTitle = ""
+            editingTags = ""
         }
 
         isDeleting = true
@@ -292,15 +310,28 @@ struct NotesView: View {
             return
         }
 
+        // Parse comma-separated tags
+        let tagsArray = editingTags
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
         isUpdating = true
         do {
-            let _: NoteUpdateResponse = try await DocumentsAPI.shared.updateNote(id: noteId, content: editingContent)
+            let _: NoteUpdateResponse = try await DocumentsAPI.shared.updateNote(
+                id: noteId,
+                title: editingTitle.isEmpty ? nil : editingTitle,
+                tags: tagsArray.isEmpty ? nil : tagsArray
+            )
+            // Update local note with new values
             if let index = notes.firstIndex(where: { $0.id == note.id }) {
-                notes[index] = note
+                // Note is immutable, reload to get updated data
+                await loadNotes()
             }
             showEditSheet = false
             editingNote = nil
-            editingContent = ""
+            editingTitle = ""
+            editingTags = ""
             logger.info("Note updated: \(note.displayTitle)")
         } catch {
             logger.error("Failed to update note: \(error.localizedDescription)")
