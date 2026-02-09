@@ -95,4 +95,28 @@ class HealthAPI: BaseAPIClient {
         }
         return try await post("/webhook/nexus-supplement", body: DeactivateRequest(id: id, active: false))
     }
+
+    // MARK: - Medications
+
+    func createMedication(_ request: MedicationCreateRequest) async throws -> MedicationCreateResponse {
+        return try await post("/webhook/nexus-medication-create", body: request)
+    }
+
+    // MARK: - BJJ Sessions
+
+    func logBJJSession(_ request: LogBJJRequest) async throws -> BJJLogResponse {
+        try await post("/webhook/nexus-bjj-log", body: request)
+    }
+
+    func fetchBJJHistory(limit: Int = 20, offset: Int = 0) async throws -> BJJHistoryResponse {
+        let path = buildPath("/webhook/nexus-bjj-history", query: [
+            "limit": "\(limit)",
+            "offset": "\(offset)"
+        ])
+        return try await get(path)
+    }
+
+    func fetchBJJStreak() async throws -> BJJStreakResponse {
+        try await get("/webhook/nexus-bjj-streak")
+    }
 }

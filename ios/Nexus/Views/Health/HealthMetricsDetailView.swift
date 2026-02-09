@@ -666,6 +666,7 @@ struct MetricDetailCard: View {
         mealsLogged: nil,
         waterMl: 2400,
         caloriesConsumed: 2150,
+        proteinG: nil,
         dataCompleteness: nil,
         factsComputedAt: nil,
         workoutCount: 1,
