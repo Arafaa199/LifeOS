@@ -10,6 +10,12 @@ struct RecoveryCardView: View {
     let healthStatus: String?
     let freshness: DomainFreshness?
 
+    // Trend indicators
+    let recoveryVs7d: Double?
+    let sleepVs7d: Double?
+    let recoveryUnusual: Bool?
+    let sleepUnusual: Bool?
+
     // Computed light sleep
     private var lightSleepMinutes: Int? {
         guard let total = sleepMinutes, let deep = deepSleepMinutes, let rem = remSleepMinutes else {
@@ -45,6 +51,11 @@ struct RecoveryCardView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(NexusTheme.Colors.textPrimary)
 
+                    // Recovery trend indicator
+                    if let vs7d = recoveryVs7d, recoveryScore != nil {
+                        trendIndicator(vs7d: vs7d, isUnusual: recoveryUnusual ?? false)
+                    }
+
                     // Sleep efficiency badge
                     if let efficiency = sleepEfficiency {
                         Text("\(Int(efficiency * 100))%")
@@ -70,9 +81,16 @@ struct RecoveryCardView: View {
                 }
 
                 if let sleep = sleepMinutes {
-                    Text(formatSleep(sleep))
-                        .font(.system(size: 11))
-                        .foregroundColor(NexusTheme.Colors.textSecondary)
+                    HStack(spacing: 3) {
+                        Text(formatSleep(sleep))
+                            .font(.system(size: 11))
+                            .foregroundColor(NexusTheme.Colors.textSecondary)
+
+                        // Sleep trend indicator
+                        if let vs7d = sleepVs7d {
+                            trendIndicator(vs7d: vs7d, isUnusual: sleepUnusual ?? false)
+                        }
+                    }
                 }
 
                 // Sleep composition breakdown
@@ -139,6 +157,21 @@ struct RecoveryCardView: View {
         }
     }
 
+    // MARK: - Trend Indicator
+
+    private func trendIndicator(vs7d: Double, isUnusual: Bool) -> some View {
+        let arrow: String
+        if vs7d > 5 { arrow = "↑" }
+        else if vs7d < -5 { arrow = "↓" }
+        else { arrow = "→" }
+
+        let color: Color = isUnusual ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.textTertiary
+
+        return Text(arrow)
+            .font(.system(size: 10, weight: .medium))
+            .foregroundColor(color)
+    }
+
     // MARK: - Computed Properties
 
     private var recoveryProgress: CGFloat {
@@ -186,7 +219,7 @@ struct RecoveryCardView: View {
 
 #Preview {
     VStack(spacing: 20) {
-        // With sleep composition
+        // With sleep composition and trends
         RecoveryCardView(
             recoveryScore: 72,
             sleepMinutes: 420,
@@ -194,10 +227,14 @@ struct RecoveryCardView: View {
             remSleepMinutes: 105,
             sleepEfficiency: 0.92,
             healthStatus: "healthy",
-            freshness: nil
+            freshness: nil,
+            recoveryVs7d: 12.5,
+            sleepVs7d: -8.0,
+            recoveryUnusual: false,
+            sleepUnusual: true
         )
 
-        // Without sleep composition (nil values)
+        // Without trends (nil values)
         RecoveryCardView(
             recoveryScore: 65,
             sleepMinutes: 380,
@@ -205,7 +242,11 @@ struct RecoveryCardView: View {
             remSleepMinutes: nil,
             sleepEfficiency: nil,
             healthStatus: "healthy",
-            freshness: nil
+            freshness: nil,
+            recoveryVs7d: nil,
+            sleepVs7d: nil,
+            recoveryUnusual: nil,
+            sleepUnusual: nil
         )
     }
     .padding()

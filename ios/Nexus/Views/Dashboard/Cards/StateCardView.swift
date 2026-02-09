@@ -11,6 +11,12 @@ struct StateCardView: View {
     let healthStatus: String?
     let healthFreshness: DomainFreshness?
 
+    // Trend indicators
+    let recoveryVs7d: Double?
+    let sleepVs7d: Double?
+    let recoveryUnusual: Bool?
+    let sleepUnusual: Bool?
+
     // Budget data
     let spendTotal: Double?
     let spendVs7d: Double?
@@ -36,7 +42,11 @@ struct StateCardView: View {
                     remSleepMinutes: remSleepMinutes,
                     sleepEfficiency: sleepEfficiency,
                     healthStatus: healthStatus,
-                    freshness: healthFreshness
+                    freshness: healthFreshness,
+                    recoveryVs7d: recoveryVs7d,
+                    sleepVs7d: sleepVs7d,
+                    recoveryUnusual: recoveryUnusual,
+                    sleepUnusual: sleepUnusual
                 )
 
                 Spacer(minLength: NexusTheme.Spacing.md)
@@ -142,6 +152,10 @@ struct StateCardView: View {
         sleepEfficiency: 0.92,
         healthStatus: "healthy",
         healthFreshness: nil,
+        recoveryVs7d: 12.5,
+        sleepVs7d: -8.0,
+        recoveryUnusual: false,
+        sleepUnusual: true,
         spendTotal: 150.0,
         spendVs7d: 25.0,
         spendUnusual: false,
