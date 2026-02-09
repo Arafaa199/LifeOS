@@ -120,6 +120,8 @@ struct TodayView: View {
             spendTotal: viewModel.dashboardPayload?.todayFacts?.spendTotal,
             spendVs7d: viewModel.dashboardPayload?.todayFacts?.spendVs7d,
             spendUnusual: viewModel.dashboardPayload?.todayFacts?.spendUnusual,
+            spendGroceries: viewModel.dashboardPayload?.todayFacts?.spendGroceries,
+            spendRestaurants: viewModel.dashboardPayload?.todayFacts?.spendRestaurants,
             financeFreshness: viewModel.financeFreshness,
             hasData: viewModel.dashboardPayload != nil,
             currency: AppSettings.shared.defaultCurrency,

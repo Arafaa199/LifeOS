@@ -5,6 +5,8 @@ struct BudgetCardView: View {
     let spendTotal: Double?
     let spendVs7d: Double?
     let spendUnusual: Bool?
+    let spendGroceries: Double?
+    let spendRestaurants: Double?
     let freshness: DomainFreshness?
     let hasData: Bool
     let currency: String
@@ -15,6 +17,13 @@ struct BudgetCardView: View {
             Text(spentTodayText)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundColor(NexusTheme.Colors.textPrimary)
+
+            // Category split
+            if let splitText = categorySplitText {
+                Text(splitText)
+                    .font(.system(size: 9))
+                    .foregroundColor(NexusTheme.Colors.textTertiary)
+            }
 
             // Status chip
             HStack(spacing: 4) {
@@ -48,6 +57,22 @@ struct BudgetCardView: View {
             return "No spend"
         }
         return formatCurrency(abs(spentToday), currency: currency)
+    }
+
+    private var categorySplitText: String? {
+        let groceries = spendGroceries ?? 0
+        let restaurants = spendRestaurants ?? 0
+
+        guard groceries > 0 || restaurants > 0 else { return nil }
+
+        var parts: [String] = []
+        if groceries > 0 {
+            parts.append("Groceries \(formatCurrency(groceries, currency: currency))")
+        }
+        if restaurants > 0 {
+            parts.append("Restaurants \(formatCurrency(restaurants, currency: currency))")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var budgetStatusIcon: String {
@@ -90,6 +115,8 @@ struct BudgetCardView: View {
         spendTotal: 150.0,
         spendVs7d: 25.0,
         spendUnusual: false,
+        spendGroceries: 85.0,
+        spendRestaurants: 45.0,
         freshness: nil,
         hasData: true,
         currency: "AED"

@@ -21,6 +21,8 @@ struct StateCardView: View {
     let spendTotal: Double?
     let spendVs7d: Double?
     let spendUnusual: Bool?
+    let spendGroceries: Double?
+    let spendRestaurants: Double?
     let financeFreshness: DomainFreshness?
     let hasData: Bool
     let currency: String
@@ -61,6 +63,8 @@ struct StateCardView: View {
                     spendTotal: spendTotal,
                     spendVs7d: spendVs7d,
                     spendUnusual: spendUnusual,
+                    spendGroceries: spendGroceries,
+                    spendRestaurants: spendRestaurants,
                     freshness: financeFreshness,
                     hasData: hasData,
                     currency: currency
@@ -159,6 +163,8 @@ struct StateCardView: View {
         spendTotal: 150.0,
         spendVs7d: 25.0,
         spendUnusual: false,
+        spendGroceries: 85.0,
+        spendRestaurants: 45.0,
         financeFreshness: nil,
         hasData: true,
         currency: "AED",
