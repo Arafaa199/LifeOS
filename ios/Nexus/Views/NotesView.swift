@@ -8,6 +8,13 @@ struct NotesView: View {
     @State private var allTags: [String] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var noteToDelete: Note?
+    @State private var showDeleteConfirmation = false
+    @State private var showEditSheet = false
+    @State private var editingNote: Note?
+    @State private var editingContent = ""
+    @State private var isDeleting = false
+    @State private var isUpdating = false
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "notes")
 
@@ -79,12 +86,43 @@ struct NotesView: View {
             } else {
                 Section(noteSectionHeader) {
                     ForEach(filteredNotes) { note in
-                        NoteRow(note: note)
+                        NoteRow(
+                            note: note,
+                            onEdit: {
+                                editingNote = note
+                                editingContent = ""
+                                showEditSheet = true
+                            },
+                            onDelete: {
+                                noteToDelete = note
+                                showDeleteConfirmation = true
+                            }
+                        )
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                noteToDelete = note
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .confirmationDialog("Delete Note?", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                if let note = noteToDelete {
+                    Task { await deleteNote(note) }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this note? This action cannot be undone.")
+        }
+        .sheet(isPresented: $showEditSheet) {
+            editNoteSheet
+        }
     }
 
     private var noteSectionHeader: String {
@@ -127,6 +165,38 @@ struct NotesView: View {
                 Task { await loadNotes() }
             }
             .buttonStyle(.bordered)
+        }
+    }
+
+    // MARK: - Edit Sheet
+
+    private var editNoteSheet: some View {
+        NavigationView {
+            Form {
+                Section("Note Content") {
+                    TextEditor(text: $editingContent)
+                        .frame(minHeight: 200)
+                }
+            }
+            .navigationTitle("Edit Note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        showEditSheet = false
+                        editingNote = nil
+                        editingContent = ""
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        if let note = editingNote {
+                            Task { await updateNote(note) }
+                        }
+                    }
+                    .disabled(isUpdating || editingContent.isEmpty)
+                }
+            }
         }
     }
 
@@ -178,12 +248,74 @@ struct NotesView: View {
         }
         allTags = Array(tagSet).sorted()
     }
+
+    private func deleteNote(_ note: Note) async {
+        guard let noteId = note.noteId else {
+            logger.error("Cannot delete note without ID")
+            return
+        }
+
+        // Guard against deleting a note that's currently being edited
+        if editingNote?.id == note.id {
+            showEditSheet = false
+            editingNote = nil
+            editingContent = ""
+        }
+
+        isDeleting = true
+
+        // Optimistic removal: remove from UI immediately
+        let deletedIndex = notes.firstIndex { $0.id == note.id }
+        notes.removeAll { $0.id == note.id }
+        noteToDelete = nil
+
+        do {
+            let _: NoteDeleteResponse = try await NexusAPI.shared.delete("/webhook/nexus-note-delete?id=\(noteId)")
+            logger.info("Note deleted: \(note.displayTitle)")
+        } catch {
+            logger.error("Failed to delete note: \(error.localizedDescription)")
+            errorMessage = "Failed to delete note: \(error.localizedDescription)"
+
+            // Restore the note if delete failed
+            if let index = deletedIndex {
+                notes.insert(note, at: index)
+            } else {
+                notes.append(note)
+            }
+        }
+        isDeleting = false
+    }
+
+    private func updateNote(_ note: Note) async {
+        guard let noteId = note.noteId else {
+            logger.error("Cannot update note without ID")
+            return
+        }
+
+        isUpdating = true
+        do {
+            let _: NoteUpdateResponse = try await DocumentsAPI.shared.updateNote(id: noteId, content: editingContent)
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index] = note
+            }
+            showEditSheet = false
+            editingNote = nil
+            editingContent = ""
+            logger.info("Note updated: \(note.displayTitle)")
+        } catch {
+            logger.error("Failed to update note: \(error.localizedDescription)")
+            errorMessage = "Failed to update note: \(error.localizedDescription)"
+        }
+        isUpdating = false
+    }
 }
 
 // MARK: - Note Row
 
 struct NoteRow: View {
     let note: Note
+    let onEdit: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -243,6 +375,23 @@ struct NoteRow: View {
             }
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onEdit()
+        }
+        .contextMenu {
+            Button {
+                onEdit()
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
 
     private var noteIcon: String {
