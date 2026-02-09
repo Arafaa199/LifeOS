@@ -1,0 +1,221 @@
+{
+  "name": "Nexus: BJJ API Webhooks",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-bjj-log",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-log",
+      "name": "POST /nexus-bjj-log",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 200],
+      "typeVersion": 2,
+      "webhookId": "nexus-bjj-log"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-bjj-history",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-history",
+      "name": "GET /nexus-bjj-history",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 500],
+      "typeVersion": 2,
+      "webhookId": "nexus-bjj-history"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-bjj-streak",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-streak",
+      "name": "GET /nexus-bjj-streak",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 800],
+      "typeVersion": 2,
+      "webhookId": "nexus-bjj-streak"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO health.bjj_sessions (\n  session_date,\n  session_type,\n  duration_minutes,\n  start_time,\n  end_time,\n  strain,\n  hr_avg,\n  calories,\n  techniques,\n  notes,\n  source\n) VALUES (\n  $1::date,\n  COALESCE($2, 'bjj'),\n  COALESCE($3, 60),\n  $4::time,\n  $5::time,\n  $6,\n  $7,\n  $8,\n  $9::text[],\n  $10,\n  COALESCE($11, 'manual')\n)\nON CONFLICT (session_date) DO UPDATE SET\n  session_type = COALESCE(EXCLUDED.session_type, health.bjj_sessions.session_type),\n  duration_minutes = COALESCE(EXCLUDED.duration_minutes, health.bjj_sessions.duration_minutes),\n  start_time = COALESCE(EXCLUDED.start_time, health.bjj_sessions.start_time),\n  end_time = COALESCE(EXCLUDED.end_time, health.bjj_sessions.end_time),\n  strain = COALESCE(EXCLUDED.strain, health.bjj_sessions.strain),\n  hr_avg = COALESCE(EXCLUDED.hr_avg, health.bjj_sessions.hr_avg),\n  calories = COALESCE(EXCLUDED.calories, health.bjj_sessions.calories),\n  techniques = COALESCE(EXCLUDED.techniques, health.bjj_sessions.techniques),\n  notes = COALESCE(EXCLUDED.notes, health.bjj_sessions.notes),\n  source = COALESCE(EXCLUDED.source, health.bjj_sessions.source),\n  updated_at = NOW()\nRETURNING *,\n  (xmax = 0) as is_new;",
+        "options": {
+          "queryParams": "={{ [\n  $json.body.session_date,\n  $json.body.session_type,\n  $json.body.duration_minutes,\n  $json.body.start_time || null,\n  $json.body.end_time || null,\n  $json.body.strain || null,\n  $json.body.hr_avg || null,\n  $json.body.calories || null,\n  $json.body.techniques ? '{' + $json.body.techniques.join(',') + '}' : null,\n  $json.body.notes || null,\n  $json.body.source\n] }}"
+        }
+      },
+      "id": "upsert-session",
+      "name": "Upsert Session",
+      "type": "n8n-nodes-base.postgres",
+      "position": [480, 200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  session: {\n    id: $json.id,\n    session_date: $json.session_date,\n    session_type: $json.session_type,\n    duration_minutes: $json.duration_minutes,\n    start_time: $json.start_time,\n    end_time: $json.end_time,\n    strain: $json.strain,\n    hr_avg: $json.hr_avg,\n    calories: $json.calories,\n    source: $json.source,\n    techniques: $json.techniques,\n    notes: $json.notes,\n    created_at: $json.created_at,\n    updated_at: $json.updated_at\n  },\n  is_new: $json.is_new\n} }}",
+        "options": {}
+      },
+      "id": "respond-log",
+      "name": "Respond Log",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [720, 200],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH sessions AS (\n  SELECT\n    id,\n    session_date,\n    session_type,\n    duration_minutes,\n    start_time::text,\n    end_time::text,\n    strain,\n    hr_avg,\n    calories,\n    source,\n    techniques,\n    notes,\n    created_at,\n    updated_at\n  FROM health.bjj_sessions\n  ORDER BY session_date DESC\n  LIMIT $1\n  OFFSET $2\n),\nstreak AS (\n  SELECT * FROM health.get_bjj_streaks()\n),\ntotal AS (\n  SELECT COUNT(*) as cnt FROM health.bjj_sessions\n)\nSELECT\n  json_build_object(\n    'success', true,\n    'sessions', COALESCE((SELECT json_agg(s) FROM sessions s), '[]'::json),\n    'count', (SELECT COUNT(*) FROM sessions),\n    'total', (SELECT cnt FROM total),\n    'streak', (SELECT row_to_json(streak) FROM streak)\n  ) as result;",
+        "options": {
+          "queryParams": "={{ [\n  $json.query.limit ? parseInt($json.query.limit) : 20,\n  $json.query.offset ? parseInt($json.query.offset) : 0\n] }}"
+        }
+      },
+      "id": "fetch-history",
+      "name": "Fetch History",
+      "type": "n8n-nodes-base.postgres",
+      "position": [480, 500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.result }}",
+        "options": {}
+      },
+      "id": "respond-history",
+      "name": "Respond History",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [720, 500],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  current_streak,\n  longest_streak,\n  total_sessions,\n  sessions_this_month,\n  sessions_this_week\nFROM health.get_bjj_streaks();",
+        "options": {}
+      },
+      "id": "fetch-streak",
+      "name": "Fetch Streak",
+      "type": "n8n-nodes-base.postgres",
+      "position": [480, 800],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  success: true,\n  current_streak: $json.current_streak,\n  longest_streak: $json.longest_streak,\n  total_sessions: $json.total_sessions,\n  sessions_this_month: $json.sessions_this_month,\n  sessions_this_week: $json.sessions_this_week\n} }}",
+        "options": {}
+      },
+      "id": "respond-streak",
+      "name": "Respond Streak",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [720, 800],
+      "typeVersion": 1.1
+    }
+  ],
+  "connections": {
+    "POST /nexus-bjj-log": {
+      "main": [
+        [
+          {
+            "node": "Upsert Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Session": {
+      "main": [
+        [
+          {
+            "node": "Respond Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /nexus-bjj-history": {
+      "main": [
+        [
+          {
+            "node": "Fetch History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch History": {
+      "main": [
+        [
+          {
+            "node": "Respond History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /nexus-bjj-streak": {
+      "main": [
+        [
+          {
+            "node": "Fetch Streak",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Streak": {
+      "main": [
+        [
+          {
+            "node": "Respond Streak",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 3,
+  "pinData": {}
+}
