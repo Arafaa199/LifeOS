@@ -87,19 +87,31 @@ struct NotesView: View {
             } else {
                 Section(noteSectionHeader) {
                     ForEach(filteredNotes) { note in
-                        NoteRow(
-                            note: note,
-                            onEdit: {
-                                editingNote = note
-                                editingTitle = note.title ?? note.displayTitle
-                                editingTags = (note.tags ?? []).joined(separator: ", ")
-                                showEditSheet = true
-                            },
-                            onDelete: {
-                                noteToDelete = note
-                                showDeleteConfirmation = true
-                            }
-                        )
+                        NavigationLink {
+                            NoteDetailView(
+                                note: note,
+                                onEdit: {
+                                    editingNote = note
+                                    editingTitle = note.title ?? note.displayTitle
+                                    editingTags = (note.tags ?? []).joined(separator: ", ")
+                                    showEditSheet = true
+                                }
+                            )
+                        } label: {
+                            NoteRow(
+                                note: note,
+                                onEdit: {
+                                    editingNote = note
+                                    editingTitle = note.title ?? note.displayTitle
+                                    editingTags = (note.tags ?? []).joined(separator: ", ")
+                                    showEditSheet = true
+                                },
+                                onDelete: {
+                                    noteToDelete = note
+                                    showDeleteConfirmation = true
+                                }
+                            )
+                        }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 noteToDelete = note
@@ -407,9 +419,6 @@ struct NoteRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .onTapGesture {
-            onEdit()
-        }
         .contextMenu {
             Button {
                 onEdit()
