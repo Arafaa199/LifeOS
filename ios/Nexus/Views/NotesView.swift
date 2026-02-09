@@ -16,6 +16,8 @@ struct NotesView: View {
     @State private var editingTags = ""
     @State private var isDeleting = false
     @State private var isUpdating = false
+    @State private var showUpdateError = false
+    @State private var updateErrorMessage = ""
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "notes")
 
@@ -136,6 +138,11 @@ struct NotesView: View {
         }
         .sheet(isPresented: $showEditSheet) {
             editNoteSheet
+        }
+        .alert("Update Failed", isPresented: $showUpdateError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(updateErrorMessage)
         }
     }
 
@@ -319,6 +326,8 @@ struct NotesView: View {
     private func updateNote(_ note: Note) async {
         guard let noteId = note.noteId else {
             logger.error("Cannot update note without ID")
+            updateErrorMessage = "Cannot update note without ID"
+            showUpdateError = true
             return
         }
 
@@ -335,19 +344,19 @@ struct NotesView: View {
                 title: editingTitle.isEmpty ? nil : editingTitle,
                 tags: tagsArray.isEmpty ? nil : tagsArray
             )
-            // Update local note with new values
-            if let index = notes.firstIndex(where: { $0.id == note.id }) {
-                // Note is immutable, reload to get updated data
-                await loadNotes()
-            }
+            // Reload notes to get updated data from server
+            await loadNotes()
+            // Only clear editing state on success
             showEditSheet = false
             editingNote = nil
             editingTitle = ""
             editingTags = ""
             logger.info("Note updated: \(note.displayTitle)")
         } catch {
+            // Show error alert but preserve editing state so user doesn't lose their edits
             logger.error("Failed to update note: \(error.localizedDescription)")
-            errorMessage = "Failed to update note: \(error.localizedDescription)"
+            updateErrorMessage = error.localizedDescription
+            showUpdateError = true
         }
         isUpdating = false
     }
