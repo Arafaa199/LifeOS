@@ -1,0 +1,441 @@
+{
+  "name": "BJJ Auto-Detect & Log",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 22 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily 10PM Dubai",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2,
+      "notes": "Runs at 22:00 Dubai time (UTC+4) = 18:00 UTC. Adjust cron if n8n server is in different timezone."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Check if session already exists for today\nSELECT id, session_type, source, duration_minutes\nFROM health.bjj_sessions\nWHERE session_date = CURRENT_DATE AT TIME ZONE 'Asia/Dubai';\n",
+        "options": {}
+      },
+      "id": "check-existing",
+      "name": "Check Existing Session",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-existing",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-no-existing",
+      "name": "No Existing Session?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Query location history for gym presence today\n-- Gym coordinates: 25.07822362022749, 55.14869064417944 (200m radius)\n-- Looking for 60+ minutes between 7-10 PM Dubai time\nWITH gym_visits AS (\n  SELECT\n    recorded_at,\n    latitude,\n    longitude,\n    -- Calculate distance from gym (Haversine approximation)\n    (\n      6371000 * acos(\n        cos(radians(25.07822362022749)) * cos(radians(latitude)) *\n        cos(radians(longitude) - radians(55.14869064417944)) +\n        sin(radians(25.07822362022749)) * sin(radians(latitude))\n      )\n    ) as distance_meters\n  FROM life.location_history\n  WHERE recorded_at AT TIME ZONE 'Asia/Dubai' >= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '19 hours'\n    AND recorded_at AT TIME ZONE 'Asia/Dubai' <= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '22 hours'\n),\nat_gym AS (\n  SELECT\n    recorded_at,\n    distance_meters\n  FROM gym_visits\n  WHERE distance_meters <= 200\n)\nSELECT\n  COUNT(*) as data_points,\n  MIN(recorded_at) as first_seen,\n  MAX(recorded_at) as last_seen,\n  EXTRACT(EPOCH FROM (MAX(recorded_at) - MIN(recorded_at))) / 60 as duration_minutes,\n  AVG(distance_meters) as avg_distance\nFROM at_gym\nHAVING COUNT(*) >= 2;\n",
+        "options": {}
+      },
+      "id": "query-location",
+      "name": "Query Location History",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Query Whoop workouts for today in 7-10 PM window\n-- Looking for strain > 8, duration 50-120 minutes\nSELECT\n  w.id,\n  w.start_time,\n  w.end_time,\n  w.strain,\n  w.average_heart_rate as hr_avg,\n  w.kilojoules,\n  ROUND(w.kilojoules / 4.184) as calories,\n  EXTRACT(EPOCH FROM (w.end_time - w.start_time)) / 60 as duration_minutes\nFROM health.whoop_workouts w\nWHERE w.start_time AT TIME ZONE 'Asia/Dubai' >= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '19 hours'\n  AND w.start_time AT TIME ZONE 'Asia/Dubai' <= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '22 hours'\n  AND w.strain > 8\n  AND EXTRACT(EPOCH FROM (w.end_time - w.start_time)) / 60 BETWEEN 50 AND 120\nORDER BY w.strain DESC\nLIMIT 1;\n",
+        "options": {}
+      },
+      "id": "query-whoop",
+      "name": "Query Whoop Workouts",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 400],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge location and Whoop results\nconst locationData = $('Query Location History').first()?.json || {};\nconst whoopData = $('Query Whoop Workouts').first()?.json || {};\n\nconst locationConfirmed = locationData.duration_minutes && locationData.duration_minutes >= 60;\nconst whoopConfirmed = whoopData.strain && whoopData.strain > 8;\n\n// Determine session type based on start time\n// 7:30-8:30 PM = BJJ (gi class)\n// 8:30-9:30 PM = MMA\nlet sessionType = 'bjj'; // default\nif (whoopData.start_time) {\n  const startHour = new Date(whoopData.start_time).getHours();\n  const startMinute = new Date(whoopData.start_time).getMinutes();\n  const startDecimal = startHour + startMinute / 60;\n  \n  // Convert to Dubai time (assuming UTC input)\n  const dubaiOffset = 4;\n  const dubaiDecimal = (startDecimal + dubaiOffset) % 24;\n  \n  if (dubaiDecimal >= 20.5) { // 8:30 PM+\n    sessionType = 'mma';\n  }\n}\n\n// Determine source priority: location > whoop\nlet source = null;\nif (locationConfirmed) {\n  source = 'auto_location';\n} else if (whoopConfirmed) {\n  source = 'auto_whoop';\n}\n\nreturn [{\n  json: {\n    locationConfirmed,\n    whoopConfirmed,\n    shouldAutoLog: locationConfirmed || whoopConfirmed,\n    source,\n    sessionType,\n    durationMinutes: whoopData.duration_minutes || locationData.duration_minutes || 60,\n    strain: whoopData.strain || null,\n    hrAvg: whoopData.hr_avg || null,\n    calories: whoopData.calories || null,\n    startTime: whoopData.start_time || locationData.first_seen || null,\n    endTime: whoopData.end_time || locationData.last_seen || null\n  }\n}];"
+      },
+      "id": "merge-signals",
+      "name": "Merge & Decide",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "should-auto-log",
+              "leftValue": "={{ $json.shouldAutoLog }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-should-log",
+      "name": "Auto-Log?",
+      "type": "n8n-nodes-base.if",
+      "position": [1340, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Auto-log BJJ session\nINSERT INTO health.bjj_sessions (\n  session_date,\n  session_type,\n  duration_minutes,\n  start_time,\n  end_time,\n  strain,\n  hr_avg,\n  calories,\n  source\n) VALUES (\n  CURRENT_DATE AT TIME ZONE 'Asia/Dubai',\n  $1,\n  $2,\n  $3::time,\n  $4::time,\n  $5,\n  $6,\n  $7,\n  $8\n)\nON CONFLICT (session_date) DO UPDATE SET\n  session_type = EXCLUDED.session_type,\n  duration_minutes = EXCLUDED.duration_minutes,\n  start_time = EXCLUDED.start_time,\n  end_time = EXCLUDED.end_time,\n  strain = EXCLUDED.strain,\n  hr_avg = EXCLUDED.hr_avg,\n  calories = EXCLUDED.calories,\n  source = EXCLUDED.source,\n  updated_at = NOW()\nRETURNING *;",
+        "options": {
+          "queryParams": "={{ [$json.sessionType, $json.durationMinutes, $json.startTime ? new Date($json.startTime).toTimeString().slice(0,8) : null, $json.endTime ? new Date($json.endTime).toTimeString().slice(0,8) : null, $json.strain, $json.hrAvg, $json.calories, $json.source] }}"
+        }
+      },
+      "id": "insert-session",
+      "name": "Log Session",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1560, 200],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format confirmation notification\nconst session = $('Log Session').first()?.json || $input.first()?.json;\nconst strain = session.strain ? `, strain ${session.strain.toFixed(1)}` : '';\nconst duration = session.duration_minutes || session.durationMinutes || 60;\nconst type = (session.session_type || session.sessionType || 'BJJ').toUpperCase();\n\nreturn [{\n  json: {\n    title: `${type} Session Logged ✅`,\n    body: `${duration}min${strain}`,\n    data: {\n      type: 'bjj_logged',\n      session_id: session.id\n    }\n  }\n}];"
+      },
+      "id": "format-confirm-notif",
+      "name": "Format Confirmation",
+      "type": "n8n-nodes-base.code",
+      "position": [1780, 200],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8123/api/services/notify/mobile_app_rafas_iphone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"message\": \"{{ $json.body }}\",\n  \"data\": {\n    \"push\": {\n      \"sound\": \"default\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "send-confirm-notif",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2000, 200],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HA Token",
+          "name": "Home Assistant Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format \"Did you train?\" notification with action buttons\nreturn [{\n  json: {\n    title: 'Did you train today? 🥋',\n    body: 'No gym activity detected',\n    data: {\n      type: 'bjj_prompt',\n      actions: [\n        { action: 'BJJ', title: 'BJJ (Gi)' },\n        { action: 'NOGI', title: 'No-Gi' },\n        { action: 'MMA', title: 'MMA' },\n        { action: 'SKIP', title: 'No Training', destructive: true }\n      ]\n    }\n  }\n}];"
+      },
+      "id": "format-prompt-notif",
+      "name": "Format Prompt",
+      "type": "n8n-nodes-base.code",
+      "position": [1560, 420],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8123/api/services/notify/mobile_app_rafas_iphone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"message\": \"{{ $json.body }}\",\n  \"data\": {\n    \"actions\": [\n      { \"action\": \"BJJ_LOG_BJJ\", \"title\": \"BJJ (Gi)\" },\n      { \"action\": \"BJJ_LOG_NOGI\", \"title\": \"No-Gi\" },\n      { \"action\": \"BJJ_LOG_MMA\", \"title\": \"MMA\" },\n      { \"action\": \"BJJ_SKIP\", \"title\": \"No Training\", \"destructive\": true }\n    ],\n    \"push\": {\n      \"sound\": \"default\",\n      \"interruption-level\": \"time-sensitive\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "send-prompt-notif",
+      "name": "Send Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1780, 420],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HA Token",
+          "name": "Home Assistant Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Session already exists - skip\nconst existing = $('Check Existing Session').first()?.json;\nreturn [{\n  json: {\n    skipped: true,\n    reason: 'Session already logged',\n    existing_session: existing\n  }\n}];"
+      },
+      "id": "skip-existing",
+      "name": "Skip (Already Logged)",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 500],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "completed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "done-confirm",
+      "name": "Done (Confirmed)",
+      "type": "n8n-nodes-base.set",
+      "position": [2220, 200],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "prompted"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "done-prompt",
+      "name": "Done (Prompted)",
+      "type": "n8n-nodes-base.set",
+      "position": [2000, 420],
+      "typeVersion": 3.4
+    }
+  ],
+  "connections": {
+    "Daily 10PM Dubai": {
+      "main": [
+        [
+          {
+            "node": "Check Existing Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Existing Session": {
+      "main": [
+        [
+          {
+            "node": "No Existing Session?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Existing Session?": {
+      "main": [
+        [
+          {
+            "node": "Query Location History",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Whoop Workouts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip (Already Logged)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Location History": {
+      "main": [
+        [
+          {
+            "node": "Merge & Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Whoop Workouts": {
+      "main": [
+        [
+          {
+            "node": "Merge & Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge & Decide": {
+      "main": [
+        [
+          {
+            "node": "Auto-Log?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Log?": {
+      "main": [
+        [
+          {
+            "node": "Log Session",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Session": {
+      "main": [
+        [
+          {
+            "node": "Format Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Done (Confirmed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Prompt": {
+      "main": [
+        [
+          {
+            "node": "Send Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Prompt": {
+      "main": [
+        [
+          {
+            "node": "Done (Prompted)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "pinData": {}
+}
