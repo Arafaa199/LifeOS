@@ -1,0 +1,75 @@
+{
+  "name": "Nexus - Known Locations",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-known-locations",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "nexus-known-locations",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SZxrJ8QXk6ZennvF",
+          "name": "Nexus API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, category, lat, lng, radius_meters FROM core.known_locations WHERE is_active ORDER BY id;",
+        "options": {}
+      },
+      "name": "Get Locations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const locations = $('Get Locations').all().map(item => item.json);\nreturn [{\n  json: {\n    success: true,\n    locations: locations\n  }\n}];"
+      },
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Get Locations", "type": "main", "index": 0}]]
+    },
+    "Get Locations": {
+      "main": [[{"node": "Build Response", "type": "main", "index": 0}]]
+    },
+    "Build Response": {
+      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
