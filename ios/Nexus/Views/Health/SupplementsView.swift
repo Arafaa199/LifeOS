@@ -30,6 +30,9 @@ struct SupplementsView: View {
                 Button(action: { showAddSheet = true }) {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add supplement")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Double tap to add a new supplement")
             }
         }
         .sheet(isPresented: $showAddSheet) {
@@ -126,16 +129,13 @@ struct SupplementsView: View {
     // MARK: - Empty State
 
     private var emptyStateView: some View {
-        ContentUnavailableView {
-            Label("No Supplements", systemImage: "pills.fill")
-        } description: {
-            Text("Add your daily supplements and medications to track adherence.")
-        } actions: {
-            Button("Add Supplement") {
-                showAddSheet = true
-            }
-            .buttonStyle(.bordered)
-        }
+        ThemeEmptyState(
+            icon: "pills.fill",
+            headline: "No Supplements",
+            description: "Add your daily supplements and medications to track adherence.",
+            ctaTitle: "Add Supplement",
+            ctaAction: { showAddSheet = true }
+        )
     }
 
     // MARK: - Error View
@@ -251,6 +251,9 @@ struct SupplementRow: View {
                                 .foregroundColor(NexusTheme.Colors.Semantic.green)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Mark taken")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("Double tap to mark \(supplement.name) as taken")
 
                         Button {
                             Task {
@@ -264,6 +267,9 @@ struct SupplementRow: View {
                                 .foregroundColor(.secondary)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Mark skipped")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("Double tap to skip \(supplement.name)")
                     }
                     .opacity(isLogging ? 0.5 : 1)
                     .disabled(isLogging)
@@ -280,6 +286,10 @@ struct SupplementRow: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(supplement.name), \(supplement.displayDose), \(supplement.frequencyDisplay), status: \(statusText)")
+        .accessibilityHint("Double tap to view supplement details")
+        .accessibilityAddTraits(.isButton)
     }
 
     private var statusIcon: String {

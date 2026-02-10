@@ -34,36 +34,16 @@ enum MealTypeIntent: String, AppEnum, CaseIterable {
 @available(iOS 17.0, *)
 struct LogWaterIntent: AppIntent {
     static var title: LocalizedStringResource = "Log Water"
-    static var description = IntentDescription("Log water intake to Nexus")
+    static var description = IntentDescription("Log water habit completion to Nexus")
     static var openAppWhenRun: Bool = false
 
-    @Parameter(title: "Amount (ml)", description: "Amount of water in milliliters")
-    var amount: Int
-
-    static var parameterSummary: some ParameterSummary {
-        Summary("Log \(\.$amount) ml of water")
-    }
-
-    init() {
-        self.amount = 250
-    }
-
-    init(amount: Int) {
-        self.amount = amount
-    }
-
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard amount > 0, amount <= 10000 else {
-            return .result(dialog: "Please enter a valid amount between 1 and 10,000 ml.")
-        }
-
         do {
-            let response = try await NexusAPI.shared.logWater(amountML: amount)
+            let response = try await HabitsAPI.shared.logWater()
             if response.success {
-                let totalWater = response.data?.total_water_ml ?? amount
-                return .result(dialog: "Logged \(amount) ml of water. Total today: \(totalWater) ml.")
+                return .result(dialog: "Water logged.")
             } else {
-                return .result(dialog: "Failed to log water: \(response.message ?? "Unknown error")")
+                return .result(dialog: "Failed to log water.")
             }
         } catch {
             return .result(dialog: "Could not connect to Nexus: \(error.localizedDescription)")
@@ -446,7 +426,7 @@ struct NexusAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         // Water logging
         AppShortcut(
-            intent: LogWaterIntent(amount: 250),
+            intent: LogWaterIntent(),
             phrases: [
                 "Log water in \(.applicationName)",
                 "Add water to \(.applicationName)",

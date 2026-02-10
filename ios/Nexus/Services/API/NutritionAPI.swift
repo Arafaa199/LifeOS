@@ -18,27 +18,19 @@ class NutritionAPI: BaseAPIClient {
     }
 
     func searchFoods(query: String, limit: Int = 10) async throws -> FoodSearchResponse {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-        return try await get("/webhook/nexus-food-search?q=\(encoded)&limit=\(limit)")
+        let path = buildPath("/webhook/nexus-food-search", query: ["q": query, "limit": "\(limit)"])
+        return try await get(path)
     }
 
     func lookupBarcode(_ barcode: String) async throws -> FoodSearchResponse {
-        return try await get("/webhook/nexus-food-search?barcode=\(barcode)")
+        let path = buildPath("/webhook/nexus-food-search", query: ["barcode": barcode])
+        return try await get(path)
     }
 
     func fetchNutritionHistory(date: String? = nil) async throws -> NutritionHistoryResponse {
-        var endpoint = "/webhook/nexus-nutrition-history"
-        if let date = date {
-            endpoint += "?date=\(date)"
-        }
+        let base = "/webhook/nexus-nutrition-history"
+        let endpoint = date.map { buildPath(base, query: ["date": $0]) } ?? base
         return try await get(endpoint)
-    }
-
-    // MARK: - Water
-
-    func logWater(amountML: Int) async throws -> NexusResponse {
-        let request = try WaterLogRequest(amount_ml: amountML)
-        return try await post("/webhook/nexus-water", body: request)
     }
 
     // MARK: - Fasting
@@ -60,10 +52,8 @@ class NutritionAPI: BaseAPIClient {
     // MARK: - Meal Confirmation
 
     func fetchPendingMealConfirmations(date: Date? = nil) async throws -> [InferredMeal] {
-        var endpoint = "/webhook/nexus-pending-meals"
-        if let date = date {
-            endpoint += "?date=\(Self.dubaiDateString(from: date))"
-        }
+        let base = "/webhook/nexus-pending-meals"
+        let endpoint = date.map { buildPath(base, query: ["date": Self.dubaiDateString(from: $0)]) } ?? base
 
         struct Response: Codable {
             let meals: [InferredMeal]

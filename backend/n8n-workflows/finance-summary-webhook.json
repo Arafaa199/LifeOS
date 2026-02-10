@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2026-02-09T21:39:56.000Z",
+  "createdAt": "2026-02-09T21:38:16.575Z",
+  "id": "g8LI6nOe08XYimeC",
   "name": "Nexus - Finance Summary Webhook",
+  "description": null,
+  "active": true,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -11,8 +17,12 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [250, 300],
-      "webhookId": "nexus-finance-summary"
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "nexus-finance-summary",
+      "id": "15113794-071f-4e36-bb43-d3cd6e26a587"
     },
     {
       "parameters": {
@@ -23,13 +33,17 @@
       "name": "Get Summary",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [450, 200],
+      "position": [
+        450,
+        200
+      ],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
-      }
+      },
+      "id": "10153543-b194-49fe-99b1-296c1987cf88"
     },
     {
       "parameters": {
@@ -40,13 +54,17 @@
       "name": "Get Transactions",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [650, 200],
+      "position": [
+        650,
+        200
+      ],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
-      }
+      },
+      "id": "0e5f8a0c-f9ed-44d6-941a-c7a00f3ac43e"
     },
     {
       "parameters": {
@@ -57,13 +75,17 @@
       "name": "Get Budgets",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 200],
+      "position": [
+        850,
+        200
+      ],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
-      }
+      },
+      "id": "c42cfe44-d603-4f4e-8dbb-ee870c2a4f66"
     },
     {
       "parameters": {
@@ -74,22 +96,30 @@
       "name": "Get Categories",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1050, 200],
+      "position": [
+        1050,
+        200
+      ],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
-      }
+      },
+      "id": "379916f0-9ac7-41ab-b968-09eb822ec9be"
     },
     {
       "parameters": {
-        "jsCode": "// Build the response from all query results\nconst summary = $('Get Summary').first().json;\nconst transactions = $('Get Transactions').all();\nconst budgets = $('Get Budgets').all();\nconst categoryData = $('Get Categories').all();\n\n// Convert category breakdown to object\nconst categoryBreakdown = {};\nfor (const item of categoryData) {\n  categoryBreakdown[item.json.category] = parseFloat(item.json.total);\n}\n\nreturn {\n  json: {\n    success: true,\n    data: {\n      total_spent: parseFloat(summary.total_spent) || 0,\n      grocery_spent: parseFloat(summary.grocery_spent) || 0,\n      eating_out_spent: parseFloat(summary.eating_out_spent) || 0,\n      currency: summary.currency || 'AED',\n      total_income: parseFloat(summary.mtd_income) || 0,\n      mtd_spend: parseFloat(summary.mtd_spend) || 0,\n      recent_transactions: transactions,\n      budgets: budgets,\n      category_breakdown: categoryBreakdown\n    }\n  }\n};"
+        "jsCode": "// Build the response from all query results\nconst summary = $('Get Summary').first().json;\nconst transactions = $('Get Transactions').all().map(item => item.json);\nconst budgets = $('Get Budgets').all().map(item => item.json);\nconst categoryData = $('Get Categories').all();\n\n// Convert category breakdown to object\nconst categoryBreakdown = {};\nfor (const item of categoryData) {\n  categoryBreakdown[item.json.category] = parseFloat(item.json.total);\n}\n\nreturn {\n  json: {\n    success: true,\n    data: {\n      total_spent: parseFloat(summary.total_spent) || 0,\n      grocery_spent: parseFloat(summary.grocery_spent) || 0,\n      eating_out_spent: parseFloat(summary.eating_out_spent) || 0,\n      currency: summary.currency || 'AED',\n      total_income: parseFloat(summary.mtd_income) || 0,\n      mtd_spend: parseFloat(summary.mtd_spend) || 0,\n      recent_transactions: transactions,\n      budgets: budgets,\n      category_breakdown: categoryBreakdown\n    }\n  }\n};"
       },
       "name": "Build Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1250, 200]
+      "position": [
+        1250,
+        200
+      ],
+      "id": "ab77e963-7268-4fd2-9179-f9096d56a4a6"
     },
     {
       "parameters": {
@@ -99,29 +129,107 @@
       "name": "Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1450, 200]
+      "position": [
+        1450,
+        200
+      ],
+      "id": "f04ea296-8921-4998-a5e8-6036b5b77e87"
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Get Summary", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Summary": {
-      "main": [[{"node": "Get Transactions", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Transactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Transactions": {
-      "main": [[{"node": "Get Budgets", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Budgets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Budgets": {
-      "main": [[{"node": "Get Categories", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Get Categories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Categories": {
-      "main": [[{"node": "Build Response", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Response": {
-      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {},
-  "staticData": null
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "dafa636a-3556-4973-b8e5-3261ab39932d",
+  "activeVersionId": "dafa636a-3556-4973-b8e5-3261ab39932d",
+  "versionCounter": 11,
+  "triggerCount": 1,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-02-09T21:38:16.581Z",
+      "createdAt": "2026-02-09T21:38:16.581Z",
+      "role": "workflow:owner",
+      "workflowId": "g8LI6nOe08XYimeC",
+      "projectId": "22AdcA5nOuNzxaWv",
+      "project": {
+        "updatedAt": "2026-01-16T12:45:07.892Z",
+        "createdAt": "2026-01-16T12:19:29.617Z",
+        "id": "22AdcA5nOuNzxaWv",
+        "name": "Ahmed Arafa <arafa.uwl19@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "6e352323-f0d8-4767-9f6d-163557aaa469"
+      }
+    }
+  ]
 }

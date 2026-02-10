@@ -231,10 +231,20 @@ Sessions can be logged from multiple sources:
 | `auto_whoop` | Matched from Whoop workout with high strain |
 | `notification` | Logged via iOS actionable notification |
 
+## Auto-Detection (Geo-fence + Whoop)
+
+| Parameter | Value |
+|-----------|-------|
+| Gym coordinates | 25.07822362022749, 55.14869064417944 |
+| Geo-fence radius | 150m |
+| Time window | 7–10 PM Dubai time |
+| Min location duration | 60 minutes |
+| Whoop strain threshold | > 8.0 |
+| Whoop duration range | 50–120 minutes |
+| Workflow | `ops/workflows/bjj-auto-detect.json` |
+
 ## Future Enhancements
 
-- Auto-match Whoop workouts to BJJ sessions by time overlap
-- Geo-fence integration with gym location
 - Technique tracking and progression analytics
 - Partner/instructor tracking
 - Belt progression milestones

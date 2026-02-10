@@ -14,36 +14,70 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [250, 300],
-      "webhookId": "nexus-location"
+      "webhookId": "nexus-location",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SZxrJ8QXk6ZennvF",
+          "name": "Nexus API Key"
+        }
+      }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT life.ingest_location(\n  {{ $json.latitude }}::numeric,\n  {{ $json.longitude }}::numeric,\n  {{ $json.location_name ? \"'\" + $json.location_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.event_type || \"poll\" }}',\n  {{ $json.activity ? \"'\" + $json.activity.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  'home_assistant'\n) AS location_id;",
+        "query": "SELECT life.ingest_location(\n  {{ $json.body.latitude }}::numeric,\n  {{ $json.body.longitude }}::numeric,\n  {{ $json.body.location_name ? \"'\" + $json.body.location_name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.body.event_type || \"poll\" }}',\n  {{ $json.body.activity ? \"'\" + $json.body.activity.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.body.source || \"home_assistant\" }}'\n) AS location_id;",
         "options": {}
       },
       "id": "2",
-      "name": "Insert Location",
+      "name": "Ingest Location",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [450, 300],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus Postgres"
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH matches AS (\n  SELECT * FROM core.match_location(\n    {{ $('Webhook').item.json.body.latitude }}::double precision,\n    {{ $('Webhook').item.json.body.longitude }}::double precision\n  )\n),\nlast_events AS (\n  SELECT DISTINCT ON (le.location_id)\n    le.location_id, le.event_type AS last_type, le.timestamp AS last_ts\n  FROM core.location_events le\n  WHERE le.location_id IN (SELECT location_id FROM matches)\n     OR le.location_id IN (\n       SELECT le2.location_id FROM core.location_events le2\n       WHERE le2.event_type = 'enter'\n         AND le2.timestamp > now() - INTERVAL '24 hours'\n     )\n  ORDER BY le.location_id, le.timestamp DESC\n),\nenters AS (\n  INSERT INTO core.location_events (location_id, event_type)\n  SELECT m.location_id, 'enter'\n  FROM matches m\n  LEFT JOIN last_events le ON le.location_id = m.location_id\n  WHERE le.location_id IS NULL OR le.last_type = 'exit'\n  RETURNING location_id, event_type, timestamp\n),\nexits AS (\n  INSERT INTO core.location_events (location_id, event_type, duration_minutes)\n  SELECT\n    le.location_id,\n    'exit',\n    EXTRACT(EPOCH FROM (now() - le.last_ts))::integer / 60\n  FROM last_events le\n  WHERE le.last_type = 'enter'\n    AND le.location_id NOT IN (SELECT location_id FROM matches)\n  RETURNING location_id, event_type, duration_minutes\n)\nSELECT\n  json_agg(json_build_object(\n    'location_id', m.location_id,\n    'name', m.name,\n    'category', m.category,\n    'distance_meters', ROUND(m.distance_meters::numeric, 1)\n  )) AS matched_zones,\n  (SELECT json_agg(json_build_object(\n    'location_id', location_id,\n    'event', event_type\n  )) FROM enters) AS enter_events,\n  (SELECT json_agg(json_build_object(\n    'location_id', location_id,\n    'event', event_type,\n    'duration_minutes', duration_minutes\n  )) FROM exits) AS exit_events\nFROM matches m;",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Match & Track",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ingest = $('Ingest Location').first().json;\nconst geo = $('Match & Track').first().json;\nreturn [{\n  json: {\n    success: true,\n    location_id: ingest.location_id,\n    matched_zones: geo.matched_zones || [],\n    enter_events: geo.enter_events || [],\n    exit_events: geo.exit_events || []\n  }\n}];"
+      },
+      "id": "6",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, location_id: $json.location_id } }}"
+        "responseBody": "={{ $json }}"
       },
       "id": "3",
       "name": "Success Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [650, 300]
+      "position": [1050, 300]
     },
     {
       "parameters": {
@@ -65,14 +99,36 @@
       "main": [
         [
           {
-            "node": "Insert Location",
+            "node": "Ingest Location",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Insert Location": {
+    "Ingest Location": {
+      "main": [
+        [
+          {
+            "node": "Match & Track",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match & Track": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
       "main": [
         [
           {

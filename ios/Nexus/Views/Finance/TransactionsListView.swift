@@ -159,6 +159,11 @@ struct TransactionsListView: View {
                 }
             }
         .listStyle(.plain)
+        .task {
+            if viewModel.recentTransactions.isEmpty {
+                await viewModel.loadMoreTransactions()
+            }
+        }
         .searchable(text: $searchText, prompt: "Search transactions")
         .accessibilityLabel("Search transactions by merchant, category, or notes")
         .refreshable {

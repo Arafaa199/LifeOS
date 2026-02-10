@@ -168,7 +168,7 @@ struct SupplementDetailSheet: View {
 // MARK: - Preview
 
 #Preview {
-    let sample = Supplement(
+    SupplementDetailSheet(supplement: Supplement(
         id: 1,
         name: "Vitamin D3",
         brand: "NOW Foods",
@@ -182,6 +182,5 @@ struct SupplementDetailSheet: View {
         startDate: "2024-01-01",
         endDate: nil,
         todayDoses: [SupplementDoseStatus(timeSlot: "morning", status: "taken")]
-    )
-    return SupplementDetailSheet(supplement: sample) {}
+    )) {}
 }

@@ -308,6 +308,123 @@ class CalendarViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Reminder CRUD (Bidirectional)
+
+    func toggleReminderCompletion(reminderId: String) async throws {
+        errorMessage = nil
+        do {
+            let _: NexusResponse = try await api.post(
+                "/webhook/nexus-reminder-toggle",
+                body: ReminderToggleRequest(reminder_id: reminderId)
+            )
+            // Refresh reminders after toggle
+            if let selected = selectedDate {
+                let fmt = Self.dayKeyFormatter
+                let year = Calendar.current.component(.year, from: selected)
+                let month = Calendar.current.component(.month, from: selected)
+                var comps = DateComponents()
+                comps.year = year; comps.month = month; comps.day = 1
+                let startDate = Calendar.current.date(from: comps) ?? selected
+                let endDate = Calendar.current.date(byAdding: DateComponents(month: 1, day: -1), to: startDate) ?? selected
+                await fetchReminders(start: fmt.string(from: startDate), end: fmt.string(from: endDate))
+            }
+            logger.info("Toggled reminder: \(reminderId)")
+        } catch {
+            logger.error("Failed to toggle reminder: \(error.localizedDescription)")
+            errorMessage = "Failed to update reminder"
+            throw error
+        }
+    }
+
+    func createReminder(title: String, dueDate: Date?, priority: Int = 0, notes: String? = nil, listName: String? = nil) async throws {
+        errorMessage = nil
+        do {
+            let dueDateStr = dueDate.map { ISO8601DateFormatter().string(from: $0) }
+            let _: NexusResponse = try await api.post(
+                "/webhook/nexus-reminder-create",
+                body: ReminderCreateRequest(
+                    title: title,
+                    notes: notes,
+                    dueDate: dueDateStr,
+                    priority: priority,
+                    listName: listName
+                )
+            )
+            // Refresh month
+            if let selected = selectedDate {
+                let year = Calendar.current.component(.year, from: selected)
+                let month = Calendar.current.component(.month, from: selected)
+                var comps = DateComponents()
+                comps.year = year; comps.month = month; comps.day = 1
+                let startDate = Calendar.current.date(from: comps) ?? selected
+                let endDate = Calendar.current.date(byAdding: DateComponents(month: 1, day: -1), to: startDate) ?? selected
+                await fetchReminders(start: Self.dayKeyFormatter.string(from: startDate), end: Self.dayKeyFormatter.string(from: endDate))
+            }
+            logger.info("Created reminder: \(title)")
+        } catch {
+            logger.error("Failed to create reminder: \(error.localizedDescription)")
+            errorMessage = "Failed to create reminder"
+            throw error
+        }
+    }
+
+    // MARK: - Medication Dose Status Update
+
+    @Published var monthMedications: [String: [MedicationCalendarEntry]] = [:]
+
+    func fetchMedications(start: String, end: String) async {
+        do {
+            let response: MedicationCalendarResponse = try await api.get(
+                "/webhook/nexus-calendar-medications?start=\(start)&end=\(end)"
+            )
+            if response.success {
+                var grouped: [String: [MedicationCalendarEntry]] = [:]
+                for med in response.medications ?? [] {
+                    let dayKey = String(med.scheduledDate.prefix(10))
+                    grouped[dayKey, default: []].append(med)
+                }
+                monthMedications = grouped
+            }
+        } catch {
+            logger.error("Failed to fetch calendar medications: \(error.localizedDescription)")
+        }
+    }
+
+    func medicationsForDate(_ date: Date) -> [MedicationCalendarEntry] {
+        let key = Self.dayKeyFormatter.string(from: date)
+        return monthMedications[key] ?? []
+    }
+
+    func toggleDoseStatus(medicationId: String, scheduledDate: String, scheduledTime: String?, newStatus: String) async throws {
+        errorMessage = nil
+        do {
+            let _: NexusResponse = try await api.post(
+                "/webhook/nexus-medication-toggle",
+                body: MedicationToggleRequest(
+                    medication_id: medicationId,
+                    scheduled_date: scheduledDate,
+                    scheduled_time: scheduledTime,
+                    new_status: newStatus
+                )
+            )
+            // Refresh medications for current month
+            if let selected = selectedDate {
+                let year = Calendar.current.component(.year, from: selected)
+                let month = Calendar.current.component(.month, from: selected)
+                var comps = DateComponents()
+                comps.year = year; comps.month = month; comps.day = 1
+                let startDate = Calendar.current.date(from: comps) ?? selected
+                let endDate = Calendar.current.date(byAdding: DateComponents(month: 1, day: -1), to: startDate) ?? selected
+                await fetchMedications(start: Self.dayKeyFormatter.string(from: startDate), end: Self.dayKeyFormatter.string(from: endDate))
+            }
+            logger.info("Toggled medication dose: \(medicationId) → \(newStatus)")
+        } catch {
+            logger.error("Failed to toggle dose: \(error.localizedDescription)")
+            errorMessage = "Failed to update medication status"
+            throw error
+        }
+    }
+
     // MARK: - Helpers
 
     func eventsForDate(_ date: Date) -> [CalendarDisplayEvent] {
@@ -451,4 +568,62 @@ struct RemindersDisplayResponse: Codable {
     let success: Bool
     let reminders: [ReminderDisplayItem]?
     let count: Int?
+}
+
+// MARK: - Reminder CRUD Models
+
+struct ReminderToggleRequest: Codable, Sendable {
+    let reminder_id: String
+}
+
+// NOTE: ReminderCreateRequest is defined in ReminderModels.swift — reuse that.
+
+// MARK: - Medication Calendar Models
+
+struct MedicationCalendarEntry: Codable, Identifiable {
+    var id: String { entryId }
+
+    let entryId: String
+    let medicationId: String
+    let medicationName: String
+    let scheduledDate: String
+    let scheduledTime: String?
+    let status: String
+    let doseQuantity: Double?
+    let doseUnit: String?
+
+    enum CodingKeys: String, CodingKey {
+        case entryId = "entry_id"
+        case medicationId = "medication_id"
+        case medicationName = "medication_name"
+        case scheduledDate = "scheduled_date"
+        case scheduledTime = "scheduled_time"
+        case status
+        case doseQuantity = "dose_quantity"
+        case doseUnit = "dose_unit"
+    }
+
+    var timeLabel: String? {
+        guard let time = scheduledTime else { return nil }
+        return String(time.prefix(5))
+    }
+
+    var dosageLabel: String {
+        if let qty = doseQuantity, let unit = doseUnit {
+            return "\(qty.formatted()) \(unit)"
+        }
+        return "dose"
+    }
+}
+
+struct MedicationCalendarResponse: Codable {
+    let success: Bool
+    let medications: [MedicationCalendarEntry]?
+}
+
+struct MedicationToggleRequest: Codable, Sendable {
+    let medication_id: String
+    let scheduled_date: String
+    let scheduled_time: String?
+    let new_status: String
 }

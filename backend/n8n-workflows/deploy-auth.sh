@@ -1,10 +1,14 @@
 #!/bin/bash
 # Deploy API authentication to n8n workflows
-# Run from: ~/Cyber/Infrastructure/Nexus-setup/n8n-workflows/
+# Run from: $NEXUS_SCRIPTS_DIR
 
 set -e
 
-NEXUS_API_KEY="3f62259deac4aa96427ba0048c3addfe1924f872586d8371d6adfb3d2db3afd8"
+NEXUS_API_KEY="${NEXUS_API_KEY:-}"
+if [ -z "$NEXUS_API_KEY" ]; then
+  echo "Error: NEXUS_API_KEY environment variable not set"
+  exit 1
+fi
 
 echo "=== Nexus API Auth Deployment ==="
 echo ""
@@ -24,7 +28,7 @@ echo "  # Start with API key env var"
 echo "  docker run -d --name n8n --restart=always \\"
 echo "    -p 5678:5678 \\"
 echo "    -e NEXUS_API_KEY=${NEXUS_API_KEY} \\"
-echo "    -v /home/scrypt/n8n-data:/home/node/.n8n \\"
+echo "    -v \${N8N_DATA_DIR}:/home/node/.n8n \\"
 echo "    docker.n8n.io/n8nio/n8n"
 echo ""
 

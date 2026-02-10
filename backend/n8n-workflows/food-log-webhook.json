@@ -22,7 +22,8 @@
       "name": "Parse & Validate",
       "type": "n8n-nodes-base.code",
       "position": [460, 300],
-      "typeVersion": 2
+      "typeVersion": 2,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -128,6 +129,59 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "position": [1780, 300],
       "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "has-error",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-parse-error",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 500],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT ops.enqueue_dead_letter(\n  'nexus-food-log',\n  'Parse & Validate',\n  '/webhook/nexus-food-log',\n  '{{ ($json.error || $json.message || \"Unknown parse error\").replace(/'/g, \"''\") }}',\n  '',\n  '',\n  '{{ JSON.stringify($('Parse & Validate').item.json).replace(/'/g, \"''\") }}'::jsonb,\n  3\n) as dlq_id;",
+        "options": {}
+      },
+      "id": "log-to-dlq",
+      "name": "Log to DLQ",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Failed to process food log\",\n  \"code\": \"PROCESSING_ERROR\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 500]
     }
   ],
   "connections": {
@@ -144,6 +198,24 @@
     },
     "Parse & Validate": {
       "main": [
+        [
+          {
+            "node": "Parse OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OK?": {
+      "main": [
+        [
+          {
+            "node": "Log to DLQ",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Needs Macro Lookup?",
@@ -209,6 +281,17 @@
         [
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to DLQ": {
+      "main": [
+        [
+          {
+            "node": "Error Response",
             "type": "main",
             "index": 0
           }

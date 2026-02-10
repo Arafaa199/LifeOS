@@ -1,0 +1,172 @@
+{
+  "name": "Nexus - DLQ Alert Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  COUNT(*) FILTER (WHERE status = 'pending' AND created_at < NOW() - INTERVAL '1 hour') as stuck_pending,\n  COUNT(*) FILTER (WHERE status = 'pending') as total_pending,\n  COUNT(*) FILTER (WHERE status = 'failed' AND updated_at > NOW() - INTERVAL '24 hours') as recent_failures,\n  COUNT(*) FILTER (WHERE status = 'discarded' AND updated_at > NOW() - INTERVAL '24 hours') as recent_discards,\n  (SELECT json_agg(json_build_object(\n      'workflow', source,\n      'operation', operation,\n      'endpoint', endpoint, \n      'error', LEFT(error_message, 200),\n      'created', created_at,\n      'retries', attempt_count\n  )) FROM ops.dead_letter_queue \n  WHERE status = 'pending' AND created_at < NOW() - INTERVAL '1 hour'\n  ORDER BY created_at ASC\n  LIMIT 10) as stuck_items\nFROM ops.dead_letter_queue;",
+        "options": {}
+      },
+      "id": "check-dlq-status",
+      "name": "Check DLQ Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "or",
+          "conditions": [
+            {
+              "id": "stuck-pending-check",
+              "leftValue": "={{ $json.stuck_pending }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "recent-failures-check",
+              "leftValue": "={{ $json.recent_failures }}",
+              "rightValue": 5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "recent-discards-check",
+              "leftValue": "={{ $json.recent_discards }}",
+              "rightValue": 3,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        }
+      },
+      "id": "should-alert",
+      "name": "Should Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nlet message = `⚠️ Nexus DLQ Alert\\n\\n`;\nmessage += `Stuck (>1hr): ${data.stuck_pending}\\n`;\nmessage += `Total Pending: ${data.total_pending}\\n`;\nmessage += `Failed (24hr): ${data.recent_failures}\\n`;\nmessage += `Discarded (24hr): ${data.recent_discards}\\n`;\n\nif (data.stuck_items && data.stuck_items.length > 0) {\n    message += `\\nStuck Items:\\n`;\n    for (const item of data.stuck_items) {\n        const workflow = item.workflow || 'unknown';\n        const operation = item.operation || 'unknown';\n        const error = item.error ? item.error.substring(0, 100) : 'no error';\n        const retries = item.retries || 0;\n        message += `• ${workflow}/${operation}: ${error} (retries: ${retries})\\n`;\n    }\n}\n\nreturn { \n    message, \n    severity: data.stuck_pending > 5 ? 'critical' : 'warning',\n    stuck_pending: data.stuck_pending,\n    total_pending: data.total_pending,\n    recent_failures: data.recent_failures,\n    recent_discards: data.recent_discards\n};"
+      },
+      "id": "build-alert-message",
+      "name": "Build Alert Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "chatId": -1002409000000,
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "id": "send-telegram-alert",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1050, 150],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegramBotToken",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO ops.dead_letter_queue (source, operation, endpoint, error_message, error_code, status, request_payload, attempt_count) \nVALUES ('dlq-alert-monitor', 'alert', '/internal/alert', '{{ $json.message }}', '{{ $json.severity }}', 'discarded', '{\"type\":\"alert\",\"stuck_pending\":{{ $json.stuck_pending }},\"recent_failures\":{{ $json.recent_failures }}}'::jsonb, 1);",
+        "options": {}
+      },
+      "id": "log-alert-to-db",
+      "name": "Log Alert to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1050, 450],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "no-alert-needed",
+      "name": "No Alert Needed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [850, 500]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [[{"node": "Check DLQ Status", "type": "main", "index": 0}]]
+    },
+    "Check DLQ Status": {
+      "main": [[{"node": "Should Alert?", "type": "main", "index": 0}]]
+    },
+    "Should Alert?": {
+      "main": [
+        [{"node": "Build Alert Message", "type": "main", "index": 0}],
+        [{"node": "No Alert Needed", "type": "main", "index": 0}]
+      ]
+    },
+    "Build Alert Message": {
+      "main": [
+        [{"node": "Send Telegram Alert", "type": "main", "index": 0}],
+        [{"node": "Log Alert to DB", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {"name": "nexus", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "background", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "ops", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "monitoring", "createdAt": "2026-02-08T00:00:00.000Z"}
+  ],
+  "triggerCount": 1,
+  "versionId": "1"
+}

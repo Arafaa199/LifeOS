@@ -192,9 +192,9 @@ final class MusicService: ObservableObject {
         do {
             let response = try await NexusAPI.shared.logMusicEvents(eventsToSync)
             if response.success {
-                // Remove synced events
+                // Remove synced events (uses Equatable: sessionId + startedAt)
                 pendingEvents.removeAll { event in
-                    eventsToSync.contains { $0.startedAt == event.startedAt && $0.sessionId == event.sessionId }
+                    eventsToSync.contains(event)
                 }
                 savePendingEvents()
                 logger.info("Music events synced successfully")

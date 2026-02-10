@@ -8,6 +8,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
+      "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
@@ -16,20 +17,14 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Parse expense using Claude\n-- Input: {{ $json.body.text }}\n-- Example: \"$45 at Whole Foods\" or \"spent $12.50 on coffee\"\n\nSELECT \n  CURRENT_TIMESTAMP as logged_at,\n  '{{ $json.body.text }}' as original_text",
-        "options": {}
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\nconst text = (input.text || '').trim();\nconst clientId = input.client_id || null;\n\nif (!text || text.length < 2) {\n  throw new Error('Expense description is required (min 2 chars)');\n}\n\nif (text.length > 500) {\n  throw new Error('Expense description too long (max 500 chars)');\n}\n\nreturn {\n  original_text: text,\n  client_id: clientId,\n  logged_at: new Date().toISOString()\n};"
       },
-      "name": "Parse with Claude",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
       "position": [450, 300],
-      "credentials": {
-        "postgres": {
-          "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
-        }
-      }
+      "typeVersion": 2,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -37,23 +32,47 @@
         "options": {},
         "text": "=Parse this expense into structured data. Return ONLY valid JSON with no markdown:\n\nExpense: {{ $json.original_text }}\n\nExtract:\n- merchant_name (string)\n- amount (number, always positive)\n- category (one of: grocery, restaurant, transport, utilities, entertainment, health, shopping, other)\n- is_grocery (boolean)\n- is_restaurant (boolean)\n- notes (string, any extra details)\n\nJSON only:"
       },
+      "id": "claude-ai",
       "name": "Claude AI",
       "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [650, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "has-error",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-parse-error",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "position": [850, 300],
+      "typeVersion": 2
     },
     {
       "parameters": {
         "operation": "insert",
         "schema": "finance",
         "table": "transactions",
-        "columns": "date,merchant_name,amount,category,is_grocery,is_restaurant,notes",
+        "columns": "date,merchant_name,amount,category,is_grocery,is_restaurant,notes,client_id",
         "options": {}
       },
+      "id": "insert-txn",
       "name": "Insert Transaction",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [850, 300],
+      "position": [1050, 300],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -67,10 +86,11 @@
         "query": "-- Get today's totals\nSELECT \n  COALESCE(SUM(amount), 0) as total_spent,\n  COALESCE(SUM(CASE WHEN is_grocery THEN amount ELSE 0 END), 0) as grocery_spent,\n  COALESCE(SUM(CASE WHEN is_restaurant THEN amount ELSE 0 END), 0) as eating_out_spent,\n  COALESCE(SUM(CASE WHEN category = '{{ $json.category }}' THEN amount ELSE 0 END), 0) as category_spent\nFROM finance.transactions\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date",
         "options": {}
       },
+      "id": "daily-summary",
       "name": "Get Daily Summary",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1050, 300],
+      "position": [1250, 300],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -84,19 +104,39 @@
         "responseBody": "={\n  \"success\": true,\n  \"message\": \"Logged ${{ $json.amount }} at {{ $json.merchant_name }}\",\n  \"data\": {\n    \"transaction\": {\n      \"id\": {{ $('Insert Transaction').item.json.id }},\n      \"merchant_name\": \"{{ $json.merchant_name }}\",\n      \"amount\": {{ $json.amount }},\n      \"category\": \"{{ $json.category }}\",\n      \"is_grocery\": {{ $json.is_grocery }},\n      \"is_restaurant\": {{ $json.is_restaurant }}\n    },\n    \"total_spent\": {{ $('Get Daily Summary').item.json.total_spent }},\n    \"category_spent\": {{ $('Get Daily Summary').item.json.category_spent }}\n  }\n}",
         "options": {}
       },
+      "id": "success-response",
       "name": "Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1250, 300]
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT ops.enqueue_dead_letter(\n  'nexus-expense',\n  'Claude AI',\n  '/webhook/nexus-expense',\n  '{{ ($json.error || $json.message || \"Unknown parse error\").replace(/'/g, \"''\") }}',\n  '',\n  '',\n  '{{ JSON.stringify($('Validate Input').item.json).replace(/'/g, \"''\") }}'::jsonb,\n  3\n) as dlq_id;",
+        "options": {}
+      },
+      "id": "log-to-dlq",
+      "name": "Log to DLQ",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1050, 500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error: {{ $json.message }}\"\n}",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Failed to process expense\",\n  \"code\": \"PROCESSING_ERROR\"\n}",
         "options": {
           "responseCode": 500
         }
       },
+      "id": "error-response",
       "name": "Error Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
@@ -105,21 +145,32 @@
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Parse with Claude", "type": "main", "index": 0}]]
+      "main": [[{"node": "Validate Input", "type": "main", "index": 0}]]
     },
-    "Parse with Claude": {
+    "Validate Input": {
       "main": [[{"node": "Claude AI", "type": "main", "index": 0}]]
     },
     "Claude AI": {
-      "main": [[{"node": "Insert Transaction", "type": "main", "index": 0}]]
+      "main": [[{"node": "Parse OK?", "type": "main", "index": 0}]]
+    },
+    "Parse OK?": {
+      "main": [
+        [{"node": "Log to DLQ", "type": "main", "index": 0}],
+        [{"node": "Insert Transaction", "type": "main", "index": 0}]
+      ]
     },
     "Insert Transaction": {
       "main": [[{"node": "Get Daily Summary", "type": "main", "index": 0}]]
     },
     "Get Daily Summary": {
       "main": [[{"node": "Response", "type": "main", "index": 0}]]
+    },
+    "Log to DLQ": {
+      "main": [[{"node": "Error Response", "type": "main", "index": 0}]]
     }
   },
-  "settings": {},
-  "staticData": null
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{"name": "nexus"}]
 }

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Listening Event
 
-struct ListeningEvent: Codable, Identifiable {
+struct ListeningEvent: Codable, Identifiable, Equatable {
     let id: Int?
     let sessionId: String
     let trackTitle: String
@@ -71,4 +71,9 @@ struct MusicHistoryResponse: Codable {
 
 extension ListeningEvent {
     static let pendingEventsKey = "pendingMusicEvents"
+
+    /// Two events are equal if they have the same session and start time
+    static func == (lhs: ListeningEvent, rhs: ListeningEvent) -> Bool {
+        lhs.sessionId == rhs.sessionId && lhs.startedAt == rhs.startedAt
+    }
 }

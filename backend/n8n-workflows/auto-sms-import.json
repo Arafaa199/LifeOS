@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "command": "cd /Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts && ./auto-import-sms.sh 1",
+        "command": "cd {{ $env.NEXUS_SCRIPTS_DIR }} && ./auto-import-sms.sh 1",
         "options": {}
       },
       "name": "Run SMS Import",

@@ -27,6 +27,39 @@ struct Supplement: Codable, Identifiable {
         case todayDoses = "today_doses"
     }
 
+    init(id: Int, name: String, brand: String? = nil, doseAmount: Double? = nil, doseUnit: String? = nil, frequency: String = "daily", timesOfDay: [String] = ["morning"], category: String = "supplement", notes: String? = nil, active: Bool = true, startDate: String? = nil, endDate: String? = nil, todayDoses: [SupplementDoseStatus]? = nil) {
+        self.id = id
+        self.name = name
+        self.brand = brand
+        self.doseAmount = doseAmount
+        self.doseUnit = doseUnit
+        self.frequency = frequency
+        self.timesOfDay = timesOfDay
+        self.category = category
+        self.notes = notes
+        self.active = active
+        self.startDate = startDate
+        self.endDate = endDate
+        self.todayDoses = todayDoses
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        brand = try container.decodeIfPresent(String.self, forKey: .brand)
+        doseAmount = try container.decodeIfPresent(Double.self, forKey: .doseAmount)
+        doseUnit = try container.decodeIfPresent(String.self, forKey: .doseUnit)
+        frequency = try container.decodeIfPresent(String.self, forKey: .frequency) ?? "daily"
+        timesOfDay = try container.decodeIfPresent([String].self, forKey: .timesOfDay) ?? ["morning"]
+        category = try container.decodeIfPresent(String.self, forKey: .category) ?? "supplement"
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        active = try container.decodeIfPresent(Bool.self, forKey: .active) ?? true
+        startDate = try container.decodeIfPresent(String.self, forKey: .startDate)
+        endDate = try container.decodeIfPresent(String.self, forKey: .endDate)
+        todayDoses = try container.decodeIfPresent([SupplementDoseStatus].self, forKey: .todayDoses)
+    }
+
     var displayDose: String {
         guard let amount = doseAmount, let unit = doseUnit else { return "" }
         if amount == floor(amount) {

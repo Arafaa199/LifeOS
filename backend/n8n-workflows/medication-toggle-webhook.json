@@ -1,0 +1,79 @@
+{
+  "name": "Nexus - Medication Toggle",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-medication-toggle",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "medication-toggle"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst medication_id = body.medication_id;\nconst scheduled_date = body.scheduled_date;\nconst scheduled_time = body.scheduled_time || null;\nconst status = body.status || 'taken';\nconst taken_at = body.taken_at || null;\n\nif (!medication_id || !scheduled_date) {\n  throw new Error('medication_id and scheduled_date are required');\n}\n\nreturn { medication_id, scheduled_date, scheduled_time, status, taken_at };"
+      },
+      "id": "parse-body",
+      "name": "Parse Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM health.update_dose_status('{{ $json.medication_id }}', '{{ $json.scheduled_date }}'::date, {{ $json.scheduled_time ? \"'\" + $json.scheduled_time + \"'::time\" : 'NULL' }}, '{{ $json.status }}', {{ $json.taken_at ? \"'\" + $json.taken_at + \"'::timestamptz\" : 'NOW()' }})",
+        "options": {}
+      },
+      "id": "update-dose",
+      "name": "Update Dose Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, dose_id: $json.dose_id, medication_name: $json.medication_name, old_status: $json.old_status, new_status: $json.new_status }) }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parse Body", "type": "main", "index": 0}]]
+    },
+    "Parse Body": {
+      "main": [[{"node": "Update Dose Status", "type": "main", "index": 0}]]
+    },
+    "Update Dose Status": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {"name": "nexus", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "health", "createdAt": "2026-02-08T00:00:00.000Z"}
+  ],
+  "triggerCount": 1,
+  "versionId": "2"
+}

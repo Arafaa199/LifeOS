@@ -147,7 +147,7 @@
     },
     {
       "parameters": {
-        "url": "http://172.17.0.1:8025/send-email",
+        "url": "{{ $env.MAILHOG_URL }}/send-email",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"to\": \"arafa.uwl19@gmail.com\",\n  \"subject\": \"Weekly LifeOS Insights Report - {{ new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}\",\n  \"text\": {{ JSON.stringify($json.report) }}\n}",

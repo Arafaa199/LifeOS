@@ -161,7 +161,7 @@ struct DebugView: View {
 
     private func testDailySummary() {
         isTestingSummary = true
-        addLog("Summary Test", "Starting request to /webhook/nexus-summary...")
+        addLog("Summary Test", "Starting request to /webhook/nexus-dashboard-today...")
 
         Task {
             do {

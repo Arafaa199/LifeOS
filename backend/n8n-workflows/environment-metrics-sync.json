@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "url": "http://172.17.0.1:8123/api/states",
+        "url": "{{ $env.HOME_ASSISTANT_URL }}/api/states",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -79,7 +79,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO home.environment_log (recorded_at, date, area, temperature_c, humidity_pct)\nVALUES \n{{ $input.all().map(item => \n  `('${item.json.recorded_at}', '${item.json.date}', '${item.json.area}', ${item.json.temperature_c || 'NULL'}, ${item.json.humidity_pct || 'NULL'})`\n).join(',\\n') }}\nON CONFLICT DO NOTHING\nRETURNING id, area, temperature_c;",
+        "query": "=WITH value_rows AS (\n  SELECT * FROM json_to_recordset($1::json) AS x(\n    recorded_at TEXT,\n    date TEXT,\n    area TEXT,\n    temperature_c NUMERIC,\n    humidity_pct NUMERIC\n  )\n)\nINSERT INTO home.environment_log (recorded_at, date, area, temperature_c, humidity_pct)\nSELECT \n  recorded_at::TIMESTAMP WITH TIME ZONE,\n  date::DATE,\n  area,\n  temperature_c,\n  humidity_pct\nFROM value_rows\nON CONFLICT DO NOTHING\nRETURNING id, area, temperature_c;",
+        "queryParams": "={{ JSON.stringify($input.all().map(item => item.json)) }}",
         "options": {}
       },
       "id": "insert-metrics",

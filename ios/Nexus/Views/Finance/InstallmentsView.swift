@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct InstallmentsView: View {
     @ObservedObject var viewModel: FinanceViewModel
@@ -6,6 +7,8 @@ struct InstallmentsView: View {
     @State private var summary: InstallmentsSummary?
     @State private var isLoading = true
     @State private var errorMessage: String?
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
 
     var body: some View {
         ScrollView {
@@ -224,20 +227,11 @@ struct InstallmentsView: View {
     // MARK: - Empty State
 
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 60))
-                .foregroundColor(NexusTheme.Colors.Semantic.green)
-
-            Text("No Active Installments")
-                .font(.headline)
-
-            Text("Your BNPL purchases from Tabby, Tamara, and others will appear here.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.top, 60)
+        ThemeEmptyState(
+            icon: "checkmark.circle.fill",
+            headline: "No Active Installments",
+            description: "Your BNPL purchases from Tabby, Tamara, and others will appear here."
+        )
     }
 
     // MARK: - Error View
@@ -257,6 +251,7 @@ struct InstallmentsView: View {
                 .multilineTextAlignment(.center)
 
             Button("Try Again") {
+                haptics.impactOccurred()
                 Task {
                     await loadInstallments()
                 }

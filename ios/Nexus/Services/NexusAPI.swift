@@ -19,6 +19,7 @@ class NexusAPI: ObservableObject {
     private let health = HealthAPI.shared
     private let nutrition = NutritionAPI.shared
     private let documents = DocumentsAPI.shared
+    private let habits = HabitsAPI.shared
 
     // Backwards compatibility properties
     private var baseURL: String { NetworkConfig.shared.baseURL }
@@ -52,10 +53,6 @@ class NexusAPI: ObservableObject {
 
     func getFastingStatus() async throws -> FastingResponse {
         try await nutrition.getFastingStatus()
-    }
-
-    func logWater(amountML: Int) async throws -> NexusResponse {
-        try await nutrition.logWater(amountML: amountML)
     }
 
     func fetchPendingMealConfirmations(date: Date? = nil) async throws -> [InferredMeal] {
@@ -154,8 +151,8 @@ class NexusAPI: ObservableObject {
         try await finance.fetchFinanceSummary()
     }
 
-    func fetchTransactions(offset: Int = 0, limit: Int = 50) async throws -> FinanceResponse {
-        try await finance.fetchTransactions(offset: offset, limit: limit)
+    func fetchTransactions(offset: Int = 0, limit: Int = 50, startDate: String? = nil, endDate: String? = nil) async throws -> FinanceResponse {
+        try await finance.fetchTransactions(offset: offset, limit: limit, startDate: startDate, endDate: endDate)
     }
 
     func triggerSMSImport() async throws -> NexusResponse {
@@ -244,6 +241,24 @@ class NexusAPI: ObservableObject {
 
     func deactivateCorrection(correctionId: Int) async throws -> DeleteResponse {
         try await finance.deactivateCorrection(correctionId: correctionId)
+    }
+
+    // MARK: - Habits (delegate to HabitsAPI)
+
+    func fetchHabits() async throws -> HabitsResponse {
+        try await habits.fetchHabits()
+    }
+
+    func completeHabit(_ request: LogHabitRequest) async throws -> HabitResponse {
+        try await habits.completeHabit(request)
+    }
+
+    func createHabit(_ request: CreateHabitRequest) async throws -> HabitResponse {
+        try await habits.createHabit(request)
+    }
+
+    func deleteHabit(habitId: Int) async throws -> HabitDeleteResponse {
+        try await habits.deleteHabit(id: habitId)
     }
 
     // MARK: - Documents/Reminders (delegate to DocumentsAPI)

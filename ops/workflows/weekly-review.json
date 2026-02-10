@@ -1,0 +1,182 @@
+{
+  "name": "Weekly Review Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 17 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Sunday 9PM Dubai",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2,
+      "notes": "Runs Sunday 21:00 Dubai (17:00 UTC). Generates weekly review for the previous Mon-Sun week."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Generate the weekly review and return the report\nWITH gen AS (\n    SELECT insights.generate_weekly_report() AS report_id\n)\nSELECT\n    wr.id,\n    wr.week_start,\n    wr.week_end,\n    wr.score,\n    wr.summary_text,\n    wr.avg_recovery,\n    wr.avg_sleep_hours,\n    wr.bjj_sessions,\n    wr.total_spent,\n    wr.habit_completion_pct,\n    wr.recovery_trend,\n    wr.spending_trend\nFROM insights.weekly_reports wr\nWHERE wr.id = (SELECT report_id FROM gen);",
+        "options": {}
+      },
+      "id": "generate-review",
+      "name": "Generate Review",
+      "type": "n8n-nodes-base.postgres",
+      "position": [460, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const review = $input.first()?.json;\nif (!review || !review.score) {\n  return [{ json: { should_send: false } }];\n}\n\nconst score = review.score;\nlet emoji = '🔴';\nif (score >= 8) emoji = '🟢';\nelse if (score >= 5) emoji = '🟡';\n\nconst weekLabel = `${review.week_start} → ${review.week_end}`;\nconst summary = review.summary_text || 'Weekly review generated.';\n\nreturn [{\n  json: {\n    should_send: true,\n    title: `📊 Weekly Review — ${score}/10 ${emoji}`,\n    message: summary,\n    week_label: weekLabel,\n    score: score\n  }\n}];"
+      },
+      "id": "format-notification",
+      "name": "Format Notification",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "should-send",
+              "leftValue": "={{ $json.should_send }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-should-send",
+      "name": "Should Send?",
+      "type": "n8n-nodes-base.if",
+      "position": [900, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Dedup: only send weekly review notification once per week\nINSERT INTO core.notification_log (notification_type, sent_date, message)\nVALUES ('weekly_review', life.dubai_today(), $1)\nON CONFLICT (notification_type, sent_date) DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryParams": "={{ [$json.message] }}"
+        }
+      },
+      "id": "dedup-check",
+      "name": "Dedup Check",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1120, 220],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "was-inserted",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-not-sent",
+      "name": "Not Already Sent?",
+      "type": "n8n-nodes-base.if",
+      "position": [1340, 220],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8123/api/services/notify/mobile_app_rafas_iphone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $('Format Notification').item.json.title }}\",\n  \"message\": \"{{ $('Format Notification').item.json.message }}\",\n  \"data\": {\n    \"push\": {\n      \"sound\": \"default\",\n      \"interruption-level\": \"time-sensitive\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "send-notification",
+      "name": "Send Weekly Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1560, 160],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HA Token",
+          "name": "Home Assistant Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Sunday 9PM Dubai": {
+      "main": [
+        [{ "node": "Generate Review", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Review": {
+      "main": [
+        [{ "node": "Format Notification", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Notification": {
+      "main": [
+        [{ "node": "Should Send?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Should Send?": {
+      "main": [
+        [{ "node": "Dedup Check", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Dedup Check": {
+      "main": [
+        [{ "node": "Not Already Sent?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Not Already Sent?": {
+      "main": [
+        [{ "node": "Send Weekly Review", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "pinData": {}
+}

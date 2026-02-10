@@ -182,7 +182,6 @@ class OfflineQueue: ObservableObject {
 
         enum QueuedRequest: Codable, Sendable {
             case food(text: String)
-            case water(amount: Int)
             case weight(kg: Double)
             case mood(value: Int, energy: Int?)
             case universal(text: String)
@@ -199,7 +198,6 @@ class OfflineQueue: ObservableObject {
             var endpoint: String {
                 switch self {
                 case .food: return "/webhook/nexus-food-log"
-                case .water: return "/webhook/nexus-water"
                 case .weight: return "/webhook/nexus-weight"
                 case .mood: return "/webhook/nexus-mood"
                 case .universal: return "/webhook/nexus-universal"
@@ -482,8 +480,6 @@ class OfflineQueue: ObservableObject {
         switch request {
         case .food(let text):
             _ = try await api.logFood(text)
-        case .water(let amount):
-            _ = try await api.logWater(amountML: amount)
         case .weight(let kg):
             _ = try await api.logWeight(kg: kg)
         case .mood(let value, let energy):
@@ -615,7 +611,6 @@ class OfflineQueue: ObservableObject {
     private func describeRequest(_ request: QueuedEntry.QueuedRequest) -> String {
         switch request {
         case .food(let text): return "Food: \(text)"
-        case .water(let amount): return "Water: \(amount)ml"
         case .weight(let kg): return "Weight: \(kg)kg"
         case .mood(let value, _): return "Mood: \(value)"
         case .universal(let text): return "Log: \(text)"
@@ -680,17 +675,6 @@ extension NexusAPI {
             "/webhook/nexus-food-log",
             body: request,
             queueRequest: .food(text: text)
-        )
-    }
-
-    func logWaterOffline(_ amount: Int) async -> (response: NexusResponse?, result: OfflineOperationResult) {
-        guard let request = try? WaterLogRequest(amount_ml: amount) else {
-            return (nil, .failed(ValidationError.invalidWaterAmount))
-        }
-        return await logWithOfflineSupport(
-            "/webhook/nexus-water",
-            body: request,
-            queueRequest: .water(amount: amount)
         )
     }
 

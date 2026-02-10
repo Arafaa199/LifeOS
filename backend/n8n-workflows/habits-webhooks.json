@@ -1,0 +1,285 @@
+{
+  "name": "Nexus - Habits Webhooks",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-habits",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "GET Habits",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 100],
+      "webhookId": "nexus-habits"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM life.get_habits_today();",
+        "options": {}
+      },
+      "name": "Query Habits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [470, 100],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $('Query Habits').all();\nconst habits = rows.map(r => {\n  const h = r.json;\n  return {\n    id: h.id,\n    name: h.name,\n    category: h.category,\n    frequency: h.frequency,\n    target_count: parseInt(h.target_count) || 1,\n    icon: h.icon,\n    color: h.color,\n    is_active: h.is_active,\n    completed_today: h.completed_today,\n    completion_count: parseInt(h.completion_count) || 0,\n    current_streak: parseInt(h.current_streak) || 0,\n    longest_streak: parseInt(h.longest_streak) || 0,\n    total_completions: parseInt(h.total_completions) || 0,\n    last_7_days: h.last_7_days || []\n  };\n});\nreturn { json: { success: true, habits: habits, count: habits.length } };"
+      },
+      "name": "Build Habits Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "name": "Respond Habits",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 100]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-habit-complete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "POST Complete",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 350],
+      "webhookId": "nexus-habit-complete"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\nconst habitId = parseInt(body.habit_id);\nconst count = parseInt(body.count) || 1;\nconst notes = body.notes ? String(body.notes).replace(/'/g, \"''\") : null;\nif (!habitId || habitId <= 0) throw new Error('habit_id is required');\nreturn { json: { habitId, count, notes } };"
+      },
+      "name": "Validate Complete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 350]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO life.habit_completions (habit_id, count, notes)\nVALUES ({{ $json.habitId }}, {{ $json.count }}, {{ $json.notes ? \"'\" + $json.notes + \"'\" : \"NULL\" }})\nON CONFLICT (habit_id, ((completed_at AT TIME ZONE 'Asia/Dubai')::date))\nDO UPDATE SET count = EXCLUDED.count, notes = COALESCE(EXCLUDED.notes, life.habit_completions.notes)\nRETURNING id, habit_id, completed_at, count, notes;",
+        "options": {}
+      },
+      "name": "Upsert Completion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [690, 350],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM life.get_habits_today() WHERE id = {{ $('Validate Complete').first().json.habitId }};",
+        "options": {}
+      },
+      "name": "Get Updated Habit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [910, 350],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $('Get Updated Habit').first().json;\nconst habit = {\n  id: r.id,\n  name: r.name,\n  category: r.category,\n  frequency: r.frequency,\n  target_count: parseInt(r.target_count) || 1,\n  icon: r.icon,\n  color: r.color,\n  is_active: r.is_active,\n  completed_today: r.completed_today,\n  completion_count: parseInt(r.completion_count) || 0,\n  current_streak: parseInt(r.current_streak) || 0,\n  longest_streak: parseInt(r.longest_streak) || 0,\n  total_completions: parseInt(r.total_completions) || 0,\n  last_7_days: r.last_7_days || []\n};\nreturn { json: { success: true, habit: habit } };"
+      },
+      "name": "Build Complete Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 350]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "name": "Respond Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 350]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-habit-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "POST Create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 600],
+      "webhookId": "nexus-habit-create"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\nconst esc = (s) => s ? String(s).replace(/'/g, \"''\") : null;\nconst name = esc(body.name);\nif (!name) throw new Error('name is required');\nconst category = esc(body.category) || null;\nconst frequency = esc(body.frequency) || 'daily';\nconst targetCount = parseInt(body.target_count) || 1;\nconst icon = esc(body.icon) || null;\nconst color = esc(body.color) || null;\nreturn { json: { name, category, frequency, targetCount, icon, color } };"
+      },
+      "name": "Validate Create",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 600]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO life.habits (name, category, frequency, target_count, icon, color)\nVALUES (\n  '{{ $json.name }}',\n  {{ $json.category ? \"'\" + $json.category + \"'\" : \"NULL\" }},\n  '{{ $json.frequency }}',\n  {{ $json.targetCount }},\n  {{ $json.icon ? \"'\" + $json.icon + \"'\" : \"NULL\" }},\n  {{ $json.color ? \"'\" + $json.color + \"'\" : \"NULL\" }}\n)\nRETURNING *;",
+        "options": {}
+      },
+      "name": "Insert Habit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [690, 600],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $('Insert Habit').first().json;\nreturn { json: { success: true, habit: {\n  id: r.id,\n  name: r.name,\n  category: r.category,\n  frequency: r.frequency,\n  target_count: parseInt(r.target_count) || 1,\n  icon: r.icon,\n  color: r.color,\n  is_active: r.is_active,\n  completed_today: false,\n  completion_count: 0,\n  current_streak: 0,\n  longest_streak: 0,\n  total_completions: 0,\n  last_7_days: [false, false, false, false, false, false, false]\n} } };"
+      },
+      "name": "Build Create Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [910, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "name": "Respond Create",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 600]
+    },
+    {
+      "parameters": {
+        "httpMethod": "DELETE",
+        "path": "nexus-habit-delete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "DELETE Habit",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 850],
+      "webhookId": "nexus-habit-delete"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE life.habits SET is_active = false WHERE id = {{ $json.query.id }} RETURNING id, name;",
+        "options": {}
+      },
+      "name": "Soft Delete Habit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [470, 850],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $('Soft Delete Habit').first().json;\nreturn { json: { success: true, message: 'Habit deactivated', id: r.id } };"
+      },
+      "name": "Build Delete Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 850]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "name": "Respond Delete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [910, 850]
+    }
+  ],
+  "connections": {
+    "GET Habits": {
+      "main": [[{"node": "Query Habits", "type": "main", "index": 0}]]
+    },
+    "Query Habits": {
+      "main": [[{"node": "Build Habits Response", "type": "main", "index": 0}]]
+    },
+    "Build Habits Response": {
+      "main": [[{"node": "Respond Habits", "type": "main", "index": 0}]]
+    },
+    "POST Complete": {
+      "main": [[{"node": "Validate Complete", "type": "main", "index": 0}]]
+    },
+    "Validate Complete": {
+      "main": [[{"node": "Upsert Completion", "type": "main", "index": 0}]]
+    },
+    "Upsert Completion": {
+      "main": [[{"node": "Get Updated Habit", "type": "main", "index": 0}]]
+    },
+    "Get Updated Habit": {
+      "main": [[{"node": "Build Complete Response", "type": "main", "index": 0}]]
+    },
+    "Build Complete Response": {
+      "main": [[{"node": "Respond Complete", "type": "main", "index": 0}]]
+    },
+    "POST Create": {
+      "main": [[{"node": "Validate Create", "type": "main", "index": 0}]]
+    },
+    "Validate Create": {
+      "main": [[{"node": "Insert Habit", "type": "main", "index": 0}]]
+    },
+    "Insert Habit": {
+      "main": [[{"node": "Build Create Response", "type": "main", "index": 0}]]
+    },
+    "Build Create Response": {
+      "main": [[{"node": "Respond Create", "type": "main", "index": 0}]]
+    },
+    "DELETE Habit": {
+      "main": [[{"node": "Soft Delete Habit", "type": "main", "index": 0}]]
+    },
+    "Soft Delete Habit": {
+      "main": [[{"node": "Build Delete Response", "type": "main", "index": 0}]]
+    },
+    "Build Delete Response": {
+      "main": [[{"node": "Respond Delete", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

@@ -1,18 +1,47 @@
 import SwiftUI
 import Combine
+import Charts
 
 struct FinanceOverviewContent: View {
     @ObservedObject var viewModel: FinanceViewModel
     var onAddExpense: () -> Void
     var onAddIncome: () -> Void
 
+    // MARK: - Month Navigation State
+    @State private var selectedMonth: Date = Date()
+    @State private var monthlyTrends: [MonthlySpending] = []
+    @State private var isLoadingTrends = false
+
+    // MARK: - Dynamic Type Scaling
+    @ScaledMetric(relativeTo: .title) private var mtdSpendTextSize: CGFloat = 36
+    @ScaledMetric(relativeTo: .title) private var cashflowTextSize: CGFloat = 20
+
+    private var isCurrentMonth: Bool {
+        Calendar.current.isDate(selectedMonth, equalTo: Date(), toGranularity: .month)
+    }
+
+    private var selectedMonthLabel: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: selectedMonth)
+    }
+
     private var mtdSpend: Double {
-        viewModel.summary.totalSpent
+        if !isCurrentMonth, let monthSpend = monthSpend {
+            return monthSpend
+        }
+        return viewModel.summary.totalSpent
     }
 
     private var mtdIncome: Double {
-        viewModel.summary.totalIncome
+        if !isCurrentMonth, let monthIncome = monthIncome {
+            return monthIncome
+        }
+        return viewModel.summary.totalIncome
     }
+
+    @State private var monthSpend: Double?
+    @State private var monthIncome: Double?
 
     private var topCategories: [(String, Double)] {
         Array(viewModel.summary.categoryBreakdown
@@ -60,10 +89,87 @@ struct FinanceOverviewContent: View {
                     financeFreshnessIndicator(lastUpdated: lastUpdated, isOffline: viewModel.isOffline)
                 }
 
+                // MARK: - Month Navigation
+                monthNavigationHeader
+
+                // MARK: - Spending Trend Mini-Chart
+                if !monthlyTrends.isEmpty {
+                    spendingTrendMiniChart
+                }
+
                 // MARK: - Summary Section
                 VStack(spacing: 16) {
                     mtdSpendCard
                     cashflowCard
+                }
+
+                // MARK: - Financial Position Card
+                NavigationLink(destination: FinancialPositionView()) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Financial Position")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            Text("Accounts, balances & upcoming bills")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "building.columns.fill")
+                            .font(.title3)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
+                    }
+                    .padding(NexusTheme.Spacing.lg)
+                    .background(NexusTheme.Colors.card)
+                    .cornerRadius(NexusTheme.Radius.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                            .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+                    )
+                }
+
+                // MARK: - Cashflow Projection Card
+                NavigationLink(destination: CashflowProjectionView(viewModel: viewModel)) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("30-Day Projection")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+
+                            Text("See upcoming income and expenses")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.title3)
+                            .foregroundColor(NexusTheme.Colors.accent)
+                    }
+                    .padding(NexusTheme.Spacing.lg)
+                    .background(NexusTheme.Colors.card)
+                    .cornerRadius(NexusTheme.Radius.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                            .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+                    )
+                }
+
+                // MARK: - Category Pie Chart
+                if !viewModel.summary.categoryBreakdown.isEmpty && mtdSpend > 0 {
+                    categoryPieChart
+                }
+
+                // MARK: - Budget Progress Per Category
+                if !viewModel.summary.budgets.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionHeader("BUDGET STATUS")
+                        budgetProgressCards
+                    }
                 }
 
                 // MARK: - Spending Breakdown Section
@@ -110,7 +216,391 @@ struct FinanceOverviewContent: View {
         .padding()
         .onAppear {
             viewModel.loadFinanceSummary()
+            loadMonthlyTrends()
         }
+        .onChange(of: selectedMonth) {
+            loadMonthData()
+        }
+    }
+
+    // MARK: - Month Navigation Header
+
+    private var monthNavigationHeader: some View {
+        HStack {
+            Button(action: previousMonth) {
+                Image(systemName: "chevron.left")
+                    .font(.title3)
+                    .foregroundColor(NexusTheme.Colors.accent)
+            }
+            .accessibilityLabel("Previous month")
+
+            Spacer()
+
+            VStack(spacing: 2) {
+                Text(selectedMonthLabel)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+
+                if !isCurrentMonth {
+                    Button("Back to current") {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedMonth = Date()
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(NexusTheme.Colors.accent)
+                }
+            }
+
+            Spacer()
+
+            Button(action: nextMonth) {
+                Image(systemName: "chevron.right")
+                    .font(.title3)
+                    .foregroundColor(isCurrentMonth ? .secondary.opacity(0.3) : NexusTheme.Colors.accent)
+            }
+            .disabled(isCurrentMonth)
+            .accessibilityLabel("Next month")
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
+    }
+
+    private func previousMonth() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
+        }
+    }
+
+    private func nextMonth() {
+        guard !isCurrentMonth else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedMonth = Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
+        }
+    }
+
+    // MARK: - Spending Trend Mini-Chart
+
+    @ViewBuilder
+    private var spendingTrendMiniChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Spending Trend")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                NavigationLink(destination: MonthlyTrendsView(viewModel: viewModel)) {
+                    HStack(spacing: 4) {
+                        Text("Details")
+                            .font(.caption)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(NexusTheme.Colors.accent)
+                }
+            }
+
+            if isLoadingTrends {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .frame(height: 80)
+            } else if #available(iOS 16.0, *) {
+                Chart(monthlyTrends.suffix(6)) { item in
+                    BarMark(
+                        x: .value("Month", item.monthName),
+                        y: .value("Amount", item.totalSpent)
+                    )
+                    .foregroundStyle(
+                        item.monthName == currentMonthName
+                            ? NexusTheme.Colors.accent
+                            : NexusTheme.Colors.accent.opacity(0.4)
+                    )
+                    .cornerRadius(4)
+                }
+                .frame(height: 80)
+                .chartYAxis(.hidden)
+                .chartXAxis {
+                    AxisMarks(values: .automatic) { value in
+                        AxisValueLabel {
+                            if let name = value.as(String.self) {
+                                Text(name)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+            } else {
+                // iOS 15 fallback - simple bar visualization
+                HStack(alignment: .bottom, spacing: 4) {
+                    ForEach(monthlyTrends.suffix(6)) { item in
+                        VStack(spacing: 4) {
+                            Rectangle()
+                                .fill(item.monthName == currentMonthName
+                                    ? NexusTheme.Colors.accent
+                                    : NexusTheme.Colors.accent.opacity(0.4))
+                                .frame(height: barHeight(for: item.totalSpent))
+                                .cornerRadius(2)
+
+                            Text(item.monthName)
+                                .font(.system(size: 8))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: 80)
+            }
+        }
+        .padding(NexusTheme.Spacing.lg)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
+    }
+
+    private var currentMonthName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: Date())
+    }
+
+    private func barHeight(for amount: Double) -> CGFloat {
+        guard let maxAmount = monthlyTrends.suffix(6).map({ $0.totalSpent }).max(), maxAmount > 0 else {
+            return 20
+        }
+        let ratio = amount / maxAmount
+        return max(8, CGFloat(ratio) * 60)
+    }
+
+    private func loadMonthData() {
+        if isCurrentMonth {
+            // Current month: use the summary endpoint (live MTD data)
+            monthSpend = nil
+            monthIncome = nil
+            viewModel.loadFinanceSummary()
+            loadMonthlyTrends()
+        } else {
+            // Past month: load from transactions endpoint with date filter
+            let cal = Calendar.current
+            let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: selectedMonth))!
+            let startOfNextMonth = cal.date(byAdding: .month, value: 1, to: startOfMonth)!
+
+            let fmt = DateFormatter()
+            fmt.dateFormat = "yyyy-MM-dd"
+            let startStr = fmt.string(from: startOfMonth)
+            let endStr = fmt.string(from: startOfNextMonth)
+
+            Task {
+                await viewModel.loadMonthTransactions(startDate: startStr, endDate: endStr)
+                monthSpend = viewModel.summary.totalSpent
+                monthIncome = viewModel.summary.totalIncome
+            }
+        }
+    }
+
+    private func loadMonthlyTrends() {
+        isLoadingTrends = true
+        Task {
+            do {
+                let response = try await NexusAPI.shared.fetchMonthlyTrends(months: 6)
+                if response.success, let data = response.data {
+                    await MainActor.run {
+                        monthlyTrends = data.monthlySpending
+                        isLoadingTrends = false
+                    }
+                } else {
+                    await MainActor.run {
+                        isLoadingTrends = false
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isLoadingTrends = false
+                }
+            }
+        }
+    }
+
+    // MARK: - Category Pie Chart
+
+    @ViewBuilder
+    private var categoryPieChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Spending Distribution")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                NavigationLink(destination: SpendingChartsView(
+                    categoryBreakdown: viewModel.summary.categoryBreakdown,
+                    totalSpent: mtdSpend
+                )) {
+                    HStack(spacing: 4) {
+                        Text("Details")
+                            .font(.caption)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(NexusTheme.Colors.accent)
+                }
+            }
+
+            if #available(iOS 16.0, *) {
+                let sortedCategories = viewModel.summary.categoryBreakdown
+                    .map { ($0.key, $0.value) }
+                    .sorted { $0.1 > $1.1 }
+                    .prefix(5)
+
+                Chart(Array(sortedCategories), id: \.0) { item in
+                    SectorMark(
+                        angle: .value("Amount", abs(item.1)),
+                        innerRadius: .ratio(0.5),
+                        angularInset: 1.5
+                    )
+                    .foregroundStyle(by: .value("Category", item.0.capitalized))
+                }
+                .frame(height: 150)
+                .chartLegend(position: .trailing, alignment: .center, spacing: 8)
+            } else {
+                // iOS 15 fallback - horizontal bars
+                let sortedCategories = viewModel.summary.categoryBreakdown
+                    .map { ($0.key, $0.value) }
+                    .sorted { $0.1 > $1.1 }
+                    .prefix(5)
+
+                VStack(spacing: 8) {
+                    ForEach(Array(sortedCategories), id: \.0) { category, amount in
+                        HStack {
+                            Text(category.capitalized)
+                                .font(.caption)
+                                .frame(width: 80, alignment: .leading)
+
+                            GeometryReader { geo in
+                                let percentage = mtdSpend > 0 ? abs(amount) / mtdSpend : 0
+                                Rectangle()
+                                    .fill(NexusTheme.Colors.accent.opacity(0.8))
+                                    .frame(width: geo.size.width * percentage)
+                                    .cornerRadius(2)
+                            }
+                            .frame(height: 8)
+
+                            Text(String(format: "%.0f%%", (abs(amount) / mtdSpend) * 100))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .frame(width: 35, alignment: .trailing)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(NexusTheme.Spacing.lg)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
+    }
+
+    // MARK: - Budget Progress Cards
+
+    private var budgetProgressCards: some View {
+        VStack(spacing: 12) {
+            ForEach(viewModel.summary.budgets.sorted {
+                let pct1 = ($0.spent ?? 0) / max($0.budgetAmount, 1)
+                let pct2 = ($1.spent ?? 0) / max($1.budgetAmount, 1)
+                return pct1 > pct2
+            }.prefix(4)) { budget in
+                budgetProgressRow(budget)
+            }
+
+            if viewModel.summary.budgets.count > 4 {
+                NavigationLink(destination: FinanceBudgetsView(viewModel: viewModel)) {
+                    HStack {
+                        Text("View all \(viewModel.summary.budgets.count) budgets")
+                            .font(.subheadline)
+                            .foregroundColor(NexusTheme.Colors.accent)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(NexusTheme.Colors.cardAlt)
+                    .cornerRadius(NexusTheme.Radius.sm)
+                }
+            }
+        }
+    }
+
+    private func budgetProgressRow(_ budget: Budget) -> some View {
+        let spent = budget.spent ?? 0
+        let limit = budget.budgetAmount
+        let percentage = limit > 0 ? spent / limit : 0
+        let isOver = percentage > 1.0
+        let isWarning = percentage > 0.8 && !isOver
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(budget.category.capitalized)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Text(formatCurrency(spent, currency: AppSettings.shared.defaultCurrency))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(isOver ? NexusTheme.Colors.Semantic.red : isWarning ? NexusTheme.Colors.Semantic.amber : .primary)
+
+                    Text("/ \(formatCurrency(limit, currency: AppSettings.shared.defaultCurrency))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color(.tertiarySystemFill))
+                        .frame(height: 6)
+                        .cornerRadius(3)
+
+                    Rectangle()
+                        .fill(isOver ? NexusTheme.Colors.Semantic.red : isWarning ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
+                        .frame(width: geo.size.width * min(percentage, 1.0), height: 6)
+                        .cornerRadius(3)
+                }
+            }
+            .frame(height: 6)
+        }
+        .padding(12)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.sm)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.sm)
+                .stroke(isOver ? NexusTheme.Colors.Semantic.red.opacity(0.3) : NexusTheme.Colors.divider, lineWidth: 1)
+        )
     }
 
     // MARK: - Section Header
@@ -136,7 +626,7 @@ struct FinanceOverviewContent: View {
                         .foregroundColor(.secondary)
 
                     Text(formatCurrency(mtdSpend, currency: AppSettings.shared.defaultCurrency))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .font(.system(size: mtdSpendTextSize, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                 }
 
@@ -282,8 +772,7 @@ struct FinanceOverviewContent: View {
                     }
 
                     Text(formatCurrency(mtdIncome, currency: AppSettings.shared.defaultCurrency))
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.system(size: cashflowTextSize, weight: .bold, design: .rounded))
                         .foregroundColor(NexusTheme.Colors.Semantic.green)
                 }
 
@@ -301,8 +790,7 @@ struct FinanceOverviewContent: View {
                     }
 
                     Text(formatCurrency(mtdSpend, currency: AppSettings.shared.defaultCurrency))
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.system(size: cashflowTextSize, weight: .bold, design: .rounded))
                         .foregroundColor(NexusTheme.Colors.Semantic.red)
                 }
             }

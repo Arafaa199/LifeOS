@@ -28,7 +28,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://172.17.0.1:8123/api/services/{{ $json.domain }}/{{ $json.service }}",
+        "url": "={{ $env.HOME_ASSISTANT_URL }}/api/services/{{ $json.domain }}/{{ $json.service }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,

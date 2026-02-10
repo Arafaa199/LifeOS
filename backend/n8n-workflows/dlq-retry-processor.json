@@ -1,0 +1,123 @@
+{
+  "name": "Nexus - DLQ Retry Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM ops.process_dead_letter_retries(20)",
+        "options": {}
+      },
+      "name": "Process DLQ Retries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "or",
+          "conditions": [
+            {
+              "id": "retried-check",
+              "leftValue": "={{ $json.retried }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            },
+            {
+              "id": "discarded-check",
+              "leftValue": "={{ $json.discarded }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ]
+        }
+      },
+      "name": "Has Activity?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "summary",
+              "value": "=DLQ: {{ $json.retried }} retried, {{ $json.resolved }} resolved, {{ $json.discarded }} discarded"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Log Activity",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {},
+      "name": "No Activity",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [[{"node": "Process DLQ Retries", "type": "main", "index": 0}]]
+    },
+    "Process DLQ Retries": {
+      "main": [[{"node": "Has Activity?", "type": "main", "index": 0}]]
+    },
+    "Has Activity?": {
+      "main": [
+        [{"node": "Log Activity", "type": "main", "index": 0}],
+        [{"node": "No Activity", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {"name": "nexus", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "background", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "ops", "createdAt": "2026-02-08T00:00:00.000Z"}
+  ],
+  "triggerCount": 1,
+  "versionId": "1"
+}

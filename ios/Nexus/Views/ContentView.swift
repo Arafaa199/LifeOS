@@ -20,7 +20,10 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Offline indicator at the top
+            // Sync conflict notification at the top
+            ConflictBannerView()
+
+            // Offline indicator
             OfflineBannerView()
 
             TabView(selection: $selectedTab) {

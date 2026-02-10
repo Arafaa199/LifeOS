@@ -27,7 +27,12 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>location</string>
 	</array>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Nexus uses significant location changes to detect gym visits for automatic BJJ session logging. This uses minimal battery — no continuous GPS.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Nexus uses your location to detect gym visits for automatic BJJ session logging.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Nexus reads weight, activity, and recovery data from Apple Health to track your health metrics.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

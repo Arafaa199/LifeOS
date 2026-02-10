@@ -48,26 +48,6 @@ class NutritionViewModel: ObservableObject {
         isLoading = false
     }
 
-    func logWater(amountML: Int) async -> Bool {
-        let (_, result) = await api.logWaterOffline(amountML)
-
-        switch result {
-        case .success:
-            totalWaterToday += amountML
-            logger.debug("Logged \(amountML)ml water, total: \(self.totalWaterToday)ml")
-            return true
-        case .queued(let count):
-            // Optimistically update UI - will sync when online
-            totalWaterToday += amountML
-            logger.info("Water log queued (\(count) pending), optimistically updated to \(self.totalWaterToday)ml")
-            return true
-        case .failed(let error):
-            logger.error("Failed to log water: \(error.localizedDescription)")
-            errorMessage = error.localizedDescription
-            return false
-        }
-    }
-
     func setDate(_ date: Date) {
         selectedDate = date
         Task {

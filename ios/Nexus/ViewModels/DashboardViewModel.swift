@@ -387,6 +387,31 @@ class DashboardViewModel: ObservableObject {
         await refresh()
     }
 
+    // MARK: - Habits (Dashboard Card)
+
+    func completeHabitFromDashboard(habitId: Int) async {
+        guard var habits = dashboardPayload?.habitsToday,
+              let index = habits.firstIndex(where: { $0.id == habitId }) else { return }
+
+        let original = habits[index]
+        habits[index] = original.toggled
+
+        // Optimistic update in payload — rebuild payload is not trivial, so update the array directly
+        // Note: dashboardPayload is a struct, so we need to trigger a re-publish
+        // For now, we just call the API and refresh
+        do {
+            let request = LogHabitRequest(
+                habitId: habitId,
+                count: original.completedToday ? 0 : original.targetCount,
+                notes: nil
+            )
+            _ = try await HabitsAPI.shared.completeHabit(request)
+            await refresh()
+        } catch {
+            logger.error("Failed to complete habit from dashboard: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Universal Logging
 
     func logUniversal(_ text: String) async throws -> NexusResponse {

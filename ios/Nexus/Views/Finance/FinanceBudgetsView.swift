@@ -1,9 +1,12 @@
 import SwiftUI
 import Combine
+import UIKit
 
 struct FinanceBudgetsView: View {
     @ObservedObject var viewModel: FinanceViewModel
     @State private var showingBudgetSettings = false
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
 
     private var sortedBudgets: [Budget] {
         viewModel.summary.budgets.sorted { budget1, budget2 in
@@ -160,27 +163,22 @@ struct FinanceBudgetsView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "chart.bar.fill")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-
-            Text("No budgets set")
-                .font(.headline)
-
-            Text("Set monthly budgets to track spending by category")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
+        ThemeEmptyState(
+            icon: "chart.bar.fill",
+            headline: "No Budgets Set",
+            description: "Set monthly budgets to track spending by category.",
+            ctaTitle: "Set Budgets",
+            ctaAction: { showingBudgetSettings = true }
+        )
     }
 
     // MARK: - Manage Budgets Button
 
     private var manageBudgetsButton: some View {
-        Button(action: { showingBudgetSettings = true }) {
+        Button(action: {
+            haptics.impactOccurred()
+            showingBudgetSettings = true
+        }) {
             HStack {
                 Image(systemName: "slider.horizontal.3")
                 Text(viewModel.summary.budgets.isEmpty ? "Set Budgets" : "Manage Budgets")

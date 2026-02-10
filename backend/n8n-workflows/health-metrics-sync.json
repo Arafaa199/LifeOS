@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "url": "http://172.17.0.1:8123/api/states",
+        "url": "{{ $env.HOME_ASSISTANT_URL }}/api/states",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -79,7 +79,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES \n{{ $input.all().map(item => \n  `('${item.json.recorded_at}', '${item.json.date}', '${item.json.source}', '${item.json.metric_type}', ${item.json.value}, '${item.json.unit}')`\n).join(',\\n') }}\nON CONFLICT (date, metric_type, source) DO UPDATE SET\n  value = EXCLUDED.value,\n  recorded_at = EXCLUDED.recorded_at,\n  created_at = NOW()\nRETURNING id, metric_type, value;",
+        "query": "=WITH value_rows AS (\n  SELECT * FROM json_to_recordset($1::json) AS x(\n    recorded_at TEXT,\n    date TEXT,\n    source TEXT,\n    metric_type TEXT,\n    value NUMERIC,\n    unit TEXT\n  )\n)\nINSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nSELECT \n  recorded_at::TIMESTAMP WITH TIME ZONE,\n  date::DATE,\n  source,\n  metric_type,\n  value,\n  unit\nFROM value_rows\nON CONFLICT (date, metric_type, source) DO UPDATE SET\n  value = EXCLUDED.value,\n  recorded_at = EXCLUDED.recorded_at,\n  created_at = NOW()\nRETURNING id, metric_type, value;",
+        "queryParams": "={{ JSON.stringify($input.all().map(item => item.json)) }}",
         "options": {}
       },
       "id": "upsert-metrics",

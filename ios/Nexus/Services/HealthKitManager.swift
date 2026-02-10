@@ -250,7 +250,7 @@ class HealthKitManager: ObservableObject {
             throw HealthKitError.notAvailable
         }
 
-        let stepsType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+        let stepsType = HKQuantityType(.stepCount)
         let startOfDay = Calendar.current.startOfDay(for: Date())
         let predicate = HKQuery.predicateForSamples(withStart: startOfDay, end: Date())
 

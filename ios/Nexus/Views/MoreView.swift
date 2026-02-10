@@ -92,6 +92,16 @@ struct MoreView: View {
                             subtitle: "Training log & streaks"
                         )
                     }
+
+                    NavigationLink(destination: HabitsView()
+                        .navigationTitle("Habits")) {
+                        SettingsRow(
+                            icon: "checkmark.circle.fill",
+                            iconColor: NexusTheme.Colors.Semantic.green,
+                            title: "Habits",
+                            subtitle: "Daily tracking & streaks"
+                        )
+                    }
                 }
 
                 Section("Wellness") {

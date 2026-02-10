@@ -23,24 +23,43 @@ class DashboardAPI: BaseAPIClient {
 
     func fetchDailySummary(for date: Date = Date()) async throws -> DailySummaryResponse {
         let dateString = Self.dateFormatter.string(from: date)
-        return try await get("/webhook/nexus-summary?date=\(dateString)")
+        let path = buildPath("/webhook/nexus-dashboard-today", query: ["date": dateString])
+        let response: DashboardResponse = try await get(path)
+        guard let payload = response.data else {
+            return DailySummaryResponse(success: false, data: nil)
+        }
+        let facts = payload.todayFacts
+        let data = DailySummaryData(
+            date: facts?.day ?? dateString,
+            calories: facts?.caloriesConsumed ?? 0,
+            protein: facts?.proteinG ?? 0,
+            water: facts?.waterMl ?? 0,
+            weight: facts?.weightKg,
+            mood: nil,
+            energy: nil,
+            logs: nil
+        )
+        return DailySummaryResponse(success: true, data: data)
     }
 
     // MARK: - Sleep Data
 
     func fetchSleepData(for date: Date = Date()) async throws -> SleepResponse {
         let dateString = Self.dateFormatter.string(from: date)
-        return try await get("/webhook/nexus-sleep?date=\(dateString)")
+        let path = buildPath("/webhook/nexus-sleep", query: ["date": dateString])
+        return try await get(path)
     }
 
     func fetchSleepHistory(days: Int = 7) async throws -> SleepHistoryResponse {
-        return try await get("/webhook/nexus-sleep-history?days=\(days)")
+        let path = buildPath("/webhook/nexus-sleep-history", query: ["days": "\(days)"])
+        return try await get(path)
     }
 
     // MARK: - Health Timeseries
 
     func fetchHealthTimeseries(days: Int = 30) async throws -> HealthTimeseriesResponse {
-        return try await get("/webhook/nexus-health-timeseries?days=\(days)")
+        let path = buildPath("/webhook/nexus-health-timeseries", query: ["days": "\(days)"])
+        return try await get(path)
     }
 
     // MARK: - WHOOP Refresh
@@ -75,7 +94,8 @@ class DashboardAPI: BaseAPIClient {
     }
 
     func fetchMusicHistory(limit: Int = 20) async throws -> MusicHistoryResponse {
-        return try await get("/webhook/nexus-music-history?limit=\(limit)")
+        let path = buildPath("/webhook/nexus-music-history", query: ["limit": "\(limit)"])
+        return try await get(path)
     }
 }
 

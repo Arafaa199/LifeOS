@@ -14,7 +14,13 @@ class ReceiptsViewModel: ObservableObject {
     @Published var isLoadingDetail = false
     @Published var errorMessage: String?
 
+    // MARK: - Pagination State
+    @Published var receiptsPage = 0
+    @Published var hasMoreReceipts = true
+    @Published var isLoadingMore = false
+
     private let api = NexusAPI.shared
+    private let financeAPI = FinanceAPI.shared
 
     var receiptsByMonth: [(String, [ReceiptSummary])] {
         let grouped = Dictionary(grouping: receipts) { receipt -> String in
@@ -28,13 +34,24 @@ class ReceiptsViewModel: ObservableObject {
     }
 
     func loadReceipts() async {
+        // Reset pagination when loading fresh data
+        receiptsPage = 0
+        hasMoreReceipts = true
+
         isLoading = true
         errorMessage = nil
 
         do {
-            let response: ReceiptsResponse = try await api.get("/webhook/nexus-receipts")
+            let response = try await financeAPI.fetchReceipts(offset: 0, limit: 50)
             receipts = response.receipts
-            logger.info("Fetched \(response.count) receipts")
+            logger.info("Fetched \(response.receipts.count) receipts")
+
+            // Check if we got fewer results than requested
+            if response.receipts.count < 50 {
+                hasMoreReceipts = false
+            } else {
+                receiptsPage += 1
+            }
         } catch let decodingError as DecodingError {
             logger.logDecodingError(decodingError)
             errorMessage = "Failed to parse receipts"
@@ -44,6 +61,37 @@ class ReceiptsViewModel: ObservableObject {
         }
 
         isLoading = false
+    }
+
+    func loadMoreReceipts() async {
+        guard hasMoreReceipts && !isLoadingMore else { return }
+
+        isLoadingMore = true
+        errorMessage = nil
+
+        do {
+            let offset = receiptsPage * 50
+            let response = try await financeAPI.fetchReceipts(offset: offset, limit: 50)
+
+            // Append new receipts to existing list
+            receipts.append(contentsOf: response.receipts)
+            logger.info("Fetched \(response.receipts.count) more receipts")
+
+            // Check if we got fewer results than requested
+            if response.receipts.count < 50 {
+                hasMoreReceipts = false
+            } else {
+                receiptsPage += 1
+            }
+        } catch let decodingError as DecodingError {
+            logger.logDecodingError(decodingError)
+            errorMessage = "Failed to parse receipts"
+        } catch {
+            logger.error("Load more receipts error: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
+        }
+
+        isLoadingMore = false
     }
 
     func loadReceiptDetail(id: Int) async {

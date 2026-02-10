@@ -1,6 +1,6 @@
 {
   "id": "0ZxSHWmoLnPvEpFJ",
-  "name": "Nexus: Daily Summary API",
+  "name": "[DEPRECATED] Nexus: Daily Summary API - Auth Version (use root version instead)",
   "nodes": [
     {
       "parameters": {

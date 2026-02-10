@@ -24,6 +24,9 @@ struct DashboardPayload: Codable {
     let moodToday: MoodSummary?
     let explainToday: ExplainToday?
     let bjjSummary: BJJSummary?
+    let workSummary: WorkSummary?
+    let latestWeeklyReview: WeeklyReview?
+    let habitsToday: [Habit]?
 
     enum CodingKeys: String, CodingKey {
         case meta
@@ -45,6 +48,9 @@ struct DashboardPayload: Codable {
         case moodToday = "mood_today"
         case explainToday = "explain_today"
         case bjjSummary = "bjj_summary"
+        case workSummary = "work_summary"
+        case latestWeeklyReview = "latest_weekly_review"
+        case habitsToday = "habits_today"
         // Top-level flat fields (fallback when meta object is missing)
         case schemaVersion = "schema_version"
         case generatedAt = "generated_at"
@@ -98,6 +104,9 @@ struct DashboardPayload: Codable {
         moodToday = try container.decodeIfPresent(MoodSummary.self, forKey: .moodToday)
         explainToday = try container.decodeIfPresent(ExplainToday.self, forKey: .explainToday)
         bjjSummary = try container.decodeIfPresent(BJJSummary.self, forKey: .bjjSummary)
+        workSummary = try container.decodeIfPresent(WorkSummary.self, forKey: .workSummary)
+        latestWeeklyReview = try container.decodeIfPresent(WeeklyReview.self, forKey: .latestWeeklyReview)
+        habitsToday = try container.decodeIfPresent([Habit].self, forKey: .habitsToday)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -121,6 +130,9 @@ struct DashboardPayload: Codable {
         try container.encodeIfPresent(moodToday, forKey: .moodToday)
         try container.encodeIfPresent(explainToday, forKey: .explainToday)
         try container.encodeIfPresent(bjjSummary, forKey: .bjjSummary)
+        try container.encodeIfPresent(workSummary, forKey: .workSummary)
+        try container.encodeIfPresent(latestWeeklyReview, forKey: .latestWeeklyReview)
+        try container.encodeIfPresent(habitsToday, forKey: .habitsToday)
     }
 }
 
@@ -910,6 +922,48 @@ struct BJJSummary: Codable {
     var hasData: Bool { totalSessions > 0 }
 }
 
+// MARK: - Work Summary
+
+struct WorkSummary: Codable {
+    let workDate: String
+    let totalMinutes: Int
+    let totalHours: Double
+    let sessions: Int
+    let firstArrival: String?
+    let lastDeparture: String?
+    let isAtWork: Bool
+    let currentSessionStart: String?
+
+    enum CodingKeys: String, CodingKey {
+        case workDate = "work_date"
+        case totalMinutes = "total_minutes"
+        case totalHours = "total_hours"
+        case sessions
+        case firstArrival = "first_arrival"
+        case lastDeparture = "last_departure"
+        case isAtWork = "is_at_work"
+        case currentSessionStart = "current_session_start"
+    }
+
+    var hasData: Bool { totalMinutes > 0 || isAtWork }
+
+    var formattedHours: String {
+        let h = totalMinutes / 60
+        let m = totalMinutes % 60
+        if h > 0 && m > 0 { return "\(h)h \(m)m" }
+        if h > 0 { return "\(h)h" }
+        return "\(m)m"
+    }
+
+    var arrivalTime: String? {
+        guard let arrival = firstArrival else { return nil }
+        guard let date = DomainFreshness.parseTimestamp(arrival) else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
+    }
+}
+
 // MARK: - Explain Today
 
 struct ExplainToday: Codable {
@@ -1063,4 +1117,36 @@ struct MedicationCreateRequest: Codable {
 struct MedicationCreateResponse: Codable {
     let success: Bool
     let medication_id: Int
+}
+
+// MARK: - Weekly Review
+
+struct WeeklyReview: Codable {
+    let weekStart: String
+    let weekEnd: String
+    let score: Int
+    let summaryText: String?
+    let avgRecovery: Double?
+    let avgSleepHours: Double?
+    let bjjSessions: Int?
+    let totalSpent: Double?
+    let habitCompletionPct: Double?
+    let spendingTrend: String?
+    let recoveryTrend: String?
+    let generatedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case score
+        case weekStart = "week_start"
+        case weekEnd = "week_end"
+        case summaryText = "summary_text"
+        case avgRecovery = "avg_recovery"
+        case avgSleepHours = "avg_sleep_hours"
+        case bjjSessions = "bjj_sessions"
+        case totalSpent = "total_spent"
+        case habitCompletionPct = "habit_completion_pct"
+        case spendingTrend = "spending_trend"
+        case recoveryTrend = "recovery_trend"
+        case generatedAt = "generated_at"
+    }
 }

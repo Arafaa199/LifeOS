@@ -37,33 +37,11 @@ struct ReceiptsListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "receipt")
-                .font(.system(size: 56))
-                .foregroundColor(.secondary)
-                .padding(.top, 40)
-
-            VStack(spacing: 8) {
-                Text("No Receipts Yet")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text("Your grocery receipts from Carrefour and other stores will appear here.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-
-                Text("Link items to foods for nutrition tracking.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ThemeEmptyState(
+            icon: "receipt",
+            headline: "No Receipts Yet",
+            description: "Your grocery receipts will appear here. Link items to foods for nutrition tracking."
+        )
     }
 
     private var receiptList: some View {
@@ -94,6 +72,31 @@ struct ReceiptsListView: View {
                     ForEach(receipts) { receipt in
                         ReceiptSummaryRow(receipt: receipt)
                             .onTapGesture { selectedReceipt = receipt }
+                    }
+                }
+            }
+
+            // Pagination trigger — load more when section appears
+            if viewModel.hasMoreReceipts {
+                Section {
+                    HStack {
+                        Spacer()
+                        if viewModel.isLoadingMore {
+                            ProgressView()
+                        } else {
+                            Button("Load More") {
+                                Task {
+                                    await viewModel.loadMoreReceipts()
+                                }
+                            }
+                        }
+                        Spacer()
+                    }
+                    .frame(minHeight: 44)
+                }
+                .onAppear {
+                    Task {
+                        await viewModel.loadMoreReceipts()
                     }
                 }
             }

@@ -21,6 +21,9 @@ struct DomainTogglesSection: View {
             Toggle(isOn: $settings.musicLoggingEnabled) {
                 Label("Music Logging", systemImage: "music.note")
             }
+            Toggle(isOn: $settings.locationTrackingEnabled) {
+                Label("Location", systemImage: "location.fill")
+            }
         } header: {
             Text("Domain Sync")
         } footer: {

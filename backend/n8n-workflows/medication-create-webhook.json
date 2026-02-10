@@ -1,0 +1,138 @@
+{
+  "name": "Nexus: Create Medication",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-medication-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "nexus-medication-create"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst medication_name = body.medication_name;\nconst brand = body.brand || null;\nconst dose_quantity = body.dose_quantity ? parseFloat(body.dose_quantity) : null;\nconst dose_unit = body.dose_unit || null;\nconst frequency = body.frequency || 'daily';\nconst times_of_day = Array.isArray(body.times_of_day) ? body.times_of_day : [];\nconst notes = body.notes || null;\n\nif (!medication_name || medication_name.trim() === '') {\n  throw new Error('medication_name is required');\n}\n\nif (!frequency || frequency.trim() === '') {\n  throw new Error('frequency is required');\n}\n\nif (!Array.isArray(times_of_day) || times_of_day.length === 0) {\n  throw new Error('times_of_day must be a non-empty array');\n}\n\nconst validFrequencies = ['daily', 'twice_daily', 'three_times_daily', 'weekly', 'as_needed'];\nif (!validFrequencies.includes(frequency)) {\n  throw new Error(`Invalid frequency. Must be one of: ${validFrequencies.join(', ')}`);\n}\n\nconst validTimes = ['morning', 'afternoon', 'evening', 'night', 'with_meals'];\nfor (const t of times_of_day) {\n  if (!validTimes.includes(t)) {\n    throw new Error(`Invalid time of day: ${t}. Must be one of: ${validTimes.join(', ')}`);\n  }\n}\n\nconst esc = (s) => (s || '').toString().replace(/'/g, \"''\");\n\nreturn {\n  medication_name: esc(medication_name),\n  brand: brand ? `'${esc(brand)}'` : 'NULL',\n  dose_quantity: dose_quantity !== null ? dose_quantity : 'NULL',\n  dose_unit: dose_unit ? `'${esc(dose_unit)}'` : 'NULL',\n  frequency: esc(frequency),\n  times_of_day: `ARRAY['${times_of_day.map(t => esc(t)).join(\"','\")}'::text]`,\n  notes: notes ? `'${esc(notes)}'` : 'NULL'\n};"
+      },
+      "id": "validate",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO health.medications (\n  medication_name, brand, dose_quantity, dose_unit,\n  frequency, times_of_day, notes, active, origin\n) VALUES (\n  '{{ $json.medication_name }}',\n  {{ $json.brand }},\n  {{ $json.dose_quantity }},\n  {{ $json.dose_unit }},\n  '{{ $json.frequency }}',\n  {{ $json.times_of_day }},\n  {{ $json.notes }},\n  TRUE,\n  'manual'\n) RETURNING id;",
+        "options": {}
+      },
+      "id": "insert",
+      "name": "Insert Medication",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "key": "id",
+              "value": 0,
+              "looseEquals": false,
+              "operator": "notEmpty"
+            }
+          ]
+        }
+      },
+      "id": "parse-ok",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"medication_id\": {{ $json.id }}\n}"
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 150]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Failed to create medication: ${$node[\\\"Insert Medication\\\"].json.message || 'Unknown database error'}\"\n}",
+        "responseCode": "400"
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 350]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "url": "=http://dlq:8080/dlq",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParametersUi": "json",
+        "bodyParameters": "={\"error_type\":\"medication_create_failed\",\"webhook_path\":\"nexus-medication-create\",\"error\":$json.message,\"input_body\":$('Webhook').json.body}",
+        "options": {}
+      },
+      "id": "dlq",
+      "name": "Dead Letter Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 480]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Validate Input", "type": "main", "index": 0}]]
+    },
+    "Validate Input": {
+      "main": [[{"node": "Insert Medication", "type": "main", "index": 0}]]
+    },
+    "Insert Medication": {
+      "main": [[{"node": "Parse OK?", "type": "main", "index": 0}]]
+    },
+    "Parse OK?": {
+      "main": [
+        [{"node": "Respond Success", "type": "main", "index": 0}],
+        [{"node": "Respond Error", "type": "main", "index": 0}]
+      ]
+    },
+    "Respond Error": {
+      "main": [[{"node": "Dead Letter Queue", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {"name": "nexus", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "health", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "medications", "createdAt": "2026-02-08T00:00:00.000Z"}
+  ],
+  "triggerCount": 1,
+  "versionId": "1"
+}

@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Note
 
 struct Note: Codable, Identifiable {
-    var id: String { relativePath }
+    let noteId: Int?
     let relativePath: String
     let title: String?
     let tags: [String]?
@@ -11,7 +11,10 @@ struct Note: Codable, Identifiable {
     let fileModifiedAt: String?
     let indexedAt: String?
 
+    var id: String { relativePath }
+
     enum CodingKeys: String, CodingKey {
+        case noteId = "id"
         case relativePath = "relative_path"
         case title
         case tags
@@ -31,8 +34,8 @@ struct Note: Codable, Identifiable {
 
     var folder: String? {
         let components = relativePath.split(separator: "/")
-        guard components.count > 1 else { return nil }
-        return String(components.first!)
+        guard let first = components.first else { return nil }
+        return String(first)
     }
 
     var relativeDate: String? {
@@ -77,4 +80,14 @@ struct NotesSearchResponse: Codable {
     let success: Bool
     let notes: [Note]
     let count: Int
+}
+
+struct NoteUpdateResponse: Codable {
+    let success: Bool
+    let message: String?
+}
+
+struct NoteDeleteResponse: Codable {
+    let success: Bool
+    let message: String?
 }

@@ -179,7 +179,7 @@ struct EventEditSheet: View {
                         eventId: existing.eventId,
                         title: title,
                         startAt: startDate,
-                        endAt: isAllDay ? Calendar.current.date(byAdding: .day, value: 1, to: startDate)! : endDate,
+                        endAt: isAllDay ? (Calendar.current.date(byAdding: .day, value: 1, to: startDate) ?? startDate) : endDate,
                         isAllDay: isAllDay,
                         location: location.isEmpty ? nil : location,
                         notes: notes.isEmpty ? nil : notes
@@ -188,7 +188,7 @@ struct EventEditSheet: View {
                     try await viewModel.createEvent(
                         title: title,
                         startAt: startDate,
-                        endAt: isAllDay ? Calendar.current.date(byAdding: .day, value: 1, to: startDate)! : endDate,
+                        endAt: isAllDay ? (Calendar.current.date(byAdding: .day, value: 1, to: startDate) ?? startDate) : endDate,
                         isAllDay: isAllDay,
                         calendarName: selectedCalendarTitle.isEmpty ? nil : selectedCalendarTitle,
                         location: location.isEmpty ? nil : location,

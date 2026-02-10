@@ -1,0 +1,206 @@
+{
+  "name": "Weekly Bills Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Every Monday 8am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  name,\n  amount,\n  currency,\n  days_until_due,\n  urgency,\n  payment_type\nFROM finance.v_upcoming_payments\nWHERE days_until_due BETWEEN 0 AND 7\nORDER BY days_until_due ASC;",
+        "options": {}
+      },
+      "id": "postgres",
+      "name": "Get Upcoming Bills",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [480, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-bills",
+              "leftValue": "={{ $json.name }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter",
+      "name": "Has Bills?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "aggregate",
+      "name": "Aggregate Bills",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const bills = $input.all();\n\nif (bills.length === 0) {\n  return [{ json: { skip: true } }];\n}\n\nlet totalDue = 0;\nlet billLines = [];\n\nfor (const item of bills) {\n  const bill = item.json;\n  const amount = parseFloat(bill.amount) || 0;\n  totalDue += bill.currency === 'SAR' ? amount * 0.98 : amount;\n  \n  const daysText = bill.days_until_due === 0 ? 'TODAY' \n    : bill.days_until_due === 1 ? 'tomorrow'\n    : `in ${bill.days_until_due} days`;\n  \n  billLines.push(`• ${bill.name}: ${bill.currency} ${amount.toFixed(0)} (${daysText})`);\n}\n\nconst title = bills.length === 1 \n  ? '1 bill due this week'\n  : `${bills.length} bills due this week`;\n\nconst message = billLines.join('\\n');\nconst summary = `Total: AED ${totalDue.toFixed(0)}`;\n\nreturn [{\n  json: {\n    title,\n    message,\n    summary,\n    totalDue,\n    billCount: bills.length,\n    skip: false\n  }\n}];"
+      },
+      "id": "code",
+      "name": "Format Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "not-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter2",
+      "name": "Should Send?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [1360, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8123/api/services/notify/mobile_app_rafas_iphone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"💰 {{ $json.title }}\",\n  \"message\": \"{{ $json.summary }}\",\n  \"data\": {\n    \"push\": {\n      \"sound\": \"default\",\n      \"interruption-level\": \"time-sensitive\"\n    },\n    \"actions\": [\n      {\n        \"action\": \"OPEN_FINANCE\",\n        \"title\": \"View Details\"\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "ha-notify",
+      "name": "Send iOS Push",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1580, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "home-assistant-token",
+          "name": "Home Assistant Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Monday 8am": {
+      "main": [
+        [
+          {
+            "node": "Get Upcoming Bills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Upcoming Bills": {
+      "main": [
+        [
+          {
+            "node": "Has Bills?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Bills?": {
+      "main": [
+        [
+          {
+            "node": "Format Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Notification": {
+      "main": [
+        [
+          {
+            "node": "Should Send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send?": {
+      "main": [
+        [
+          {
+            "node": "Send iOS Push",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}

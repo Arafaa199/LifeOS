@@ -1,0 +1,5 @@
+BEGIN;
+DROP TABLE IF EXISTS core.location_events;
+DROP FUNCTION IF EXISTS core.match_location(DOUBLE PRECISION, DOUBLE PRECISION);
+DROP TABLE IF EXISTS core.known_locations;
+COMMIT;

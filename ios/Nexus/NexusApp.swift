@@ -47,6 +47,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         QuickActionManager.shared.registerShortcuts()
         requestNotificationPermissionIfNeeded()
 
+        // Resume significant location monitoring if enabled
+        // (iOS relaunches app with .location key on significant change)
+        if AppSettings.shared.locationTrackingEnabled {
+            LocationTrackingService.shared.startTracking()
+        }
+
         // Handle quick action if app was launched from a shortcut
         if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem {
             QuickActionManager.shared.handleShortcutItem(shortcutItem)

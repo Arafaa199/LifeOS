@@ -301,7 +301,7 @@ struct AnyCodable: Codable {
         """.data(using: .utf8)!
     )
 
-    return MealConfirmationView(
+    MealConfirmationView(
         meal: sampleMeal,
         onConfirm: { print("Confirmed") },
         onSkip: { print("Skipped") }

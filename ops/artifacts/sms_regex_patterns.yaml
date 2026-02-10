@@ -259,6 +259,15 @@ emiratesnbd:
       never_create_transaction: true
       sample: "Transaction of USD 1.00 on your Card ending 9865 could not be completed. For Details, Please call 600540000"
 
+    # ----- TRANSFER TO ACCOUNT (ENGLISH - INCOMING) -----
+    - name: transfer_to_account_en
+      intent: income
+      confidence: 0.95
+      regex: '(?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s+(?P<amount>[\d,]+\.?\d*)\s+has been transferred to your account\s+(?P<account>\d+\w*\d+)'
+      entities: [currency, amount, account]
+      category: "Transfer"
+      sample: "AED 20,000.00 has been transferred to your account 101XXX79XXX04. The available balance is AED 34,052.49."
+
     # ----- FUNDS TRANSFER TO CARD (ENGLISH - INCOMING) -----
     - name: funds_transfer_in_en
       intent: income
@@ -276,6 +285,14 @@ emiratesnbd:
       entities: [currency, amount, card, merchant]
       category: "Transfer"
       sample: "Funds Transfer of AED 373.75 has been made using your Debit Card ending 8236 at Tabby, 800 82229."
+
+    # ----- CREDIT REFUND NOTIFICATION (ENGLISH) -----
+    - name: credit_refund_en
+      intent: refund
+      confidence: 0.90
+      regex: 'credit refund of amount of (?P<currency>AED|SAR|USD|EUR|GBP|JOD)\s+(?P<amount>[\d,]+\.?\d*)\s+is notified by merchant\s+(?P<merchant>[^,]+)'
+      entities: [currency, amount, merchant]
+      sample: "Dear Cardholder, a credit refund of amount of AED 278.09 is notified by merchant Tabby, 800 82229, DUBAI and will be processed in 2 working days."
 
     # ----- AUTH CODE / OTP (ENGLISH) -----
     - name: auth_code_en

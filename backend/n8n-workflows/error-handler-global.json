@@ -1,0 +1,69 @@
+{
+  "name": "Nexus: Global Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "position": [250, 300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\n\nconst workflow = error.workflow || {};\nconst execution = error.execution || {};\nconst lastNode = execution.lastNodeExecuted || 'unknown';\n\n// Extract error details\nlet errorMessage = 'Unknown error';\nlet errorDetail = '';\nlet requestPayload = '{}';\n\ntry {\n  if (execution.error && execution.error.message) {\n    errorMessage = execution.error.message;\n    errorDetail = execution.error.stack || '';\n  }\n\n  // Try to extract the original webhook body from execution data\n  const triggerData = execution.data?.resultData?.runData;\n  if (triggerData) {\n    const firstNodeName = Object.keys(triggerData)[0];\n    if (firstNodeName && triggerData[firstNodeName]?.[0]?.data?.main?.[0]?.[0]?.json) {\n      const triggerJson = triggerData[firstNodeName][0].data.main[0][0].json;\n      requestPayload = JSON.stringify(triggerJson.body || triggerJson).substring(0, 4000);\n    }\n  }\n} catch (e) {\n  errorDetail += ' | payload_extraction_error: ' + e.message;\n}\n\nreturn {\n  workflow_name: workflow.name || 'unknown',\n  workflow_id: workflow.id || 'unknown',\n  execution_id: execution.id || 'unknown',\n  failed_node: lastNode,\n  error_message: errorMessage.substring(0, 1000),\n  error_detail: errorDetail.substring(0, 2000),\n  request_payload: requestPayload,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "extract-error",
+      "name": "Extract Error Details",
+      "type": "n8n-nodes-base.code",
+      "position": [470, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT ops.enqueue_dead_letter(\n  '{{ $json.workflow_name }}',\n  '{{ $json.failed_node }}',\n  'n8n-error-handler',\n  '{{ $json.error_message.replace(/'/g, \"''\") }}',\n  '{{ $json.execution_id }}',\n  '{{ $json.error_detail.replace(/'/g, \"''\").substring(0, 2000) }}'::text,\n  '{{ $json.request_payload.replace(/'/g, \"''\") }}'::jsonb,\n  3\n) as dlq_id;",
+        "options": {}
+      },
+      "id": "insert-dlq",
+      "name": "Log to Dead Letter Queue",
+      "type": "n8n-nodes-base.postgres",
+      "position": [690, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst dlqId = input.dlq_id || 'unknown';\nconst errorInfo = $('Extract Error Details').item.json;\n\nconsole.log(`[DLQ] Logged error from workflow '${errorInfo.workflow_name}' node '${errorInfo.failed_node}' -> DLQ #${dlqId}`);\n\nreturn {\n  logged: true,\n  dlq_id: dlqId,\n  workflow: errorInfo.workflow_name,\n  node: errorInfo.failed_node,\n  error: errorInfo.error_message\n};"
+      },
+      "id": "log-confirmation",
+      "name": "Log Confirmation",
+      "type": "n8n-nodes-base.code",
+      "position": [910, 300],
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [[{"node": "Extract Error Details", "type": "main", "index": 0}]]
+    },
+    "Extract Error Details": {
+      "main": [[{"node": "Log to Dead Letter Queue", "type": "main", "index": 0}]]
+    },
+    "Log to Dead Letter Queue": {
+      "main": [[{"node": "Log Confirmation", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {"name": "nexus"},
+    {"name": "infrastructure"}
+  ]
+}

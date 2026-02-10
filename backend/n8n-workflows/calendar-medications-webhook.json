@@ -1,0 +1,66 @@
+{
+  "name": "Nexus - Calendar with Medications",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexus-calendar-medications",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "calendar-medications"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT life.get_calendar_entries((CURRENT_DATE - INTERVAL '7 days')::date, (CURRENT_DATE + INTERVAL '30 days')::date, true) as result",
+        "options": {}
+      },
+      "id": "get-entries",
+      "name": "Get Calendar Entries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.result) }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Get Calendar Entries", "type": "main", "index": 0}]]
+    },
+    "Get Calendar Entries": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {"name": "nexus", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "calendar", "createdAt": "2026-02-08T00:00:00.000Z"}
+  ],
+  "triggerCount": 1,
+  "versionId": "5"
+}

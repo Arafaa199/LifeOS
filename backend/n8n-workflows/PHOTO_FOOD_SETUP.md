@@ -41,7 +41,7 @@ This guide walks you through setting up the photo-based food logging feature wit
 
 1. **Go to:** Workflows (left sidebar)
 2. **Click:** Import from File
-3. **Select:** `/Users/rafa/Cyber/Infrastructure/Nexus-setup/n8n-workflows/photo-food-webhook.json`
+3. **Select:** The photo-food-webhook.json file from your n8n-workflows directory
 4. **Click:** Import
 
 **Workflow will appear as:** "Nexus Photo Food Logger"

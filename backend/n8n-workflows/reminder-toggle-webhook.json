@@ -1,0 +1,79 @@
+{
+  "name": "Nexus - Reminder Toggle",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-reminder-toggle",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "reminder-toggle"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || {};\nconst reminder_id = body.reminder_id;\nconst is_completed = body.is_completed;\n\nif (!reminder_id) {\n  throw new Error('reminder_id is required');\n}\n\nreturn { reminder_id, is_completed: is_completed !== undefined ? is_completed : null };"
+      },
+      "id": "parse-body",
+      "name": "Parse Body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM life.toggle_reminder('{{ $json.reminder_id }}', {{ $json.is_completed !== null ? $json.is_completed : 'NULL' }})",
+        "options": {}
+      },
+      "id": "toggle",
+      "name": "Toggle Reminder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, reminder_id: $json.reminder_id, is_completed: $json.is_completed }) }}"
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Parse Body", "type": "main", "index": 0}]]
+    },
+    "Parse Body": {
+      "main": [[{"node": "Toggle Reminder", "type": "main", "index": 0}]]
+    },
+    "Toggle Reminder": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {"name": "nexus", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "reminders", "createdAt": "2026-02-08T00:00:00.000Z"}
+  ],
+  "triggerCount": 1,
+  "versionId": "2"
+}

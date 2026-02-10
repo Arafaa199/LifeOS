@@ -169,15 +169,24 @@ class SyncCoordinator: ObservableObject {
     }
 
     func sync(_ domain: SyncDomain) async {
+        let flags = AppSettings.shared
         switch domain {
         case .dashboard:
             await syncDashboard()
-        case .finance: await syncFinance()
-        case .healthKit: await syncHealthKit()
-        case .calendar: await syncCalendar()
+        case .finance:
+            guard flags.financeSyncEnabled else { return }
+            await syncFinance()
+        case .healthKit:
+            guard flags.healthKitSyncEnabled else { return }
+            await syncHealthKit()
+        case .calendar:
+            guard flags.calendarSyncEnabled else { return }
+            await syncCalendar()
         case .whoop:
+            guard flags.whoopSyncEnabled else { return }
             await syncWHOOP()
         case .documents:
+            guard flags.documentsSyncEnabled else { return }
             await syncDocuments()
         }
     }
@@ -189,7 +198,9 @@ class SyncCoordinator: ObservableObject {
         let flags = AppSettings.shared
 
         // Push local data first (HealthKit weight, calendar events, reminders)
-        await syncHealthKit()
+        if flags.healthKitSyncEnabled {
+            await syncHealthKit()
+        }
         if flags.calendarSyncEnabled {
             await syncCalendar()
         }

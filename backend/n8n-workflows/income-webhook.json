@@ -8,6 +8,7 @@
         "responseMode": "responseNode",
         "options": {}
       },
+      "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
@@ -16,14 +17,47 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO finance.transactions (\n  transaction_at,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  notes,\n  is_recurring,\n  client_id\n)\nVALUES (\n  '{{ $json.body.transaction_at }}'::timestamptz,\n  finance.to_business_date('{{ $json.body.transaction_at }}'::timestamptz),\n  '{{ $json.body.source }}',\n  {{ $json.body.amount }},\n  COALESCE('{{ $json.body.currency }}', 'AED'),\n  '{{ $json.body.category }}',\n  {{ $json.body.notes ? \"'\" + $json.body.notes + \"'\" : \"NULL\" }},\n  {{ $json.body.is_recurring ? 'true' : 'false' }},\n  '{{ $json.body.client_id }}'\n)\nON CONFLICT (client_id) DO NOTHING\nRETURNING *;",
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\nconst amount = parseFloat(input.amount);\nconst transaction_at = input.transaction_at || new Date().toISOString();\n\nif (!amount || isNaN(amount)) {\n  throw new Error('Amount is required (must be a valid number)');\n}\n\nif (amount <= 0) {\n  throw new Error('Amount must be greater than 0');\n}\n\nif (!input.source) {\n  throw new Error('Source/merchant name is required');\n}\n\nif (!input.category) {\n  throw new Error('Category is required');\n}\n\nreturn {\n  transaction_at: transaction_at,\n  source: input.source,\n  amount: amount,\n  currency: input.currency || 'AED',\n  category: input.category,\n  notes: input.notes || null,\n  is_recurring: input.is_recurring || false,\n  client_id: input.client_id || null,\n  validated_at: new Date().toISOString()\n};"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "position": [450, 300],
+      "typeVersion": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "has-error",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists" }
+            }
+          ],
+          "combinator": "and"
+        },
         "options": {}
       },
+      "id": "check-parse-error",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO finance.transactions (\n  transaction_at,\n  date,\n  merchant_name,\n  amount,\n  currency,\n  category,\n  notes,\n  is_recurring,\n  client_id\n)\nVALUES (\n  '{{ $json.transaction_at }}'::timestamptz,\n  finance.to_business_date('{{ $json.transaction_at }}'::timestamptz),\n  '{{ $json.source }}',\n  {{ $json.amount }},\n  '{{ $json.currency }}',\n  '{{ $json.category }}',\n  {{ $json.notes ? \"'\" + $json.notes + \"'\" : \"NULL\" }},\n  {{ $json.is_recurring ? 'true' : 'false' }},\n  {{ $json.client_id ? \"'\" + $json.client_id + \"'\" : \"NULL\" }}\n)\nON CONFLICT (client_id) DO NOTHING\nRETURNING *;",
+        "options": {}
+      },
+      "id": "insert-income",
       "name": "Insert Income",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [450, 300],
+      "position": [900, 300],
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -34,34 +68,66 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": {{ $json.length > 0 ? \"'Income added: \" + $('Webhook').item.json.body.source + \" - \" + ($('Webhook').item.json.body.currency || 'AED') + \" \" + $('Webhook').item.json.body.amount + \"'\" : \"'Income already exists (idempotent duplicate)'\" }},\n  \"idempotent\": {{ $json.length === 0 ? 'true' : 'false' }},\n  \"data\": {\n    \"transaction\": {{ $json.length > 0 ? JSON.stringify($json[0]) : 'null' }}\n  }\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": {{ $json.length > 0 ? \"'Income added: \" + $json[0].merchant_name + \" - \" + $json[0].currency + \" \" + $json[0].amount + \"'\" : \"'Income already exists (idempotent duplicate)'\" }},\n  \"idempotent\": {{ $json.length === 0 ? 'true' : 'false' }},\n  \"data\": {\n    \"transaction\": {{ $json.length > 0 ? JSON.stringify($json[0]) : 'null' }}\n  }\n}",
         "options": {}
       },
+      "id": "respond",
       "name": "Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT ops.enqueue_dead_letter(\n  'nexus-income',\n  'Validate Input',\n  '/webhook/nexus-income',\n  '{{ ($json.error || $json.message || \"Unknown parse error\").replace(/'/g, \"''\") }}',\n  '',\n  '',\n  '{{ JSON.stringify($('Validate Input').item.json).replace(/'/g, \"''\") }}'::jsonb,\n  3\n) as dlq_id;",
+        "options": {}
+      },
+      "id": "log-to-dlq",
+      "name": "Log to DLQ",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Error adding income: {{ $json.message }}\"\n}",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Failed to process income\",\n  \"code\": \"PROCESSING_ERROR\"\n}",
         "options": {
           "responseCode": 500
         }
       },
+      "id": "error-response",
       "name": "Error Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [650, 500]
+      "position": [1100, 500]
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Insert Income", "type": "main", "index": 0}]]
+      "main": [[{"node": "Validate Input", "type": "main", "index": 0}]]
+    },
+    "Validate Input": {
+      "main": [[{"node": "Parse OK?", "type": "main", "index": 0}]]
+    },
+    "Parse OK?": {
+      "main": [
+        [{"node": "Log to DLQ", "type": "main", "index": 0}],
+        [{"node": "Insert Income", "type": "main", "index": 0}]
+      ]
     },
     "Insert Income": {
       "main": [[{"node": "Response", "type": "main", "index": 0}]]
+    },
+    "Log to DLQ": {
+      "main": [[{"node": "Error Response", "type": "main", "index": 0}]]
     }
   },
   "settings": {},

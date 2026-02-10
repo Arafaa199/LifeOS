@@ -5,10 +5,12 @@
     <key>Label</key>
     <string>com.nexus.resolve-events</string>
 
+    <!-- Configure NEXUS_BASE_DIR before loading: launchctl setenv NEXUS_BASE_DIR /path/to/Nexus-setup -->
     <key>ProgramArguments</key>
     <array>
-        <string>/opt/homebrew/bin/node</string>
-        <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts/resolve-raw-events.js</string>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>node "$NEXUS_BASE_DIR/scripts/resolve-raw-events.js"</string>
     </array>
 
     <key>StartInterval</key>
@@ -17,27 +19,27 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>NEXUS_HOST</key>
-        <string>100.90.189.16</string>
+        <string>${NEXUS_DB_HOST}</string>
         <key>NEXUS_PORT</key>
-        <string>5432</string>
+        <string>${NEXUS_DB_PORT:-5432}</string>
         <key>NEXUS_DB</key>
-        <string>nexus</string>
+        <string>${NEXUS_DB_NAME:-nexus}</string>
         <key>NEXUS_USER</key>
-        <string>nexus</string>
+        <string>${NEXUS_DB_USER:-nexus}</string>
         <key>NEXUS_PASSWORD</key>
-        <string>XRtRxHAtSXCYK2OLK2C9Fu8Ak6PhuwiI</string>
+        <string>${NEXUS_DB_PASSWORD}</string>
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/logs/resolve-events.log</string>
+    <string>/tmp/nexus-resolve-events.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/logs/resolve-events.log</string>
+    <string>/tmp/nexus-resolve-events.log</string>
 
     <key>RunAtLoad</key>
     <true/>
 
     <key>WorkingDirectory</key>
-    <string>/Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts</string>
+    <string>/tmp</string>
 </dict>
 </plist>

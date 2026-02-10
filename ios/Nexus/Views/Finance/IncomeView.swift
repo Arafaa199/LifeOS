@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct IncomeView: View {
     @Environment(\.dismiss) var dismiss
@@ -13,6 +14,9 @@ struct IncomeView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var isSubmitting = false
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
+    private let successHaptics = UINotificationFeedbackGenerator()
 
     var body: some View {
         NavigationView {
@@ -42,8 +46,14 @@ struct IncomeView: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    .onChange(of: selectedCategory) {
+                        haptics.impactOccurred()
+                    }
 
                     Toggle("Recurring Income", isOn: $isRecurring)
+                        .onChange(of: isRecurring) {
+                            haptics.impactOccurred()
+                        }
                 }
 
                 Section("Notes (Optional)") {
@@ -96,6 +106,8 @@ struct IncomeView: View {
         guard !isSubmitting else { return }
 
         guard let amountValue = Double(amount) else {
+            haptics.impactOccurred()
+            successHaptics.notificationOccurred(.error)
             errorMessage = "Invalid amount"
             showingError = true
             return
@@ -120,8 +132,10 @@ struct IncomeView: View {
 
             // Always dismiss on success (including offline queue)
             if success {
+                successHaptics.notificationOccurred(.success)
                 dismiss()
             } else {
+                successHaptics.notificationOccurred(.error)
                 isSubmitting = false
                 errorMessage = viewModel.errorMessage ?? "Failed to add income"
                 showingError = true

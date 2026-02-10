@@ -91,7 +91,8 @@ class FinanceAPI: BaseAPIClient {
     }
 
     func deleteTransaction(id: Int) async throws -> NexusResponse {
-        return try await delete("/webhook/nexus-delete-transaction?id=\(id)")
+        let path = buildPath("/webhook/nexus-delete-transaction", query: ["id": "\(id)"])
+        return try await delete(path)
     }
 
     // MARK: - Income
@@ -127,6 +128,17 @@ class FinanceAPI: BaseAPIClient {
         return try await get("/webhook/nexus-finance-summary", decoder: Self.financeDateDecoder)
     }
 
+    func fetchTransactions(offset: Int = 0, limit: Int = 50, startDate: String? = nil, endDate: String? = nil) async throws -> FinanceResponse {
+        var query: [String: String] = [
+            "offset": "\(offset)",
+            "limit": "\(limit)"
+        ]
+        if let startDate = startDate { query["start_date"] = startDate }
+        if let endDate = endDate { query["end_date"] = endDate }
+        let path = buildPath("/webhook/nexus-transactions", query: query)
+        return try await get(path, decoder: Self.financeDateDecoder)
+    }
+
     func triggerSMSImport() async throws -> NexusResponse {
         struct EmptyBody: Encodable {}
         return try await post("/webhook/nexus-trigger-import", body: EmptyBody())
@@ -144,7 +156,8 @@ class FinanceAPI: BaseAPIClient {
     }
 
     func deleteBudget(id: Int) async throws -> NexusResponse {
-        return try await delete("/webhook/nexus-budget?id=\(id)")
+        let path = buildPath("/webhook/nexus-budget", query: ["id": "\(id)"])
+        return try await delete(path)
     }
 
     func createBudget(_ request: CreateBudgetRequest) async throws -> SingleItemResponse<Budget> {
@@ -159,7 +172,8 @@ class FinanceAPI: BaseAPIClient {
     }
 
     func fetchMonthlyTrends(months: Int) async throws -> MonthlyTrendsResponse {
-        return try await get("/webhook/nexus-monthly-trends?months=\(months)")
+        let path = buildPath("/webhook/nexus-monthly-trends", query: ["months": "\(months)"])
+        return try await get(path)
     }
 
     // MARK: - Installments
@@ -179,7 +193,8 @@ class FinanceAPI: BaseAPIClient {
     }
 
     func deleteCategory(id: Int) async throws -> DeleteResponse {
-        return try await delete("/webhook/nexus-categories?id=\(id)")
+        let path = buildPath("/webhook/nexus-categories", query: ["id": "\(id)"])
+        return try await delete(path)
     }
 
     // MARK: - Recurring Items
@@ -197,7 +212,8 @@ class FinanceAPI: BaseAPIClient {
     }
 
     func deleteRecurringItem(id: Int) async throws -> DeleteResponse {
-        return try await delete("/webhook/nexus-recurring?id=\(id)")
+        let path = buildPath("/webhook/nexus-recurring", query: ["id": "\(id)"])
+        return try await delete(path)
     }
 
     // MARK: - Matching Rules
@@ -211,7 +227,8 @@ class FinanceAPI: BaseAPIClient {
     }
 
     func deleteMatchingRule(id: Int) async throws -> DeleteResponse {
-        return try await delete("/webhook/nexus-rules?id=\(id)")
+        let path = buildPath("/webhook/nexus-rules", query: ["id": "\(id)"])
+        return try await delete(path)
     }
 
     // MARK: - Transaction Corrections
@@ -228,6 +245,21 @@ class FinanceAPI: BaseAPIClient {
     // MARK: - Receipts
 
     func fetchReceipts(limit: Int = 50) async throws -> ReceiptsResponse {
-        return try await get("/webhook/nexus-receipts?limit=\(limit)")
+        let path = buildPath("/webhook/nexus-receipts", query: ["limit": "\(limit)"])
+        return try await get(path)
+    }
+
+    func fetchReceipts(offset: Int = 0, limit: Int = 50) async throws -> ReceiptsResponse {
+        let path = buildPath("/webhook/nexus-receipts", query: [
+            "offset": "\(offset)",
+            "limit": "\(limit)"
+        ])
+        return try await get(path)
+    }
+
+    // MARK: - Financial Position
+
+    func fetchFinancialPosition() async throws -> FinancialPositionResponse {
+        return try await get("/webhook/nexus-financial-position", decoder: Self.financeDateDecoder)
     }
 }

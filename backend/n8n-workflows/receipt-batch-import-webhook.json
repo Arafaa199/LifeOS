@@ -1,0 +1,164 @@
+{
+  "name": "Nexus - Receipt Batch Import Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nexus-receipt-batch-import",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\n// Validate receipts array exists\nif (!Array.isArray(body.receipts)) {\n  throw new Error('receipts must be an array');\n}\n\nif (body.receipts.length === 0) {\n  throw new Error('receipts array cannot be empty');\n}\n\nconst errors = [];\n\n// Validate each receipt\nbody.receipts.forEach((receipt, idx) => {\n  // Required fields\n  if (!receipt.receipt_date) {\n    errors.push(`Receipt ${idx}: missing receipt_date`);\n  }\n  if (!receipt.total_amount) {\n    errors.push(`Receipt ${idx}: missing total_amount`);\n  }\n  if (!Array.isArray(receipt.items) || receipt.items.length === 0) {\n    errors.push(`Receipt ${idx}: items must be a non-empty array`);\n  }\n  \n  // Validate items\n  if (Array.isArray(receipt.items)) {\n    receipt.items.forEach((item, itemIdx) => {\n      if (!item.item_description) {\n        errors.push(`Receipt ${idx}, Item ${itemIdx}: missing item_description`);\n      }\n      if (item.line_total === undefined || item.line_total === null) {\n        errors.push(`Receipt ${idx}, Item ${itemIdx}: missing line_total`);\n      }\n    });\n  }\n});\n\nif (errors.length > 0) {\n  return [{\n    json: {\n      valid: false,\n      errors: errors\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    valid: true,\n    receipts_count: body.receipts.length,\n    receipts: body.receipts\n  }\n}];"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "parse-ok",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\nconst input = $('Validate Input').first().json;\nconst receipts = input.receipts || [];\n\n// Build SQL statements for batch insert\nlet insertReceiptsSql = '';\nlet insertItemsSql = '';\nlet finalizeCallsSql = '';\nconst receiptMappings = []; // Track receipt indices to generated IDs\n\nreceipts.forEach((receipt, idx) => {\n  // Generate pdf_hash for deduplication\n  const hashInput = `${receipt.vendor || 'unknown'}|${receipt.receipt_date}|${receipt.total_amount}|${receipt.invoice_number || ''}`;\n  const pdf_hash = crypto.createHash('sha256').update(hashInput).digest('hex');\n  \n  // Escape single quotes in string fields\n  const store_name = (receipt.store_name || '').replace(/'/g, \"''\");\n  const vendor = (receipt.vendor || 'unknown').replace(/'/g, \"''\");\n  const invoice_number = (receipt.invoice_number || '').replace(/'/g, \"''\");\n  const currency = receipt.currency || 'AED';\n  const receipt_time = receipt.receipt_time || '00:00:00';\n  const receipt_date = receipt.receipt_date;\n  const subtotal = receipt.subtotal || receipt.total_amount;\n  const vat_amount = receipt.vat_amount || 0;\n  const total_amount = receipt.total_amount;\n  \n  // Build receipt insert with ON CONFLICT handling\n  const receiptInsert = `\nINSERT INTO finance.receipts (\n  pdf_hash, vendor, store_name, invoice_number, receipt_date, receipt_time,\n  subtotal, vat_amount, total_amount, currency, parse_status, email_received_at,\n  gmail_message_id\n) VALUES (\n  '${pdf_hash}',\n  '${vendor}',\n  '${store_name}',\n  '${invoice_number}',\n  '${receipt_date}'::date,\n  '${receipt_time}'::time,\n  ${subtotal},\n  ${vat_amount},\n  ${total_amount},\n  '${currency}',\n  'success',\n  NOW()::timestamptz,\n  'batch_import_${Date.now()}_${idx}'\n) ON CONFLICT (pdf_hash) DO NOTHING\nRETURNING id INTO receipt_id_${idx};\n`;\n  \n  insertReceiptsSql += receiptInsert;\n  \n  // Build items inserts\n  receipt.items.forEach((item, itemIdx) => {\n    const item_desc = (item.item_description || '').replace(/'/g, \"''\");\n    const quantity = item.quantity || 1;\n    const unit_price = item.unit_price || item.line_total;\n    const line_total = item.line_total;\n    const line_number = itemIdx + 1;\n    \n    const itemInsert = `\nINSERT INTO finance.receipt_items (\n  receipt_id, line_number, item_description, quantity, unit_price, line_total\n) VALUES (\n  receipt_id_${idx},\n  ${line_number},\n  '${item_desc}',\n  ${quantity},\n  ${unit_price},\n  ${line_total}\n);\n`;\n    \n    insertItemsSql += itemInsert;\n  });\n  \n  // Build finalize call\n  finalizeCallsSql += `SELECT finance.finalize_receipt(receipt_id_${idx});\\n`;\n  \n  receiptMappings.push({\n    index: idx,\n    pdf_hash: pdf_hash,\n    store_name: store_name\n  });\n});\n\n// Wrap in transaction and declare variables\nconst fullSql = `DO $$ \nDECLARE \n  receipt_id_${Object.keys(Array(receipts.length).fill(0)).map((_, i) => i).join(' INTEGER; receipt_id_')}_${receipts.length - 1} INTEGER;\nBEGIN\n${insertReceiptsSql}\n${insertItemsSql}\nCOMMIT;\nEND $$;\n\n${finalizeCallsSql}`;\n\nreturn [{\n  json: {\n    sql: fullSql,\n    receipts_count: receipts.length,\n    items_count: receipts.reduce((sum, r) => sum + (r.items?.length || 0), 0),\n    mappings: receiptMappings\n  }\n}];"
+      },
+      "id": "process-receipts",
+      "name": "Process Receipts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "id": "execute-sql",
+      "name": "Execute SQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Process Receipts').first().json;\nconst receiptsCount = input.receipts_count || 0;\nconst itemsCount = input.items_count || 0;\n\n// Execute SQL was successful, estimate results\nreturn [{\n  json: {\n    success: true,\n    receipts_imported: receiptsCount,\n    items_imported: itemsCount,\n    duplicates_skipped: 0,\n    message: `Successfully imported ${receiptsCount} receipts with ${itemsCount} line items`\n  }\n}];"
+      },
+      "id": "build-success-response",
+      "name": "Build Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, data: $json } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO finance.raw_events (event_type, raw_payload, source_identifier, validation_status) VALUES ('batch_import_error', '{{ JSON.stringify({ error: $json.errors || $json.error }) }}'::jsonb, 'batch_import_error', 'failed') RETURNING id;",
+        "options": {}
+      },
+      "id": "log-to-dlq",
+      "name": "Log to DLQ",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 550],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, error: $json.errors || $json.error || 'Validation failed', dlq_event_id: $input.item.json?.id } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 550]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Validate Input", "type": "main", "index": 0}]]
+    },
+    "Validate Input": {
+      "main": [[{"node": "Parse OK?", "type": "main", "index": 0}]]
+    },
+    "Parse OK?": {
+      "main": [
+        [{"node": "Process Receipts", "type": "main", "index": 0}],
+        [{"node": "Log to DLQ", "type": "main", "index": 0}]
+      ]
+    },
+    "Process Receipts": {
+      "main": [[{"node": "Execute SQL", "type": "main", "index": 0}]]
+    },
+    "Execute SQL": {
+      "main": [[{"node": "Build Success Response", "type": "main", "index": 0}]]
+    },
+    "Build Success Response": {
+      "main": [[{"node": "Success Response", "type": "main", "index": 0}]]
+    },
+    "Log to DLQ": {
+      "main": [[{"node": "Error Response", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {"name": "nexus"},
+    {"name": "receipts"},
+    {"name": "batch-import"}
+  ]
+}

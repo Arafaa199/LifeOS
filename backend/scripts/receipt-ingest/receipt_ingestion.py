@@ -3,7 +3,7 @@
 Receipt Ingestion System for Nexus
 
 Fetches receipts from Gmail, parses PDFs, and stores in database.
-Currently supports: Carrefour UAE
+Currently supports: Carrefour UAE, Careem Quik
 
 Usage:
     ./receipt_ingestion.py --fetch           # Fetch new receipts from Gmail
@@ -45,6 +45,7 @@ import subprocess
 
 # Local parsers
 from carrefour_parser import parse_carrefour_receipt, validate_parsed_receipt, PARSE_VERSION
+from careem_parser import parse_careem_html
 
 
 # ============================================================================
@@ -53,6 +54,12 @@ from carrefour_parser import parse_carrefour_receipt, validate_parsed_receipt, P
 
 GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 GMAIL_LABEL = os.environ.get('GMAIL_LABEL', 'LifeOS/Receipts/Carrefour')
+
+# Multi-vendor label config: vendor_key -> (gmail_label, content_type)
+VENDOR_LABELS = {
+    'carrefour_uae': ('LifeOS/Receipts/Carrefour', 'pdf'),
+    'careem_quik': ('LifeOS/Receipts/Careem', 'html'),
+}
 
 # PDF storage - configurable for server deployment
 _default_pdf_path = Path.home() / 'Cyber/Infrastructure/Nexus-setup/data/receipts'
@@ -147,13 +154,14 @@ def get_label_id(service, label_name: str) -> Optional[str]:
     return None
 
 
-def fetch_receipts_from_gmail(service, label_id: str, conn) -> Tuple[int, int, int]:
+def fetch_receipts_from_gmail(service, label_id: str, conn, vendor: str = 'carrefour_uae',
+                              content_type: str = 'pdf', label: str = None) -> Tuple[int, int, int]:
     """Fetch receipt emails from Gmail label.
 
-    Returns: (messages_processed, pdfs_saved, messages_skipped)
+    Returns: (messages_processed, receipts_saved, messages_skipped)
     """
     messages_processed = 0
-    pdfs_saved = 0
+    receipts_saved = 0
     messages_skipped = 0
 
     # Get messages with the specified label (paginate to get all)
@@ -195,12 +203,15 @@ def fetch_receipts_from_gmail(service, label_id: str, conn) -> Tuple[int, int, i
             userId='me', id=msg_id, format='full'
         ).execute()
 
-        saved = process_gmail_message(service, msg, conn)
+        if content_type == 'html':
+            saved = process_html_email(service, msg, conn, vendor, label or '')
+        else:
+            saved = process_gmail_message(service, msg, conn)
         if saved:
             messages_processed += 1
-            pdfs_saved += len(saved)
+            receipts_saved += len(saved)
 
-    return messages_processed, pdfs_saved, messages_skipped
+    return messages_processed, receipts_saved, messages_skipped
 
 
 def process_gmail_message(service, msg: Dict, conn) -> List[Dict]:
@@ -312,6 +323,92 @@ def process_gmail_message(service, msg: Dict, conn) -> List[Dict]:
     return saved_receipts
 
 
+def process_html_email(service, msg: Dict, conn, vendor: str, label: str) -> List[Dict]:
+    """Process a Gmail message with HTML body (e.g., Careem Quik receipts).
+
+    Returns list of saved receipts (one per email).
+    """
+    headers = {h['name'].lower(): h['value'] for h in msg['payload']['headers']}
+
+    msg_id = msg['id']
+    thread_id = msg['threadId']
+    internal_date = msg.get('internalDate')
+    from_addr = headers.get('from', '')
+    subject = headers.get('subject', '')
+
+    if internal_date:
+        email_received_at = datetime.fromtimestamp(int(internal_date) / 1000)
+    else:
+        date_str = headers.get('date', '')
+        email_received_at = parse_email_date(date_str)
+
+    print(f"Processing: {subject[:60]}...")
+
+    # Extract HTML body
+    html_body = None
+
+    def find_html_in_parts(parts):
+        nonlocal html_body
+        for part in parts:
+            mime_type = part.get('mimeType', '')
+            if mime_type == 'text/html' and not html_body:
+                body_data = part.get('body', {}).get('data', '')
+                if body_data:
+                    html_body = base64.urlsafe_b64decode(body_data).decode('utf-8', errors='replace')
+            if 'parts' in part:
+                find_html_in_parts(part['parts'])
+
+    if 'parts' in msg['payload']:
+        find_html_in_parts(msg['payload']['parts'])
+    elif msg['payload'].get('mimeType') == 'text/html':
+        body_data = msg['payload'].get('body', {}).get('data', '')
+        if body_data:
+            html_body = base64.urlsafe_b64decode(body_data).decode('utf-8', errors='replace')
+
+    if not html_body:
+        print(f"  No HTML body found")
+        return []
+
+    # Hash the HTML content for dedup
+    content_hash = hashlib.sha256(html_body.encode('utf-8')).hexdigest()
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM finance.receipts WHERE pdf_hash = %s", (content_hash,))
+        if cur.fetchone():
+            print(f"  Skipping (duplicate content hash)")
+            return []
+
+    # Save HTML to storage
+    PDF_STORAGE_PATH.mkdir(parents=True, exist_ok=True)
+    safe_subject = re.sub(r'[^\w\-.]', '_', subject[:50])
+    html_path = PDF_STORAGE_PATH / f"{content_hash[:16]}_{safe_subject}.html"
+    html_path.write_text(html_body, encoding='utf-8')
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO finance.receipts (
+                gmail_message_id, gmail_thread_id, gmail_label,
+                email_from, email_subject, email_received_at,
+                pdf_hash, pdf_filename, pdf_size_bytes, pdf_storage_path,
+                vendor, parse_status
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+            RETURNING id
+        """, (
+            msg_id, thread_id, label,
+            from_addr, subject, email_received_at,
+            content_hash, html_path.name, len(html_body.encode('utf-8')),
+            str(html_path.relative_to(PDF_STORAGE_PATH.parent)),
+            vendor
+        ))
+        receipt_id = cur.fetchone()[0]
+        conn.commit()
+
+    print(f"  Saved: ID {receipt_id}, {html_path.name} ({len(html_body)} chars)")
+
+    return [{'id': receipt_id, 'pdf_path': html_path, 'pdf_hash': content_hash,
+             'filename': html_path.name, 'size': len(html_body)}]
+
+
 def parse_email_date(date_str: str) -> datetime:
     """Parse email date header to datetime."""
     # Common email date formats
@@ -384,18 +481,22 @@ def parse_receipt(conn, receipt: Dict) -> bool:
     receipt_id = receipt['id']
     vendor = receipt['vendor']
 
-    # Resolve PDF path
-    pdf_path = PDF_STORAGE_PATH.parent / receipt['pdf_storage_path']
-    if not pdf_path.exists():
-        mark_parse_failed(conn, receipt_id, f"PDF not found: {pdf_path}")
+    # Resolve file path
+    file_path = PDF_STORAGE_PATH.parent / receipt['pdf_storage_path']
+    if not file_path.exists():
+        mark_parse_failed(conn, receipt_id, f"File not found: {file_path}")
         return False
 
     print(f"Parsing receipt {receipt_id} (vendor: {vendor})")
 
+    # Careem uses HTML, skip PDF extraction
+    if vendor == 'careem_quik':
+        return parse_careem_quik(conn, receipt_id, str(file_path))
+
     # Extract raw text using pdftotext with layout preservation
     try:
         result = subprocess.run(
-            ['pdftotext', '-layout', str(pdf_path), '-'],
+            ['pdftotext', '-layout', str(file_path), '-'],
             capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
@@ -417,7 +518,7 @@ def parse_receipt(conn, receipt: Dict) -> bool:
 
     # Parse based on vendor
     if vendor == 'carrefour_uae':
-        return parse_carrefour_uae(conn, receipt_id, raw_text, str(pdf_path))
+        return parse_carrefour_uae(conn, receipt_id, raw_text, str(file_path))
     else:
         mark_parse_failed(conn, receipt_id, f"Unknown vendor: {vendor}")
         return False
@@ -669,6 +770,71 @@ def clean_item_description(desc: str) -> str:
     # Uppercase
     desc = desc.upper()
     return desc.strip()
+
+
+def parse_careem_quik(conn, receipt_id: int, html_path: str) -> bool:
+    """Parse Careem Quik HTML receipt using the careem_parser module."""
+    try:
+        html_content = Path(html_path).read_text(encoding='utf-8')
+        parsed = parse_careem_html(html_content)
+
+        if not parsed or not parsed.get('line_items'):
+            mark_parse_failed(conn, receipt_id, "No line items found in Careem HTML")
+            return False
+
+        order_date = parsed.get('order_date')
+        receipt_date = None
+        if order_date:
+            try:
+                receipt_date = datetime.strptime(order_date, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+        total_amount = parsed.get('total_incl_vat')
+        vat_amount = parsed.get('vat_amount')
+        currency = parsed.get('currency', 'AED')
+
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE finance.receipts SET
+                    store_name = 'Careem Quik',
+                    receipt_date = %s,
+                    total_amount = %s,
+                    vat_amount = %s,
+                    currency = %s,
+                    parse_status = 'success',
+                    parsed_json = %s,
+                    parsed_at = NOW(),
+                    updated_at = NOW()
+                WHERE id = %s
+            """, (
+                receipt_date, total_amount, vat_amount, currency,
+                json.dumps(parsed), receipt_id
+            ))
+
+            # Insert line items
+            for i, item in enumerate(parsed.get('line_items', []), 1):
+                desc = item.get('description', '')
+                qty = item.get('qty', 1)
+                unit_price = item.get('unit_price', 0)
+                line_total = item.get('total', unit_price * qty)
+
+                cur.execute("""
+                    INSERT INTO finance.receipt_items (
+                        receipt_id, line_number, item_description, item_description_clean,
+                        quantity, unit_price, line_total
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                """, (receipt_id, i, desc, desc, qty, unit_price, line_total))
+
+        conn.commit()
+        item_count = len(parsed.get('line_items', []))
+        print(f"  Parsed: Careem Quik, {item_count} items, total {currency} {total_amount}")
+        return True
+
+    except Exception as e:
+        mark_parse_failed(conn, receipt_id, f"Careem parse error: {e}")
+        return False
 
 
 def mark_parse_failed(conn, receipt_id: int, error: str):
@@ -929,38 +1095,62 @@ def main():
 
     try:
         if args.fetch or args.all:
-            print("\n=== Fetching receipts from Gmail ===")
-            print(f"Label: {args.label}")
             service = get_gmail_service()
-            label_id = get_label_id(service, args.label)
 
-            if not label_id:
-                print(f"Error: Label '{args.label}' not found in Gmail")
-                print("Available labels:")
-                results = service.users().labels().list(userId='me').execute()
-                for label in sorted(results.get('labels', []), key=lambda x: x['name']):
-                    print(f"  - {label['name']}")
-                return
+            # Determine which labels to fetch
+            if args.all:
+                labels_to_fetch = list(VENDOR_LABELS.items())
+            else:
+                # Single label mode (--fetch --label X) — auto-detect vendor from label
+                vendor_key = 'carrefour_uae'
+                content_type = 'pdf'
+                for vk, (gl, ct) in VENDOR_LABELS.items():
+                    if gl == args.label:
+                        vendor_key = vk
+                        content_type = ct
+                        break
+                labels_to_fetch = [(vendor_key, (args.label, content_type))]
 
-            print(f"Label ID: {label_id}")
-            messages_processed, pdfs_saved, messages_skipped = fetch_receipts_from_gmail(service, label_id, conn)
+            total_processed = 0
+            total_saved = 0
+            total_skipped = 0
+
+            for vendor_key, (gmail_label, content_type) in labels_to_fetch:
+                print(f"\n=== Fetching receipts from Gmail ({vendor_key}) ===")
+                print(f"Label: {gmail_label}")
+
+                label_id = get_label_id(service, gmail_label)
+                if not label_id:
+                    print(f"Warning: Label '{gmail_label}' not found in Gmail, skipping")
+                    continue
+
+                print(f"Label ID: {label_id}")
+                processed, saved, skipped = fetch_receipts_from_gmail(
+                    service, label_id, conn,
+                    vendor=vendor_key, content_type=content_type, label=gmail_label
+                )
+                total_processed += processed
+                total_saved += saved
+                total_skipped += skipped
+
+                print(f"  Processed: {processed}, Saved: {saved}, Skipped: {skipped}")
 
             print(f"\n=== Ingestion Summary ===")
-            print(f"Messages processed: {messages_processed}")
-            print(f"PDFs saved: {pdfs_saved}")
-            print(f"Messages skipped (already ingested): {messages_skipped}")
+            print(f"Messages processed: {total_processed}")
+            print(f"Receipts saved: {total_saved}")
+            print(f"Messages skipped (already ingested): {total_skipped}")
 
             # Report database counts
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM finance.receipts")
                 total_receipts = cur.fetchone()[0]
                 cur.execute("SELECT COUNT(DISTINCT pdf_hash) FROM finance.receipts")
-                unique_pdfs = cur.fetchone()[0]
+                unique_hashes = cur.fetchone()[0]
                 cur.execute("SELECT SUM(pdf_size_bytes) FROM finance.receipts")
                 total_size = cur.fetchone()[0] or 0
             print(f"\nDatabase totals:")
             print(f"  Total receipts: {total_receipts}")
-            print(f"  Unique PDFs: {unique_pdfs}")
+            print(f"  Unique content: {unique_hashes}")
             print(f"  Total storage: {total_size / 1024 / 1024:.2f} MB")
 
         if args.receipt_id:

@@ -319,20 +319,15 @@ struct ThemedContentView: View {
 
 struct QuickWaterLogSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var amount: Double = 250
     @State private var isSubmitting = false
-
-    private let presets: [Double] = [200, 250, 330, 500]
 
     var body: some View {
         VStack(spacing: NexusTheme.Spacing.lg) {
-            // Handle
             Capsule()
                 .fill(NexusTheme.Colors.divider)
                 .frame(width: 36, height: 5)
                 .padding(.top, NexusTheme.Spacing.md)
 
-            // Header
             HStack {
                 NexusTheme.Typography.cardTitle("Log Water")
                     .foregroundColor(NexusTheme.Colors.textSecondary)
@@ -340,37 +335,18 @@ struct QuickWaterLogSheet: View {
             }
             .padding(.horizontal, NexusTheme.Spacing.xl)
 
-            // Amount display
             VStack(spacing: NexusTheme.Spacing.xs) {
-                NexusTheme.Typography.metricValue("\(Int(amount))")
+                Image(systemName: "drop.fill")
+                    .font(.system(size: 48))
                     .foregroundColor(NexusTheme.Colors.Semantic.blue)
 
-                NexusTheme.Typography.metricLabel("milliliters")
+                NexusTheme.Typography.metricLabel("Tap to log water")
                     .foregroundColor(NexusTheme.Colors.textSecondary)
             }
             .padding(.vertical, NexusTheme.Spacing.lg)
 
-            // Presets
-            HStack(spacing: NexusTheme.Spacing.sm) {
-                ForEach(presets, id: \.self) { preset in
-                    Button(action: {
-                        NexusTheme.Haptics.light()
-                        amount = preset
-                    }) {
-                        Text("\(Int(preset))ml")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(amount == preset ? .white : NexusTheme.Colors.textPrimary)
-                            .padding(.horizontal, NexusTheme.Spacing.lg)
-                            .padding(.vertical, NexusTheme.Spacing.sm)
-                            .background(amount == preset ? NexusTheme.Colors.Semantic.blue : NexusTheme.Colors.cardAlt)
-                            .cornerRadius(NexusTheme.Radius.md)
-                    }
-                }
-            }
-
             Spacer()
 
-            // Submit button
             ThemePrimaryButton("Log Water", icon: "drop.fill", isLoading: isSubmitting) {
                 submitWater()
             }
@@ -378,14 +354,14 @@ struct QuickWaterLogSheet: View {
             .padding(.bottom, NexusTheme.Spacing.xxxl)
         }
         .background(NexusTheme.Colors.card)
-        .presentationDetents([.height(320)])
+        .presentationDetents([.height(280)])
     }
 
     private func submitWater() {
         isSubmitting = true
         Task {
             do {
-                let response = try await NexusAPI.shared.logWater(amountML: Int(amount))
+                let response = try await HabitsAPI.shared.logWater()
                 await MainActor.run {
                     if response.success {
                         NexusTheme.Haptics.success()

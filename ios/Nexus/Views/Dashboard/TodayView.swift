@@ -133,11 +133,25 @@ struct TodayView: View {
         // Financial Position Quick Card
         FinanceQuickCard()
 
+        // Habits
+        HabitsCardView(
+            habits: viewModel.dashboardPayload?.habitsToday,
+            onComplete: { habitId in
+                Task { await viewModel.completeHabitFromDashboard(habitId: habitId) }
+            }
+        )
+
         // Streaks
         StreakBadgesView(streaks: viewModel.dashboardPayload?.streaks)
 
         // BJJ Training
         BJJCardView()
+
+        // Work
+        WorkCardView(work: viewModel.dashboardPayload?.workSummary)
+
+        // Weekly Review
+        WeeklyReviewCardView(review: viewModel.dashboardPayload?.latestWeeklyReview)
 
         // Nutrition + Fasting
         nutritionAndFastingSection

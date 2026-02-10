@@ -62,12 +62,12 @@ struct InteractiveWaterWidgetView: View {
                 .font(.title2)
                 .foregroundColor(.blue)
 
-            Text("\(entry.waterToday)ml")
+            Text("Water")
                 .font(.title3)
                 .bold()
 
-            Button(intent: LogWaterIntent(amount: 250)) {
-                Text("+250ml")
+            Button(intent: LogWaterIntent()) {
+                Text("Log Water")
                     .font(.caption)
                     .bold()
                     .foregroundColor(.white)
@@ -88,53 +88,23 @@ struct InteractiveWaterWidgetView: View {
                     .font(.title3)
                     .foregroundColor(.blue)
 
-                Text("Water Today")
+                Text("Water")
                     .font(.headline)
 
                 Spacer()
+            }
 
-                Text("\(entry.waterToday)ml")
-                    .font(.title2)
+            Button(intent: LogWaterIntent()) {
+                Text("Log Water")
+                    .font(.subheadline)
                     .bold()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
             }
-
-            HStack(spacing: 8) {
-                Button(intent: LogWaterIntent(amount: 250)) {
-                    Text("250ml")
-                        .font(.caption)
-                        .bold()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
-
-                Button(intent: LogWaterIntent(amount: 500)) {
-                    Text("500ml")
-                        .font(.caption)
-                        .bold()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
-
-                Button(intent: LogWaterIntent(amount: 1000)) {
-                    Text("1L")
-                        .font(.caption)
-                        .bold()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
-            }
+            .buttonStyle(.plain)
         }
         .padding()
     }

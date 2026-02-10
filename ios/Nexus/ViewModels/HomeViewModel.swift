@@ -2,8 +2,7 @@ import SwiftUI
 import Combine
 import os
 
-/// Read-only Home Assistant status view model.
-/// Device control is handled by the native HA Companion app or web dashboard.
+/// Home Assistant status view model with device control support.
 @MainActor
 class HomeViewModel: ObservableObject {
     static let shared = HomeViewModel()
@@ -12,8 +11,10 @@ class HomeViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var lastUpdated: Date?
+    @Published var controllingDevice: String?
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "home")
+    private let hapticManager = UIImpactFeedbackGenerator(style: .light)
 
     private init() {}
 
@@ -68,6 +69,38 @@ class HomeViewModel: ObservableObject {
             return "All quiet"
         }
         return parts.joined(separator: " · ")
+    }
+
+    // MARK: - Device Control
+
+    func controlDevice(entityId: String, action: HomeAction) async {
+        controllingDevice = entityId
+        errorMessage = nil
+
+        do {
+            let response = try await NexusAPI.shared.controlDevice(
+                entityId: entityId,
+                action: action
+            )
+
+            if response.success {
+                hapticManager.impactOccurred()
+                logger.info("[home] device controlled: \(entityId) -> \(action.rawValue)")
+
+                // Refresh status after successful control
+                await fetchStatus()
+            } else {
+                hapticManager.impactOccurred()
+                errorMessage = response.error ?? "Failed to control device"
+                logger.error("[home] control failed: \(response.error ?? "unknown")")
+            }
+        } catch {
+            hapticManager.impactOccurred()
+            errorMessage = "Unable to control device"
+            logger.error("[home] control error: \(error.localizedDescription)")
+        }
+
+        controllingDevice = nil
     }
 
     // MARK: - Open Home Assistant

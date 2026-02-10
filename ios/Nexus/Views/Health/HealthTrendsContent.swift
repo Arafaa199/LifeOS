@@ -291,36 +291,19 @@ struct HealthTrendsContent: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-
-            Text("Not enough data for trends")
-                .font(.headline)
-
-            Text("Trends will appear after a few days of tracking")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.vertical, 60)
+        ThemeEmptyState(
+            icon: "chart.line.uptrend.xyaxis",
+            headline: "Not Enough Data for Trends",
+            description: "Trends will appear after a few days of tracking."
+        )
     }
 
     private var noDataForPeriod: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "calendar.badge.exclamationmark")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-
-            Text("No data for \(periodLabel(selectedPeriod))")
-                .font(.headline)
-
-            Text("Try selecting a different time period")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .padding(.vertical, 60)
+        ThemeEmptyState(
+            icon: "calendar.badge.exclamationmark",
+            headline: "No Data for \(periodLabel(selectedPeriod))",
+            description: "Try selecting a different time period."
+        )
     }
 
     private var notAvailable: some View {

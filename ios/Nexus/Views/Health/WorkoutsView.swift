@@ -11,8 +11,20 @@ struct WorkoutsView: View {
     @State private var errorMessage: String?
     @State private var showAddSheet = false
     @State private var isSyncing = false
+    @State private var searchText = ""
 
     private let logger = Logger(subsystem: "com.nexus.lifeos", category: "workouts")
+
+    private var filteredWorkouts: [Workout] {
+        if searchText.isEmpty {
+            return workouts
+        }
+        return workouts.filter { workout in
+            let nameMatch = (workout.name?.localizedCaseInsensitiveContains(searchText) ?? false)
+            let typeMatch = workout.typeDisplayName.localizedCaseInsensitiveContains(searchText)
+            return nameMatch || typeMatch
+        }
+    }
 
     var body: some View {
         Group {
@@ -59,15 +71,15 @@ struct WorkoutsView: View {
 
     private var workoutsList: some View {
         List {
-            // Weekly Summary
-            if let stats = weeklyStats {
+            // Weekly Summary (only show when not searching)
+            if searchText.isEmpty, let stats = weeklyStats {
                 Section {
                     weeklySummaryCard(stats)
                 }
             }
 
-            // WHOOP Today
-            if let whoop = whoopToday, whoop.dayStrain != nil {
+            // WHOOP Today (only show when not searching)
+            if searchText.isEmpty, let whoop = whoopToday, whoop.dayStrain != nil {
                 Section("Today's Strain (WHOOP)") {
                     whoopCard(whoop)
                 }
@@ -82,15 +94,24 @@ struct WorkoutsView: View {
                         description: Text("Sync from Apple Watch or add manually")
                     )
                 }
+            } else if filteredWorkouts.isEmpty {
+                Section {
+                    ContentUnavailableView(
+                        "No Results",
+                        systemImage: "magnifyingglass",
+                        description: Text("No workouts match your search")
+                    )
+                }
             } else {
                 Section("Recent") {
-                    ForEach(workouts) { workout in
+                    ForEach(filteredWorkouts) { workout in
                         WorkoutRow(workout: workout)
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .searchable(text: $searchText, prompt: "Search workouts")
     }
 
     // MARK: - Weekly Summary

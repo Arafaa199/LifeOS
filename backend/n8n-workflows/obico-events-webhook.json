@@ -47,7 +47,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://172.17.0.1:8123/api/events/obico_print_failure",
+        "url": "{{ $env.HOME_ASSISTANT_URL }}/api/events/obico_print_failure",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -69,7 +69,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://172.17.0.1:8123/api/events/obico_print_event",
+        "url": "{{ $env.HOME_ASSISTANT_URL }}/api/events/obico_print_event",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,

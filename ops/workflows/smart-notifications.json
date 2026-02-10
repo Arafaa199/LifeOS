@@ -1,0 +1,378 @@
+{
+  "name": "Smart Notifications Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "0 4 * * *" },
+            { "field": "cronExpression", "expression": "0 9 * * *" },
+            { "field": "cronExpression", "expression": "0 14 * * *" },
+            { "field": "cronExpression", "expression": "0 18 * * *" }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "4x Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300],
+      "typeVersion": 1.2,
+      "notes": "Fires at 8AM, 1PM, 6PM, 10PM Dubai time. Cron is UTC (subtract 4h): 04, 09, 14, 18 UTC."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine notification type based on current Dubai hour\nconst now = new Date();\nconst dubaiHour = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Dubai' })).getHours();\n\nlet notificationType = 'unknown';\nif (dubaiHour >= 7 && dubaiHour <= 9) notificationType = 'morning_brief';\nelse if (dubaiHour >= 12 && dubaiHour <= 14) notificationType = 'midday_check';\nelse if (dubaiHour >= 17 && dubaiHour <= 19) notificationType = 'evening_check';\nelse if (dubaiHour >= 21 || dubaiHour <= 1) notificationType = 'night_check';\n\nreturn [{ json: { notification_type: notificationType, dubai_hour: dubaiHour } }];"
+      },
+      "id": "determine-type",
+      "name": "Determine Type",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "outputKey": "morning", "value": "morning_brief" },
+            { "outputKey": "midday", "value": "midday_check" },
+            { "outputKey": "evening", "value": "evening_check" },
+            { "outputKey": "night", "value": "night_check" }
+          ]
+        },
+        "dataType": "string",
+        "value": "={{ $json.notification_type }}"
+      },
+      "id": "route-type",
+      "name": "Route by Type",
+      "type": "n8n-nodes-base.switch",
+      "position": [680, 300],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Morning Brief: Get today's briefing + habit streaks + dedup\nWITH briefing AS (\n    SELECT (life.explain_today(life.dubai_today()))->>'briefing' AS text\n),\nhabit_streaks AS (\n    SELECT string_agg(h.name || ' ' || s.current_streak || 'd', ', ') AS streaks\n    FROM life.habits h\n    CROSS JOIN LATERAL life.get_habit_streaks(h.id) s\n    WHERE h.is_active = TRUE AND s.current_streak > 0\n),\ncombined AS (\n    SELECT CASE\n        WHEN hs.streaks IS NOT NULL\n            THEN COALESCE(b.text, '') || ' Current streaks: ' || hs.streaks || '.'\n        ELSE b.text\n    END AS text\n    FROM briefing b, habit_streaks hs\n),\ndedup AS (\n    INSERT INTO core.notification_log (notification_type, sent_date, message)\n    SELECT 'morning_brief', life.dubai_today(), text\n    FROM combined\n    WHERE text IS NOT NULL\n    ON CONFLICT (notification_type, sent_date) DO NOTHING\n    RETURNING id, message\n)\nSELECT id, message AS text FROM dedup;",
+        "options": {}
+      },
+      "id": "morning-query",
+      "name": "Morning Brief Query",
+      "type": "n8n-nodes-base.postgres",
+      "position": [920, 100],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has-morning",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-morning",
+      "name": "Has Morning Brief?",
+      "type": "n8n-nodes-base.if",
+      "position": [1140, 100],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8123/api/services/notify/mobile_app_rafas_iphone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"☀️ Morning Brief\",\n  \"message\": \"{{ $json.text }}\",\n  \"data\": {\n    \"push\": {\n      \"sound\": \"default\",\n      \"interruption-level\": \"time-sensitive\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "send-morning",
+      "name": "Send Morning",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1360, 40],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HA Token",
+          "name": "Home Assistant Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Midday Check: Hydration + nutrition nudge + dedup\nWITH check_data AS (\n    SELECT\n        COALESCE(water_ml, 0) AS water_ml,\n        COALESCE(meals_logged, 0) AS meals_logged\n    FROM life.daily_facts\n    WHERE day = life.dubai_today()\n),\nnudge AS (\n    SELECT CASE\n        WHEN water_ml < 500 AND meals_logged = 0\n            THEN 'No water or meals logged yet. Stay hydrated and fuel up!'\n        WHEN water_ml < 500\n            THEN 'Water intake low (' || water_ml || 'ml). Grab a glass!'\n        WHEN meals_logged = 0\n            THEN 'No meals logged yet today.'\n    END AS message\n    FROM check_data\n),\ndedup AS (\n    INSERT INTO core.notification_log (notification_type, sent_date, message)\n    SELECT 'midday_check', life.dubai_today(), message\n    FROM nudge\n    WHERE message IS NOT NULL\n    ON CONFLICT (notification_type, sent_date) DO NOTHING\n    RETURNING id, message\n)\nSELECT id, message AS text FROM dedup;",
+        "options": {}
+      },
+      "id": "midday-query",
+      "name": "Midday Check Query",
+      "type": "n8n-nodes-base.postgres",
+      "position": [920, 300],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has-midday",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-midday",
+      "name": "Has Midday Nudge?",
+      "type": "n8n-nodes-base.if",
+      "position": [1140, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8123/api/services/notify/mobile_app_rafas_iphone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"💧 Midday Check\",\n  \"message\": \"{{ $json.text }}\",\n  \"data\": {\n    \"push\": {\n      \"sound\": \"default\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "send-midday",
+      "name": "Send Midday",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1360, 240],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HA Token",
+          "name": "Home Assistant Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Evening Check: Supplements + spending alert + dedup\nWITH check_data AS (\n    SELECT\n        (SELECT COUNT(*) FROM health.supplement_log WHERE date = life.dubai_today()) AS supps_taken,\n        COALESCE(df.spend_total, 0) AS spend_today,\n        (SELECT AVG(spend_total) FROM life.daily_facts WHERE day BETWEEN life.dubai_today() - 7 AND life.dubai_today() - 1) AS avg_spend\n    FROM life.daily_facts df\n    WHERE df.day = life.dubai_today()\n),\nnudge AS (\n    SELECT CASE\n        WHEN supps_taken = 0 AND spend_today > avg_spend * 1.5\n            THEN 'Don''t forget supplements. Spending (' || ROUND(spend_today) || ' AED) is above your weekly average.'\n        WHEN supps_taken = 0\n            THEN 'Don''t forget your supplements today.'\n        WHEN spend_today > avg_spend * 1.5\n            THEN 'Spending today (' || ROUND(spend_today) || ' AED) is 50%+ above your 7-day average.'\n    END AS message\n    FROM check_data\n),\ndedup AS (\n    INSERT INTO core.notification_log (notification_type, sent_date, message)\n    SELECT 'evening_check', life.dubai_today(), message\n    FROM nudge\n    WHERE message IS NOT NULL\n    ON CONFLICT (notification_type, sent_date) DO NOTHING\n    RETURNING id, message\n)\nSELECT id, message AS text FROM dedup;",
+        "options": {}
+      },
+      "id": "evening-query",
+      "name": "Evening Check Query",
+      "type": "n8n-nodes-base.postgres",
+      "position": [920, 500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has-evening",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-evening",
+      "name": "Has Evening Nudge?",
+      "type": "n8n-nodes-base.if",
+      "position": [1140, 500],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8123/api/services/notify/mobile_app_rafas_iphone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"🌅 Evening Check\",\n  \"message\": \"{{ $json.text }}\",\n  \"data\": {\n    \"push\": {\n      \"sound\": \"default\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "send-evening",
+      "name": "Send Evening",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1360, 440],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HA Token",
+          "name": "Home Assistant Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Night Check: Streak at-risk + incomplete habits + dedup\nWITH streaks AS (\n    SELECT life.get_streaks() AS data\n),\nat_risk_list AS (\n    SELECT array_agg(name) AS names\n    FROM (\n        SELECT 'Water' AS name FROM streaks\n        WHERE (data->'water'->>'current')::int >= 7\n          AND COALESCE((SELECT water_ml FROM life.daily_facts WHERE day = life.dubai_today()), 0) = 0\n        UNION ALL\n        SELECT 'Meals' FROM streaks\n        WHERE (data->'meals'->>'current')::int >= 7\n          AND COALESCE((SELECT meals_logged FROM life.daily_facts WHERE day = life.dubai_today()), 0) = 0\n        UNION ALL\n        SELECT 'Weight' FROM streaks\n        WHERE (data->'weight'->>'current')::int >= 7\n          AND (SELECT weight_kg FROM life.daily_facts WHERE day = life.dubai_today()) IS NULL\n        UNION ALL\n        SELECT 'Workout' FROM streaks\n        WHERE (data->'workout'->>'current')::int >= 7\n          AND COALESCE((SELECT workout_count FROM life.daily_facts WHERE day = life.dubai_today()), 0) = 0\n    ) s\n),\nincomplete_habits AS (\n    SELECT string_agg(name, ', ') AS names\n    FROM life.get_habits_today()\n    WHERE NOT completed_today AND frequency = 'daily'\n),\nnudge AS (\n    SELECT CASE\n        WHEN array_length(ar.names, 1) > 0 AND ih.names IS NOT NULL\n            THEN 'Streak at risk! ' || array_to_string(ar.names, ', ') || ' — don''t break it. You haven''t logged: ' || ih.names || '.'\n        WHEN array_length(ar.names, 1) > 0\n            THEN 'Streak at risk! ' || array_to_string(ar.names, ', ') || ' — don''t break it.'\n        WHEN ih.names IS NOT NULL\n            THEN 'You haven''t logged these habits today: ' || ih.names || '.'\n    END AS message\n    FROM at_risk_list ar, incomplete_habits ih\n),\ndedup AS (\n    INSERT INTO core.notification_log (notification_type, sent_date, message)\n    SELECT 'night_check', life.dubai_today(), message\n    FROM nudge\n    WHERE message IS NOT NULL\n    ON CONFLICT (notification_type, sent_date) DO NOTHING\n    RETURNING id, message\n)\nSELECT id, message AS text FROM dedup;",
+        "options": {}
+      },
+      "id": "night-query",
+      "name": "Night Check Query",
+      "type": "n8n-nodes-base.postgres",
+      "position": [920, 700],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "has-night",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-night",
+      "name": "Has Night Warning?",
+      "type": "n8n-nodes-base.if",
+      "position": [1140, 700],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.17.0.1:8123/api/services/notify/mobile_app_rafas_iphone",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"🌙 Evening Wrap-up\",\n  \"message\": \"{{ $json.text }}\",\n  \"data\": {\n    \"push\": {\n      \"sound\": \"default\",\n      \"interruption-level\": \"time-sensitive\"\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "send-night",
+      "name": "Send Night",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1360, 640],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HA Token",
+          "name": "Home Assistant Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "4x Daily Schedule": {
+      "main": [
+        [{ "node": "Determine Type", "type": "main", "index": 0 }]
+      ]
+    },
+    "Determine Type": {
+      "main": [
+        [{ "node": "Route by Type", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route by Type": {
+      "main": [
+        [{ "node": "Morning Brief Query", "type": "main", "index": 0 }],
+        [{ "node": "Midday Check Query", "type": "main", "index": 0 }],
+        [{ "node": "Evening Check Query", "type": "main", "index": 0 }],
+        [{ "node": "Night Check Query", "type": "main", "index": 0 }]
+      ]
+    },
+    "Morning Brief Query": {
+      "main": [
+        [{ "node": "Has Morning Brief?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Morning Brief?": {
+      "main": [
+        [{ "node": "Send Morning", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Midday Check Query": {
+      "main": [
+        [{ "node": "Has Midday Nudge?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Midday Nudge?": {
+      "main": [
+        [{ "node": "Send Midday", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Evening Check Query": {
+      "main": [
+        [{ "node": "Has Evening Nudge?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Evening Nudge?": {
+      "main": [
+        [{ "node": "Send Evening", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Night Check Query": {
+      "main": [
+        [{ "node": "Has Night Warning?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Night Warning?": {
+      "main": [
+        [{ "node": "Send Night", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "pinData": {}
+}

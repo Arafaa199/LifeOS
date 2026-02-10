@@ -1,0 +1,93 @@
+{
+  "name": "Nexus - DLQ Nightly Cleanup",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Daily 3AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ops.cleanup_dead_letters(30) as deleted_count",
+        "options": {}
+      },
+      "name": "Cleanup Old DLQ Entries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT life.cleanup_refresh_queue(24) as deleted_count",
+        "options": {}
+      },
+      "name": "Cleanup Refresh Queue",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "summary",
+              "value": "=Nightly cleanup: DLQ={{ $('Cleanup Old DLQ Entries').item.json.deleted_count }}, RefreshQueue={{ $json.deleted_count }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Log Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Daily 3AM": {
+      "main": [[{"node": "Cleanup Old DLQ Entries", "type": "main", "index": 0}]]
+    },
+    "Cleanup Old DLQ Entries": {
+      "main": [[{"node": "Cleanup Refresh Queue", "type": "main", "index": 0}]]
+    },
+    "Cleanup Refresh Queue": {
+      "main": [[{"node": "Log Summary", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {"name": "nexus", "createdAt": "2026-02-08T00:00:00.000Z"},
+    {"name": "maintenance", "createdAt": "2026-02-08T00:00:00.000Z"}
+  ],
+  "triggerCount": 1,
+  "versionId": "1"
+}

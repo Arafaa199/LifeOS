@@ -6,7 +6,7 @@ BEGIN;
 
 -- Drop new functions
 DROP FUNCTION IF EXISTS life.cleanup_refresh_queue(INT);
-DROP FUNCTION IF EXISTS life.process_pending_refreshes(INT);
+DROP FUNCTION IF EXISTS life.process_pending_refreshes(INT, INT);
 
 -- Drop new index
 DROP INDEX IF EXISTS life.idx_refresh_queue_pending;

@@ -6,14 +6,12 @@ import Foundation
 protocol APIClientProtocol: Sendable {
     // Health logging
     func logFood(_ text: String, foodId: Int?, mealType: String?) async throws -> NexusResponse
-    func logWater(amountML: Int) async throws -> NexusResponse
     func logWeight(kg: Double) async throws -> NexusResponse
     func logMood(mood: Int, energy: Int, notes: String?) async throws -> NexusResponse
     func logUniversal(_ text: String) async throws -> NexusResponse
     
     // Offline support (returns result tuple with classification)
     func logFoodOffline(_ text: String) async -> (response: NexusResponse?, result: OfflineOperationResult)
-    func logWaterOffline(_ amount: Int) async -> (response: NexusResponse?, result: OfflineOperationResult)
     func logUniversalOffline(_ text: String) async -> (response: NexusResponse?, result: OfflineOperationResult)
     
     // Finance
@@ -43,15 +41,6 @@ actor MockAPIClient: APIClientProtocol {
             success: shouldSucceed,
             message: "Food logged: \(text)",
             data: ResponseData(calories: 250, protein: 20, total_water_ml: nil, weight_kg: nil)
-        )
-    }
-    
-    func logWater(amountML: Int) async throws -> NexusResponse {
-        try await simulateRequest()
-        return NexusResponse(
-            success: shouldSucceed,
-            message: "Water logged",
-            data: ResponseData(calories: nil, protein: nil, total_water_ml: amountML, weight_kg: nil)
         )
     }
     
@@ -85,15 +74,6 @@ actor MockAPIClient: APIClientProtocol {
     func logFoodOffline(_ text: String) async -> (response: NexusResponse?, result: OfflineOperationResult) {
         do {
             let response = try await logFood(text, foodId: nil, mealType: nil)
-            return (response, .success)
-        } catch {
-            return (nil, .failed(error))
-        }
-    }
-
-    func logWaterOffline(_ amount: Int) async -> (response: NexusResponse?, result: OfflineOperationResult) {
-        do {
-            let response = try await logWater(amountML: amount)
             return (response, .success)
         } catch {
             return (nil, .failed(error))

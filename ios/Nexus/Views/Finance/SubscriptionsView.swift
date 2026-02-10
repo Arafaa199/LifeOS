@@ -1,9 +1,12 @@
 import SwiftUI
 import Combine
+import UIKit
 
 /// Displays recurring subscriptions with next renewal dates and monthly total
 struct SubscriptionsView: View {
     @StateObject private var viewModel = SubscriptionsViewModel()
+
+    private let haptics = UIImpactFeedbackGenerator(style: .light)
 
     var body: some View {
         List {
@@ -54,6 +57,7 @@ struct SubscriptionsView: View {
         .navigationTitle("Subscriptions")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable {
+            haptics.impactOccurred()
             await viewModel.load()
         }
         .overlay {
@@ -67,20 +71,11 @@ struct SubscriptionsView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "repeat.circle")
-                .font(.system(size: 36))
-                .foregroundColor(.secondary)
-            Text("No subscriptions found")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Text("Add recurring items marked as monthly to see them here")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
+        ThemeEmptyState(
+            icon: "repeat.circle",
+            headline: "No Subscriptions Found",
+            description: "Add recurring items marked as monthly to see them here."
+        )
     }
 }
 

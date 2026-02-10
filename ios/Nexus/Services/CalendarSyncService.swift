@@ -54,26 +54,31 @@ class CalendarSyncService: ObservableObject {
         }
     }
 
+    /// Check if calendar access is granted, handling iOS 17 deprecation of .authorized
+    private func isCalendarAuthorized() -> Bool {
+        if #available(iOS 17.0, *) {
+            return authorizationStatus == .fullAccess
+        } else {
+            return authorizationStatus == .authorized
+        }
+    }
+
     /// Ensures calendar access is granted, requesting if needed
     private func ensureCalendarAccess() async throws {
         updateAuthorizationStatus()
 
-        switch authorizationStatus {
-        case .fullAccess, .authorized:
-            return // Already have access
-        case .notDetermined:
-            // Request access
+        if isCalendarAuthorized() {
+            return
+        } else if authorizationStatus == .notDetermined {
             let granted = await requestAccess()
             if !granted {
                 throw APIError.custom("Calendar access denied. Please enable Calendar access in Settings > Privacy > Calendars.")
             }
-        case .writeOnly:
-            // iOS 17+ writeOnly doesn't allow reading calendars, need full access
+        } else if authorizationStatus == .writeOnly {
             throw APIError.custom("Limited calendar access. Please enable Full Access in Settings > Privacy > Calendars > Nexus.")
-        case .denied, .restricted:
+        } else {
+            // .denied, .restricted, or unknown
             throw APIError.custom("Calendar access denied. Please enable Calendar access in Settings > Privacy > Calendars.")
-        @unknown default:
-            throw APIError.custom("Unknown calendar authorization status. Please check Settings > Privacy > Calendars.")
         }
     }
 
@@ -83,7 +88,7 @@ class CalendarSyncService: ObservableObject {
         guard !isSyncing else { return }
 
         updateAuthorizationStatus()
-        guard authorizationStatus == .fullAccess || authorizationStatus == .authorized else {
+        guard isCalendarAuthorized() else {
             logger.warning("[CalendarSync] Not authorized to access calendar")
             return
         }
@@ -231,7 +236,7 @@ class CalendarSyncService: ObservableObject {
 
         let payload = CalendarSyncPayload(
             client_id: UUID().uuidString,
-            device: await UIDevice.current.name,
+            device: UIDevice.current.name,
             source: "ios_eventkit",
             captured_at: isoFormatter.string(from: Date()),
             events: events
@@ -265,10 +270,11 @@ class CalendarSyncService: ObservableObject {
         } else if let existing = existingEvents[dbRow.event_id] {
             ekEvent = existing
         } else {
-            // Fallback: try to find by title+start tuple
+            // Fallback: try to find by title+calendar+start tuple (may match wrong event if duplicates exist)
             if let match = existingEvents.values.first(where: {
                 $0.title == dbRow.title && $0.calendar?.title == dbRow.calendar_name && $0.startDate == dbRow.start_at_parsed
             }) {
+                logger.warning("Event \(dbRow.event_id) not found by ID, matched by title+date fallback: '\(dbRow.title ?? "nil")'")
                 ekEvent = match
             } else {
                 ekEvent = EKEvent(eventStore: eventStore)

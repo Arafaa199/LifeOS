@@ -26,22 +26,54 @@
     },
     {
       "parameters": {
+        "jsCode": "const input = $input.first().json.body || $input.first().json;\nconst weight_kg = parseFloat(input.weight_kg);\nconst body_fat_pct = input.body_fat_pct ? parseFloat(input.body_fat_pct) : null;\n\nif (!weight_kg || isNaN(weight_kg)) {\n  throw new Error('Weight in kg is required (must be a valid number)');\n}\n\nif (weight_kg < 30 || weight_kg > 300) {\n  throw new Error('Weight must be between 30 kg and 300 kg');\n}\n\nif (body_fat_pct !== null && (body_fat_pct < 1 || body_fat_pct > 99)) {\n  throw new Error('Body fat percentage must be between 1 and 99');\n}\n\nreturn {\n  weight_kg: weight_kg,\n  body_fat_pct: body_fat_pct,\n  source: input.source || 'webhook',\n  logged_at: new Date().toISOString()\n};"
+      },
+      "id": "validate-input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300],
+      "typeVersion": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "has-error",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "exists" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-parse-error",
+      "name": "Parse OK?",
+      "type": "n8n-nodes-base.if",
+      "position": [680, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES (NOW(), (NOW() AT TIME ZONE 'Asia/Dubai')::date, '{{ $json.body.source || \"webhook\" }}', 'weight', {{ $json.body.weight_kg }}, 'kg')\nON CONFLICT (date, metric_type, source) DO UPDATE SET value = EXCLUDED.value, recorded_at = NOW()\nRETURNING id;",
+        "query": "=INSERT INTO health.metrics (recorded_at, date, source, metric_type, value, unit)\nVALUES (NOW(), (NOW() AT TIME ZONE 'Asia/Dubai')::date, '{{ $json.source }}', 'weight', {{ $json.weight_kg }}, 'kg')\nON CONFLICT (date, metric_type, source) DO UPDATE SET value = EXCLUDED.value, recorded_at = NOW()\nRETURNING id;",
         "options": {}
       },
       "id": "insert-weight",
       "name": "Insert Weight",
       "type": "n8n-nodes-base.postgres",
       "position": [
-        460,
+        900,
         300
       ],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Postgres account"
+          "name": "Nexus PostgreSQL"
         }
       }
     },
@@ -55,15 +87,76 @@
       "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
       "position": [
-        680,
+        1100,
         300
       ],
       "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT ops.enqueue_dead_letter(\n  'nexus-weight',\n  'Validate Input',\n  '/webhook/nexus-weight',\n  '{{ ($json.error || $json.message || \"Unknown parse error\").replace(/'/g, \"''\") }}',\n  '',\n  '',\n  '{{ JSON.stringify($('Validate Input').item.json).replace(/'/g, \"''\") }}'::jsonb,\n  3\n) as dlq_id;",
+        "options": {}
+      },
+      "id": "log-to-dlq",
+      "name": "Log to DLQ",
+      "type": "n8n-nodes-base.postgres",
+      "position": [900, 500],
+      "typeVersion": 2.5,
+      "credentials": {
+        "postgres": {
+          "id": "p5cyLWCZ9Db6GiiQ",
+          "name": "Nexus PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Failed to process weight log\",\n  \"code\": \"PROCESSING_ERROR\"\n}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 500]
     }
   ],
   "connections": {
     "Webhook": {
       "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Parse OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OK?": {
+      "main": [
+        [
+          {
+            "node": "Log to DLQ",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Insert Weight",
@@ -78,6 +171,17 @@
         [
           {
             "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to DLQ": {
+      "main": [
+        [
+          {
+            "node": "Error Response",
             "type": "main",
             "index": 0
           }

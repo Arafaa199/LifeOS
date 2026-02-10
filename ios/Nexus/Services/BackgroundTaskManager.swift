@@ -40,8 +40,8 @@ class BackgroundTaskManager {
     private func handleHealthRefresh(task: BGAppRefreshTask) {
         scheduleHealthRefresh()
 
-        let syncTask = Task {
-            await performHealthSync()
+        let syncTask = Task { @MainActor in
+            await self.performHealthSync()
         }
 
         task.expirationHandler = {

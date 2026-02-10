@@ -58,7 +58,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://172.17.0.1:8025/send-email",
+        "url": "{{ $env.MAILHOG_URL }}/send-email",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ \"to\": \"arafa@rfanw.com\", \"subject\": \"LifeOS Weekly Insight Report - \" + $('Generate & Store Report').item.json.out_week_start + \" to \" + $('Generate & Store Report').item.json.out_week_end, \"body\": $('Fetch Report Markdown').item.json.markdown_report, \"format\": \"markdown\" }) }}",

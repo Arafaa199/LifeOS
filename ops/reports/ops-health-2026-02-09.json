@@ -1,0 +1,28 @@
+{
+  "status": "healthy",
+  "checks": {
+    "transactions": {
+      "age_hours": -1.9,
+      "count": 1377,
+      "status": "healthy"
+    },
+    "whoop": {
+      "age_hours": 0.2,
+      "status": "healthy"
+    },
+    "recurring_items": {
+      "active_count": 18,
+      "status": "healthy"
+    },
+    "daily_facts": {
+      "age_hours": 0,
+      "status": "healthy"
+    },
+    "database": {
+      "size_mb": 1024,
+      "status": "healthy"
+    }
+  },
+  "timestamp": "2026-02-09T19:30:14.213091+00:00",
+  "source": "ops-health-probe"
+}

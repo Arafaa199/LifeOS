@@ -1,6 +1,6 @@
 {
   "id": "cza7DDu3jXmQexAS",
-  "name": "LifeOS Summaries API",
+  "name": "[EXPERIMENTAL] LifeOS Summaries API - Multiple endpoints (Daily/Weekly/Health)",
   "active": true,
   "nodes": [
     {

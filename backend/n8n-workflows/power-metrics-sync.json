@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "url": "http://172.17.0.1:8123/api/states",
+        "url": "{{ $env.HOME_ASSISTANT_URL }}/api/states",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}
@@ -79,7 +79,8 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO home.power_log (recorded_at, date, device_name, entity_id, power_w, voltage_v, current_a)\nVALUES \n{{ $input.all().map(item => \n  `('${item.json.recorded_at}', '${item.json.date}', '${item.json.device_name}', '${item.json.entity_id}', ${item.json.power_w || 'NULL'}, ${item.json.voltage_v || 'NULL'}, ${item.json.current_a || 'NULL'})`\n).join(',\\n') }}\nON CONFLICT DO NOTHING\nRETURNING id, device_name, power_w;",
+        "query": "=WITH value_rows AS (\n  SELECT * FROM json_to_recordset($1::json) AS x(\n    recorded_at TEXT,\n    date TEXT,\n    device_name TEXT,\n    entity_id TEXT,\n    power_w NUMERIC,\n    voltage_v NUMERIC,\n    current_a NUMERIC\n  )\n)\nINSERT INTO home.power_log (recorded_at, date, device_name, entity_id, power_w, voltage_v, current_a)\nSELECT \n  recorded_at::TIMESTAMP WITH TIME ZONE,\n  date::DATE,\n  device_name,\n  entity_id,\n  power_w,\n  voltage_v,\n  current_a\nFROM value_rows\nON CONFLICT DO NOTHING\nRETURNING id, device_name, power_w;",
+        "queryParams": "={{ JSON.stringify($input.all().map(item => item.json)) }}",
         "options": {}
       },
       "id": "insert-metrics",

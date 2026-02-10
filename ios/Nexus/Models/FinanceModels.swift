@@ -1198,3 +1198,116 @@ struct SystemFeedStatus: Codable, Identifiable {
         }
     }
 }
+
+// MARK: - Financial Position Response
+
+struct FinancialPositionResponse: Codable {
+    let success: Bool
+    let summary: FinancialSummary
+    let accounts: [AccountBalance]?
+    let upcomingPayments: [UpcomingPayment]?
+    let monthlyObligations: MonthlyObligations?
+
+    enum CodingKeys: String, CodingKey {
+        case success, summary, accounts
+        case upcomingPayments = "upcoming_payments"
+        case monthlyObligations = "monthly_obligations"
+    }
+}
+
+struct FinancialSummary: Codable {
+    let totalAssets: Double
+    let totalLiabilities: Double
+    let netWorth: Double
+    let upcoming30d: Double
+    let availableAfterBills: Double
+    let currency: String
+    let asOf: String
+
+    enum CodingKeys: String, CodingKey {
+        case currency
+        case totalAssets = "total_assets"
+        case totalLiabilities = "total_liabilities"
+        case netWorth = "net_worth"
+        case upcoming30d = "upcoming_30d"
+        case availableAfterBills = "available_after_bills"
+        case asOf = "as_of"
+    }
+}
+
+struct AccountBalance: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let institution: String?
+    let type: String?
+    let balance: Double
+    let currency: String
+    let isLiability: Bool
+    let creditLimit: Double?
+    let availableCredit: Double?
+    let balanceDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, institution, type, balance, currency
+        case isLiability = "is_liability"
+        case creditLimit = "credit_limit"
+        case availableCredit = "available_credit"
+        case balanceDate = "balance_date"
+    }
+}
+
+struct UpcomingPayment: Codable, Identifiable {
+    var id: String { "\(type)-\(name)-\(dueDate ?? "")" }
+    let type: String  // "recurring" or "installment"
+    let name: String
+    let amount: Double
+    let currency: String
+    let dueDate: String?
+    let daysUntilDue: Int?
+    let urgency: String?  // "overdue", "due_soon", "upcoming", "future"
+    let installmentsRemaining: Int?
+    let totalRemaining: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case type, name, amount, currency, urgency
+        case dueDate = "due_date"
+        case daysUntilDue = "days_until_due"
+        case installmentsRemaining = "installments_remaining"
+        case totalRemaining = "total_remaining"
+    }
+
+    var isOverdue: Bool {
+        urgency == "overdue"
+    }
+
+    var isDueSoon: Bool {
+        urgency == "due_soon"
+    }
+
+    var dueDateFormatted: String? {
+        guard let dateStr = dueDate else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        if let date = formatter.date(from: dateStr) {
+            formatter.dateFormat = "MMM d"
+            return formatter.string(from: date)
+        }
+        return dateStr
+    }
+}
+
+struct MonthlyObligations: Codable {
+    let recurringTotal: Double
+    let installmentsTotal: Double
+    let count: Int
+
+    enum CodingKeys: String, CodingKey {
+        case count
+        case recurringTotal = "recurring_total"
+        case installmentsTotal = "installments_total"
+    }
+
+    var total: Double {
+        recurringTotal + installmentsTotal
+    }
+}

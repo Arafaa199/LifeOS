@@ -99,6 +99,8 @@ struct ReceiptDetailView: View {
         } header: {
             Text("Details")
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Receipt header: \(receipt.store_name ?? receipt.vendor), \(formatDate(receipt.receipt_date)), total \(formatAmount(receipt.total_amount, currency: receipt.currency))")
     }
 
     private func nutritionSection(_ nutrition: ReceiptNutritionSummary) -> some View {
@@ -138,6 +140,8 @@ struct ReceiptDetailView: View {
         .padding(.vertical, 8)
         .background(color.opacity(0.1))
         .cornerRadius(8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value)\(suffix)")
     }
 
     private func itemsSection(_ items: [ReceiptItem]) -> some View {
@@ -236,6 +240,9 @@ struct ReceiptLineItemRow: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Item: \(item.displayDescription)\(item.quantity.map { ", quantity \($0)" } ?? ""), price \(String(format: "%.2f", item.line_total))")
+        .accessibilityHint("Double tap to link this item to a food entry")
     }
 
     @ViewBuilder
@@ -280,6 +287,9 @@ struct ReceiptLineItemRow: View {
         .padding(.vertical, 6)
         .background(NexusTheme.Colors.Semantic.amber.opacity(0.1))
         .cornerRadius(8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Matched food: \(item.food_name ?? "Linked")\(item.food_brand.map { ", \($0)" } ?? "")\(item.calories_per_100g.map { ", \(Int($0)) calories per 100 grams" } ?? "")")
+        .accessibilityHint("Linked to nutrition database\(item.is_user_confirmed == true ? ", confirmed by user" : "")")
     }
 
     private var linkButton: some View {
@@ -296,5 +306,8 @@ struct ReceiptLineItemRow: View {
             .background(Color.accentColor.opacity(0.1))
             .cornerRadius(8)
         }
+        .accessibilityLabel("Link to food")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to match this receipt item to a food database entry for nutrition tracking")
     }
 }

@@ -108,9 +108,9 @@ final class QuickActionManager: ObservableObject {
 
     private func executeLogWater() async {
         do {
-            let response = try await NexusAPI.shared.logWater(amountML: 250)
+            let response = try await HabitsAPI.shared.logWater()
             if response.success {
-                showNotification(title: "Water Logged", body: "Added 250ml of water")
+                showNotification(title: "Water Logged", body: "Water habit completed")
             }
         } catch {
             showNotification(title: "Failed", body: "Could not log water")

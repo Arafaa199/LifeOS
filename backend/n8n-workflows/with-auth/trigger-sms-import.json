@@ -19,7 +19,7 @@
     },
     {
       "parameters": {
-        "command": "ssh rafa@nexus-mac 'cd /Users/rafa/Cyber/Infrastructure/Nexus-setup/scripts && export NEXUS_PASSWORD=\"${NEXUS_PASSWORD}\" && node import-sms-transactions.js 1'",
+        "command": "ssh rafa@nexus-mac 'cd {{ $env.NEXUS_SCRIPTS_DIR }} && export NEXUS_PASSWORD=\"${NEXUS_PASSWORD}\" && node import-sms-transactions.js 1'",
         "options": {}
       },
       "name": "Execute Import on Mac",

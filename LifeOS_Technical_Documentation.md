@@ -7,7 +7,7 @@
 **Repository**: https://github.com/Arafaa199/LifeOS
 **Local Path**: `~/Cyber/Dev/Projects/LifeOS/`
 
-*Last Updated: 2026-02-02*
+*Last Updated: 2026-02-08*
 
 ---
 
@@ -791,12 +791,43 @@ lo-status / lo-queue / lo-state   # LifeOS-Ops
 | 129-134 | FX pairing, non-economic exclusion, recurring due advance, nutrition DB, Dubai TZ | Feb 2026 |
 | **135** | **Deprecate normalized schema** — pipeline now raw → life.daily_facts | **Feb 2026** |
 | **136** | **ops.schema_migrations** tracking table + backend/migrate.sh | **Feb 2026** |
+| 137-146 | iOS NexusTheme, enhanced intents, haptic feedback, error handling | Feb 2026 |
+| 147-150 | Music listening events, daily_facts music/fasting columns, explain_today | Feb 2026 |
+| 151-166 | Trust hardening, receipts nutrition linking, reminder sync fixes | Feb 2026 |
+| **167** | **Receipt auto-matching** — trigram search, 98.2% match rate | **Feb 2026** |
+| **168** | **Refresh queue background-poll redesign** — fixes txid race condition | **Feb 2026** |
+| **169** | **Data integrity constraints** — NULL-safe unique indexes, ON DELETE RESTRICT | **Feb 2026** |
+| 170-172 | Calendar+medications combined view, reminder/medication toggle webhooks | Feb 2026 |
+| 173 | Weight fallback in dashboard, fix v_daily_mood_summary view | Feb 2026 |
+| 174 | Align finance with actuals — Tabby Credit, recurring items, Feb budgets | Feb 2026 |
+| 175 | January cleanup — Grocery→Groceries, Uncategorized→Salary | Feb 2026 |
+| **176** | **Financial position** — account_balances, v_upcoming_payments, auto-reconciliation | **Feb 2026** |
 
 ---
 
 ## 10. Changelog
 
 Append-only. Agents and humans add entries after changes.
+
+### 2026-02-08 - Financial Position & Auto-Reconciliation (Migration 174-176)
+
+- Added `finance.account_balances` table for current balances
+- Added `finance.v_upcoming_payments` unified view (recurring + installments)
+- Added `finance.get_financial_position()` function returning JSONB
+- Added `finance.reconcile_payment()` trigger for auto-matching transactions
+- Created iOS `FinancialPositionView.swift` with net worth, accounts, upcoming payments
+- Created `FinanceQuickCard.swift` for dashboard summary
+- n8n workflows: `financial-position-webhook.json`, `weekly-bills-notification.json`
+- Documentation cleanup: archived outdated `Overall_Setup.md`
+
+### 2026-02-07 - NexusTheme UI Overhaul (Migration 137-150)
+
+- Created unified `NexusTheme.swift` design system
+- Updated 89 files with consistent theming
+- Added haptic feedback across key interactions
+- Music listening events pipeline (Apple Music → Postgres)
+- `explain_today` daily briefing with data gap awareness
+- Trust hardening: fixed silent failures across ViewModels
 
 ### 2026-02-03 - Normalized Schema Removal (Migration 135-136)
 

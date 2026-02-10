@@ -60,6 +60,16 @@ class SharedStorage {
         static let budgetTopCategoryLimit = "budget_top_category_limit"
     }
 
+    // MARK: - Recent Log Entry
+
+    struct RecentLogEntry: Codable {
+        let type: String
+        let description: String
+        let timestamp: TimeInterval
+        let calories: Int
+        let protein: Double
+    }
+
     // MARK: - Goals
 
     struct Goals {
@@ -117,15 +127,15 @@ class SharedStorage {
     }
 
     func saveRecentLog(type: String, description: String, calories: Int?, protein: Double?) {
-        var logs = getRecentLogs()
+        var logs = getRecentLogEntries()
 
-        let log: [String: Any] = [
-            "type": type,
-            "description": description,
-            "timestamp": Date().timeIntervalSince1970,
-            "calories": calories ?? 0,
-            "protein": protein ?? 0.0
-        ]
+        let log = RecentLogEntry(
+            type: type,
+            description: description,
+            timestamp: Date().timeIntervalSince1970,
+            calories: calories ?? 0,
+            protein: protein ?? 0.0
+        )
 
         logs.insert(log, at: 0)
 
@@ -134,7 +144,7 @@ class SharedStorage {
             logs = Array(logs.prefix(10))
         }
 
-        if let data = try? JSONSerialization.data(withJSONObject: logs) {
+        if let data = try? JSONEncoder().encode(logs) {
             defaults?.set(data, forKey: Keys.recentLogs)
         }
     }
@@ -160,12 +170,43 @@ class SharedStorage {
         defaults?.double(forKey: Keys.todayWeight)
     }
 
-    func getRecentLogs() -> [[String: Any]] {
+    /// Returns recent logs as type-safe Codable entries
+    func getRecentLogEntries() -> [RecentLogEntry] {
         guard let data = defaults?.data(forKey: Keys.recentLogs),
-              let logs = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+              let logs = try? JSONDecoder().decode([RecentLogEntry].self, from: data) else {
+            // Try legacy format migration
+            if let data = defaults?.data(forKey: Keys.recentLogs),
+               let legacyLogs = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                return legacyLogs.compactMap { dict in
+                    guard let type = dict["type"] as? String,
+                          let description = dict["description"] as? String,
+                          let timestamp = dict["timestamp"] as? TimeInterval else { return nil }
+                    return RecentLogEntry(
+                        type: type,
+                        description: description,
+                        timestamp: timestamp,
+                        calories: dict["calories"] as? Int ?? 0,
+                        protein: dict["protein"] as? Double ?? 0.0
+                    )
+                }
+            }
             return []
         }
         return logs
+    }
+
+    /// Legacy accessor for backwards compatibility
+    @available(*, deprecated, message: "Use getRecentLogEntries() instead")
+    func getRecentLogs() -> [[String: Any]] {
+        getRecentLogEntries().map { entry in
+            [
+                "type": entry.type,
+                "description": entry.description,
+                "timestamp": entry.timestamp,
+                "calories": entry.calories,
+                "protein": entry.protein
+            ]
+        }
     }
 
     func getLastUpdateDate() -> Date? {

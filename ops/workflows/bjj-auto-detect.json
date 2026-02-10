@@ -7,7 +7,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 22 * * *"
+              "expression": "0 18 * * *"
             }
           ]
         }
@@ -17,7 +17,7 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "position": [240, 300],
       "typeVersion": 1.2,
-      "notes": "Runs at 22:00 Dubai time (UTC+4) = 18:00 UTC. Adjust cron if n8n server is in different timezone."
+      "notes": "Runs at 22:00 Dubai time = 18:00 UTC. n8n uses UTC."
     },
     {
       "parameters": {
@@ -69,7 +69,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Query location history for gym presence today\n-- Gym coordinates: 25.07822362022749, 55.14869064417944 (200m radius)\n-- Looking for 60+ minutes between 7-10 PM Dubai time\nWITH gym_visits AS (\n  SELECT\n    recorded_at,\n    latitude,\n    longitude,\n    -- Calculate distance from gym (Haversine approximation)\n    (\n      6371000 * acos(\n        cos(radians(25.07822362022749)) * cos(radians(latitude)) *\n        cos(radians(longitude) - radians(55.14869064417944)) +\n        sin(radians(25.07822362022749)) * sin(radians(latitude))\n      )\n    ) as distance_meters\n  FROM life.location_history\n  WHERE recorded_at AT TIME ZONE 'Asia/Dubai' >= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '19 hours'\n    AND recorded_at AT TIME ZONE 'Asia/Dubai' <= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '22 hours'\n),\nat_gym AS (\n  SELECT\n    recorded_at,\n    distance_meters\n  FROM gym_visits\n  WHERE distance_meters <= 200\n)\nSELECT\n  COUNT(*) as data_points,\n  MIN(recorded_at) as first_seen,\n  MAX(recorded_at) as last_seen,\n  EXTRACT(EPOCH FROM (MAX(recorded_at) - MIN(recorded_at))) / 60 as duration_minutes,\n  AVG(distance_meters) as avg_distance\nFROM at_gym\nHAVING COUNT(*) >= 2;\n",
+        "query": "-- Query gym presence today using core.match_location()\n-- Looking for 60+ minutes between 7-10 PM Dubai time\nWITH gym_pings AS (\n  SELECT\n    l.recorded_at,\n    m.distance_meters\n  FROM life.locations l\n  CROSS JOIN LATERAL core.match_location(l.latitude::double precision, l.longitude::double precision) m\n  WHERE l.recorded_at AT TIME ZONE 'Asia/Dubai' >= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '19 hours'\n    AND l.recorded_at AT TIME ZONE 'Asia/Dubai' <= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '22 hours'\n    AND m.category = 'gym'\n)\nSELECT\n  COUNT(*) as data_points,\n  MIN(recorded_at) as first_seen,\n  MAX(recorded_at) as last_seen,\n  EXTRACT(EPOCH FROM (MAX(recorded_at) - MIN(recorded_at))) / 60 as duration_minutes,\n  AVG(distance_meters) as avg_distance\nFROM gym_pings\nHAVING COUNT(*) >= 2;\n",
         "options": {}
       },
       "id": "query-location",

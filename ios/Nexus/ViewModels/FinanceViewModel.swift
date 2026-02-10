@@ -132,10 +132,11 @@ class FinanceViewModel: ObservableObject {
         }
         if let transactions = data.recentTransactions {
             recentTransactions = transactions.map { $0.normalized() }
-            // Calculate pages loaded: initial fetch is 100, pagination uses 50 per page
-            // So 100 transactions = 2 pages, next "Load More" should fetch offset 100
-            transactionsPage = max(1, (transactions.count + 49) / 50)
-            hasMoreTransactions = transactions.count >= 50
+            // Summary endpoint returns a 30-day snapshot (up to 100).
+            // Pagination via loadMoreTransactions uses recentTransactions.count as offset,
+            // so we just reset the page counter here.
+            transactionsPage = 0
+            hasMoreTransactions = true
         }
         if let budgets = data.budgets {
             summary.budgets = budgets
@@ -194,19 +195,27 @@ class FinanceViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            let offset = transactionsPage * 50
-            let response = try await api.fetchTransactions(offset: offset, limit: 50)
+            let offset = recentTransactions.count
+            let response = try await api.fetchTransactions(
+                offset: offset,
+                limit: 50,
+                startDate: activeMonthFilter?.startDate,
+                endDate: activeMonthFilter?.endDate
+            )
 
             if response.success, let data = response.data, let newTransactions = data.recentTransactions {
-                // Append new transactions to existing list
                 let normalizedTransactions = newTransactions.map { $0.normalized() }
-                recentTransactions.append(contentsOf: normalizedTransactions)
 
-                // Check if we got fewer results than requested
+                // Deduplicate: filter out any transactions whose id already exists
+                let existingIds = Set(recentTransactions.compactMap { $0.id })
+                let uniqueNew = normalizedTransactions.filter { tx in
+                    guard let id = tx.id else { return true }
+                    return !existingIds.contains(id)
+                }
+                recentTransactions.append(contentsOf: uniqueNew)
+
                 if normalizedTransactions.count < 50 {
                     hasMoreTransactions = false
-                } else {
-                    transactionsPage += 1
                 }
 
                 lastUpdated = Date()
@@ -291,11 +300,53 @@ class FinanceViewModel: ObservableObject {
         hasMoreTransactions = true
         isLoadingMore = false
         recentTransactions = []
+        activeMonthFilter = nil
         await coordinator.sync(.finance)
         if coordinator.domainStates[.finance]?.lastError != nil {
             errorMessage = "Could not fetch latest data. Showing cached data."
         }
     }
+
+    // MARK: - Month-Filtered Loading
+
+    /// Tracks the active month filter for date-filtered queries (nil = current month via summary)
+    var activeMonthFilter: (startDate: String, endDate: String)?
+
+    func loadMonthTransactions(startDate: String, endDate: String) async {
+        transactionsPage = 0
+        hasMoreTransactions = true
+        isLoadingMore = false
+        recentTransactions = []
+        activeMonthFilter = (startDate, endDate)
+        errorMessage = nil
+
+        isLoadingMore = true
+        do {
+            let response = try await api.fetchTransactions(offset: 0, limit: 50, startDate: startDate, endDate: endDate)
+            if response.success, let data = response.data, let txns = data.recentTransactions {
+                recentTransactions = txns.map { $0.normalized() }
+                hasMoreTransactions = txns.count >= 50
+
+                // Compute month totals from the transactions
+                summary.totalSpent = recentTransactions
+                    .filter { $0.amount < 0 }
+                    .reduce(0) { $0 + abs($1.amount) }
+                summary.totalIncome = recentTransactions
+                    .filter { incomeCategories.contains($0.category ?? "") || $0.amount > 0 }
+                    .reduce(0) { $0 + abs($1.amount) }
+
+                lastUpdated = Date()
+            } else {
+                hasMoreTransactions = false
+            }
+        } catch {
+            logger.error("loadMonthTransactions error: \(error.localizedDescription)")
+            errorMessage = "Failed to load month data"
+        }
+        isLoadingMore = false
+    }
+
+    private let incomeCategories: Set<String> = ["Income", "Salary", "Deposit", "Refund"]
 
     func triggerSMSImport() async {
         guard !operationInProgress else {

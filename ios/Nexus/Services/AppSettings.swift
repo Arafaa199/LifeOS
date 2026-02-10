@@ -55,6 +55,16 @@ class AppSettings: ObservableObject {
     @Published var musicLoggingEnabled: Bool {
         didSet { UserDefaults.standard.set(musicLoggingEnabled, forKey: "musicLoggingEnabled") }
     }
+    @Published var locationTrackingEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(locationTrackingEnabled, forKey: "locationTrackingEnabled")
+            if locationTrackingEnabled {
+                LocationTrackingService.shared.startTracking()
+            } else {
+                LocationTrackingService.shared.stopTracking()
+            }
+        }
+    }
 
     @Published var appearanceMode: AppearanceMode {
         didSet { UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode") }
@@ -73,6 +83,8 @@ class AppSettings: ObservableObject {
         self.documentsSyncEnabled = UserDefaults.standard.object(forKey: "documentsSyncEnabled") as? Bool ?? true
         // Music logging enabled by default
         self.musicLoggingEnabled = UserDefaults.standard.object(forKey: "musicLoggingEnabled") as? Bool ?? true
+        // Location tracking disabled by default (requires explicit opt-in + permission)
+        self.locationTrackingEnabled = UserDefaults.standard.object(forKey: "locationTrackingEnabled") as? Bool ?? false
         // Appearance mode defaults to system
         if let savedMode = UserDefaults.standard.string(forKey: "appearanceMode"),
            let mode = AppearanceMode(rawValue: savedMode) {
