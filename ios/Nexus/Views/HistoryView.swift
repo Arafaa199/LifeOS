@@ -120,7 +120,7 @@ struct HistoryView: View {
     private var weekStrip: some View {
         HStack(spacing: 8) {
             ForEach(-3...3, id: \.self) { offset in
-                let date = calendar.date(byAdding: .day, value: offset, to: selectedDate)!
+                let date = calendar.date(byAdding: .day, value: offset, to: selectedDate) ?? selectedDate
                 let isSelected = calendar.isDate(date, inSameDayAs: selectedDate)
                 let isToday = calendar.isDateInToday(date)
                 let isFuture = date > Date()

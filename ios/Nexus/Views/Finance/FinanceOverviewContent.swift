@@ -397,8 +397,8 @@ struct FinanceOverviewContent: View {
         } else {
             // Past month: load from transactions endpoint with date filter
             let cal = Calendar.current
-            let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: selectedMonth))!
-            let startOfNextMonth = cal.date(byAdding: .month, value: 1, to: startOfMonth)!
+            guard let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: selectedMonth)),
+                  let startOfNextMonth = cal.date(byAdding: .month, value: 1, to: startOfMonth) else { return }
 
             let fmt = DateFormatter()
             fmt.dateFormat = "yyyy-MM-dd"

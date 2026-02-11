@@ -33,14 +33,23 @@
     },
     {
       "parameters": {
+        "jsCode": "const budgetMap = new Map();\nfor (const item of $input.all()) {\n  const r = item.json;\n  if (!budgetMap.has(r.id)) {\n    budgetMap.set(r.id, {\n      id: r.id,\n      month: r.month,\n      category: r.category,\n      budget_amount: parseFloat(r.budget_amount) || 0,\n      spent: parseFloat(r.spent) || 0,\n      remaining: parseFloat(r.remaining) || 0\n    });\n  }\n}\nreturn [{ json: { budgets: Array.from(budgetMap.values()) } }];"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"data\": {\n    \"budgets\": {{ $json }}\n  }\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"data\": {\n    \"budgets\": {{ JSON.stringify($json.budgets) }}\n  }\n}",
         "options": {}
       },
       "name": "Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [870, 300]
     },
     {
       "parameters": {
@@ -61,6 +70,9 @@
       "main": [[{"node": "Get Budgets", "type": "main", "index": 0}]]
     },
     "Get Budgets": {
+      "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    },
+    "Format Response": {
       "main": [[{"node": "Response", "type": "main", "index": 0}]]
     }
   },

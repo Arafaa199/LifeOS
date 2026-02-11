@@ -65,7 +65,7 @@ enum Constants {
 
     // MARK: - Dubai Timezone
     enum Dubai {
-        static let timeZone = TimeZone(identifier: "Asia/Dubai")!
+        static let timeZone = TimeZone(identifier: "Asia/Dubai") ?? TimeZone(secondsFromGMT: 14400)!
 
         static var calendar: Calendar {
             var cal = Calendar(identifier: .gregorian)

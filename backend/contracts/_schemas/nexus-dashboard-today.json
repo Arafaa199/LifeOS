@@ -1,21 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "nexus-dashboard-today.json",
-  "title": "Dashboard Today Response",
+  "title": "Dashboard Today Response (v21)",
   "description": "Complete dashboard payload for today",
   "type": "object",
-  "required": ["meta", "today_facts"],
+  "required": ["schema_version", "generated_at", "target_date", "today_facts"],
   "properties": {
-    "meta": {
-      "type": "object",
-      "required": ["schema_version", "for_date"],
-      "properties": {
-        "schema_version": { "type": "integer", "minimum": 1 },
-        "generated_at": { "type": "string", "format": "date-time" },
-        "for_date": { "type": "string", "format": "date" },
-        "timezone": { "type": "string" }
-      }
-    },
+    "schema_version": { "type": "integer", "const": 21 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "target_date": { "type": "string", "format": "date" },
     "today_facts": {
       "type": "object",
       "required": ["day"],
@@ -31,28 +24,32 @@
         "rem_sleep_minutes": { "type": ["integer", "null"], "minimum": 0 },
         "sleep_efficiency": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
         "strain": { "type": ["number", "null"] },
-        "steps": { "type": ["integer", "null"], "minimum": 0 },
         "weight_kg": { "type": ["number", "null"] },
         "spend_total": { "type": ["number", "null"] },
         "spend_groceries": { "type": ["number", "null"] },
         "spend_restaurants": { "type": ["number", "null"] },
         "income_total": { "type": ["number", "null"] },
         "transaction_count": { "type": ["integer", "null"], "minimum": 0 },
+        "spend_vs_7d": { "type": ["number", "null"] },
+        "spend_unusual": { "type": ["boolean", "null"] },
         "meals_logged": { "type": ["integer", "null"], "minimum": 0 },
         "water_ml": { "type": ["integer", "null"], "minimum": 0 },
         "calories_consumed": { "type": ["integer", "null"], "minimum": 0 },
-        "data_completeness": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+        "protein_g": { "type": ["number", "null"] },
+        "data_completeness": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "avg_mood": { "type": ["number", "null"] },
+        "avg_energy": { "type": ["number", "null"] }
       }
     },
-    "trends": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "period": { "type": "string" },
-          "avg_recovery": { "type": ["number", "null"] },
-          "avg_sleep_minutes": { "type": ["number", "null"] }
-        }
+    "finance_summary": {
+      "type": "object",
+      "properties": {
+        "spend_total": { "type": "number" },
+        "spend_groceries": { "type": "number" },
+        "spend_restaurants": { "type": "number" },
+        "spend_transport": { "type": "number" },
+        "income_total": { "type": "number" },
+        "transaction_count": { "type": "integer" }
       }
     },
     "feed_status": {
@@ -62,17 +59,14 @@
         "properties": {
           "feed": { "type": "string" },
           "status": { "type": "string", "enum": ["healthy", "stale", "error"] },
-          "lastSync": { "type": ["string", "null"], "format": "date-time" }
+          "lastSync": { "type": ["string", "null"], "format": "date-time" },
+          "hoursSinceSync": { "type": ["number", "null"] }
         }
       }
     },
     "stale_feeds": {
       "type": "array",
       "items": { "type": "string" }
-    },
-    "recent_events": {
-      "type": "array",
-      "items": { "type": "object" }
     },
     "daily_insights": {
       "type": "object",
@@ -90,22 +84,114 @@
         }
       }
     },
-    "data_freshness": {
+    "calendar_summary": {
       "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "status": { "type": "string", "enum": ["healthy", "stale", "error"] },
-          "last_sync": { "type": ["string", "null"], "format": "date-time" }
-        }
+      "properties": {
+        "meeting_count": { "type": "integer" },
+        "meeting_hours": { "type": "number" },
+        "first_meeting": { "type": ["string", "null"] },
+        "last_meeting": { "type": ["string", "null"] }
       }
     },
+    "reminder_summary": {
+      "type": "object",
+      "properties": {
+        "due_today": { "type": "integer" },
+        "completed_today": { "type": "integer" },
+        "overdue_count": { "type": "integer" }
+      }
+    },
+    "github_activity": { "type": "object" },
     "fasting": {
       "type": ["object", "null"],
       "properties": {
         "is_active": { "type": "boolean" },
         "hours_since_meal": { "type": ["number", "null"] },
         "last_meal_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "medications_today": {
+      "type": ["object", "null"],
+      "properties": {
+        "due_today": { "type": "integer", "minimum": 0 },
+        "taken_today": { "type": "integer", "minimum": 0 },
+        "skipped_today": { "type": "integer", "minimum": 0 },
+        "adherence_pct": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "medications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "status": { "type": "string", "enum": ["scheduled", "taken", "skipped"] },
+              "scheduled_time": { "type": ["string", "null"] },
+              "taken_at": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "explain_today": {
+      "type": ["object", "null"],
+      "properties": {
+        "target_date": { "type": "string", "format": "date" },
+        "has_data": { "type": "boolean" },
+        "health": {
+          "type": "object",
+          "properties": {
+            "recovery_label": { "type": ["string", "null"] },
+            "sleep_label": { "type": ["string", "null"] },
+            "recovery_score": { "type": ["integer", "null"] },
+            "sleep_hours": { "type": ["number", "null"] },
+            "hrv": { "type": ["number", "null"] },
+            "strain": { "type": ["number", "null"] },
+            "weight_kg": { "type": ["number", "null"] },
+            "summary": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "finance": {
+          "type": "object",
+          "properties": {
+            "spend_label": { "type": ["string", "null"] },
+            "spend_total": { "type": ["number", "null"] },
+            "transaction_count": { "type": ["integer", "null"] },
+            "summary": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "nutrition": {
+          "type": "object",
+          "properties": {
+            "meals_logged": { "type": ["integer", "null"] },
+            "calories": { "type": ["integer", "null"] },
+            "protein_g": { "type": ["number", "null"] },
+            "water_ml": { "type": ["integer", "null"] },
+            "summary": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "activity": {
+          "type": "object",
+          "properties": {
+            "listening_minutes": { "type": ["integer", "null"] },
+            "fasting_hours": { "type": ["number", "null"] },
+            "reminders_due": { "type": ["integer", "null"] },
+            "reminders_completed": { "type": ["integer", "null"] },
+            "work_minutes": { "type": ["integer", "null"] },
+            "summary": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "briefing": { "type": "string" },
+        "data_gaps": { "type": "array", "items": { "type": "string" } },
+        "data_completeness": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "computed_at": { "type": ["string", "null"], "format": "date-time" },
+        "assertions": {
+          "type": "object",
+          "properties": {
+            "dubai_day_valid": { "type": "boolean" },
+            "data_fresh": { "type": "boolean" },
+            "data_sufficient": { "type": "boolean" },
+            "all_passed": { "type": "boolean" }
+          }
+        }
       }
     },
     "streaks": {
@@ -118,31 +204,14 @@
         }
       }
     },
-    "explain_today": {
-      "type": ["object", "null"],
-      "properties": {
-        "target_date": { "type": "string", "format": "date" },
-        "has_data": { "type": "boolean" },
-        "briefing": { "type": "string" },
-        "data_gaps": { "type": "array", "items": { "type": "string" } },
-        "data_completeness": { "type": "number", "minimum": 0, "maximum": 1 }
-      }
-    },
-    "medications_today": {
-      "type": ["object", "null"],
-      "properties": {
-        "due_today": { "type": "integer", "minimum": 0 },
-        "taken_today": { "type": "integer", "minimum": 0 },
-        "skipped_today": { "type": "integer", "minimum": 0 },
-        "adherence_pct": { "type": "number", "minimum": 0, "maximum": 100 }
-      }
-    },
     "music_today": {
       "type": ["object", "null"],
       "properties": {
         "tracks_played": { "type": "integer", "minimum": 0 },
         "total_minutes": { "type": "integer", "minimum": 0 },
-        "unique_artists": { "type": "integer", "minimum": 0 }
+        "unique_artists": { "type": "integer", "minimum": 0 },
+        "top_artist": { "type": ["string", "null"] },
+        "top_album": { "type": ["string", "null"] }
       }
     },
     "mood_today": {
@@ -150,7 +219,76 @@
       "properties": {
         "mood_score": { "type": "integer", "minimum": 1, "maximum": 10 },
         "energy_score": { "type": "integer", "minimum": 1, "maximum": 10 },
-        "logged_at": { "type": "string", "format": "date-time" }
+        "logged_at": { "type": "string", "format": "date-time" },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "bjj_summary": {
+      "type": ["object", "null"],
+      "properties": {
+        "current_streak": { "type": "integer" },
+        "longest_streak": { "type": "integer" },
+        "total_sessions": { "type": "integer" },
+        "sessions_this_week": { "type": "integer" },
+        "sessions_this_month": { "type": "integer" },
+        "last_session_date": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+    "work_summary": {
+      "type": ["object", "null"],
+      "properties": {
+        "work_date": { "type": "string", "format": "date" },
+        "total_minutes": { "type": "integer" },
+        "total_hours": { "type": "number" },
+        "sessions": { "type": "integer" },
+        "first_arrival": { "type": ["string", "null"], "format": "date-time" },
+        "last_departure": { "type": ["string", "null"], "format": "date-time" },
+        "is_at_work": { "type": "boolean" },
+        "current_session_start": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "latest_weekly_review": {
+      "type": ["object", "null"],
+      "properties": {
+        "week_start": { "type": "string", "format": "date" },
+        "week_end": { "type": "string", "format": "date" },
+        "score": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "summary_text": { "type": "string" },
+        "avg_recovery": { "type": ["number", "null"] },
+        "avg_sleep_hours": { "type": ["number", "null"] },
+        "bjj_sessions": { "type": ["integer", "null"] },
+        "total_spent": { "type": ["number", "null"] },
+        "habit_completion_pct": { "type": ["number", "null"] },
+        "spending_trend": { "type": ["string", "null"] },
+        "recovery_trend": { "type": ["string", "null"] },
+        "generated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "habits_today": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "category": { "type": ["string", "null"] },
+          "frequency": { "type": "string" },
+          "target_count": { "type": "integer" },
+          "icon": { "type": ["string", "null"] },
+          "color": { "type": ["string", "null"] },
+          "completed_today": { "type": "boolean" },
+          "completion_count": { "type": "integer" },
+          "current_streak": { "type": "integer" },
+          "longest_streak": { "type": "integer" },
+          "total_completions": { "type": "integer" },
+          "last_7_days": {
+            "type": "array",
+            "items": { "type": "boolean" },
+            "minItems": 7,
+            "maxItems": 7
+          }
+        }
       }
     }
   }

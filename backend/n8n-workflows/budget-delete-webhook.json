@@ -24,6 +24,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [450, 300],
+      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -61,7 +62,10 @@
       "main": [[{"node": "Delete Budget", "type": "main", "index": 0}]]
     },
     "Delete Budget": {
-      "main": [[{"node": "Response", "type": "main", "index": 0}]]
+      "main": [
+        [{"node": "Response", "type": "main", "index": 0}],
+        [{"node": "Error Response", "type": "main", "index": 0}]
+      ]
     }
   },
   "settings": {},

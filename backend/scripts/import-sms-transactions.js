@@ -252,8 +252,8 @@ async function importTransactions(daysBack = 365, verbose = false) {
       h.id as sender,
       m.text,
       m.attributedBody,
-      datetime(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_datetime,
-      date(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_date
+      datetime(m.date/1000000000 + 978307200, 'unixepoch') || '+00' as msg_datetime,
+      date(m.date/1000000000 + 978307200, 'unixepoch') as msg_date
     FROM message m
     JOIN handle h ON m.handle_id = h.ROWID
     WHERE LOWER(h.id) IN (${senderList})
@@ -472,7 +472,7 @@ async function importBNPLPurchases(daysBack = 365) {
       h.id as sender,
       m.text,
       m.attributedBody,
-      date(m.date/1000000000 + 978307200, 'unixepoch', 'localtime') as msg_date
+      date(m.date/1000000000 + 978307200, 'unixepoch') as msg_date
     FROM message m
     JOIN handle h ON m.handle_id = h.ROWID
     WHERE LOWER(h.id) IN (${bnplSenders})

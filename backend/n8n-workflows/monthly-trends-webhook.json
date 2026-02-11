@@ -33,14 +33,23 @@
     },
     {
       "parameters": {
+        "jsCode": "const items = $input.all();\nconst months = items.map(item => {\n  const r = item.json;\n  const breakdown = r.category_breakdown || {};\n  const parsed = {};\n  for (const [cat, val] of Object.entries(breakdown)) {\n    parsed[cat] = parseFloat(val) || 0;\n  }\n  return {\n    month: r.month,\n    total_spent: parseFloat(r.total_spent) || 0,\n    category_breakdown: parsed\n  };\n});\nreturn [{ json: { monthly_spending: months } }];"
+      },
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"data\": {\n    \"monthly_spending\": {{ JSON.stringify($json) }}\n  }\n}",
+        "responseBody": "={\n  \"success\": true,\n  \"data\": {{ JSON.stringify($json) }}\n}",
         "options": {}
       },
       "name": "Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [650, 300]
+      "position": [870, 300]
     },
     {
       "parameters": {
@@ -61,6 +70,9 @@
       "main": [[{"node": "Get Monthly Data", "type": "main", "index": 0}]]
     },
     "Get Monthly Data": {
+      "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    },
+    "Format Response": {
       "main": [[{"node": "Response", "type": "main", "index": 0}]]
     }
   },

@@ -14,14 +14,11 @@ Fetches the complete dashboard payload for today.
 
 ```json
 {
-  "meta": {
-    "schema_version": 17,
-    "generated_at": "2026-02-08T12:00:00Z",
-    "for_date": "2026-02-08",
-    "timezone": "Asia/Dubai"
-  },
+  "schema_version": 21,
+  "generated_at": "2026-02-09T12:00:00Z",
+  "target_date": "2026-02-09",
   "today_facts": {
-    "day": "2026-02-08",
+    "day": "2026-02-09",
     "recovery_score": 78,
     "hrv": 45.2,
     "rhr": 52,
@@ -48,27 +45,93 @@ Fetches the complete dashboard payload for today.
     "avg_mood": 7,
     "avg_energy": 6
   },
-  "trends": [
-    { "period": "7d", "avg_recovery": 72, "avg_sleep_minutes": 400 }
-  ],
+  "finance_summary": {
+    "spend_total": 150.00,
+    "spend_groceries": 45.00,
+    "spend_restaurants": 35.00,
+    "spend_transport": 0,
+    "income_total": 0,
+    "transaction_count": 3
+  },
   "feed_status": [
-    { "feed": "whoop", "status": "healthy", "lastSync": "2026-02-08T11:00:00Z" }
+    { "feed": "whoop", "status": "healthy", "lastSync": "2026-02-09T11:00:00Z", "hoursSinceSync": 1.5 }
   ],
   "stale_feeds": [],
-  "recent_events": [],
   "daily_insights": {
     "ranked_insights": [
       { "type": "recovery", "confidence": "high", "description": "Recovery above average" }
     ]
   },
-  "data_freshness": {
-    "health": { "status": "healthy", "last_sync": "2026-02-08T11:00:00Z" },
-    "finance": { "status": "healthy", "last_sync": "2026-02-08T10:30:00Z" }
+  "calendar_summary": {
+    "meeting_count": 0,
+    "meeting_hours": 0,
+    "first_meeting": null,
+    "last_meeting": null
   },
+  "reminder_summary": {
+    "due_today": 3,
+    "completed_today": 1,
+    "overdue_count": 2
+  },
+  "github_activity": {},
   "fasting": {
     "is_active": false,
     "hours_since_meal": 8.5,
-    "last_meal_at": "2026-02-08T12:00:00Z"
+    "last_meal_at": "2026-02-09T12:00:00Z"
+  },
+  "medications_today": {
+    "due_today": 5,
+    "taken_today": 3,
+    "skipped_today": 0,
+    "adherence_pct": 60,
+    "medications": [
+      { "name": "Vitamin D", "status": "taken", "scheduled_time": "08:00:00", "taken_at": "2026-02-09T08:15:00Z" }
+    ]
+  },
+  "explain_today": {
+    "target_date": "2026-02-09",
+    "has_data": true,
+    "health": {
+      "recovery_label": "high",
+      "sleep_label": "good",
+      "recovery_score": 78,
+      "sleep_hours": 7.0,
+      "hrv": 45.2,
+      "strain": 12.5,
+      "weight_kg": 75.5,
+      "summary": ["Recovery: 78% (high)", "Sleep: 7.0h (good)", "Deep sleep: 90 min"]
+    },
+    "finance": {
+      "spend_label": "normal",
+      "spend_total": 150.00,
+      "transaction_count": 3,
+      "summary": ["Spend: 150 AED (normal)"]
+    },
+    "nutrition": {
+      "meals_logged": 2,
+      "calories": 1800,
+      "protein_g": 120.5,
+      "water_ml": 2000,
+      "summary": ["2 meal(s)", "1800 kcal", "120.5g protein", "2.0L water"]
+    },
+    "activity": {
+      "listening_minutes": 45,
+      "fasting_hours": 14.2,
+      "reminders_due": 3,
+      "reminders_completed": 1,
+      "work_minutes": 480,
+      "summary": ["8.0h at work", "45m music", "14.2h fasted"]
+    },
+    "briefing": "Recovery is strong at 78%. 7.0h of solid sleep.",
+    "data_gaps": [],
+    "data_completeness": 0.85,
+    "computed_at": "2026-02-09T11:30:00Z",
+    "assertions": {
+      "dubai_day_valid": true,
+      "data_fresh": true,
+      "data_sufficient": true,
+      "all_passed": true
+    }
   },
   "streaks": {
     "water": { "current": 5, "best": 12 },
@@ -76,29 +139,68 @@ Fetches the complete dashboard payload for today.
     "weight": { "current": 10, "best": 15 },
     "workout": { "current": 2, "best": 5 }
   },
-  "explain_today": {
-    "target_date": "2026-02-08",
-    "has_data": true,
-    "briefing": "Good recovery day. Spent 150 AED across 3 transactions.",
-    "data_gaps": [],
-    "data_completeness": 0.85
-  },
-  "medications_today": {
-    "due_today": 5,
-    "taken_today": 3,
-    "skipped_today": 0,
-    "adherence_pct": 60
-  },
   "music_today": {
     "tracks_played": 15,
     "total_minutes": 45,
-    "unique_artists": 8
+    "unique_artists": 8,
+    "top_artist": "Kendrick Lamar",
+    "top_album": "GNX"
   },
   "mood_today": {
     "mood_score": 7,
     "energy_score": 6,
-    "logged_at": "2026-02-08T09:00:00Z"
-  }
+    "logged_at": "2026-02-09T09:00:00Z",
+    "notes": null
+  },
+  "bjj_summary": {
+    "current_streak": 3,
+    "longest_streak": 8,
+    "total_sessions": 47,
+    "sessions_this_week": 2,
+    "sessions_this_month": 6,
+    "last_session_date": "2026-02-08"
+  },
+  "work_summary": {
+    "work_date": "2026-02-09",
+    "total_minutes": 480,
+    "total_hours": 8.0,
+    "sessions": 1,
+    "first_arrival": "2026-02-09T05:00:00Z",
+    "last_departure": "2026-02-09T13:00:00Z",
+    "is_at_work": false,
+    "current_session_start": null
+  },
+  "latest_weekly_review": {
+    "week_start": "2026-02-03",
+    "week_end": "2026-02-09",
+    "score": 7,
+    "summary_text": "Solid week overall. Recovery averaged 72%...",
+    "avg_recovery": 72.3,
+    "avg_sleep_hours": 7.2,
+    "bjj_sessions": 2,
+    "total_spent": 1250.00,
+    "habit_completion_pct": 68.5,
+    "spending_trend": "stable",
+    "recovery_trend": "stable",
+    "generated_at": "2026-02-09T08:00:00Z"
+  },
+  "habits_today": [
+    {
+      "id": 1,
+      "name": "Water",
+      "category": "health",
+      "frequency": "daily",
+      "target_count": 8,
+      "icon": "drop.fill",
+      "color": "#4FC3F7",
+      "completed_today": false,
+      "completion_count": 3,
+      "current_streak": 5,
+      "longest_streak": 12,
+      "total_completions": 45,
+      "last_7_days": [true, true, true, true, true, false, false]
+    }
+  ]
 }
 ```
 
@@ -112,8 +214,9 @@ Fetches the complete dashboard payload for today.
 |------|-----------|
 | iOS Model | `DashboardPayload.swift` |
 | n8n Workflow | `dashboard-today-webhook.json` |
-| DB Function | `dashboard.get_payload()` |
+| DB Function | `dashboard.get_payload()` (schema v21) |
 | Schema | `_schemas/nexus-dashboard-today.json` |
+| Migration | `187_habits_system.up.sql` (v21) |
 
 ---
 

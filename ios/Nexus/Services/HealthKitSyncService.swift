@@ -41,7 +41,7 @@ class HealthKitSyncService: ObservableObject {
         }
 
         // Fetch samples from the last sync date or last 7 days
-        let startDate = lastSyncDate ?? Constants.Dubai.calendar.date(byAdding: .day, value: -7, to: Date())!
+        let startDate = lastSyncDate ?? (Constants.Dubai.calendar.date(byAdding: .day, value: -7, to: Date()) ?? Date().addingTimeInterval(-7 * 86400))
 
         // Fetch each category independently — one failure shouldn't block others
         var quantitySamples: [HealthKitSample] = []
@@ -401,7 +401,7 @@ class HealthKitSyncService: ObservableObject {
     @available(iOS 18.0, *)
     func syncMedications() async throws -> Int {
         // Fetch medications from HealthKit
-        let startDate = lastSyncDate ?? Constants.Dubai.calendar.date(byAdding: .day, value: -7, to: Date())!
+        let startDate = lastSyncDate ?? (Constants.Dubai.calendar.date(byAdding: .day, value: -7, to: Date()) ?? Date().addingTimeInterval(-7 * 86400))
         let doses = try await HealthKitManager.shared.fetchMedicationDoses(since: startDate)
 
         if doses.isEmpty { return 0 }

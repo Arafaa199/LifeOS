@@ -89,50 +89,50 @@ enum DateRange: String, CaseIterable {
         switch self {
         case .today:
             let start = calendar.startOfDay(for: now)
-            let end = calendar.date(byAdding: .day, value: 1, to: start)!
+            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? now
             return (start, end)
 
         case .yesterday:
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: now)!
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: now) ?? now
             let start = calendar.startOfDay(for: yesterday)
-            let end = calendar.date(byAdding: .day, value: 1, to: start)!
+            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? now
             return (start, end)
 
         case .thisWeek:
-            let start = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
-            let end = calendar.date(byAdding: .weekOfYear, value: 1, to: start)!
+            let start = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) ?? now
+            let end = calendar.date(byAdding: .weekOfYear, value: 1, to: start) ?? now
             return (start, end)
 
         case .lastWeek:
-            let thisWeekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
-            let start = calendar.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart)!
+            let thisWeekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) ?? now
+            let start = calendar.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart) ?? now
             let end = thisWeekStart
             return (start, end)
 
         case .thisMonth:
-            let start = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-            let end = calendar.date(byAdding: .month, value: 1, to: start)!
+            let start = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+            let end = calendar.date(byAdding: .month, value: 1, to: start) ?? now
             return (start, end)
 
         case .lastMonth:
-            let thisMonthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
-            let start = calendar.date(byAdding: .month, value: -1, to: thisMonthStart)!
+            let thisMonthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+            let start = calendar.date(byAdding: .month, value: -1, to: thisMonthStart) ?? now
             let end = thisMonthStart
             return (start, end)
 
         case .last30Days:
             let end = now
-            let start = calendar.date(byAdding: .day, value: -30, to: end)!
+            let start = calendar.date(byAdding: .day, value: -30, to: end) ?? now
             return (start, end)
 
         case .last90Days:
             let end = now
-            let start = calendar.date(byAdding: .day, value: -90, to: end)!
+            let start = calendar.date(byAdding: .day, value: -90, to: end) ?? now
             return (start, end)
 
         case .thisYear:
-            let start = calendar.date(from: calendar.dateComponents([.year], from: now))!
-            let end = calendar.date(byAdding: .year, value: 1, to: start)!
+            let start = calendar.date(from: calendar.dateComponents([.year], from: now)) ?? now
+            let end = calendar.date(byAdding: .year, value: 1, to: start) ?? now
             return (start, end)
 
         case .custom:

@@ -66,6 +66,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
       "position": [870, 200],
+      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -128,7 +129,10 @@
       ]
     },
     "Update Transaction": {
-      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+      "main": [
+        [{ "node": "Response", "type": "main", "index": 0 }],
+        [{ "node": "Error Response", "type": "main", "index": 0 }]
+      ]
     }
   },
   "settings": {},

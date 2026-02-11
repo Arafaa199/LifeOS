@@ -35,13 +35,23 @@
     },
     {
       "parameters": {
+        "jsCode": "const receipts = $input.all().map(i => {\n  const r = i.json;\n  return {\n    id: r.id,\n    vendor: r.vendor,\n    store_name: r.store_name,\n    receipt_date: r.receipt_date,\n    total_amount: parseFloat(r.total_amount) || 0,\n    currency: r.currency,\n    parse_status: r.parse_status,\n    linked_transaction_id: r.linked_transaction_id,\n    item_count: parseInt(r.item_count) || 0,\n    matched_count: parseInt(r.matched_count) || 0\n  };\n});\nreturn [{ json: { receipts, count: receipts.length } }];"
+      },
+      "id": "format-receipts",
+      "name": "Format Receipts",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 100],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ success: true, receipts: $input.all().map(i => i.json), count: $input.all().length }) }}"
+        "responseBody": "={{ JSON.stringify({ success: true, receipts: $json.receipts, count: $json.count }) }}"
       },
       "id": "respond-receipts",
       "name": "Respond Receipts",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [680, 100],
+      "position": [900, 100],
       "typeVersion": 1
     },
     {
@@ -120,7 +130,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const header = $('Fetch Receipt Header').first().json;\nconst items = $('Fetch Receipt Items').all().map(i => i.json);\n\nreturn {\n  success: true,\n  receipt: {\n    ...header,\n    items: items\n  }\n};"
+        "jsCode": "const h = $('Fetch Receipt Header').first().json;\nconst items = $('Fetch Receipt Items').all().map(i => {\n  const r = i.json;\n  return {\n    id: r.id,\n    line_number: r.line_number,\n    item_description: r.item_description,\n    item_description_clean: r.item_description_clean,\n    quantity: parseFloat(r.quantity) || null,\n    unit: r.unit,\n    unit_price: parseFloat(r.unit_price) || null,\n    line_total: parseFloat(r.line_total) || 0,\n    is_promotional: r.is_promotional,\n    discount_amount: parseFloat(r.discount_amount) || null,\n    matched_food_id: r.matched_food_id,\n    match_confidence: parseFloat(r.match_confidence) || null,\n    is_user_confirmed: r.is_user_confirmed,\n    food_name: r.food_name,\n    food_brand: r.food_brand,\n    calories_per_100g: parseFloat(r.calories_per_100g) || null,\n    protein_per_100g: parseFloat(r.protein_per_100g) || null,\n    carbs_per_100g: parseFloat(r.carbs_per_100g) || null,\n    fat_per_100g: parseFloat(r.fat_per_100g) || null,\n    serving_size_g: parseFloat(r.serving_size_g) || null\n  };\n});\n\nreturn {\n  success: true,\n  receipt: {\n    id: h.id,\n    vendor: h.vendor,\n    store_name: h.store_name,\n    store_address: h.store_address,\n    receipt_date: h.receipt_date,\n    receipt_time: h.receipt_time,\n    invoice_number: h.invoice_number,\n    subtotal: parseFloat(h.subtotal) || null,\n    vat_amount: parseFloat(h.vat_amount) || null,\n    total_amount: parseFloat(h.total_amount) || 0,\n    currency: h.currency,\n    linked_transaction_id: h.linked_transaction_id,\n    link_method: h.link_method,\n    items: items\n  }\n};"
       },
       "id": "build-response",
       "name": "Build Response",
@@ -183,13 +193,23 @@
     },
     {
       "parameters": {
+        "jsCode": "const r = $input.first().json;\nreturn [{ json: {\n  id: r.id,\n  matched_food_id: r.matched_food_id,\n  match_confidence: parseFloat(r.match_confidence) || 0,\n  is_user_confirmed: r.is_user_confirmed\n} }];"
+      },
+      "id": "format-match",
+      "name": "Format Match",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 800],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, item: $json } }}"
+        "responseBody": "={{ JSON.stringify({ success: true, item: $json }) }}"
       },
       "id": "respond-match",
       "name": "Respond Match",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [900, 800],
+      "position": [1120, 800],
       "typeVersion": 1
     },
     {
@@ -236,13 +256,23 @@
     },
     {
       "parameters": {
+        "jsCode": "const r = $input.first().json;\nreturn [{ json: {\n  total_items: parseInt(r.total_items) || 0,\n  matched_items: parseInt(r.matched_items) || 0,\n  total_calories: parseFloat(r.total_calories) || 0,\n  total_protein: parseFloat(r.total_protein) || 0,\n  total_carbs: parseFloat(r.total_carbs) || 0,\n  total_fat: parseFloat(r.total_fat) || 0\n} }];"
+      },
+      "id": "format-nutrition",
+      "name": "Format Nutrition",
+      "type": "n8n-nodes-base.code",
+      "position": [900, 1100],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { success: true, nutrition: $json } }}"
+        "responseBody": "={{ JSON.stringify({ success: true, nutrition: $json }) }}"
       },
       "id": "respond-nutrition",
       "name": "Respond Nutrition",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [900, 1100],
+      "position": [1120, 1100],
       "typeVersion": 1
     }
   ],
@@ -251,6 +281,9 @@
       "main": [[{"node": "Fetch Receipts", "type": "main", "index": 0}]]
     },
     "Fetch Receipts": {
+      "main": [[{"node": "Format Receipts", "type": "main", "index": 0}]]
+    },
+    "Format Receipts": {
       "main": [[{"node": "Respond Receipts", "type": "main", "index": 0}]]
     },
     "GET Receipt Detail": {
@@ -283,6 +316,9 @@
       "main": [[{"node": "Update Match", "type": "main", "index": 0}]]
     },
     "Update Match": {
+      "main": [[{"node": "Format Match", "type": "main", "index": 0}]]
+    },
+    "Format Match": {
       "main": [[{"node": "Respond Match", "type": "main", "index": 0}]]
     },
     "GET Nutrition": {
@@ -292,6 +328,9 @@
       "main": [[{"node": "Calculate Nutrition", "type": "main", "index": 0}]]
     },
     "Calculate Nutrition": {
+      "main": [[{"node": "Format Nutrition", "type": "main", "index": 0}]]
+    },
+    "Format Nutrition": {
       "main": [[{"node": "Respond Nutrition", "type": "main", "index": 0}]]
     }
   },

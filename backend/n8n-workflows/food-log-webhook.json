@@ -93,6 +93,7 @@
       "type": "n8n-nodes-base.postgres",
       "position": [1340, 300],
       "typeVersion": 2.5,
+      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -111,6 +112,7 @@
       "type": "n8n-nodes-base.postgres",
       "position": [1560, 300],
       "typeVersion": 2.5,
+      "onError": "continueErrorOutput",
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
@@ -273,6 +275,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -281,6 +290,13 @@
         [
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
             "type": "main",
             "index": 0
           }
