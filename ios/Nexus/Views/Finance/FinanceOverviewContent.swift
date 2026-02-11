@@ -1017,7 +1017,7 @@ struct FinanceOverviewContent: View {
 
         let overBudget = viewModel.summary.budgets.filter { ($0.spent ?? 0) > $0.budgetAmount }
         if !overBudget.isEmpty {
-            let categories = overBudget.map { $0.category.capitalized }.joined(separator: ", ")
+            let categories = Array(Set(overBudget.map { $0.category.capitalized })).sorted().joined(separator: ", ")
             insights.append("You're over budget on: \(categories)")
         }
 

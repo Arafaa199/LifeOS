@@ -71,7 +71,13 @@ struct Transaction: Identifiable, Codable {
         id = try container.decodeIfPresent(Int.self, forKey: .id)
         date = try container.decode(Date.self, forKey: .date)
         merchantName = try container.decodeIfPresent(String.self, forKey: .merchantName) ?? "Unknown"
-        amount = try container.decode(Double.self, forKey: .amount)
+        if let d = try? container.decode(Double.self, forKey: .amount) {
+            amount = d
+        } else if let s = try? container.decode(String.self, forKey: .amount), let d = Double(s) {
+            amount = d
+        } else {
+            amount = 0
+        }
         currency = try container.decode(String.self, forKey: .currency)
         category = try container.decodeIfPresent(String.self, forKey: .category)
         subcategory = try container.decodeIfPresent(String.self, forKey: .subcategory)
