@@ -9,6 +9,18 @@
     { "path": ".feed_status", "type": "array" },
     { "path": ".daily_insights", "type": "array" },
     { "path": ".finance_summary", "type": "object" },
-    { "path": ".stale_feeds", "type": "array" }
+    { "path": ".stale_feeds", "type": "array" },
+    { "path": ".habits_today", "type": "array" },
+    { "path": ".latest_weekly_review", "type": "object" },
+    { "path": ".work_summary", "type": "object" },
+    { "path": ".bjj_summary", "type": "object" },
+    { "path": ".fasting", "type": "object" },
+    { "path": ".streaks", "type": "object" },
+    { "path": ".music_today", "type": "object" },
+    { "path": ".calendar_summary", "type": "object" },
+    { "path": ".medications_today", "type": "object" },
+    { "path": ".reminder_summary", "type": "object" },
+    { "path": ".github_activity", "type": "object" },
+    { "path": ".explain_today", "type": "object" }
   ]
 }
