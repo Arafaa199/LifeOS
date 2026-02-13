@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-13T11:47:00+04:00
+Last updated: 2026-02-13T15:45:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -173,6 +173,9 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | Task | Status | Summary |
 |------|--------|---------|
 | TASK-PLAN.1: Habits Feed Status Trigger | DONE | Migration 192: Inserted `habits` source into `life.feed_status_live` with `expected_interval = '24 hours'`. Created `life.update_feed_status_habits()` trigger function with ON CONFLICT upsert pattern (same as supplements/bjj from migrations 180/181). Created `trg_habit_completions_feed_status` AFTER INSERT OR UPDATE trigger on `life.habit_completions`. Test: inserted test completion → status `unknown`→`ok`, `events_today = 1`. Cleaned up test row. Down migration tested (drops trigger+function+feed entry) and re-applied. 2 files created. |
+| TASK-PLAN.2: Geofence Feed Status Trigger | DONE | Migration 193: Inserted `geofence` source into `life.feed_status_live` with `expected_interval = '24 hours'`. Created `core.update_feed_status_geofence()` trigger function with ON CONFLICT upsert pattern. Created `trg_location_events_feed_status` AFTER INSERT trigger on `core.location_events`. Test: inserted test location event → status `unknown`→`ok`, `events_today = 1`. Cleaned up test row. Down migration tested (drops trigger+function+feed entry) and re-applied. 2 files created. Commit `f3a3e93`. |
+| TASK-PLAN.3: Dashboard Contract v21 | DONE | Updated `ops/contracts/nexus-dashboard-today.json` from 9 → 21 required keys. Added 12 keys: `habits_today` (array), `latest_weekly_review`, `work_summary`, `bjj_summary`, `fasting`, `streaks`, `music_today`, `calendar_summary`, `medications_today`, `reminder_summary`, `github_activity`, `explain_today` (all objects). Excluded `mood_today` (can be JSON null when no mood logged — validator treats null as missing). Validated: `validate-contract.sh` PASS (21/21 keys), `check.sh` 8/8 healthy. 1 file changed. Commit `f4328cb`. |
+| TASK-PLAN.4: Fix SMS Replay Test | DONE | Root cause: test expectation drift. JKB "Declined (insufficient funds)" test expected `matched: true, intent: 'declined'` but global exclusion pattern `insufficient_fundin` in `sms_regex_patterns.yaml` catches "insufficient funds" before JKB bank patterns run. Both outcomes prevent transaction creation — test expectation was wrong about the mechanism. Fixed: changed test to expect `excluded: true, matched: false`. Result: 23/23 pass, `finance.sh --json` → `"status": "healthy"`, `nightly.sh --dry-run` → 4/4 DRY RUN. 1 file changed (`backend/scripts/test-sms-classifier.js`). SMS parser logic NOT modified (FROZEN). |
 
 ### Recent (Feb 9)
 | Task | Status | Summary |

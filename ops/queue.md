@@ -2632,28 +2632,28 @@ Lane: safe_auto
 ### TASK-PLAN.2: Add Feed Status Trigger for Geofence/Location Events Domain
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** `core.location_events` (migration 183/190/191) is the backbone for geofencing, work hours (migration 184), and BJJ auto-detection — but has no feed status tracking. The geofence system is critical infrastructure (drives WorkCardView on dashboard) yet invisible to monitoring. If the Home Assistant webhook stops sending location events, there's no alert.
 
-**Files to Touch:**
+**Files Changed:**
 - `backend/migrations/193_geofence_feed_status.up.sql`
 - `backend/migrations/193_geofence_feed_status.down.sql`
 
-**Implementation:**
-- INSERT `geofence` source into `life.feed_status_live` with `expected_interval = '24 hours'` (HA sends location events regularly)
-- Create `core.update_feed_status_geofence()` trigger function with ON CONFLICT upsert pattern
-- Create `trg_location_events_feed_status` AFTER INSERT trigger on `core.location_events`
+**Fix Applied:**
+- Inserted `geofence` source into `life.feed_status_live` with `expected_interval = '24 hours'`
+- Created `core.update_feed_status_geofence()` trigger function with ON CONFLICT upsert pattern
+- Created `trg_location_events_feed_status` AFTER INSERT trigger on `core.location_events`
 
 **Verification:**
-- [ ] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'geofence';` — returns `geofence | 24:00:00`
-- [ ] Test INSERT into `core.location_events` → status transitions from `unknown` to `ok`
-- [ ] `SELECT trigger_name FROM information_schema.triggers WHERE event_object_table = 'location_events';` — returns trigger name
-- [ ] Down migration drops trigger, function, and feed entry
+- [x] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'geofence';` — returns `geofence | 24:00:00`
+- [x] Test INSERT into `core.location_events` → status transitions from `unknown` to `ok`, events_today = 1
+- [x] `SELECT trigger_name FROM information_schema.triggers WHERE event_object_table = 'location_events';` — returns `trg_location_events_feed_status` (INSERT)
+- [x] Down migration drops trigger, function, and feed entry — tested and re-applied
 
 **Exit Criteria:**
-- [ ] `SELECT proname FROM pg_proc WHERE proname = 'update_feed_status_geofence';` returns 1 row
+- [x] `SELECT proname FROM pg_proc WHERE proname = 'update_feed_status_geofence';` returns 1 row
 
 **Done Means:** Geofence/location event flow monitored in Pipeline Health. Work hour tracking failures are detectable.
 
@@ -2662,32 +2662,26 @@ Lane: safe_auto
 ### TASK-PLAN.3: Update Dashboard API Contract to Match Schema v21
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** The `ops/contracts/nexus-dashboard-today.json` contract only checks 9 keys (set during Feb 9 audit for schema ~v14). The dashboard is now at schema v21 with `habits_today`, `latest_weekly_review`, `work_summary`, `bjj_summary`, `music_today`, `fasting`, `streaks`, `medications_today`, `reminder_summary`, and `calendar_summary`. Smoke tests pass even if these critical keys disappear from the payload because they aren't in the contract.
 
-**Files to Touch:**
-- `ops/contracts/nexus-dashboard-today.json`
+**Files Changed:**
+- `ops/contracts/nexus-dashboard-today.json` (9 → 21 required keys)
 
-**Implementation:**
-Update `required_keys` to include the high-value keys added since the contract was last updated:
-- `habits_today` (array, v21)
-- `latest_weekly_review` (object, v20)
-- `work_summary` (object, v19)
-- `bjj_summary` (object, v18)
-- `fasting` (object, v13)
-- `streaks` (object, v12)
-- `music_today` (object, v14)
-- `calendar_summary` (object, v6)
+**Fix Applied:**
+- Added 12 new required keys to contract: `habits_today` (array), `latest_weekly_review` (object), `work_summary` (object), `bjj_summary` (object), `fasting` (object), `streaks` (object), `music_today` (object), `calendar_summary` (object), `medications_today` (object), `reminder_summary` (object), `github_activity` (object), `explain_today` (object)
+- Excluded `mood_today` — can be JSON null when no mood logged (validator treats null as missing)
+- All types verified against live `jsonb_typeof()` output
 
 **Verification:**
-- [ ] `python3 -c "import json; d=json.load(open('ops/contracts/nexus-dashboard-today.json')); print(len(d['required_keys']))"` — returns ≥15
-- [ ] `bash ops/check.sh --json 2>&1 | grep nexus-dashboard-today` — shows `healthy`
-- [ ] Contract validates against live API response
+- [x] `python3 -c "import json; d=json.load(open('ops/contracts/nexus-dashboard-today.json')); print(len(d['required_keys']))"` — returns 21
+- [x] `bash ops/check.sh` — 8/8 healthy, 0 critical, `nexus-dashboard-today` PASS
+- [x] `validate-contract.sh` against live API — PASS (21/21 keys validated)
 
 **Exit Criteria:**
-- [ ] `grep -c 'habits_today\|work_summary\|bjj_summary\|fasting\|streaks' ops/contracts/nexus-dashboard-today.json` returns ≥5
+- [x] `grep -c 'habits_today\|work_summary\|bjj_summary\|fasting\|streaks' ops/contracts/nexus-dashboard-today.json` returns 5
 
 **Done Means:** Smoke tests catch regressions in dashboard payload — if any domain key disappears, nightly check fails immediately.
 
@@ -2696,29 +2690,23 @@ Update `required_keys` to include the high-value keys added since the contract w
 ### TASK-PLAN.4: Fix SMS Replay Test (Nightly Critical Failure)
 Priority: P1
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** The `sms-replay` nightly check has been failing consistently (exit 1, `critical` status) for 4+ days (Feb 9-12 reports all show 3/4 pass, 1/4 fail). The `finance.sh` replay test runs `node test-sms-classifier.js` which uses ES module imports (`import { SMSClassifier } from './sms-classifier.js'`). Investigate the failure — likely a Node.js ESM resolution issue, missing dependency, or test expectation drift after recent SMS parser updates.
 
-**Files to Touch:**
-- `backend/scripts/test-sms-classifier.js` (fix test or dependency issue)
-- `backend/scripts/package.json` (if `"type": "module"` is missing)
+**Root Cause:** Test expectation drift. The JKB "Declined (insufficient funds)" test expected `matched: true, intent: 'declined'` but the global exclusion pattern `insufficient_fundin` in `sms_regex_patterns.yaml` catches "insufficient funds" before the JKB bank pattern runs. The classifier correctly excludes the message (no transaction created), but the test expected it to be classified as `declined` rather than `excluded`. Both outcomes prevent transaction creation — the test was simply wrong about the mechanism.
 
-**Implementation:**
-- Run `cd backend/scripts && node test-sms-classifier.js 2>&1` to capture exact error
-- If ESM issue: ensure `package.json` has `"type": "module"` or rename to `.mjs`
-- If test expectation drift: update test expectations to match current classifier output
-- If dependency issue: `npm install` in the scripts directory
-- Do NOT modify the SMS parser logic itself (FROZEN)
+**Files Changed:**
+- `backend/scripts/test-sms-classifier.js` (updated JKB declined test expectation: `matched: true, intent: 'declined'` → `excluded: true, matched: false`)
 
 **Verification:**
-- [ ] `cd backend/scripts && node test-sms-classifier.js` — exits 0 with all tests passing
-- [ ] `bash ops/test/replay/finance.sh --json` — returns `"status": "healthy"`
-- [ ] `bash ops/nightly.sh --dry-run` — shows 4 DRY RUN entries (confirming runner still works)
+- [x] `cd backend/scripts && node test-sms-classifier.js` — exits 0, 23/23 tests passing
+- [x] `bash ops/test/replay/finance.sh --json` — returns `"status": "healthy"`
+- [x] `bash ops/nightly.sh --dry-run` — shows 4 DRY RUN entries (runner works)
 
 **Exit Criteria:**
-- [ ] `cd ~/Cyber/Dev/Projects/LifeOS/backend/scripts && node test-sms-classifier.js 2>&1; echo $?` returns 0
+- [x] `cd ~/Cyber/Dev/Projects/LifeOS/backend/scripts && node test-sms-classifier.js 2>&1; echo $?` returns 0
 
 **Done Means:** Nightly ops report shows 4/4 pass instead of 3/4. Finance domain regression testing is green.
 

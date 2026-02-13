@@ -160,10 +160,8 @@ const testCases = [
     sender: 'JKB',
     text: 'You have a declined trx on your card # 5361***9793 from Hungerstation, Riyadh,  for SAR 136.00 due to insufficient funds',
     expected: {
-      matched: true,
-      intent: 'declined',
-      amount: null,
-      never_create_transaction: true,
+      excluded: true,
+      matched: false,
     },
   },
   {
