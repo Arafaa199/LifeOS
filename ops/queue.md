@@ -2594,6 +2594,200 @@ Lane: safe_auto
 
 ---
 
+---
+
+## PLANNED TASKS (Auditor-Generated 2026-02-13)
+
+### TASK-PLAN.1: Add Feed Status Trigger for Habits Domain
+Priority: P1
+Owner: coder
+Status: DONE ✓
+Lane: safe_auto
+
+**Objective:** `life.habit_completions` has no AFTER INSERT trigger updating `life.feed_status_live`. The habits domain (migration 187) is fully functional with dashboard integration (schema v21, HabitsCardView) but completely invisible to Pipeline Health monitoring. When habit completions stop flowing, the system can't detect the gap.
+
+**Files Changed:**
+- `backend/migrations/192_habits_feed_status.up.sql`
+- `backend/migrations/192_habits_feed_status.down.sql`
+
+**Fix Applied:**
+- Inserted `habits` source into `life.feed_status_live` with `expected_interval = '24 hours'`
+- Created `life.update_feed_status_habits()` trigger function with ON CONFLICT upsert pattern (same as supplements/bjj pattern from migrations 180/181)
+- Created `trg_habit_completions_feed_status` AFTER INSERT OR UPDATE trigger on `life.habit_completions`
+
+**Verification:**
+- [x] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'habits';` — returns `habits | 24:00:00`
+- [x] Test INSERT into `life.habit_completions` → status transitions from `unknown` to `ok`, events_today = 1
+- [x] `SELECT trigger_name FROM information_schema.triggers WHERE event_object_table = 'habit_completions';` — returns INSERT + UPDATE
+- [x] Down migration drops trigger, function, and feed entry — tested and re-applied
+
+**Exit Criteria:**
+- [x] `SELECT proname FROM pg_proc WHERE proname = 'update_feed_status_habits';` returns 1 row
+- [x] `grep 'habit_completions' backend/migrations/192_habits_feed_status.up.sql` returns match
+
+**Done Means:** Habits domain appears in Pipeline Health view with accurate freshness tracking. Staleness is detectable.
+
+---
+
+### TASK-PLAN.2: Add Feed Status Trigger for Geofence/Location Events Domain
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** `core.location_events` (migration 183/190/191) is the backbone for geofencing, work hours (migration 184), and BJJ auto-detection — but has no feed status tracking. The geofence system is critical infrastructure (drives WorkCardView on dashboard) yet invisible to monitoring. If the Home Assistant webhook stops sending location events, there's no alert.
+
+**Files to Touch:**
+- `backend/migrations/193_geofence_feed_status.up.sql`
+- `backend/migrations/193_geofence_feed_status.down.sql`
+
+**Implementation:**
+- INSERT `geofence` source into `life.feed_status_live` with `expected_interval = '24 hours'` (HA sends location events regularly)
+- Create `core.update_feed_status_geofence()` trigger function with ON CONFLICT upsert pattern
+- Create `trg_location_events_feed_status` AFTER INSERT trigger on `core.location_events`
+
+**Verification:**
+- [ ] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'geofence';` — returns `geofence | 24:00:00`
+- [ ] Test INSERT into `core.location_events` → status transitions from `unknown` to `ok`
+- [ ] `SELECT trigger_name FROM information_schema.triggers WHERE event_object_table = 'location_events';` — returns trigger name
+- [ ] Down migration drops trigger, function, and feed entry
+
+**Exit Criteria:**
+- [ ] `SELECT proname FROM pg_proc WHERE proname = 'update_feed_status_geofence';` returns 1 row
+
+**Done Means:** Geofence/location event flow monitored in Pipeline Health. Work hour tracking failures are detectable.
+
+---
+
+### TASK-PLAN.3: Update Dashboard API Contract to Match Schema v21
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** The `ops/contracts/nexus-dashboard-today.json` contract only checks 9 keys (set during Feb 9 audit for schema ~v14). The dashboard is now at schema v21 with `habits_today`, `latest_weekly_review`, `work_summary`, `bjj_summary`, `music_today`, `fasting`, `streaks`, `medications_today`, `reminder_summary`, and `calendar_summary`. Smoke tests pass even if these critical keys disappear from the payload because they aren't in the contract.
+
+**Files to Touch:**
+- `ops/contracts/nexus-dashboard-today.json`
+
+**Implementation:**
+Update `required_keys` to include the high-value keys added since the contract was last updated:
+- `habits_today` (array, v21)
+- `latest_weekly_review` (object, v20)
+- `work_summary` (object, v19)
+- `bjj_summary` (object, v18)
+- `fasting` (object, v13)
+- `streaks` (object, v12)
+- `music_today` (object, v14)
+- `calendar_summary` (object, v6)
+
+**Verification:**
+- [ ] `python3 -c "import json; d=json.load(open('ops/contracts/nexus-dashboard-today.json')); print(len(d['required_keys']))"` — returns ≥15
+- [ ] `bash ops/check.sh --json 2>&1 | grep nexus-dashboard-today` — shows `healthy`
+- [ ] Contract validates against live API response
+
+**Exit Criteria:**
+- [ ] `grep -c 'habits_today\|work_summary\|bjj_summary\|fasting\|streaks' ops/contracts/nexus-dashboard-today.json` returns ≥5
+
+**Done Means:** Smoke tests catch regressions in dashboard payload — if any domain key disappears, nightly check fails immediately.
+
+---
+
+### TASK-PLAN.4: Fix SMS Replay Test (Nightly Critical Failure)
+Priority: P1
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** The `sms-replay` nightly check has been failing consistently (exit 1, `critical` status) for 4+ days (Feb 9-12 reports all show 3/4 pass, 1/4 fail). The `finance.sh` replay test runs `node test-sms-classifier.js` which uses ES module imports (`import { SMSClassifier } from './sms-classifier.js'`). Investigate the failure — likely a Node.js ESM resolution issue, missing dependency, or test expectation drift after recent SMS parser updates.
+
+**Files to Touch:**
+- `backend/scripts/test-sms-classifier.js` (fix test or dependency issue)
+- `backend/scripts/package.json` (if `"type": "module"` is missing)
+
+**Implementation:**
+- Run `cd backend/scripts && node test-sms-classifier.js 2>&1` to capture exact error
+- If ESM issue: ensure `package.json` has `"type": "module"` or rename to `.mjs`
+- If test expectation drift: update test expectations to match current classifier output
+- If dependency issue: `npm install` in the scripts directory
+- Do NOT modify the SMS parser logic itself (FROZEN)
+
+**Verification:**
+- [ ] `cd backend/scripts && node test-sms-classifier.js` — exits 0 with all tests passing
+- [ ] `bash ops/test/replay/finance.sh --json` — returns `"status": "healthy"`
+- [ ] `bash ops/nightly.sh --dry-run` — shows 4 DRY RUN entries (confirming runner still works)
+
+**Exit Criteria:**
+- [ ] `cd ~/Cyber/Dev/Projects/LifeOS/backend/scripts && node test-sms-classifier.js 2>&1; echo $?` returns 0
+
+**Done Means:** Nightly ops report shows 4/4 pass instead of 3/4. Finance domain regression testing is green.
+
+---
+
+### TASK-PLAN.5: Add Mood Feed Status Trigger on raw.mood_log
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** Feed status shows `mood | unknown` (NULL last_event_at) despite migration 162 creating both the `raw.update_mood_feed_status()` function AND the `trg_mood_log_feed_status` trigger. The trigger exists but `mood` has no initial entry in `life.feed_status_live` — the trigger does ON CONFLICT UPDATE on `source = 'mood'` but the row was never inserted. The mood data pathway works (MoodCardView displays `moodToday` from payload) but Pipeline Health shows permanent "unknown".
+
+**Files to Touch:**
+- `backend/migrations/194_fix_mood_feed_entry.up.sql`
+- `backend/migrations/194_fix_mood_feed_entry.down.sql`
+
+**Implementation:**
+- INSERT `mood` source into `life.feed_status_live` with `expected_interval = '24 hours'` and `ON CONFLICT (source) DO NOTHING`
+- Verify the existing trigger on `raw.mood_log` still fires correctly
+- If trigger function references old schema, update to match current `feed_status_live` columns
+
+**Verification:**
+- [ ] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'mood';` — returns `mood | 24:00:00` (not NULL)
+- [ ] Test INSERT into `raw.mood_log` → mood status transitions from `unknown` to `ok`
+- [ ] Down migration: `DELETE FROM life.feed_status_live WHERE source = 'mood' AND last_event_at IS NULL;`
+
+**Exit Criteria:**
+- [ ] `SELECT status FROM life.feed_status WHERE source = 'mood';` — not `unknown` after a mood log
+
+**Done Means:** Mood tracking health visible in Pipeline Health alongside all other domains. 3 fewer "unknown" feeds total (mood was the last missing one with an existing trigger that couldn't fire).
+
+---
+
+### TASK-PLAN.6: Create Replay Test for Habits Domain
+Priority: P2
+Owner: coder
+Status: READY
+Lane: safe_auto
+
+**Objective:** The habits system (migration 187) is one of the most user-facing features (HabitsCardView on dashboard, HabitsView in MoreView, completion tracking, streaks) but has no replay test. If `life.get_habit_streaks()` breaks or `dashboard.get_payload()` stops including `habits_today`, there's no automated detection. Current replay coverage: 4/7+ active domains.
+
+**Files to Touch:**
+- `ops/test/replay/habits.sh`
+
+**Implementation:**
+Create `habits.sh` following the established `health.sh`/`calendar.sh` pattern:
+- Check 1: `life.habits` has active habits (`SELECT COUNT(*) FROM life.habits WHERE is_active`)
+- Check 2: `life.habit_completions` freshness (last completion age vs 48h threshold)
+- Check 3: `dashboard.get_payload()->'habits_today'` is not null and is an array
+- Check 4: `life.get_habit_streaks(id)` returns valid data for at least one habit
+- JSON output mode with `{ domain, status, timestamp, checks }` format
+- `all.sh` auto-discovers via glob — no changes needed
+
+**Verification:**
+- [ ] `bash ops/test/replay/habits.sh --json` — returns valid JSON with status
+- [ ] `bash ops/test/replay/all.sh` — includes habits domain
+- [ ] Script handles empty habit_completions gracefully (warn, not critical)
+
+**Exit Criteria:**
+- [ ] `[ -x ops/test/replay/habits.sh ]` — file exists and is executable
+- [ ] `bash ops/test/replay/habits.sh --json 2>&1 | python3 -m json.tool` — valid JSON
+
+**Done Means:** Habits domain has automated regression testing. Replay coverage increases from 4 to 5 domains.
+
+---
+
+---
+
 ## ROADMAP (After Fixes)
 
 ### Phase: Feature Resumption (After P0/P1 Complete)

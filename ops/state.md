@@ -1,5 +1,5 @@
 # LifeOS — Canonical State
-Last updated: 2026-02-09T18:40:00+04:00
+Last updated: 2026-02-13T11:47:00+04:00
 Owner: Arafa
 Control Mode: Autonomous (Human-in-the-loop on alerts only)
 
@@ -168,6 +168,11 @@ SMS bypasses raw.bank_sms intentionally — idempotency via `external_id` UNIQUE
 | TASK-FEAT.19: Transaction Search | DONE | **Already implemented.** `FinanceActivityView.swift` has full search functionality: `@State private var searchText` (line 6), `filteredTransactions` computed property filters by merchant/category/notes (lines 16-46), `.searchable(text: $searchText, prompt: "Search transactions")` (line 176), category filter chips (lines 114-139), date range picker (lines 98-112). Uses native iOS `.searchable()` modifier which provides standard search bar UX with built-in debounce. 0 files changed (already complete). iOS build: BUILD SUCCEEDED. |
 | TASK-FEAT.20: Subscription Monitor View | DONE | Created `SubscriptionsView.swift` (237 LOC): monthly total header, "Due Soon" section for items due within 7 days, all subscriptions list. Category-aware icons (TV for Netflix/Disney, music note for Spotify, etc.) and colors. Filters recurring items by monthly cadence OR subscription-like names. Added NavigationLink to SubscriptionsView in FinancePlanningView Recurring tab. 2 files changed (+251). iOS build: BUILD SUCCEEDED. Commit `0fdb9f1`. |
 | TASK-FEAT.21: Error Boundary Views | DONE | Created `ErrorStateView.swift` (66 LOC) in new `Views/Components/` directory: warning triangle icon, configurable title/message, "Try Again" button with retry callback. Updated `TodayView.swift` to show error state when `errorMessage != nil && dashboardPayload == nil`. Updated `FinanceOverviewContent.swift` to show error state when `errorMessage != nil && hasNoData` (spent/income both 0 and no transactions). 3 files changed (+109/-31). iOS build: BUILD SUCCEEDED. Commit `c9409f7`. |
+
+### Recent (Feb 13)
+| Task | Status | Summary |
+|------|--------|---------|
+| TASK-PLAN.1: Habits Feed Status Trigger | DONE | Migration 192: Inserted `habits` source into `life.feed_status_live` with `expected_interval = '24 hours'`. Created `life.update_feed_status_habits()` trigger function with ON CONFLICT upsert pattern (same as supplements/bjj from migrations 180/181). Created `trg_habit_completions_feed_status` AFTER INSERT OR UPDATE trigger on `life.habit_completions`. Test: inserted test completion → status `unknown`→`ok`, `events_today = 1`. Cleaned up test row. Down migration tested (drops trigger+function+feed entry) and re-applied. 2 files created. |
 
 ### Recent (Feb 9)
 | Task | Status | Summary |
@@ -475,3 +480,41 @@ Comprehensive iOS architecture audit completed across 3 phases. All critical iss
 2. **PLAN.3**: Independent, iOS-only, 5 minutes. Quick win the coder can ship immediately.
 3. **PLAN.4**: Backend + iOS change, medium effort. Reduces network calls on every dashboard load.
 4. **PLAN.5 → PLAN.6**: Independent feed status triggers. Both follow established patterns, ~10 minutes each. Clean up the remaining "unknown" entries in Pipeline Health.
+
+---
+
+## Auditor Planning Mode (2026-02-13)
+
+## Planning Rationale
+
+### Why These Tasks Were Chosen
+
+1. **TASK-PLAN.1 (Habits feed status)** — **Critical monitoring gap.** Habits is one of the most interactive features (users tap "complete" buttons daily from the dashboard). But Pipeline Health has zero visibility into whether habit data is flowing. The pattern is well-established (migrations 180, 181 for supplements/bjj). 10-minute task, highest value-per-effort ratio.
+
+2. **TASK-PLAN.2 (Geofence feed status)** — **Infrastructure monitoring gap.** The geofence system drives both WorkCardView (work hours) and BJJ auto-detection. If Home Assistant stops sending location updates, work tracking silently dies. Same pattern as PLAN.1. 10-minute task.
+
+3. **TASK-PLAN.3 (Dashboard contract update)** — **Contract drift.** The smoke test contract was written when the dashboard was at schema v14 (9 keys). It's now at v21 with 12+ additional keys. The nightly check reports "healthy" even though it's only validating the original 9 keys. If a migration accidentally drops `habits_today` or `work_summary`, the smoke test wouldn't catch it. Quick file edit.
+
+4. **TASK-PLAN.4 (SMS replay fix)** — **Persistent nightly failure.** The ops report has shown `sms-replay: critical` for 4+ consecutive nights. While the SMS parser itself is frozen, the *test harness* is broken (likely ESM/dependency issue). This creates noise in the nightly report and masks potential real regressions. The fix is to the test infrastructure, not the parser.
+
+5. **TASK-PLAN.5 (Mood feed entry)** — **Simple misconfiguration.** Migration 162 created both the trigger function and trigger, but never inserted the `mood` row into `feed_status_live`. The trigger does `ON CONFLICT UPDATE` but there's no row to conflict with, so it silently no-ops. One INSERT statement fixes it.
+
+6. **TASK-PLAN.6 (Habits replay test)** — **Test coverage for active feature.** 4 of 7+ domains have replay tests (finance, health, calendar, nutrition). Habits is the most recently added daily-use feature with complex streak logic. A replay test catches silent breakage in `get_habit_streaks()` or dashboard integration.
+
+### What Was Deliberately Excluded
+
+- **Geofence iOS UI** — The geofence system (migrations 183-191) has full backend support but zero iOS views. However, creating a GeofenceView would be a multi-session effort (new ViewModel, new View, location permission flow, MoreView wiring). Not a single-coder-session task.
+- **Weekly review editing** — WeeklyReviewCardView is read-only. Adding edit capability requires both a new n8n webhook and iOS form. Multi-session effort.
+- **Debt/Wishlist views** — Backend stubs exist but no CRUD endpoints. 3-4 session effort.
+- **Apple Watch companion** — New Xcode target, significant effort, no user request.
+- **Receipt-Nutrition matching** — High effort ML/fuzzy matching. Not a quick win.
+- **Screen time feed error** — Shows `error` (last data Feb 7). This is a user-action dependency (iOS Shortcut automation must run). Not a code fix.
+- **Water/manual feed errors** — Similar to screen_time: user hasn't logged water since Feb 7 or manual entries since Jan 22. These are behavioral gaps, not code bugs.
+
+### Task Ordering Rationale
+
+1. **PLAN.1 + PLAN.2**: Independent feed status triggers, can run in parallel. Both are 10-minute tasks that immediately improve monitoring coverage.
+2. **PLAN.3**: Independent contract update. Quick file edit that makes nightly smoke tests meaningful for the first time since schema v14.
+3. **PLAN.4**: Fixes a persistent nightly failure. May require investigation but the root cause is likely trivial (ESM resolution or missing `package.json` type field).
+4. **PLAN.5**: One-line INSERT fix for a misconfiguration from migration 162.
+5. **PLAN.6**: Test infrastructure. Depends on nothing, fills the biggest replay test coverage gap.
