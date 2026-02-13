@@ -2715,60 +2715,66 @@ Lane: safe_auto
 ### TASK-PLAN.5: Add Mood Feed Status Trigger on raw.mood_log
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** Feed status shows `mood | unknown` (NULL last_event_at) despite migration 162 creating both the `raw.update_mood_feed_status()` function AND the `trg_mood_log_feed_status` trigger. The trigger exists but `mood` has no initial entry in `life.feed_status_live` — the trigger does ON CONFLICT UPDATE on `source = 'mood'` but the row was never inserted. The mood data pathway works (MoodCardView displays `moodToday` from payload) but Pipeline Health shows permanent "unknown".
 
-**Files to Touch:**
+**Finding:** The mood row DID exist in `feed_status_live` (inserted by migration 162 line 78-80). The actual gap was that the trigger only fired on INSERT, not UPDATE — unlike newer feed triggers (supplements, bjj, screen_time) which fire on INSERT OR UPDATE. Status was `unknown` simply because no mood data had been logged yet (raw.mood_log had 0 rows).
+
+**Files Changed:**
 - `backend/migrations/194_fix_mood_feed_entry.up.sql`
 - `backend/migrations/194_fix_mood_feed_entry.down.sql`
 
-**Implementation:**
-- INSERT `mood` source into `life.feed_status_live` with `expected_interval = '24 hours'` and `ON CONFLICT (source) DO NOTHING`
-- Verify the existing trigger on `raw.mood_log` still fires correctly
-- If trigger function references old schema, update to match current `feed_status_live` columns
+**Fix Applied:**
+- Ensured mood row exists in `feed_status_live` with ON CONFLICT DO NOTHING (safety net)
+- Recreated trigger with AFTER INSERT OR UPDATE (was INSERT only)
+- Matches pattern of all other recent feed status triggers (migrations 180, 181, 159)
 
 **Verification:**
-- [ ] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'mood';` — returns `mood | 24:00:00` (not NULL)
-- [ ] Test INSERT into `raw.mood_log` → mood status transitions from `unknown` to `ok`
-- [ ] Down migration: `DELETE FROM life.feed_status_live WHERE source = 'mood' AND last_event_at IS NULL;`
+- [x] `SELECT source, expected_interval FROM life.feed_status WHERE source = 'mood';` — returns `mood | 24:00:00`
+- [x] Test INSERT into `raw.mood_log` → mood status transitions from `unknown` to `ok`
+- [x] Test UPDATE on `raw.mood_log` → events_today incremented (trigger fires on UPDATE too)
+- [x] Down migration tested (reverts to INSERT-only trigger) and re-applied
 
 **Exit Criteria:**
-- [ ] `SELECT status FROM life.feed_status WHERE source = 'mood';` — not `unknown` after a mood log
+- [x] `SELECT status FROM life.feed_status WHERE source = 'mood';` — `ok` after test insert (not `unknown`)
+- [x] Trigger fires on both INSERT and UPDATE events
+- [x] Smoke tests: 8/8 healthy
 
-**Done Means:** Mood tracking health visible in Pipeline Health alongside all other domains. 3 fewer "unknown" feeds total (mood was the last missing one with an existing trigger that couldn't fire).
+**Done Means:** Mood tracking health visible in Pipeline Health alongside all other domains.
 
 ---
 
 ### TASK-PLAN.6: Create Replay Test for Habits Domain
 Priority: P2
 Owner: coder
-Status: READY
+Status: DONE ✓
 Lane: safe_auto
 
 **Objective:** The habits system (migration 187) is one of the most user-facing features (HabitsCardView on dashboard, HabitsView in MoreView, completion tracking, streaks) but has no replay test. If `life.get_habit_streaks()` breaks or `dashboard.get_payload()` stops including `habits_today`, there's no automated detection. Current replay coverage: 4/7+ active domains.
 
-**Files to Touch:**
-- `ops/test/replay/habits.sh`
+**Files Changed:**
+- `ops/test/replay/habits.sh` (NEW — 147 LOC)
 
 **Implementation:**
-Create `habits.sh` following the established `health.sh`/`calendar.sh` pattern:
-- Check 1: `life.habits` has active habits (`SELECT COUNT(*) FROM life.habits WHERE is_active`)
-- Check 2: `life.habit_completions` freshness (last completion age vs 48h threshold)
-- Check 3: `dashboard.get_payload()->'habits_today'` is not null and is an array
-- Check 4: `life.get_habit_streaks(id)` returns valid data for at least one habit
+Created `habits.sh` following the established `calendar.sh` pattern with 4 checks:
+- Check 1: `life.habits` has active habits (active_count, total_count)
+- Check 2: `life.habit_completions` freshness (age vs 48h ok / 168h warn / critical thresholds)
+- Check 3: `dashboard.get_payload()->'habits_today'` is not null, is array, reports count
+- Check 4: `life.get_habit_streaks(id)` via LATERAL join returns valid streak data
 - JSON output mode with `{ domain, status, timestamp, checks }` format
 - `all.sh` auto-discovers via glob — no changes needed
 
 **Verification:**
-- [ ] `bash ops/test/replay/habits.sh --json` — returns valid JSON with status
-- [ ] `bash ops/test/replay/all.sh` — includes habits domain
-- [ ] Script handles empty habit_completions gracefully (warn, not critical)
+- [x] `bash ops/test/replay/habits.sh --json` — returns valid JSON: status=ok, 4 checks all pass
+- [x] `bash ops/test/replay/all.sh` — includes habits domain (5 total: calendar, finance, habits, health, nutrition)
+- [x] Script handles empty habit_completions gracefully (warn, not critical)
+- [x] `bash ops/test/replay/habits.sh --json 2>&1 | python3 -m json.tool` — valid JSON ✓
 
 **Exit Criteria:**
-- [ ] `[ -x ops/test/replay/habits.sh ]` — file exists and is executable
-- [ ] `bash ops/test/replay/habits.sh --json 2>&1 | python3 -m json.tool` — valid JSON
+- [x] `[ -x ops/test/replay/habits.sh ]` — file exists and is executable
+- [x] `bash ops/test/replay/habits.sh --json 2>&1 | python3 -m json.tool` — valid JSON
 
 **Done Means:** Habits domain has automated regression testing. Replay coverage increases from 4 to 5 domains.
 
