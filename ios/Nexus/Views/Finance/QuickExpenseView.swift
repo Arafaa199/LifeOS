@@ -171,7 +171,7 @@ struct QuickExpenseView: View {
             HStack(spacing: 20) {
                 StatItem(
                     icon: "cart.fill",
-                    label: "Grocery",
+                    label: "Groceries",
                     value: viewModel.summary.formatAmount(viewModel.summary.grocerySpent),
                     color: NexusTheme.Colors.Semantic.green
                 )

@@ -930,7 +930,7 @@ def create_transaction_for_receipt(conn, receipt: Dict) -> Optional[int]:
                 %s,
                 %s,
                 'AED',
-                'Grocery',
+                'Groceries',
                 true,
                 %s,
                 %s
@@ -938,7 +938,7 @@ def create_transaction_for_receipt(conn, receipt: Dict) -> Optional[int]:
             RETURNING id
         """, (
             receipt_date,
-            f"Carrefour {store_name}" if store_name else 'Carrefour',
+            'Careem Quik' if receipt.get('vendor') == 'careem_quik' else (f"Carrefour {store_name}" if store_name else 'Carrefour'),
             -abs(total_amount),  # Expenses are negative
             client_id,
             f"Auto-created from receipt #{receipt_id}"
@@ -962,7 +962,7 @@ def create_transactions_for_unlinked_receipts(conn) -> int:
     """Create transactions for all unlinked receipts that don't match SMS."""
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute("""
-            SELECT r.id, r.pdf_hash, r.receipt_date, r.total_amount, r.store_name, r.created_at
+            SELECT r.id, r.pdf_hash, r.receipt_date, r.total_amount, r.store_name, r.vendor, r.created_at
             FROM finance.receipts r
             WHERE r.linked_transaction_id IS NULL
               AND r.parse_status = 'success'

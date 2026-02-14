@@ -151,7 +151,7 @@ struct Transaction: Identifiable, Codable {
             currency: currency,
             category: correctedCategory,
             subcategory: subcategory,
-            isGrocery: correctedCategory == "Grocery",
+            isGrocery: correctedCategory == "Groceries",
             isRestaurant: correctedCategory == "Restaurant",
             notes: notes,
             tags: tags,
@@ -259,8 +259,8 @@ struct Transaction: Identifiable, Codable {
 
     private static let categoryMapping: [String: String] = [
         // Grocery
-        "Carrefour": "Grocery", "Lulu": "Grocery", "Choithrams": "Grocery",
-        "Spinneys": "Grocery", "Viva": "Grocery", "Union Coop": "Grocery",
+        "Carrefour": "Groceries", "Lulu": "Groceries", "Choithrams": "Groceries",
+        "Spinneys": "Groceries", "Viva": "Groceries", "Union Coop": "Groceries",
         // Restaurant/Food
         "Talabat": "Restaurant", "Deliveroo": "Restaurant", "Careem Food": "Restaurant",
         "Noon Food": "Restaurant", "Zomato": "Restaurant",
@@ -650,7 +650,7 @@ struct InstallmentsSummary: Codable {
 // MARK: - Expense Categories
 
 enum ExpenseCategory: String, CaseIterable {
-    case grocery = "Grocery"
+    case grocery = "Groceries"
     case restaurant = "Restaurant"
     case transport = "Transport"
     case utilities = "Utilities"

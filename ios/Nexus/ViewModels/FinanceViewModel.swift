@@ -418,7 +418,7 @@ class FinanceViewModel: ObservableObject {
         pendingMessage = nil  // Clear pending message on success
         let spentAmount = abs(amount)
         summary.totalSpent += spentAmount
-        if category == "Grocery" {
+        if category == "Groceries" {
             summary.grocerySpent += spentAmount
         } else if category == "Restaurant" {
             summary.eatingOutSpent += spentAmount

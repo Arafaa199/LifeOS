@@ -115,7 +115,7 @@ struct CategoryBar: View {
 #Preview {
     SpendingChartsView(
         categoryBreakdown: [
-            "Grocery": 1250,
+            "Groceries": 1250,
             "Restaurant": 850,
             "Transport": 320,
             "Utilities": 150
