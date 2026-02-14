@@ -12,6 +12,7 @@ struct HabitLogSheet: View {
     @State private var icon = "circle"
     @State private var color = "#4FC3F7"
     @State private var isSubmitting = false
+    @State private var errorMessage: String?
 
     private let categories = ["health", "fitness", "productivity", "mindfulness"]
     private let frequencies = ["daily", "weekly"]
@@ -91,6 +92,14 @@ struct HabitLogSheet: View {
                     }
                     .padding(.vertical, NexusTheme.Spacing.xs)
                 }
+
+                if let error = errorMessage {
+                    Section {
+                        Text(error)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
+                            .font(.caption)
+                    }
+                }
             }
             .navigationTitle("New Habit")
             .navigationBarTitleDisplayMode(.inline)
@@ -109,6 +118,7 @@ struct HabitLogSheet: View {
 
     private func save() {
         isSubmitting = true
+        errorMessage = nil
         let request = CreateHabitRequest(
             name: name.trimmingCharacters(in: .whitespaces),
             category: category,
@@ -120,6 +130,7 @@ struct HabitLogSheet: View {
         Task {
             let success = await onCreate(request)
             if !success {
+                errorMessage = "Failed to create habit"
                 isSubmitting = false
             }
         }

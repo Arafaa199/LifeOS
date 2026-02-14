@@ -52,6 +52,10 @@ struct InsightsView: View {
             }
             .padding()
         }
+        .refreshable {
+            await viewModel.refresh()
+            updateCachedComputations()
+        }
         .sheet(isPresented: $showingMonthlyTrends) {
             MonthlyTrendsView(viewModel: viewModel)
         }

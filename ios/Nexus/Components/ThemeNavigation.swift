@@ -95,6 +95,7 @@ struct ThemeSidebarDrawer: View {
         case medications = "Medications"
         case supplements = "Supplements"
         case workouts = "Workouts"
+        case bjj = "BJJ"
         // Home
         case homeControl = "Home Control"
         // System
@@ -112,6 +113,7 @@ struct ThemeSidebarDrawer: View {
             case .medications: return "pills.fill"
             case .supplements: return "leaf.fill"
             case .workouts: return "figure.run"
+            case .bjj: return "figure.martial.arts"
             case .homeControl: return "house.fill"
             case .pipelineHealth: return "waveform.path.ecg"
             case .settings: return "gearshape.fill"
@@ -123,7 +125,7 @@ struct ThemeSidebarDrawer: View {
             switch self {
             case .documents, .receipts, .music, .notes, .reminders:
                 return .lifeData
-            case .medications, .supplements, .workouts:
+            case .medications, .supplements, .workouts, .bjj:
                 return .wellness
             case .homeControl:
                 return .home

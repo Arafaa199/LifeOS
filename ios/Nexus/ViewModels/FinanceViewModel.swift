@@ -288,8 +288,8 @@ class FinanceViewModel: ObservableObject {
             generator.notificationOccurred(.success)  // Success haptic only for confirmed
         }
 
-        // Refresh in background
-        Task { loadFinanceSummary() }
+        // Refresh in background (loadFinanceSummary manages its own Task internally)
+        loadFinanceSummary()
 
         operationInProgress = false
         return true
@@ -426,8 +426,8 @@ class FinanceViewModel: ObservableObject {
 
         generator.notificationOccurred(.success)
 
-        // Refresh in background, don't block success
-        Task { loadFinanceSummary() }
+        // Refresh in background (loadFinanceSummary manages its own Task internally)
+        loadFinanceSummary()
 
         operationInProgress = false
         return true
@@ -542,8 +542,8 @@ class FinanceViewModel: ObservableObject {
         pendingMessage = nil  // Clear pending message on success
         generator.notificationOccurred(.success)
 
-        // Refresh in background, don't block success
-        Task { loadFinanceSummary() }
+        // Refresh in background (loadFinanceSummary manages its own Task internally)
+        loadFinanceSummary()
 
         operationInProgress = false
         return true

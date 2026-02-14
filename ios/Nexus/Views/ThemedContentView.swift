@@ -23,6 +23,7 @@ struct ThemedContentView: View {
     @State private var showMedications = false
     @State private var showSupplements = false
     @State private var showWorkouts = false
+    @State private var showBJJ = false
     @State private var showHomeControl = false
     @State private var showPipelineHealth = false
     @State private var showSettings = false
@@ -152,6 +153,11 @@ struct ThemedContentView: View {
                 WorkoutsView()
             }
         }
+        .sheet(isPresented: $showBJJ) {
+            NavigationStack {
+                BJJView()
+            }
+        }
         .sheet(isPresented: $showHomeControl) {
             NavigationStack {
                 HomeControlView(viewModel: HomeViewModel.shared)
@@ -242,6 +248,8 @@ struct ThemedContentView: View {
             showSupplements = true
         case .workouts:
             showWorkouts = true
+        case .bjj:
+            showBJJ = true
         case .homeControl:
             showHomeControl = true
         case .pipelineHealth:

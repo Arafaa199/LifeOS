@@ -178,6 +178,7 @@ struct AddExpenseView: View {
                     .disabled(merchantName.isEmpty || amount.isEmpty || isSubmitting || viewModel.isLoading)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Add Expense")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

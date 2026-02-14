@@ -135,7 +135,6 @@ class SyncCoordinator: ObservableObject {
         syncAllTask?.cancel()
 
         isSyncingAll = true
-        lastSyncAllDate = Date()
 
         syncAllTask = Task {
             let flags = AppSettings.shared
@@ -164,6 +163,8 @@ class SyncCoordinator: ObservableObject {
                 }
             }
 
+            // Only mark debounce timestamp after successful completion
+            lastSyncAllDate = Date()
             isSyncingAll = false
         }
     }
@@ -213,6 +214,10 @@ class SyncCoordinator: ObservableObject {
     // MARK: - Per-Domain Sync
 
     private func syncDashboard() async {
+        guard domainStates[.dashboard]?.isSyncing != true else {
+            logger.debug("[dashboard] already syncing, skipping")
+            return
+        }
         domainStates[.dashboard]?.markSyncing()
         notifyDomainStateChanged(.dashboard)
         let start = CFAbsoluteTimeGetCurrent()
@@ -251,6 +256,10 @@ class SyncCoordinator: ObservableObject {
     }
 
     private func syncFinance() async {
+        guard domainStates[.finance]?.isSyncing != true else {
+            logger.debug("[finance] already syncing, skipping")
+            return
+        }
         domainStates[.finance]?.markSyncing()
         notifyDomainStateChanged(.finance)
         let start = CFAbsoluteTimeGetCurrent()
@@ -381,6 +390,10 @@ class SyncCoordinator: ObservableObject {
     // MARK: - Documents Sync
 
     private func syncDocuments() async {
+        guard domainStates[.documents]?.isSyncing != true else {
+            logger.debug("[documents] already syncing, skipping")
+            return
+        }
         domainStates[.documents]?.markSyncing()
         notifyDomainStateChanged(.documents)
         let start = CFAbsoluteTimeGetCurrent()

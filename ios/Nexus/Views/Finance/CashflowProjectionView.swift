@@ -41,6 +41,10 @@ struct CashflowProjectionView: View {
                     }
                 }
             }
+            .refreshable {
+                await viewModel.refresh()
+                generateProjection()
+            }
             .onAppear {
                 generateProjection()
             }

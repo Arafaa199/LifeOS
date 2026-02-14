@@ -63,6 +63,7 @@ class CalendarViewModel: ObservableObject {
     }
 
     func fetchTodayEvents() async {
+        guard !isLoadingEvents else { return }
         isLoadingEvents = true
         errorMessage = nil
 

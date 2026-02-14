@@ -72,6 +72,9 @@ struct FinanceBudgetsView: View {
             }
             .padding()
         }
+        .refreshable {
+            await viewModel.refresh()
+        }
         .sheet(isPresented: $showingBudgetSettings) {
             BudgetSettingsView()
         }

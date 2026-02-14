@@ -13,6 +13,7 @@ struct RecurringItemFormView: View {
     @State private var nextDueDate: Date = Date()
     @State private var notes: String = ""
     @State private var isSubmitting = false
+    @State private var errorMessage: String?
 
     var isEditing: Bool { editingItem != nil }
 
@@ -78,14 +79,27 @@ struct RecurringItemFormView: View {
                     .disabled(name.isEmpty || amount.isEmpty || isSubmitting)
                 }
 
+                if let error = errorMessage {
+                    Section {
+                        Text(error)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
+                            .font(.caption)
+                    }
+                }
+
                 if isEditing {
                     Section {
                         Button(role: .destructive) {
                             Task {
                                 if let item = editingItem {
                                     isSubmitting = true
+                                    errorMessage = nil
                                     let success = await viewModel.deleteRecurringItem(id: item.id)
-                                    if success { dismiss() }
+                                    if success {
+                                        dismiss()
+                                    } else {
+                                        errorMessage = viewModel.errorMessage ?? "Failed to delete"
+                                    }
                                     isSubmitting = false
                                 }
                             }
@@ -120,6 +134,7 @@ struct RecurringItemFormView: View {
     private func save() {
         guard !isSubmitting, let amountValue = Double(amount) else { return }
         isSubmitting = true
+        errorMessage = nil
 
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -161,6 +176,7 @@ struct RecurringItemFormView: View {
             if success {
                 dismiss()
             } else {
+                errorMessage = viewModel.errorMessage ?? "Failed to save"
                 isSubmitting = false
             }
         }

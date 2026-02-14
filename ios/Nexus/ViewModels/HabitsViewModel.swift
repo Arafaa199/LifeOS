@@ -85,7 +85,12 @@ class HabitsViewModel: ObservableObject {
         habits.remove(at: index)
 
         do {
-            _ = try await api.deleteHabit(id: id)
+            let response = try await api.deleteHabit(id: id)
+            if !response.success {
+                logger.warning("Server rejected delete for habit \(id)")
+                habits.insert(original, at: min(index, habits.count))
+                errorMessage = "Failed to delete habit"
+            }
         } catch {
             logger.error("Failed to delete habit \(id): \(error.localizedDescription)")
             // Rollback
