@@ -28,7 +28,7 @@ Fetches finance summary including today's spend, MTD totals, transactions, budge
         "merchant_name": "Carrefour",
         "amount": -45.00,
         "currency": "AED",
-        "category": "Grocery",
+        "category": "Groceries",
         "subcategory": null,
         "is_grocery": true,
         "is_restaurant": false,
@@ -40,14 +40,14 @@ Fetches finance summary including today's spend, MTD totals, transactions, budge
       {
         "id": 1,
         "month": "2026-02",
-        "category": "Grocery",
+        "category": "Groceries",
         "budget_amount": 2000,
         "spent": 450,
         "remaining": 1550
       }
     ],
     "category_breakdown": {
-      "Grocery": 450,
+      "Groceries": 450,
       "Restaurant": 350,
       "Transport": 200
     }
@@ -175,7 +175,7 @@ Logs a structured transaction.
 {
   "merchant_name": "Carrefour",
   "amount": -150.00,
-  "category": "Grocery",
+  "category": "Groceries",
   "notes": "Weekly groceries",
   "date": "2026-02-08",
   "client_id": "uuid-v4"
@@ -358,7 +358,7 @@ Fetches current month's budgets.
       {
         "id": 1,
         "month": "2026-02",
-        "category": "Grocery",
+        "category": "Groceries",
         "budget_amount": 2000,
         "spent": 450,
         "remaining": 1550
@@ -397,7 +397,7 @@ Creates or updates a budget (UPSERT by month+category).
 ```json
 {
   "month": "2026-02",
-  "category": "Grocery",
+  "category": "Groceries",
   "budget_amount": 2500,
   "category_id": 1,
   "notes": "Increased budget"
@@ -444,7 +444,7 @@ Fetches expense/income categories.
   "data": [
     {
       "id": 1,
-      "name": "Grocery",
+      "name": "Groceries",
       "type": "expense",
       "icon": "cart.fill",
       "color": "#4CAF50",
@@ -637,7 +637,7 @@ Fetches merchant matching rules.
     {
       "id": 1,
       "merchant_pattern": "CARREFOUR",
-      "category": "Grocery",
+      "category": "Groceries",
       "is_grocery": true,
       "is_restaurant": false,
       "confidence": 100,
@@ -683,7 +683,7 @@ Fetches monthly spending trends.
         "month": "2026-02",
         "total_spent": 5000,
         "category_breakdown": {
-          "Grocery": 1500,
+          "Groceries": 1500,
           "Restaurant": 800,
           "Transport": 400
         }

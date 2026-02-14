@@ -1,5 +1,5 @@
 {
-  "name": "Nexus - Expense Log Webhook",
+  "name": "Nexus: Quick Expense API",
   "nodes": [
     {
       "parameters": {
@@ -11,174 +11,81 @@
       "id": "webhook",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 1,
-      "position": [250, 300],
-      "webhookId": "nexus-expense"
-    },
-    {
-      "parameters": {
-        "jsCode": "const input = $input.first().json.body || $input.first().json;\nconst text = (input.text || '').trim();\nconst clientId = input.client_id || null;\n\nif (!text || text.length < 2) {\n  throw new Error('Expense description is required (min 2 chars)');\n}\n\nif (text.length > 500) {\n  throw new Error('Expense description too long (max 500 chars)');\n}\n\nreturn {\n  original_text: text,\n  client_id: clientId,\n  logged_at: new Date().toISOString()\n};"
-      },
-      "id": "validate-input",
-      "name": "Validate Input",
-      "type": "n8n-nodes-base.code",
-      "position": [450, 300],
-      "typeVersion": 2,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "model": "claude-sonnet-4-5-20250929",
-        "options": {},
-        "text": "=Parse this expense into structured data. Return ONLY valid JSON with no markdown:\n\nExpense: {{ $json.original_text }}\n\nExtract:\n- merchant_name (string)\n- amount (number, always positive)\n- category (one of: grocery, restaurant, transport, utilities, entertainment, health, shopping, other)\n- is_grocery (boolean)\n- is_restaurant (boolean)\n- notes (string, any extra details)\n\nJSON only:"
-      },
-      "id": "claude-ai",
-      "name": "Claude AI",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1,
-      "position": [650, 300],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "id": "has-error",
-              "leftValue": "={{ $json.error }}",
-              "rightValue": "",
-              "operator": { "type": "string", "operation": "exists" }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "check-parse-error",
-      "name": "Parse OK?",
-      "type": "n8n-nodes-base.if",
-      "position": [850, 300],
+      "position": [240, 304],
+      "webhookId": "nexus-expense",
       "typeVersion": 2
     },
     {
       "parameters": {
-        "operation": "insert",
-        "schema": "finance",
-        "table": "transactions",
-        "columns": "date,merchant_name,amount,category,is_grocery,is_restaurant,notes,client_id",
+        "jsCode": "const text = $input.first().json.body.text || '';\n\n// Simple parsing: extract numbers as amount, rest as merchant\n// Patterns: \"50 coffee\", \"coffee 50\", \"50aed starbucks\", \"starbucks 50 aed\"\n\n// Try to extract amount (number with optional decimals)\nconst amountMatch = text.match(/([\\d]+\\.?[\\d]*)\\s*(aed|usd|eur|dhs)?/i);\nlet amount = amountMatch ? parseFloat(amountMatch[1]) : 0;\n\n// Remove the amount part to get merchant name\nlet merchantName = text\n  .replace(/[\\d]+\\.?[\\d]*\\s*(aed|usd|eur|dhs)?/gi, '')\n  .trim()\n  .replace(/\\s+/g, ' ');\n\nif (!merchantName) merchantName = 'Quick Expense';\n\n// Make amount negative (expense)\nif (amount > 0) amount = -amount;\n\n// Escape single quotes for SQL\nmerchantName = merchantName.replace(/'/g, \"''\");\n\nreturn {\n  json: {\n    merchantName,\n    amount,\n    originalText: text\n  }\n};"
+      },
+      "id": "parse",
+      "name": "Parse Text",
+      "type": "n8n-nodes-base.code",
+      "position": [448, 304],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO finance.transactions (merchant_name, amount, date, currency, notes)\nVALUES (\n  '{{ $json.merchantName }}',\n  {{ $json.amount }},\n  (NOW() AT TIME ZONE 'Asia/Dubai')::date,\n  'AED',\n  'Quick log: {{ $json.originalText.replace(/'/g, \"''\") }}'\n)\nRETURNING id, merchant_name, amount, to_char(date, 'YYYY-MM-DD') as date, currency;",
         "options": {}
       },
-      "id": "insert-txn",
+      "id": "insert",
       "name": "Insert Transaction",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [1050, 300],
-      "onError": "continueErrorOutput",
-      "credentials": {
-        "postgres": {
-          "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "-- Get today's totals\nSELECT \n  COALESCE(SUM(amount), 0) as total_spent,\n  COALESCE(SUM(CASE WHEN is_grocery THEN amount ELSE 0 END), 0) as grocery_spent,\n  COALESCE(SUM(CASE WHEN is_restaurant THEN amount ELSE 0 END), 0) as eating_out_spent,\n  COALESCE(SUM(CASE WHEN category = '{{ $json.category }}' THEN amount ELSE 0 END), 0) as category_spent\nFROM finance.transactions\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date",
-        "options": {}
-      },
-      "id": "daily-summary",
-      "name": "Get Daily Summary",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [1250, 300],
-      "onError": "continueErrorOutput",
-      "credentials": {
-        "postgres": {
-          "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Logged ${{ $json.amount }} at {{ $json.merchant_name }}\",\n  \"data\": {\n    \"transaction\": {\n      \"id\": {{ $('Insert Transaction').item.json.id }},\n      \"merchant_name\": \"{{ $json.merchant_name }}\",\n      \"amount\": {{ $json.amount }},\n      \"category\": \"{{ $json.category }}\",\n      \"is_grocery\": {{ $json.is_grocery }},\n      \"is_restaurant\": {{ $json.is_restaurant }}\n    },\n    \"total_spent\": {{ $('Get Daily Summary').item.json.total_spent }},\n    \"category_spent\": {{ $('Get Daily Summary').item.json.category_spent }}\n  }\n}",
-        "options": {}
-      },
-      "id": "success-response",
-      "name": "Response",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [1450, 300]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=SELECT ops.enqueue_dead_letter(\n  'nexus-expense',\n  'Claude AI',\n  '/webhook/nexus-expense',\n  '{{ ($json.error || $json.message || \"Unknown parse error\").replace(/'/g, \"''\") }}',\n  '',\n  '',\n  '{{ JSON.stringify($('Validate Input').item.json).replace(/'/g, \"''\") }}'::jsonb,\n  3\n) as dlq_id;",
-        "options": {}
-      },
-      "id": "log-to-dlq",
-      "name": "Log to DLQ",
-      "type": "n8n-nodes-base.postgres",
-      "position": [1050, 500],
+      "position": [640, 304],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nreturn {\n  json: {\n    success: true,\n    message: 'Logged: ' + data.merchant_name + ' - ' + Math.abs(data.amount) + ' AED',\n    data: {\n      transaction: {\n        id: data.id,\n        merchant_name: data.merchant_name,\n        amount: parseFloat(data.amount),\n        date: data.date + 'T00:00:00Z',\n        currency: data.currency\n      }\n    }\n  }\n};"
+      },
+      "id": "format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "position": [848, 304],
+      "typeVersion": 2
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Failed to process expense\",\n  \"code\": \"PROCESSING_ERROR\"\n}",
-        "options": {
-          "responseCode": 500
-        }
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
       },
-      "id": "error-response",
-      "name": "Error Response",
+      "id": "respond",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [1250, 500]
+      "position": [1040, 304],
+      "typeVersion": 1.1
     }
   ],
   "connections": {
     "Webhook": {
-      "main": [[{"node": "Validate Input", "type": "main", "index": 0}]]
+      "main": [[{"node": "Parse Text", "type": "main", "index": 0}]]
     },
-    "Validate Input": {
-      "main": [[{"node": "Claude AI", "type": "main", "index": 0}]]
-    },
-    "Claude AI": {
-      "main": [[{"node": "Parse OK?", "type": "main", "index": 0}]]
-    },
-    "Parse OK?": {
-      "main": [
-        [{"node": "Log to DLQ", "type": "main", "index": 0}],
-        [{"node": "Insert Transaction", "type": "main", "index": 0}]
-      ]
+    "Parse Text": {
+      "main": [[{"node": "Insert Transaction", "type": "main", "index": 0}]]
     },
     "Insert Transaction": {
       "main": [
-        [{"node": "Get Daily Summary", "type": "main", "index": 0}],
+        [{"node": "Format Response", "type": "main", "index": 0}],
         [{"node": "Error Response", "type": "main", "index": 0}]
       ]
     },
-    "Get Daily Summary": {
-      "main": [
-        [{"node": "Response", "type": "main", "index": 0}],
-        [{"node": "Error Response", "type": "main", "index": 0}]
-      ]
-    },
-    "Log to DLQ": {
-      "main": [[{"node": "Error Response", "type": "main", "index": 0}]]
+    "Format Response": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
     }
   },
   "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
     "executionOrder": "v1"
-  },
-  "tags": [{"name": "nexus"}]
+  }
 }

@@ -181,7 +181,7 @@ Add to `carrefour-gmail-automation.json` or create new workflow.
 
 ```sql
 INSERT INTO finance.merchant_rules (merchant_pattern, category, is_grocery, confidence)
-VALUES ('VENDOR_NAME', 'Grocery', true, 90);
+VALUES ('VENDOR_NAME', 'Groceries', true, 90);
 ```
 
 ---
