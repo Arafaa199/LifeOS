@@ -49,6 +49,7 @@ struct BJJCardView: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(NexusTheme.Colors.textMuted)
+                        .accessibilityHidden(true)
                 }
 
                 // Today's session highlight (if trained today)
@@ -65,6 +66,7 @@ struct BJJCardView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("BJJ Training, \(primaryText)")
     }
 
     // MARK: - Streak Badge
@@ -89,6 +91,7 @@ struct BJJCardView: View {
                     .foregroundColor(hasActiveStreak ? .orange : NexusTheme.Colors.textTertiary)
             }
         }
+        .accessibilityLabel("\(viewModel.streak?.currentStreak ?? 0) week streak")
     }
 
     // MARK: - Today Session Row

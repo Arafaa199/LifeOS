@@ -36,7 +36,7 @@ struct FinanceFlatView: View {
                     .padding(.horizontal)
                     .padding(.top, NexusTheme.Spacing.md)
 
-                    NexusSectionHeader(title: "Plan")
+                    ThemeSectionHeader(title: "Plan")
                         .padding(.horizontal)
                         .padding(.top, NexusTheme.Spacing.lg)
 

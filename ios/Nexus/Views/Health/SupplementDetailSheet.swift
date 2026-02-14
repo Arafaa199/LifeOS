@@ -61,7 +61,7 @@ struct SupplementDetailSheet: View {
                     } else {
                         HStack {
                             Image(systemName: "clock")
-                                .foregroundColor(.orange)
+                                .foregroundColor(NexusTheme.Colors.Semantic.amber)
                             Text("No doses logged today")
                                 .foregroundColor(.secondary)
                         }
@@ -84,7 +84,7 @@ struct SupplementDetailSheet: View {
                         if isDeactivating {
                             HStack {
                                 ProgressView()
-                                    .tint(.red)
+                                    .tint(NexusTheme.Colors.Semantic.red)
                                 Text("Deactivating...")
                             }
                         } else {

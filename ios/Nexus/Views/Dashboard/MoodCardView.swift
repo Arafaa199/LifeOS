@@ -25,6 +25,7 @@ struct MoodCardView: View {
                 Rectangle()
                     .fill(NexusTheme.Colors.divider)
                     .frame(width: 1, height: 50)
+                    .accessibilityHidden(true)
 
                 // Energy
                 VStack(spacing: NexusTheme.Spacing.xxxs) {
@@ -48,6 +49,7 @@ struct MoodCardView: View {
                         .font(.system(size: 24))
                         .foregroundColor(NexusTheme.Colors.accent)
                 }
+                .accessibilityLabel("Log mood")
             }
             .padding(NexusTheme.Spacing.lg)
             .background(NexusTheme.Colors.card)
@@ -68,6 +70,7 @@ struct MoodCardView: View {
                             .font(.system(size: 18))
                             .foregroundColor(NexusTheme.Colors.accent)
                     }
+                    .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Log your mood")
@@ -83,6 +86,7 @@ struct MoodCardView: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(NexusTheme.Colors.textMuted)
+                        .accessibilityHidden(true)
                 }
                 .padding(NexusTheme.Spacing.lg)
                 .background(NexusTheme.Colors.card)

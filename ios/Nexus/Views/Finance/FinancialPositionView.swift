@@ -11,8 +11,7 @@ struct FinancialPositionView: View {
         ScrollView {
             VStack(spacing: NexusTheme.Spacing.lg) {
                 if viewModel.isLoading && viewModel.position == nil {
-                    ProgressView("Loading financial position...")
-                        .padding(.top, 60)
+                    ThemeLoadingView(message: "Loading financial position...")
                 } else if let error = viewModel.errorMessage {
                     errorView(error)
                 } else if let position = viewModel.position {
@@ -399,26 +398,14 @@ struct FinancialPositionView: View {
     // MARK: - Error View
 
     private func errorView(_ error: String) -> some View {
-        VStack(spacing: NexusTheme.Spacing.lg) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundColor(NexusTheme.Colors.Semantic.amber)
-
-            Text("Could not load financial position")
-                .font(.headline)
-
-            Text(error)
-                .font(.caption)
-                .foregroundColor(NexusTheme.Colors.textSecondary)
-                .multilineTextAlignment(.center)
-
-            Button("Try Again") {
+        ErrorStateView(
+            title: "Could not load financial position",
+            message: error,
+            onRetry: {
                 haptics.impactOccurred()
                 Task { await viewModel.load() }
             }
-            .buttonStyle(.bordered)
-        }
-        .padding(.top, 60)
+        )
     }
 }
 

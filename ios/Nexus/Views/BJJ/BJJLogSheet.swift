@@ -3,6 +3,7 @@ import SwiftUI
 struct BJJLogSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: BJJViewModel
+    var editSession: BJJSession? = nil
 
     @State private var sessionType: BJJSessionType = .nogi
     @State private var sessionDate = Date()
@@ -11,6 +12,8 @@ struct BJJLogSheet: View {
     @State private var techniqueInput = ""
     @State private var notes = ""
     @State private var showError = false
+
+    private var isEditing: Bool { editSession != nil }
 
     private let commonTechniques = [
         "Guard Passing", "Submissions", "Takedowns",
@@ -122,7 +125,8 @@ struct BJJLogSheet: View {
                         .lineLimit(3...6)
                 }
             }
-            .navigationTitle("Log BJJ Session")
+            .onAppear { prefillEditData() }
+            .navigationTitle(isEditing ? "Edit Session" : "Log BJJ Session")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -156,29 +160,57 @@ struct BJJLogSheet: View {
         techniqueInput = ""
     }
 
+    private func prefillEditData() {
+        guard let session = editSession else { return }
+        sessionType = BJJSessionType(rawValue: session.sessionType) ?? .nogi
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        if let date = formatter.date(from: session.sessionDate) {
+            sessionDate = date
+        }
+        durationMinutes = session.durationMinutes
+        techniques = session.techniques ?? []
+        notes = session.notes ?? ""
+    }
+
     private func saveSession() async {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
 
-        let request = LogBJJRequest(
-            sessionDate: formatter.string(from: sessionDate),
-            sessionType: sessionType.rawValue,
-            durationMinutes: durationMinutes,
-            techniques: techniques.isEmpty ? nil : techniques,
-            notes: notes.isEmpty ? nil : notes,
-            source: "manual"
-        )
-
-        let success = await viewModel.logSession(request)
-
-        if success {
-            dismiss()
+        if let session = editSession {
+            let request = BJJUpdateRequest(
+                id: session.id,
+                sessionDate: formatter.string(from: sessionDate),
+                sessionType: sessionType.rawValue,
+                durationMinutes: durationMinutes,
+                techniques: techniques.isEmpty ? nil : techniques,
+                notes: notes.isEmpty ? nil : notes
+            )
+            let success = await viewModel.updateSession(request)
+            if success {
+                dismiss()
+            } else {
+                showError = true
+            }
         } else {
-            showError = true
+            let request = LogBJJRequest(
+                sessionDate: formatter.string(from: sessionDate),
+                sessionType: sessionType.rawValue,
+                durationMinutes: durationMinutes,
+                techniques: techniques.isEmpty ? nil : techniques,
+                notes: notes.isEmpty ? nil : notes,
+                source: "manual"
+            )
+            let success = await viewModel.logSession(request)
+            if success {
+                dismiss()
+            } else {
+                showError = true
+            }
         }
     }
 }
 
 #Preview {
-    BJJLogSheet(viewModel: BJJViewModel())
+    BJJLogSheet(viewModel: BJJViewModel(), editSession: nil)
 }

@@ -6,6 +6,7 @@ struct HomeStatusCard: View {
 
     var body: some View {
         Button(action: { onTap?() }) {
+            // accessibility set on outer button below
             VStack(alignment: .leading, spacing: NexusTheme.Spacing.md) {
                 // Header
                 HStack {
@@ -22,6 +23,7 @@ struct HomeStatusCard: View {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 11))
                             .foregroundColor(NexusTheme.Colors.textMuted)
+                            .accessibilityHidden(true)
                     }
                 }
 
@@ -99,6 +101,7 @@ struct HomeStatusCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Home status, tap to open Home Assistant")
     }
 }
 
@@ -142,6 +145,8 @@ struct DeviceIndicator: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label), \(state)")
     }
 
     private func batteryIcon(for level: Int) -> String {

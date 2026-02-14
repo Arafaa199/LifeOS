@@ -20,7 +20,7 @@ struct MiniPlayerView: View {
                                 .cornerRadius(6)
                         } else {
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.gray.opacity(0.3))
+                                .fill(NexusTheme.Colors.cardAlt)
                                 .frame(width: 48, height: 48)
                                 .overlay(
                                     Image(systemName: "music.note")

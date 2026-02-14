@@ -138,7 +138,7 @@ private struct QueueEntryRow: View {
                     .cornerRadius(6)
             } else {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(0.2))
+                    .fill(NexusTheme.Colors.cardAlt)
                     .frame(width: 50, height: 50)
                     .overlay(
                         Image(systemName: "music.note")

@@ -25,7 +25,7 @@ struct NotesView: View {
     var body: some View {
         Group {
             if isLoading && notes.isEmpty {
-                ProgressView("Loading notes...")
+                ThemeLoadingView(message: "Loading notes...")
             } else if let error = errorMessage, notes.isEmpty {
                 errorView(error)
             } else if notes.isEmpty && searchText.isEmpty && selectedTag == nil {

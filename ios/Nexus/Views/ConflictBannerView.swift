@@ -14,7 +14,7 @@ struct ConflictBannerView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.blue)
+                        .foregroundColor(NexusTheme.Colors.Semantic.blue)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Sync Conflict Resolved")
@@ -32,7 +32,7 @@ struct ConflictBannerView: View {
                     Button(action: { dismissBanner() }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 16))
-                            .foregroundColor(.gray)
+                            .foregroundColor(NexusTheme.Colors.textTertiary)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -112,5 +112,5 @@ struct ConflictBannerView: View {
         ConflictBannerView()
         Spacer()
     }
-    .background(Color(.systemBackground))
+    .background(NexusTheme.Colors.card)
 }

@@ -11,16 +11,9 @@ struct DocumentsListView: View {
     var body: some View {
         Group {
             if viewModel.isLoading && viewModel.documents.isEmpty {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Loading documents...")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Loading documents")
+                ThemeLoadingView(message: "Loading documents...")
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Loading documents")
             } else if viewModel.documents.isEmpty {
                 emptyState
             } else {
@@ -59,44 +52,16 @@ struct DocumentsListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "doc.text")
-                .font(.system(size: 56))
-                .foregroundColor(.secondary)
-                .padding(.top, 40)
-            
-            VStack(spacing: 8) {
-                Text("No Documents Yet")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Keep track of important documents like passports, visas, IDs, and cards.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-                
-                Text("Get expiry reminders so you never miss a renewal.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
-            
-            Button {
+        ThemeEmptyState(
+            icon: "doc.text",
+            headline: "No Documents Yet",
+            description: "Keep track of passports, visas, IDs, and cards. Get expiry reminders so you never miss a renewal.",
+            ctaTitle: "Add Your First Document",
+            ctaAction: {
                 haptics.impactOccurred()
                 showingAddSheet = true
-            } label: {
-                Label("Add Your First Document", systemImage: "plus.circle.fill")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
             }
-            .buttonStyle(.borderedProminent)
-            .padding(.top, 8)
-            
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        )
     }
 
     private var documentList: some View {

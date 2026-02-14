@@ -304,7 +304,7 @@ struct MetricBadge: View {
     var body: some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(enabled ? NexusTheme.Colors.Semantic.green : Color.gray)
+                .fill(enabled ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textTertiary)
                 .frame(width: 6, height: 6)
 
             Text(name)

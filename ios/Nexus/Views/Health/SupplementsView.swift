@@ -115,7 +115,7 @@ struct SupplementsView: View {
             if summary.pending > 0 {
                 HStack {
                     Image(systemName: "clock.fill")
-                        .foregroundColor(.orange)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     Text("\(summary.pending) doses remaining today")
                         .font(.subheadline)
                         .foregroundColor(.secondary)

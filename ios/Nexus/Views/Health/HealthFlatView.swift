@@ -10,13 +10,13 @@ struct HealthFlatView: View {
                 VStack(spacing: 0) {
                     HealthTodayContent(viewModel: viewModel)
 
-                    NexusSectionHeader(title: "Trends")
+                    ThemeSectionHeader(title: "Trends")
                         .padding(.horizontal)
                     HealthTrendsContent(viewModel: viewModel,
                                         selectedPeriod: $selectedPeriod,
                                         showFreshness: false)
 
-                    NexusSectionHeader(title: "Insights")
+                    ThemeSectionHeader(title: "Insights")
                         .padding(.horizontal)
                     HealthInsightsContent(viewModel: viewModel)
 

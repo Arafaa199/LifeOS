@@ -111,7 +111,7 @@ struct SongRow: View {
                         .clipped()
                 } else {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.3))
+                        .fill(NexusTheme.Colors.cardAlt)
                         .frame(width: 48, height: 48)
                 }
 
@@ -158,7 +158,7 @@ struct AlbumRow: View {
                     .clipped()
             } else {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(NexusTheme.Colors.cardAlt)
                     .frame(width: 56, height: 56)
             }
 
@@ -195,7 +195,7 @@ struct ArtistRow: View {
                     .clipped()
             } else {
                 Circle()
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(NexusTheme.Colors.cardAlt)
                     .frame(width: 56, height: 56)
                     .overlay(
                         Image(systemName: "person.fill")
@@ -227,7 +227,7 @@ struct PlaylistRow: View {
                         .clipped()
                 } else {
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.gray.opacity(0.3))
+                        .fill(NexusTheme.Colors.cardAlt)
                         .frame(width: 56, height: 56)
                 }
 

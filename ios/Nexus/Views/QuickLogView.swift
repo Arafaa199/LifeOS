@@ -72,7 +72,7 @@ struct QuickLogView: View {
                 TextEditor(text: speechRecognizer.isRecording ? $speechRecognizer.transcript : $inputText)
                     .frame(minHeight: 100)
                     .padding(12)
-                    .background(Color(.systemBackground))
+                    .background(NexusTheme.Colors.card)
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
@@ -112,7 +112,7 @@ struct QuickLogView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .nexusCard()
+        .themeCard()
     }
 
     // MARK: - Quick Actions
@@ -124,44 +124,24 @@ struct QuickLogView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 NavigationLink(destination: FoodLogView(viewModel: viewModel)) {
-                    NexusQuickActionCard(
-                        title: "Log Food",
-                        icon: "fork.knife",
-                        color: NexusTheme.Colors.Semantic.amber
-                    )
+                    quickActionLabel("Log Food", icon: "fork.knife", color: NexusTheme.Colors.Semantic.amber)
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(.plain)
 
                 NavigationLink(destination: WaterLogView()) {
-                    NexusQuickActionCard(
-                        title: "Water",
-                        icon: "drop.fill",
-                        color: NexusTheme.Colors.Semantic.blue
-                    )
+                    quickActionLabel("Water", icon: "drop.fill", color: NexusTheme.Colors.Semantic.blue)
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(.plain)
 
-                NexusQuickActionButton(
-                    title: "Coffee",
-                    icon: "cup.and.saucer.fill",
-                    color: .brown
-                ) {
+                quickActionButton("Coffee", icon: "cup.and.saucer.fill", color: .brown) {
                     logQuick("coffee with milk")
                 }
 
-                NexusQuickActionButton(
-                    title: "Snack",
-                    icon: "leaf.fill",
-                    color: NexusTheme.Colors.Semantic.purple
-                ) {
+                quickActionButton("Snack", icon: "leaf.fill", color: NexusTheme.Colors.Semantic.purple) {
                     logQuick("had a snack")
                 }
 
-                NexusQuickActionButton(
-                    title: "Weight",
-                    icon: "scalemass.fill",
-                    color: NexusTheme.Colors.Semantic.amber
-                ) {
+                quickActionButton("Weight", icon: "scalemass.fill", color: NexusTheme.Colors.Semantic.amber) {
                     isInputFocused = true
                     inputText = "weight "
                 }
@@ -169,24 +149,49 @@ struct QuickLogView: View {
         }
     }
 
+    private func quickActionLabel(_ title: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 56, height: 56)
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(color)
+            }
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(NexusTheme.Colors.textPrimary)
+        }
+        .frame(minWidth: 80)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 8)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.lg)
+    }
+
+    private func quickActionButton(_ title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button {
+            NexusTheme.Haptics.light()
+            action()
+        } label: {
+            quickActionLabel(title, icon: icon, color: color)
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Submit Button
 
     private var submitButton: some View {
-        Button(action: submitLog) {
-            HStack(spacing: 10) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                } else {
-                    Image(systemName: "paperplane.fill")
-                        .font(.body.weight(.semibold))
-                }
-                Text(isLoading ? "Logging..." : "Log It")
-                    .fontWeight(.semibold)
-            }
+        ThemePrimaryButton(
+            isLoading ? "Logging..." : "Log It",
+            icon: "paperplane.fill",
+            isLoading: isLoading,
+            isDisabled: inputText.isEmpty || isLoading
+        ) {
+            submitLog()
         }
-        .nexusAccentButton(disabled: inputText.isEmpty || isLoading)
-        .disabled(inputText.isEmpty || isLoading)
     }
 
     // MARK: - Actions
@@ -252,18 +257,6 @@ struct QuickLogView: View {
                 }
             }
         }
-    }
-}
-
-// Keep QuickActionButton for backwards compatibility
-struct QuickActionButton: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        NexusQuickActionButton(title: title, icon: icon, color: color, action: action)
     }
 }
 

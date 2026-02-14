@@ -7,14 +7,7 @@ struct ReceiptsListView: View {
     var body: some View {
         Group {
             if viewModel.isLoading && viewModel.receipts.isEmpty {
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.2)
-                    Text("Loading receipts...")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ThemeLoadingView(message: "Loading receipts...")
             } else if viewModel.receipts.isEmpty {
                 emptyState
             } else {
@@ -143,9 +136,11 @@ struct ReceiptSummaryRow: View {
     }
 
     private func formatDate(_ dateStr: String) -> String {
+        // Handle both "yyyy-MM-dd" and ISO8601 "yyyy-MM-ddTHH:mm:ss.SSSZ"
+        let dateOnly = String(dateStr.prefix(10))
         let input = DateFormatter()
         input.dateFormat = "yyyy-MM-dd"
-        guard let date = input.date(from: dateStr) else { return dateStr }
+        guard let date = input.date(from: dateOnly) else { return dateOnly }
         let output = DateFormatter()
         output.dateStyle = .medium
         return output.string(from: date)

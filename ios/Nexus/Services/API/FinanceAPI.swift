@@ -244,11 +244,6 @@ class FinanceAPI: BaseAPIClient {
 
     // MARK: - Receipts
 
-    func fetchReceipts(limit: Int = 50) async throws -> ReceiptsResponse {
-        let path = buildPath("/webhook/nexus-receipts", query: ["limit": "\(limit)"])
-        return try await get(path)
-    }
-
     func fetchReceipts(offset: Int = 0, limit: Int = 50) async throws -> ReceiptsResponse {
         let path = buildPath("/webhook/nexus-receipts", query: [
             "offset": "\(offset)",

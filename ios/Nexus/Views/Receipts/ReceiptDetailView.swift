@@ -71,7 +71,9 @@ struct ReceiptDetailView: View {
                 row("Address", value: address)
             }
 
-            row("Date", value: formatDate(receipt.receipt_date))
+            if let date = receipt.receipt_date {
+                row("Date", value: formatDate(date))
+            }
 
             if let time = receipt.receipt_time {
                 row("Time", value: formatTime(time))
@@ -100,7 +102,7 @@ struct ReceiptDetailView: View {
             Text("Details")
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Receipt header: \(receipt.store_name ?? receipt.vendor), \(formatDate(receipt.receipt_date)), total \(formatAmount(receipt.total_amount, currency: receipt.currency))")
+        .accessibilityLabel("Receipt header: \(receipt.store_name ?? receipt.vendor), \(receipt.receipt_date.map { formatDate($0) } ?? ""), total \(formatAmount(receipt.total_amount, currency: receipt.currency))")
     }
 
     private func nutritionSection(_ nutrition: ReceiptNutritionSummary) -> some View {
@@ -166,9 +168,10 @@ struct ReceiptDetailView: View {
     }
 
     private func formatDate(_ dateStr: String) -> String {
+        let dateOnly = String(dateStr.prefix(10))
         let input = DateFormatter()
         input.dateFormat = "yyyy-MM-dd"
-        guard let date = input.date(from: dateStr) else { return dateStr }
+        guard let date = input.date(from: dateOnly) else { return dateOnly }
         let output = DateFormatter()
         output.dateStyle = .long
         return output.string(from: date)

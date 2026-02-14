@@ -119,4 +119,13 @@ class HealthAPI: BaseAPIClient {
     func fetchBJJStreak() async throws -> BJJStreakResponse {
         try await get("/webhook/nexus-bjj-streak")
     }
+
+    func updateBJJSession(_ request: BJJUpdateRequest) async throws -> BJJLogResponse {
+        try await post("/webhook/nexus-bjj-update", body: request)
+    }
+
+    func deleteBJJSession(id: Int) async throws -> BJJDeleteResponse {
+        struct DeleteRequest: Codable { let id: Int }
+        return try await post("/webhook/nexus-bjj-delete", body: DeleteRequest(id: id))
+    }
 }

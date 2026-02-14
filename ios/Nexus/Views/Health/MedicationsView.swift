@@ -16,10 +16,12 @@ struct MedicationsView: View {
             if let meds = medications {
                 medicationsList(meds)
             } else {
-                ContentUnavailableView(
-                    "No Medication Data",
-                    systemImage: "pills",
-                    description: Text("Medication tracking requires iOS 18+ and HealthKit permissions")
+                ThemeEmptyState(
+                    icon: "pills",
+                    headline: "No Medications",
+                    description: "Track your daily medications and supplements to stay on schedule.",
+                    ctaTitle: "Add Medication",
+                    ctaAction: { showingAddMedication = true }
                 )
             }
         }
@@ -83,10 +85,10 @@ struct MedicationsView: View {
                 if summary.skippedToday > 0 {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                         Text("\(summary.skippedToday) skipped today")
                             .font(.subheadline)
-                            .foregroundColor(.orange)
+                            .foregroundColor(NexusTheme.Colors.Semantic.amber)
                     }
                 }
             }

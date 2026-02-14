@@ -90,7 +90,7 @@ struct CategoryBar: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .fill(Color(.tertiarySystemBackground))
+                        .fill(NexusTheme.Colors.cardAlt)
                         .frame(height: 20)
                         .cornerRadius(4)
 

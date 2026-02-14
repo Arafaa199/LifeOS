@@ -12,13 +12,17 @@ struct ReceiptSummary: Codable, Identifiable, Sendable {
     let parse_status: String?
     let linked_transaction_id: Int?
     let item_count: Int
-    let matched_count: Int
+    let matched_item_count: Int
+
+    var matched_count: Int { matched_item_count }
 }
 
 struct ReceiptsResponse: Codable, Sendable {
     let success: Bool
-    let receipts: [ReceiptSummary]
+    let data: [ReceiptSummary]
     let count: Int
+
+    var receipts: [ReceiptSummary] { data }
 }
 
 // MARK: - Receipt Detail
@@ -28,7 +32,7 @@ struct ReceiptDetail: Codable, Identifiable, Sendable {
     let vendor: String
     let store_name: String?
     let store_address: String?
-    let receipt_date: String
+    let receipt_date: String?
     let receipt_time: String?
     let invoice_number: String?
     let subtotal: Double?

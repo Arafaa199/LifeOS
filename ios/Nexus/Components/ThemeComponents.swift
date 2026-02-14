@@ -60,53 +60,6 @@ struct ThemePrimaryButton: View {
     }
 }
 
-/// Secondary button with border
-struct ThemeSecondaryButton: View {
-    let title: String
-    let icon: String?
-    let isDisabled: Bool
-    let action: () -> Void
-
-    init(
-        _ title: String,
-        icon: String? = nil,
-        isDisabled: Bool = false,
-        action: @escaping () -> Void
-    ) {
-        self.title = title
-        self.icon = icon
-        self.isDisabled = isDisabled
-        self.action = action
-    }
-
-    var body: some View {
-        Button(action: {
-            NexusTheme.Haptics.light()
-            action()
-        }) {
-            HStack(spacing: 8) {
-                if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .foregroundColor(isDisabled ? NexusTheme.Colors.accent.opacity(0.5) : NexusTheme.Colors.accent)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .padding(.horizontal, 20)
-            .background(NexusTheme.Colors.card)
-            .cornerRadius(NexusTheme.Radius.md)
-            .overlay(
-                RoundedRectangle(cornerRadius: NexusTheme.Radius.md)
-                    .stroke(isDisabled ? NexusTheme.Colors.accent.opacity(0.3) : NexusTheme.Colors.accent, lineWidth: 1.5)
-            )
-        }
-        .disabled(isDisabled)
-    }
-}
-
 /// Icon-only button
 struct ThemeIconButton: View {
     let icon: String
@@ -717,6 +670,37 @@ struct ThemeSkeleton: View {
     }
 }
 
+// MARK: - Staggered Appear Animation
+
+struct StaggeredAppearModifier: ViewModifier {
+    let index: Int
+    let animation: Animation
+
+    @State private var appeared = false
+
+    init(index: Int, baseDelay: Double = 0.06, duration: Double = 0.35) {
+        self.index = index
+        self.animation = .easeOut(duration: duration).delay(Double(index) * baseDelay)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 12)
+            .onAppear {
+                withAnimation(animation) {
+                    appeared = true
+                }
+            }
+    }
+}
+
+extension View {
+    func staggeredAppear(index: Int) -> some View {
+        modifier(StaggeredAppearModifier(index: index))
+    }
+}
+
 /// Loading spinner with message
 struct ThemeLoadingView: View {
     var message: String = "Loading..."
@@ -811,6 +795,28 @@ struct AppearanceSheet: View {
     }
 }
 
+// MARK: - Section Header
+
+struct ThemeSectionHeader: View {
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(NexusTheme.Colors.accent)
+                .frame(width: 3, height: 20)
+                .cornerRadius(1.5)
+            Text(title)
+                .font(.title3)
+                .fontWeight(.bold)
+            Spacer()
+        }
+        .padding(.top, 24)
+        .padding(.bottom, 4)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
 // MARK: - Preview
 
 #Preview("Appearance Sheet") {
@@ -828,7 +834,6 @@ struct AppearanceSheet: View {
                 ThemePrimaryButton("Primary Button") {}
                 ThemePrimaryButton("With Icon", icon: "plus") {}
                 ThemePrimaryButton("Disabled", isDisabled: true) {}
-                ThemeSecondaryButton("Secondary Button") {}
                 HStack {
                     ThemeIconButton("arrow.left") {}
                     ThemeIconButton("gearshape") {}

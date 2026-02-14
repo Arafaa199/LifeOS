@@ -24,11 +24,11 @@ class ReceiptsViewModel: ObservableObject {
 
     var receiptsByMonth: [(String, [ReceiptSummary])] {
         let grouped = Dictionary(grouping: receipts) { receipt -> String in
-            let parts = receipt.receipt_date.split(separator: "-")
+            // Handle both "yyyy-MM-dd" and "yyyy-MM-ddTHH:mm:ss.SSSZ"
+            let dateOnly = String(receipt.receipt_date.prefix(10))
+            let parts = dateOnly.split(separator: "-")
             guard parts.count >= 2 else { return "Unknown" }
-            let year = String(parts[0])
-            let month = String(parts[1])
-            return "\(year)-\(month)"
+            return "\(parts[0])-\(parts[1])"
         }
         return grouped.sorted { $0.key > $1.key }
     }

@@ -35,6 +35,7 @@ struct MusicCardView: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(NexusTheme.Colors.textMuted)
+                        .accessibilityHidden(true)
                 }
                 .padding(NexusTheme.Spacing.lg)
                 .background(NexusTheme.Colors.card)
@@ -45,6 +46,7 @@ struct MusicCardView: View {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Music, \(summaryText)")
         }
     }
 

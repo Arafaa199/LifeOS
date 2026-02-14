@@ -14,7 +14,7 @@ struct SyncIssuesSection: View {
                     if pendingCount > 0 {
                         HStack {
                             Image(systemName: "clock.arrow.circlepath")
-                                .foregroundColor(.orange)
+                                .foregroundColor(NexusTheme.Colors.Semantic.amber)
                             Text("\(pendingCount) items pending sync")
                             Spacer()
                             if !NetworkMonitor.shared.isConnected {
@@ -31,9 +31,9 @@ struct SyncIssuesSection: View {
                         } label: {
                             HStack {
                                 Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.red)
+                                    .foregroundColor(NexusTheme.Colors.Semantic.red)
                                 Text("\(failedCount) items failed to sync")
-                                    .foregroundColor(.red)
+                                    .foregroundColor(NexusTheme.Colors.Semantic.red)
                             }
                         }
                     }

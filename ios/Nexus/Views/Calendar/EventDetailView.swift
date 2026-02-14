@@ -108,7 +108,7 @@ struct EventDetailView: View {
                 HStack {
                     if isDeleting {
                         ProgressView()
-                            .tint(.red)
+                            .tint(NexusTheme.Colors.Semantic.red)
                         Text("Deleting...")
                     } else {
                         Image(systemName: "trash")

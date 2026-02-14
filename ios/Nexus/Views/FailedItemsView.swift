@@ -13,7 +13,7 @@ struct FailedItemsView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 40))
-                            .foregroundColor(.green)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                         Text("No failed items")
                             .font(.headline)
                         Text("All your data is synced successfully.")
@@ -87,7 +87,7 @@ struct FailedItemRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: iconForType)
-                    .foregroundColor(.orange)
+                    .foregroundColor(NexusTheme.Colors.Semantic.amber)
                 Text(item.description)
                     .font(.subheadline)
                     .fontWeight(.medium)
@@ -103,7 +103,7 @@ struct FailedItemRow: View {
 
             Text(item.lastError)
                 .font(.caption)
-                .foregroundColor(.red)
+                .foregroundColor(NexusTheme.Colors.Semantic.red)
                 .lineLimit(2)
 
             HStack(spacing: 12) {
@@ -114,7 +114,7 @@ struct FailedItemRow: View {
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
-                .tint(.blue)
+                .tint(NexusTheme.Colors.Semantic.blue)
 
                 Button(role: .destructive) {
                     onDiscard()

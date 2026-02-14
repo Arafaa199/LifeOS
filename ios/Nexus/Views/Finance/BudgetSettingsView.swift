@@ -177,7 +177,7 @@ struct BudgetRow: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .fill(Color(.tertiarySystemBackground))
+                        .fill(NexusTheme.Colors.cardAlt)
                         .frame(height: 8)
                         .cornerRadius(4)
 

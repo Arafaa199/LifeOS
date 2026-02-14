@@ -21,7 +21,7 @@ struct HomeControlView: View {
                         // Open HA Button
                         openHAButton
                     } else if viewModel.isLoading {
-                        ProgressView("Loading devices...")
+                        ThemeLoadingView(message: "Loading devices...")
                             .padding(.top, 40)
                     } else {
                         ContentUnavailableView(
@@ -33,7 +33,7 @@ struct HomeControlView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(NexusTheme.Colors.background)
             .navigationTitle("Home")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -126,7 +126,7 @@ struct HomeControlView: View {
             if let lastUpdated = viewModel.lastUpdated {
                 Text("Updated \(lastUpdated, style: .relative) ago")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(NexusTheme.Colors.textSecondary)
             }
         }
     }
@@ -146,9 +146,9 @@ struct HomeControlView: View {
             .font(.headline)
             .padding()
             .frame(maxWidth: .infinity)
-            .background(Color.orange)
+            .background(NexusTheme.Colors.Semantic.amber)
             .foregroundColor(.white)
-            .cornerRadius(12)
+            .cornerRadius(NexusTheme.Radius.md)
         }
     }
 
@@ -157,14 +157,14 @@ struct HomeControlView: View {
     private func errorBanner(_ message: String) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.orange)
+                .foregroundColor(NexusTheme.Colors.Semantic.amber)
             Text(message)
                 .font(.subheadline)
             Spacer()
         }
         .padding()
-        .background(Color.orange.opacity(0.1))
-        .cornerRadius(12)
+        .background(NexusTheme.Colors.Semantic.amber.opacity(0.1))
+        .cornerRadius(NexusTheme.Radius.md)
     }
 }
 
@@ -182,12 +182,12 @@ private struct DeviceCard: View {
         VStack(spacing: 8) {
             ZStack(alignment: .topTrailing) {
                 Circle()
-                    .fill(isActive ? Color.green.opacity(0.15) : Color.gray.opacity(0.1))
+                    .fill(isActive ? NexusTheme.Colors.Semantic.green.opacity(0.15) : NexusTheme.Colors.cardAlt)
                     .frame(width: 48, height: 48)
                     .overlay(
                         Image(systemName: icon)
                             .font(.title2)
-                            .foregroundColor(isActive ? .green : .gray)
+                            .foregroundColor(isActive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textTertiary)
                     )
 
                 if let badge = badge {
@@ -196,9 +196,9 @@ private struct DeviceCard: View {
                         .fontWeight(.semibold)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
-                        .background(Color.blue)
+                        .background(NexusTheme.Colors.Semantic.blue)
                         .foregroundColor(.white)
-                        .cornerRadius(4)
+                        .cornerRadius(NexusTheme.Radius.xs)
                         .offset(x: 8, y: -4)
                 }
             }
@@ -209,12 +209,12 @@ private struct DeviceCard: View {
 
             Text(subtitle)
                 .font(.caption)
-                .foregroundColor(isActive ? .green : .secondary)
+                .foregroundColor(isActive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(12)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.md)
     }
 }
 
@@ -231,12 +231,12 @@ private struct LightsDeviceCard: View {
             VStack(spacing: 8) {
                 ZStack {
                     Circle()
-                        .fill(isActive ? Color.green.opacity(0.15) : Color.gray.opacity(0.1))
+                        .fill(isActive ? NexusTheme.Colors.Semantic.green.opacity(0.15) : NexusTheme.Colors.cardAlt)
                         .frame(width: 48, height: 48)
                         .overlay(
                             Image(systemName: "lightbulb.fill")
                                 .font(.title2)
-                                .foregroundColor(isActive ? .green : .gray)
+                                .foregroundColor(isActive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textTertiary)
                         )
 
                     if isControlling {
@@ -251,12 +251,12 @@ private struct LightsDeviceCard: View {
 
                 Text(isActive ? "On" : "Off")
                     .font(.caption)
-                    .foregroundColor(isActive ? .green : .secondary)
+                    .foregroundColor(isActive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color(.secondarySystemGroupedBackground))
-            .cornerRadius(12)
+            .background(NexusTheme.Colors.card)
+            .cornerRadius(NexusTheme.Radius.md)
         }
         .disabled(isControlling)
     }
@@ -305,12 +305,12 @@ private struct MonitorsDeviceCard: View {
                 VStack(spacing: 8) {
                     ZStack {
                         Circle()
-                            .fill(isActive ? Color.green.opacity(0.15) : Color.gray.opacity(0.1))
+                            .fill(isActive ? NexusTheme.Colors.Semantic.green.opacity(0.15) : NexusTheme.Colors.cardAlt)
                             .frame(width: 48, height: 48)
                             .overlay(
                                 Image(systemName: "display")
                                     .font(.title2)
-                                    .foregroundColor(isActive ? .green : .gray)
+                                    .foregroundColor(isActive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textTertiary)
                             )
 
                         if isControlling {
@@ -325,12 +325,12 @@ private struct MonitorsDeviceCard: View {
 
                     Text(isActive ? "On" : "Off")
                         .font(.caption)
-                        .foregroundColor(isActive ? .green : .secondary)
+                        .foregroundColor(isActive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(.secondarySystemGroupedBackground))
-                .cornerRadius(12)
+                .background(NexusTheme.Colors.card)
+                .cornerRadius(NexusTheme.Radius.md)
             }
             .disabled(isControlling)
         }
@@ -384,12 +384,12 @@ private struct VacuumDeviceCard: View {
                 VStack(spacing: 8) {
                     ZStack(alignment: .topTrailing) {
                         Circle()
-                            .fill(vacuum.isCleaning ? Color.green.opacity(0.15) : Color.gray.opacity(0.1))
+                            .fill(vacuum.isCleaning ? NexusTheme.Colors.Semantic.green.opacity(0.15) : NexusTheme.Colors.cardAlt)
                             .frame(width: 48, height: 48)
                             .overlay(
                                 Image(systemName: "fan.fill")
                                     .font(.title2)
-                                    .foregroundColor(vacuum.isCleaning ? .green : .gray)
+                                    .foregroundColor(vacuum.isCleaning ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textTertiary)
                             )
 
                         if let battery = vacuum.battery {
@@ -398,9 +398,9 @@ private struct VacuumDeviceCard: View {
                                 .fontWeight(.semibold)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 2)
-                                .background(Color.blue)
+                                .background(NexusTheme.Colors.Semantic.blue)
                                 .foregroundColor(.white)
-                                .cornerRadius(4)
+                                .cornerRadius(NexusTheme.Radius.xs)
                                 .offset(x: 8, y: -4)
                         }
 
@@ -416,12 +416,12 @@ private struct VacuumDeviceCard: View {
 
                     Text(vacuum.stateDisplay)
                         .font(.caption)
-                        .foregroundColor(vacuum.isCleaning ? .green : .secondary)
+                        .foregroundColor(vacuum.isCleaning ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color(.secondarySystemGroupedBackground))
-                .cornerRadius(12)
+                .background(NexusTheme.Colors.card)
+                .cornerRadius(NexusTheme.Radius.md)
             }
             .disabled(isControlling)
         }
@@ -436,12 +436,12 @@ private struct CameraDeviceCard: View {
         VStack(spacing: 8) {
             ZStack(alignment: .topTrailing) {
                 Circle()
-                    .fill(camera.isActive ? Color.green.opacity(0.15) : Color.gray.opacity(0.1))
+                    .fill(camera.isActive ? NexusTheme.Colors.Semantic.green.opacity(0.15) : NexusTheme.Colors.cardAlt)
                     .frame(width: 48, height: 48)
                     .overlay(
                         Image(systemName: "video.fill")
                             .font(.title2)
-                            .foregroundColor(camera.isActive ? .green : .gray)
+                            .foregroundColor(camera.isActive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textTertiary)
                     )
             }
 
@@ -451,12 +451,12 @@ private struct CameraDeviceCard: View {
 
             Text(camera.stateDisplay)
                 .font(.caption)
-                .foregroundColor(camera.isActive ? .green : .secondary)
+                .foregroundColor(camera.isActive ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.textSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(12)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.md)
     }
 }
 

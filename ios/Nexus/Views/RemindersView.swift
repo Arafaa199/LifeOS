@@ -17,7 +17,7 @@ struct RemindersView: View {
     var body: some View {
         Group {
             if isLoading && reminders.isEmpty {
-                ProgressView("Loading reminders...")
+                ThemeLoadingView(message: "Loading reminders...")
             } else if let error = errorMessage, reminders.isEmpty {
                 errorView(error)
             } else {
@@ -80,7 +80,7 @@ struct RemindersView: View {
                 Section {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                         Text("Synced \(lastSync.formatted(.relative(presentation: .named)))")
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -248,6 +248,7 @@ struct ReminderRow: View {
                     .foregroundColor(reminder.isCompleted ? NexusTheme.Colors.Semantic.green : .secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(reminder.isCompleted ? "Mark \(reminder.title ?? "reminder") incomplete" : "Complete \(reminder.title ?? "reminder")")
 
             // Content
             VStack(alignment: .leading, spacing: 4) {
@@ -301,7 +302,7 @@ struct ReminderRow: View {
                     systemImage: reminder.isCompleted ? "arrow.uturn.backward" : "checkmark"
                 )
             }
-            .tint(reminder.isCompleted ? .orange : .green)
+            .tint(reminder.isCompleted ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.Semantic.green)
         }
     }
 
@@ -400,7 +401,7 @@ struct AddReminderSheet: View {
                 if let error = errorMessage {
                     Section {
                         Text(error)
-                            .foregroundColor(.red)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
                             .font(.caption)
                     }
                 }

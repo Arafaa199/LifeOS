@@ -4,6 +4,10 @@ import os
 struct BJJView: View {
     @StateObject private var viewModel = BJJViewModel()
     @State private var showLogSheet = false
+    @State private var selectedSession: BJJSession?
+    @State private var sessionToEdit: BJJSession?
+    @State private var showDeleteConfirmation = false
+    @State private var sessionToDelete: BJJSession?
 
     var body: some View {
         NavigationStack {
@@ -31,6 +35,26 @@ struct BJJView: View {
             }
             .sheet(isPresented: $showLogSheet) {
                 BJJLogSheet(viewModel: viewModel)
+            }
+            .sheet(item: $selectedSession) { session in
+                BJJSessionDetailSheet(session: session, viewModel: viewModel)
+            }
+            .sheet(item: $sessionToEdit) { session in
+                BJJLogSheet(viewModel: viewModel, editSession: session)
+            }
+            .alert("Delete Session?", isPresented: $showDeleteConfirmation) {
+                Button("Delete", role: .destructive) {
+                    if let session = sessionToDelete {
+                        Task {
+                            _ = await viewModel.deleteSession(id: session.id)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                if let session = sessionToDelete {
+                    Text("Delete the \(session.typeDisplayName) session from \(formatDate(session.sessionDate))?")
+                }
             }
             .refreshable {
                 await viewModel.refresh()
@@ -73,6 +97,24 @@ struct BJJView: View {
             Section("Recent Sessions") {
                 ForEach(viewModel.sessions) { session in
                     sessionRow(session)
+                        .contentShape(Rectangle())
+                        .onTapGesture { selectedSession = session }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                sessionToDelete = session
+                                showDeleteConfirmation = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                sessionToEdit = session
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(NexusTheme.Colors.accent)
+                        }
                 }
 
                 // Load more
@@ -313,12 +355,7 @@ struct BJJView: View {
     // MARK: - State Views
 
     private var loadingView: some View {
-        VStack(spacing: NexusTheme.Spacing.md) {
-            ProgressView()
-            Text("Loading training history...")
-                .font(.subheadline)
-                .foregroundColor(NexusTheme.Colors.textSecondary)
-        }
+        ThemeLoadingView(message: "Loading training history...")
     }
 
     private func errorView(_ error: String) -> some View {

@@ -151,6 +151,48 @@ class BJJViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Delete Session
+
+    func deleteSession(id: Int) async -> Bool {
+        do {
+            let response = try await api.deleteBJJSession(id: id)
+            if response.success {
+                sessions.removeAll { $0.id == id }
+                await loadStreak()
+                logger.info("Deleted BJJ session id=\(id)")
+                return true
+            }
+            logError = "Failed to delete session"
+            return false
+        } catch {
+            logger.error("Failed to delete BJJ session: \(error.localizedDescription)")
+            logError = error.localizedDescription
+            return false
+        }
+    }
+
+    // MARK: - Update Session
+
+    func updateSession(_ request: BJJUpdateRequest) async -> Bool {
+        do {
+            let response = try await api.updateBJJSession(request)
+            if response.success {
+                if let index = sessions.firstIndex(where: { $0.id == request.id }) {
+                    sessions[index] = response.session
+                }
+                await loadStreak()
+                logger.info("Updated BJJ session id=\(request.id)")
+                return true
+            }
+            logError = "Failed to update session"
+            return false
+        } catch {
+            logger.error("Failed to update BJJ session: \(error.localizedDescription)")
+            logError = error.localizedDescription
+            return false
+        }
+    }
+
     // MARK: - Helpers
 
     func refresh() async {

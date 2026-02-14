@@ -231,8 +231,8 @@ class NexusAPI: ObservableObject {
         try await finance.createBudget(request)
     }
 
-    func fetchReceipts(limit: Int = 50) async throws -> ReceiptsResponse {
-        try await finance.fetchReceipts(limit: limit)
+    func fetchReceipts(offset: Int = 0, limit: Int = 50) async throws -> ReceiptsResponse {
+        try await finance.fetchReceipts(offset: offset, limit: limit)
     }
 
     func createCorrection(_ request: CreateCorrectionRequest) async throws -> CorrectionResponse {

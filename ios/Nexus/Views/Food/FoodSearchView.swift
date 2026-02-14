@@ -79,7 +79,7 @@ struct FoodSearchView: View {
             }
         }
         .padding(12)
-        .background(Color(.systemBackground))
+        .background(NexusTheme.Colors.card)
         .cornerRadius(12)
         .padding()
     }
@@ -92,7 +92,7 @@ struct FoodSearchView: View {
             }) {
                 FoodResultRow(food: food)
             }
-            .listRowBackground(Color(.systemBackground))
+            .listRowBackground(NexusTheme.Colors.card)
         }
         .listStyle(.plain)
     }

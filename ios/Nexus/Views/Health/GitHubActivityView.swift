@@ -15,10 +15,10 @@ struct GitHubActivityView: View {
                 reposSection(activity.repos)
             } else {
                 Section {
-                    NexusEmptyState(
+                    ThemeEmptyState(
                         icon: "chevron.left.forwardslash.chevron.right",
-                        title: "No GitHub Data",
-                        message: "GitHub activity will appear here after your next dashboard sync."
+                        headline: "No GitHub Data",
+                        description: "GitHub activity will appear here after your next dashboard sync."
                     )
                 }
             }
@@ -89,7 +89,7 @@ struct GitHubActivityView: View {
                     GeometryReader { geo in
                         let fraction = maxPushes > 0 ? CGFloat(day.pushEvents) / CGFloat(maxPushes) : 0
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(day.pushEvents > 0 ? NexusTheme.Colors.Semantic.green : Color(.systemGray5))
+                            .fill(day.pushEvents > 0 ? NexusTheme.Colors.Semantic.green : NexusTheme.Colors.divider)
                             .frame(width: max(fraction * geo.size.width, day.pushEvents > 0 ? 4 : geo.size.width), height: 14)
                     }
                     .frame(height: 14)

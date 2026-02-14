@@ -582,7 +582,7 @@ struct FinanceOverviewContent: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .fill(Color(.tertiarySystemFill))
+                        .fill(NexusTheme.Colors.divider)
                         .frame(height: 6)
                         .cornerRadius(3)
 
@@ -643,7 +643,7 @@ struct FinanceOverviewContent: View {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Rectangle()
-                                .fill(Color(.tertiarySystemFill))
+                                .fill(NexusTheme.Colors.divider)
                                 .frame(height: 8)
                                 .cornerRadius(4)
 
@@ -723,7 +723,7 @@ struct FinanceOverviewContent: View {
 
                         ZStack(alignment: .leading) {
                             Rectangle()
-                                .fill(Color(.tertiarySystemFill))
+                                .fill(NexusTheme.Colors.divider)
                                 .frame(height: 6)
                                 .cornerRadius(3)
 
@@ -1080,7 +1080,7 @@ struct FinanceOverviewContent: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(.tertiarySystemBackground))
+        .background(NexusTheme.Colors.cardAlt)
         .cornerRadius(10)
     }
 }

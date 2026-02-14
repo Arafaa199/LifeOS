@@ -4,10 +4,10 @@ import SwiftUI
 struct WidgetSettingsView: View {
     var body: some View {
         VStack(spacing: 24) {
-            NexusEmptyState(
+            ThemeEmptyState(
                 icon: "square.grid.2x2",
-                title: "Widget Settings",
-                message: "Configure which data appears on your home screen widgets."
+                headline: "Widget Settings",
+                description: "Configure which data appears on your home screen widgets."
             )
         }
         .navigationTitle("Widgets")

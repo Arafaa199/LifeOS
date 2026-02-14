@@ -8,8 +8,7 @@ struct DocumentRenewalHistoryView: View {
     var body: some View {
         Group {
             if viewModel.isLoadingHistory {
-                ProgressView("Loading history...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ThemeLoadingView(message: "Loading history...")
             } else if viewModel.renewalHistory.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "clock.arrow.circlepath")

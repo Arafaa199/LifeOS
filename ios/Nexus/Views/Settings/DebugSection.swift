@@ -110,7 +110,7 @@ struct DebugSection: View {
                     debugRow("Data Completeness", facts.dataCompleteness.map { String(format: "%.0f%%", $0 * 100) } ?? "nil")
                 } else {
                     Text("todayFacts: nil")
-                        .foregroundColor(.orange)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                 }
 
                 Divider().padding(.vertical, 4)
@@ -147,14 +147,14 @@ struct DebugSection: View {
                             .fontWeight(.medium)
                         Spacer()
                         Text(state.isSyncing ? "Syncing" : "Idle")
-                            .foregroundColor(state.isSyncing ? .orange : .secondary)
+                            .foregroundColor(state.isSyncing ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.textSecondary)
                     }
                     if let lastSuccess = state.lastSuccessDate {
                         debugRow("Last Success", formatDebugDate(lastSuccess))
                     }
                     if let error = state.lastError {
                         debugRow("Error", error)
-                            .foregroundColor(.red)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
                     }
                     if let detail = state.detail {
                         debugRow("Detail", detail)

@@ -81,7 +81,7 @@ struct QuickExpenseView: View {
                     }
                 }
                 .padding()
-                .background(Color(.systemBackground))
+                .background(NexusTheme.Colors.card)
                 .cornerRadius(12)
                 .shadow(radius: 2)
 
@@ -207,7 +207,7 @@ struct QuickExpenseView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(Color(.tertiarySystemBackground))
+                        .background(NexusTheme.Colors.cardAlt)
                         .cornerRadius(8)
                     }
                     .buttonStyle(.plain)

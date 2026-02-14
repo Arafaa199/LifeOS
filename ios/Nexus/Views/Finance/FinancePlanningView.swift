@@ -426,7 +426,7 @@ struct AddCategoryView: View {
                                     .font(.title2)
                                     .foregroundColor(icon == iconName ? .white : .primary)
                                     .frame(width: 44, height: 44)
-                                    .background(icon == iconName ? NexusTheme.Colors.accent : Color(.tertiarySystemBackground))
+                                    .background(icon == iconName ? NexusTheme.Colors.accent : NexusTheme.Colors.cardAlt)
                                     .cornerRadius(8)
                             }
                             .buttonStyle(.plain)

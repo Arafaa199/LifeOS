@@ -55,7 +55,7 @@ struct ArtistDetailView: View {
                     .shadow(color: Color.black.opacity(0.3), radius: 20, y: 10)
             } else {
                 Circle()
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(NexusTheme.Colors.cardAlt)
                     .frame(width: 200, height: 200)
                     .overlay(
                         Image(systemName: "person.fill")
@@ -181,7 +181,7 @@ struct ArtistDetailView: View {
                                     .clipped()
                             } else {
                                 RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.gray.opacity(0.3))
+                                    .fill(NexusTheme.Colors.cardAlt)
                                     .frame(width: 150, height: 150)
                             }
 

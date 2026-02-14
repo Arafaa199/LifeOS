@@ -2,7 +2,9 @@ import Foundation
 
 // MARK: - BJJ Session Model
 
-struct BJJSession: Codable, Identifiable {
+struct BJJSession: Codable, Identifiable, Hashable {
+    static func == (lhs: BJJSession, rhs: BJJSession) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
     let id: Int
     let sessionDate: String
     let sessionType: String
@@ -191,6 +193,37 @@ struct LogBJJRequest: Codable {
         self.techniques = techniques
         self.notes = notes
         self.source = source
+    }
+}
+
+struct BJJDeleteResponse: Codable {
+    let success: Bool
+    let deleted: DeletedSession?
+
+    struct DeletedSession: Codable {
+        let id: Int
+        let sessionDate: String?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case sessionDate = "session_date"
+        }
+    }
+}
+
+struct BJJUpdateRequest: Codable {
+    let id: Int
+    let sessionDate: String?
+    let sessionType: String?
+    let durationMinutes: Int?
+    let techniques: [String]?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, techniques, notes
+        case sessionDate = "session_date"
+        case sessionType = "session_type"
+        case durationMinutes = "duration_minutes"
     }
 }
 

@@ -50,21 +50,14 @@ struct TestConnectionView: View {
 
             Spacer()
 
-            Button(action: testConnection) {
-                HStack(spacing: 10) {
-                    if isTesting {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    } else {
-                        Image(systemName: "wifi")
-                            .font(.body.weight(.semibold))
-                    }
-                    Text(isTesting ? "Testing..." : "Test Connection")
-                        .fontWeight(.semibold)
-                }
+            ThemePrimaryButton(
+                isTesting ? "Testing..." : "Test Connection",
+                icon: "wifi",
+                isLoading: isTesting,
+                isDisabled: isTesting
+            ) {
+                testConnection()
             }
-            .nexusAccentButton(disabled: isTesting)
-            .disabled(isTesting)
             .padding(.horizontal)
             .padding(.bottom, 32)
         }

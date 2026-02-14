@@ -14,8 +14,8 @@ struct InstallmentsView: View {
         ScrollView {
             VStack(spacing: 20) {
                 if isLoading {
-                    ProgressView("Loading installments...")
-                        .padding(.top, 40)
+                    ThemeLoadingView(message: "Loading installments...")
+                        .frame(height: 200)
                 } else if let error = errorMessage {
                     errorView(error)
                 } else if installments.isEmpty {
@@ -191,7 +191,7 @@ struct InstallmentsView: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .fill(Color(.systemGray5))
+                        .fill(NexusTheme.Colors.divider)
                         .frame(height: 4)
 
                     Rectangle()
@@ -217,7 +217,7 @@ struct InstallmentsView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(Color(.tertiarySystemFill))
+                .background(NexusTheme.Colors.divider)
             }
         }
         .background(NexusTheme.Colors.card)
@@ -237,28 +237,14 @@ struct InstallmentsView: View {
     // MARK: - Error View
 
     private func errorView(_ error: String) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundColor(NexusTheme.Colors.Semantic.amber)
-
-            Text("Could not load installments")
-                .font(.headline)
-
-            Text(error)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button("Try Again") {
+        ErrorStateView(
+            title: "Could not load installments",
+            message: error,
+            onRetry: {
                 haptics.impactOccurred()
-                Task {
-                    await loadInstallments()
-                }
+                Task { await loadInstallments() }
             }
-            .buttonStyle(.bordered)
-        }
-        .padding(.top, 60)
+        )
     }
 
     // MARK: - Helpers

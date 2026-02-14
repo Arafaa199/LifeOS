@@ -48,8 +48,7 @@ struct CardContainer<Content: View, EmptyContent: View>: View {
                             .foregroundColor(iconColor)
                     }
 
-                    Text(title)
-                        .font(.system(size: 13, weight: .semibold))
+                    NexusTheme.Typography.cardTitle(title)
                         .foregroundColor(NexusTheme.Colors.textSecondary)
 
                     Spacer()

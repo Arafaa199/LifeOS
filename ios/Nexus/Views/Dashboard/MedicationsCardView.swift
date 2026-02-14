@@ -52,6 +52,7 @@ struct MedicationsCardView: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(NexusTheme.Colors.textMuted)
+                        .accessibilityHidden(true)
                 }
                 .padding(NexusTheme.Spacing.lg)
                 .background(NexusTheme.Colors.card)
@@ -62,6 +63,7 @@ struct MedicationsCardView: View {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(medicationsAccessibilityLabel)
         }
     }
 
@@ -92,6 +94,14 @@ struct MedicationsCardView: View {
             }
             return "\(remaining) remaining"
         }
+    }
+
+    private var medicationsAccessibilityLabel: String {
+        guard let meds = medications else { return "Medications" }
+        if meds.takenToday == meds.dueToday {
+            return "Medications, all \(meds.dueToday) taken"
+        }
+        return "Medications, \(meds.takenToday) of \(meds.dueToday) taken"
     }
 }
 

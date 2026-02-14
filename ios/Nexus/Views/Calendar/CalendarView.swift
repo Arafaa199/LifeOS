@@ -223,6 +223,7 @@ struct CalendarView: View {
             }
         }
         .frame(height: 46)
+        .accessibilityLabel(dayCellAccessibilityLabel(date: date, eventCount: eventCount, reminderCount: reminderCount, medCount: medCount, isToday: isToday))
     }
 
     // MARK: - Selected Day Detail
@@ -240,14 +241,13 @@ struct CalendarView: View {
                 Text(selectedDateLabel(date))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(NexusTheme.Colors.textPrimary)
+                    .animation(.none, value: viewModel.selectedDate)
 
+                Group {
                 if viewModel.isLoadingEvents {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                    .padding(.top, NexusTheme.Spacing.xxl)
+                    ThemeLoadingView()
+                        .frame(height: 80)
+                        .transition(.opacity)
                 } else if allDay.isEmpty && timed.isEmpty && reminders.isEmpty && medications.isEmpty {
                     HStack {
                         Spacer()
@@ -262,11 +262,13 @@ struct CalendarView: View {
                         Spacer()
                     }
                     .padding(.vertical, NexusTheme.Spacing.xxl)
+                    .transition(.opacity)
                 } else {
                     if !allDay.isEmpty {
                         Text("ALL DAY")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(NexusTheme.Colors.textSecondary)
+                            .accessibilityAddTraits(.isHeader)
 
                         ForEach(allDay) { event in
                             Button {
@@ -290,6 +292,7 @@ struct CalendarView: View {
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundColor(NexusTheme.Colors.textSecondary)
                                 .padding(.top, NexusTheme.Spacing.xxxs)
+                                .accessibilityAddTraits(.isHeader)
                         }
 
                         ForEach(timed) { event in
@@ -303,6 +306,7 @@ struct CalendarView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(NexusTheme.Colors.textSecondary)
                             .padding(.top, NexusTheme.Spacing.xxxs)
+                            .accessibilityAddTraits(.isHeader)
 
                         ForEach(medications) { med in
                             inlineMedicationRow(med)
@@ -315,12 +319,15 @@ struct CalendarView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(NexusTheme.Colors.textSecondary)
                             .padding(.top, NexusTheme.Spacing.xxxs)
+                            .accessibilityAddTraits(.isHeader)
 
                         ForEach(reminders) { reminder in
                             inlineReminderRow(reminder)
                         }
                     }
                 }
+                }
+                .animation(.easeInOut(duration: 0.25), value: viewModel.isLoadingEvents)
             }
         }
     }
@@ -438,6 +445,7 @@ struct CalendarView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(reminder.title ?? "Reminder"), \(reminder.isCompleted ? "completed" : "pending"). Tap to toggle.")
     }
 
     // MARK: - Inline Medication Row (Interactive — tap to cycle status)
@@ -504,6 +512,7 @@ struct CalendarView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(med.medicationName), \(med.status). Tap to change status.")
     }
 
     private func medStatusIcon(_ status: String) -> String {
@@ -597,6 +606,17 @@ struct CalendarView: View {
     private func isSameDay(_ a: Date?, _ b: Date?) -> Bool {
         guard let a, let b else { return false }
         return Calendar.current.isDate(a, inSameDayAs: b)
+    }
+
+    private func dayCellAccessibilityLabel(date: Date, eventCount: Int, reminderCount: Int, medCount: Int, isToday: Bool) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        var label = formatter.string(from: date)
+        if isToday { label += ", today" }
+        if eventCount > 0 { label += ", \(eventCount) event\(eventCount == 1 ? "" : "s")" }
+        if reminderCount > 0 { label += ", \(reminderCount) reminder\(reminderCount == 1 ? "" : "s")" }
+        if medCount > 0 { label += ", \(medCount) medication\(medCount == 1 ? "" : "s")" }
+        return label
     }
 }
 

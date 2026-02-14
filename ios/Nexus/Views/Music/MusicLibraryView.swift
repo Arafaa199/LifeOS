@@ -113,7 +113,7 @@ struct AlbumsTab: View {
         .searchable(text: $searchText, prompt: "Search albums")
         .overlay {
             if isLoading {
-                ProgressView()
+                ThemeLoadingView()
             } else if let error = loadError {
                 ContentUnavailableView {
                     Label("Unable to Load", systemImage: "exclamationmark.triangle")
@@ -190,7 +190,7 @@ struct SongsTab: View {
         .searchable(text: $searchText, prompt: "Search songs")
         .overlay {
             if isLoading {
-                ProgressView()
+                ThemeLoadingView()
             } else if let error = loadError {
                 ContentUnavailableView {
                     Label("Unable to Load", systemImage: "exclamationmark.triangle")

@@ -196,6 +196,13 @@ enum NexusTheme {
                 .tracking(0.5)
         }
 
+        // Section Header: 15px, weight 700, tracking -0.2px
+        static func sectionHeader(_ text: String) -> Text {
+            Text(text)
+                .font(.system(size: 15, weight: .bold))
+                .tracking(-0.2)
+        }
+
         // Nav Label: 10px, weight 600, uppercase, tracking 0.3px
         static func navLabel(_ text: String) -> Text {
             Text(text.uppercased())

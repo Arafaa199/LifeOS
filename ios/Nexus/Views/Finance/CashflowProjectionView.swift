@@ -241,7 +241,7 @@ struct CashflowProjectionView: View {
                     }
                 }
                 .padding(12)
-                .background(Color(.tertiarySystemBackground))
+                .background(NexusTheme.Colors.cardAlt)
                 .cornerRadius(10)
 
                 if day != groupedByDay.keys.sorted().last {
@@ -299,30 +299,12 @@ struct CashflowProjectionView: View {
     // MARK: - Empty State
 
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "chart.line.uptrend.xyaxis")
-                .font(.system(size: 48))
-                .foregroundColor(.secondary)
-
-            VStack(spacing: 8) {
-                Text("No upcoming transactions")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-
-                Text("Add recurring income and expenses to see a 30-day projection of your cash balance.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(NexusTheme.Spacing.lg)
-        .background(NexusTheme.Colors.card)
-        .cornerRadius(NexusTheme.Radius.card)
-        .overlay(
-            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
-                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        ThemeEmptyState(
+            icon: "chart.line.uptrend.xyaxis",
+            headline: "No upcoming transactions",
+            description: "Add recurring income and expenses to see a 30-day projection of your cash balance."
         )
+        .themeCard()
     }
 
     // MARK: - Projection Logic

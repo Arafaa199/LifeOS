@@ -110,7 +110,7 @@ struct SleepStagesBar: View {
                     .frame(width: geo.size.width * CGFloat(rem) / CGFloat(total))
 
                 Rectangle()
-                    .fill(Color.cyan.opacity(0.5))
+                    .fill(NexusTheme.Colors.Semantic.blue.opacity(0.5))
                     .frame(width: geo.size.width * CGFloat(light) / CGFloat(total))
             }
             .cornerRadius(3)
@@ -127,7 +127,7 @@ struct SleepStagesBar: View {
                 Text("REM").font(.caption2).foregroundColor(.secondary)
             }
             HStack(spacing: 4) {
-                Circle().fill(Color.cyan.opacity(0.5)).frame(width: 8, height: 8)
+                Circle().fill(NexusTheme.Colors.Semantic.blue.opacity(0.5)).frame(width: 8, height: 8)
                 Text("Light").font(.caption2).foregroundColor(.secondary)
             }
         }

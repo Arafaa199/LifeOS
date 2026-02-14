@@ -37,6 +37,7 @@ struct FastingCardView: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(fasting?.isActive == true ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.textTertiary)
                         .symbolEffect(.pulse, isActive: fasting?.isActive == true)
+                        .accessibilityHidden(true)
                 }
 
                 // Status text
@@ -82,6 +83,7 @@ struct FastingCardView: View {
                 }
                 .disabled(isLoading)
                 .opacity(isLoading ? 0.6 : 1)
+                .accessibilityLabel(fasting?.isActive == true ? "Break fast" : "Start fasting")
             }
 
             // Goal progress indicator (when tracking passively with significant hours)
@@ -102,6 +104,8 @@ struct FastingCardView: View {
             RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
                 .stroke(NexusTheme.Colors.divider, lineWidth: 1)
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Fasting")
     }
 
     private func progressColor(for progress: Double) -> Color {

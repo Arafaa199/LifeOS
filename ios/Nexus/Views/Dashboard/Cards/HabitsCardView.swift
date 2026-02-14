@@ -13,6 +13,7 @@ struct HabitsCardView: View {
                         Image(systemName: "checkmark.circle")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(NexusTheme.Colors.accent)
+                            .accessibilityHidden(true)
 
                         Text("Habits")
                             .font(.system(size: 14, weight: .semibold))
@@ -37,6 +38,7 @@ struct HabitsCardView: View {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 16))
                             .foregroundColor(NexusTheme.Colors.Semantic.green)
+                            .accessibilityHidden(true)
                         Text("All habits completed!")
                             .font(.system(size: 13))
                             .foregroundColor(NexusTheme.Colors.Semantic.green)
@@ -61,6 +63,7 @@ struct HabitsCardView: View {
                                         .font(.system(size: 10, weight: .semibold).monospacedDigit())
                                 }
                                 .foregroundColor(NexusTheme.Colors.Semantic.amber)
+                                .accessibilityLabel("\(habit.currentStreak) day streak")
                             }
 
                             Spacer()
@@ -72,6 +75,7 @@ struct HabitsCardView: View {
                                     .font(.system(size: 20))
                                     .foregroundColor(NexusTheme.Colors.divider)
                             }
+                            .accessibilityLabel("Complete \(habit.name)")
                         }
                     }
                 }

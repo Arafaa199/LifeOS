@@ -145,7 +145,7 @@ struct FoodLogView: View {
                 .buttonStyle(PlainButtonStyle())
             }
         }
-        .nexusCard()
+        .themeCard()
     }
 
     // MARK: - Macro Preview Card
@@ -192,7 +192,7 @@ struct FoodLogView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .nexusCard()
+        .themeCard()
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(NexusTheme.Colors.Semantic.amber.opacity(0.3), lineWidth: 1)
@@ -243,19 +243,19 @@ struct FoodLogView: View {
                         .background(
                             selectedMeal == meal ?
                             NexusTheme.Colors.Semantic.amber :
-                            Color(.systemBackground)
+                            NexusTheme.Colors.card
                         )
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(selectedMeal == meal ? NexusTheme.Colors.Semantic.amber : Color(.systemGray4), lineWidth: 1)
+                                .stroke(selectedMeal == meal ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.divider, lineWidth: 1)
                         )
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
             }
         }
-        .nexusCard()
+        .themeCard()
     }
 
     // MARK: - Description Section
@@ -286,7 +286,7 @@ struct FoodLogView: View {
                 TextEditor(text: speechRecognizer.isRecording ? $speechRecognizer.transcript : $foodDescription)
                     .frame(minHeight: 100)
                     .padding(12)
-                    .background(Color(.systemBackground))
+                    .background(NexusTheme.Colors.card)
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
@@ -326,7 +326,7 @@ struct FoodLogView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .nexusCard()
+        .themeCard()
     }
 
     // MARK: - Photo Capture Section
@@ -403,7 +403,7 @@ struct FoodLogView: View {
                 .cornerRadius(12)
             }
         }
-        .nexusCard()
+        .themeCard()
     }
 
     // MARK: - Quick Food Section
@@ -438,21 +438,14 @@ struct FoodLogView: View {
     // MARK: - Submit Button
 
     private var submitButton: some View {
-        Button(action: submitFoodLog) {
-            HStack(spacing: 10) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                } else {
-                    Image(systemName: capturedImage != nil ? "camera.fill" : "checkmark.circle.fill")
-                        .font(.body.weight(.semibold))
-                }
-                Text(isLoading ? "Processing..." : (capturedImage != nil ? "Analyze Photo" : "Log Food"))
-                    .fontWeight(.semibold)
-            }
+        ThemePrimaryButton(
+            isLoading ? "Processing..." : (capturedImage != nil ? "Analyze Photo" : "Log Food"),
+            icon: capturedImage != nil ? "camera.fill" : "checkmark.circle.fill",
+            isLoading: isLoading,
+            isDisabled: !canSubmit || isLoading
+        ) {
+            submitFoodLog()
         }
-        .nexusAccentButton(disabled: !canSubmit || isLoading)
-        .disabled(!canSubmit || isLoading)
     }
 
     // MARK: - Actions
@@ -603,16 +596,6 @@ enum MealType: String, CaseIterable, Identifiable {
         case .dinner: return "moon.stars"
         case .snack: return "leaf"
         }
-    }
-}
-
-struct QuickFoodButton: View {
-    let title: String
-    let icon: String
-    let action: () -> Void
-
-    var body: some View {
-        QuickFoodChip(title: title, icon: icon, action: action)
     }
 }
 

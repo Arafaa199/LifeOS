@@ -61,7 +61,7 @@ struct SyncStatusSection: View {
                 if let error = state.lastError {
                     Text(error)
                         .font(.caption2)
-                        .foregroundColor(.orange)
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
                         .lineLimit(2)
                 } else if let detail = state.detail {
                     Text(detail)
@@ -76,10 +76,10 @@ struct SyncStatusSection: View {
                 Text("Cached")
                     .font(.caption2)
                     .fontWeight(.medium)
-                    .foregroundColor(.blue)
+                    .foregroundColor(NexusTheme.Colors.Semantic.blue)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
+                    .background(NexusTheme.Colors.Semantic.blue.opacity(0.1))
                     .cornerRadius(4)
             }
 

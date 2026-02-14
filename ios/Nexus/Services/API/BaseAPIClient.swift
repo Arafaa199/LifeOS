@@ -128,6 +128,15 @@ class BaseAPIClient {
 
         let startTime = Date()
 
+        #if DEBUG
+        let reqMethod = request.httpMethod ?? "GET"
+        let reqURL = request.url?.absoluteString ?? "?"
+        logger.debug("[\(reqMethod)] \(reqURL)")
+        if let body = request.httpBody, let bodyStr = String(data: body, encoding: .utf8) {
+            logger.debug("Body: \(bodyStr.prefix(1000))")
+        }
+        #endif
+
         do {
             logger.debug("[\(attempt)/\(self.maxRetries)] \(request.httpMethod ?? "GET") \(request.url?.path ?? "")")
 
@@ -142,6 +151,15 @@ class BaseAPIClient {
 
             #if DEBUG
             logResponse(data, response: httpResponse)
+            APIDebugLog.shared.log(
+                method: request.httpMethod ?? "GET",
+                url: request.url?.absoluteString ?? "?",
+                statusCode: httpResponse.statusCode,
+                requestBody: request.httpBody.flatMap { String(data: $0, encoding: .utf8) },
+                responseData: data,
+                durationMs: Int(duration * 1000),
+                isError: httpResponse.statusCode >= 400
+            )
             #endif
 
             // Retry on 5xx server errors
@@ -180,9 +198,33 @@ class BaseAPIClient {
             return (data, httpResponse)
         } catch let error as APIError {
             logger.error("API error: \(error.localizedDescription)")
+            #if DEBUG
+            let errDuration = Date().timeIntervalSince(startTime)
+            APIDebugLog.shared.log(
+                method: request.httpMethod ?? "GET",
+                url: request.url?.absoluteString ?? "?",
+                statusCode: nil,
+                requestBody: request.httpBody.flatMap { String(data: $0, encoding: .utf8) },
+                responseData: nil,
+                durationMs: Int(errDuration * 1000),
+                isError: true
+            )
+            #endif
             throw error
         } catch {
             logger.error("Network error: \(error.localizedDescription)")
+            #if DEBUG
+            let netDuration = Date().timeIntervalSince(startTime)
+            APIDebugLog.shared.log(
+                method: request.httpMethod ?? "GET",
+                url: request.url?.absoluteString ?? "?",
+                statusCode: nil,
+                requestBody: request.httpBody.flatMap { String(data: $0, encoding: .utf8) },
+                responseData: nil,
+                durationMs: Int(netDuration * 1000),
+                isError: true
+            )
+            #endif
             circuitBreaker.recordFailure()
             // Retry on network errors with jitter
             if attempt < maxRetries {

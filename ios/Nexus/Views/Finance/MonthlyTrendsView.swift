@@ -44,8 +44,8 @@ struct MonthlyTrendsView: View {
                     }
 
                     if isLoading {
-                        ProgressView()
-                            .padding()
+                        ThemeLoadingView()
+                            .frame(height: 200)
                     } else if !monthlyData.isEmpty {
                         // Spending trend chart
                         spendingTrendChart
@@ -128,7 +128,7 @@ struct MonthlyTrendsView: View {
 
                                 ZStack(alignment: .leading) {
                                     Rectangle()
-                                        .fill(Color(.tertiarySystemBackground))
+                                        .fill(NexusTheme.Colors.cardAlt)
                                         .frame(height: 24)
 
                                     Rectangle()

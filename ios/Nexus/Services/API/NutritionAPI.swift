@@ -33,6 +33,13 @@ class NutritionAPI: BaseAPIClient {
         return try await get(endpoint)
     }
 
+    // MARK: - Water
+
+    func logWater(amountMl: Int) async throws -> WaterLogResponse {
+        let request = try WaterLogRequest(amount_ml: amountMl)
+        return try await post("/webhook/nexus-water", body: request)
+    }
+
     // MARK: - Fasting
 
     func startFast() async throws -> FastingResponse {

@@ -31,7 +31,9 @@ struct TodayView: View {
                         ctaTitle: "Try Again",
                         ctaAction: viewModel.forceRefresh
                     )
-                } else if viewModel.dashboardPayload == nil && !viewModel.isLoading {
+                } else if viewModel.dashboardPayload == nil && viewModel.isLoading {
+                    dashboardSkeleton
+                } else if viewModel.dashboardPayload == nil {
                     ThemeEmptyState(
                         icon: "tray",
                         headline: "No Data Yet",
@@ -51,8 +53,10 @@ struct TodayView: View {
         .overlay(alignment: .top) {
             if viewModel.isForegroundRefreshing {
                 refreshingOverlay
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: viewModel.isForegroundRefreshing)
         .background(NexusTheme.Colors.background)
         .refreshable { await viewModel.refresh() }
         .sheet(isPresented: $showingQuickLog) {
@@ -103,6 +107,7 @@ struct TodayView: View {
 
         // Daily Briefing
         ExplainTodayCard(explainToday: viewModel.dashboardPayload?.explainToday)
+            .staggeredAppear(index: 0)
 
         // Status Card
         StateCardView(
@@ -129,9 +134,11 @@ struct TodayView: View {
             workoutMinutes: viewModel.dashboardPayload?.todayFacts?.workoutMinutes,
             reminderSummary: viewModel.dashboardPayload?.reminderSummary
         )
+        .staggeredAppear(index: 1)
 
         // Financial Position Quick Card
         FinanceQuickCard()
+            .staggeredAppear(index: 2)
 
         // Habits
         HabitsCardView(
@@ -140,36 +147,47 @@ struct TodayView: View {
                 Task { await viewModel.completeHabitFromDashboard(habitId: habitId) }
             }
         )
+        .staggeredAppear(index: 3)
 
         // Streaks
         StreakBadgesView(streaks: viewModel.dashboardPayload?.streaks)
+            .staggeredAppear(index: 4)
 
         // BJJ Training
         BJJCardView()
+            .staggeredAppear(index: 5)
 
         // Work
         WorkCardView(work: viewModel.dashboardPayload?.workSummary)
+            .staggeredAppear(index: 6)
 
         // Weekly Review
         WeeklyReviewCardView(review: viewModel.dashboardPayload?.latestWeeklyReview)
+            .staggeredAppear(index: 7)
 
         // Nutrition + Fasting
         nutritionAndFastingSection
+            .staggeredAppear(index: 8)
 
         // Home
         HomeStatusCard(viewModel: homeViewModel, onTap: { showingHomeControl = true })
+            .staggeredAppear(index: 9)
 
         // Music
         MusicCardView(music: viewModel.dashboardPayload?.musicToday)
+            .staggeredAppear(index: 10)
 
         // Mood
         MoodCardView(mood: viewModel.dashboardPayload?.moodToday)
+            .staggeredAppear(index: 11)
 
         // Medications
         MedicationsCardView(medications: viewModel.dashboardPayload?.medicationsToday)
+            .staggeredAppear(index: 12)
 
         // Insights
         insightsSection
+            .staggeredAppear(index: 13)
     }
 
     @ViewBuilder
@@ -214,6 +232,49 @@ struct TodayView: View {
         )
     }
 
+    // MARK: - Skeleton Loading
+
+    private var dashboardSkeleton: some View {
+        VStack(spacing: NexusTheme.Spacing.lg) {
+            // Briefing skeleton
+            skeletonCard(height: 80)
+                .staggeredAppear(index: 0)
+
+            // State card skeleton (recovery + budget)
+            skeletonCard(height: 160)
+                .staggeredAppear(index: 1)
+
+            // Finance quick card skeleton
+            skeletonCard(height: 72)
+                .staggeredAppear(index: 2)
+
+            // Habits skeleton
+            skeletonCard(height: 100)
+                .staggeredAppear(index: 3)
+
+            // Lower cards
+            skeletonCard(height: 64)
+                .staggeredAppear(index: 4)
+
+            skeletonCard(height: 64)
+                .staggeredAppear(index: 5)
+        }
+    }
+
+    private func skeletonCard(height: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: NexusTheme.Spacing.sm) {
+            ThemeSkeleton(width: 120, height: 14, cornerRadius: 4)
+            ThemeSkeleton(height: height - 22, cornerRadius: NexusTheme.Radius.md)
+        }
+        .padding(NexusTheme.Spacing.lg)
+        .background(NexusTheme.Colors.card)
+        .cornerRadius(NexusTheme.Radius.card)
+        .overlay(
+            RoundedRectangle(cornerRadius: NexusTheme.Radius.card)
+                .stroke(NexusTheme.Colors.divider, lineWidth: 1)
+        )
+    }
+
     // MARK: - Subviews
 
     private var refreshingOverlay: some View {
@@ -229,6 +290,7 @@ struct TodayView: View {
         .padding(.vertical, NexusTheme.Spacing.xs)
         .background(.ultraThinMaterial)
         .cornerRadius(NexusTheme.Radius.card)
+        .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
         .padding(.top, NexusTheme.Spacing.xs)
     }
 

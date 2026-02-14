@@ -112,7 +112,7 @@ struct FinanceBudgetsView: View {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Rectangle()
-                            .fill(Color(.tertiarySystemFill))
+                            .fill(NexusTheme.Colors.divider)
                             .frame(height: 10)
                             .cornerRadius(5)
 
@@ -277,7 +277,7 @@ struct BudgetRowCard: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Rectangle()
-                        .fill(Color(.tertiarySystemFill))
+                        .fill(NexusTheme.Colors.divider)
                         .frame(height: 8)
                         .cornerRadius(4)
 

@@ -17,6 +17,7 @@ struct NutritionCardView: View {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11))
                         .foregroundColor(NexusTheme.Colors.textMuted)
+                        .accessibilityHidden(true)
                 }
 
                 HStack(spacing: NexusTheme.Spacing.lg) {
@@ -48,6 +49,16 @@ struct NutritionCardView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(nutritionAccessibilityLabel)
+    }
+
+    private var nutritionAccessibilityLabel: String {
+        var parts: [String] = ["Nutrition"]
+        if let cal = caloriesConsumed, cal > 0 { parts.append("\(cal) calories") }
+        if let p = proteinG, p > 0 { parts.append("\(Int(p)) grams protein") }
+        if let m = mealsLogged, m > 0 { parts.append("\(m) meals") }
+        if let w = waterMl, w > 0 { parts.append("\(w) milliliters water") }
+        return parts.joined(separator: ", ")
     }
 
     private func nutritionItem(value: String, label: String, icon: String, color: Color) -> some View {

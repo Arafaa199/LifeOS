@@ -29,7 +29,7 @@ struct WorkoutsView: View {
     var body: some View {
         Group {
             if isLoading {
-                ProgressView("Loading workouts...")
+                ThemeLoadingView(message: "Loading workouts...")
             } else if let error = errorMessage {
                 errorView(error)
             } else {
@@ -178,7 +178,7 @@ struct WorkoutsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Image(systemName: "heart.circle.fill")
-                        .foregroundColor(.red)
+                        .foregroundColor(NexusTheme.Colors.Semantic.red)
                     Text("Day Strain")
                         .font(.subheadline)
                         .foregroundColor(.secondary)

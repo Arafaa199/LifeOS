@@ -103,7 +103,7 @@ struct InlineErrorView: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(NexusTheme.Colors.cardAlt)
         .cornerRadius(12)
         .padding(.horizontal)
     }
@@ -182,7 +182,7 @@ struct LoadingStateView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
+        .background(NexusTheme.Colors.card)
     }
 }
 
@@ -254,7 +254,7 @@ struct SuccessToast: View {
             Spacer()
         }
         .padding()
-        .background(Color(.secondarySystemBackground))
+        .background(NexusTheme.Colors.cardAlt)
         .cornerRadius(12)
         .shadow(radius: 8)
         .padding(.horizontal)

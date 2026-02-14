@@ -70,7 +70,7 @@ struct FoodMatchSheet: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Color(.systemBackground))
+        .background(NexusTheme.Colors.card)
     }
 }
 

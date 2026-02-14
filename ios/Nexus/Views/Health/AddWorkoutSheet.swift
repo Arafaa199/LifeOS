@@ -69,7 +69,7 @@ struct AddWorkoutSheet: View {
                 if let error = errorMessage {
                     Section {
                         Text(error)
-                            .foregroundColor(.red)
+                            .foregroundColor(NexusTheme.Colors.Semantic.red)
                             .font(.caption)
                     }
                 }

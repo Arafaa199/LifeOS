@@ -61,7 +61,7 @@ struct DocumentFormView: View {
             if let error = viewModel.errorMessage {
                 Section {
                     Text(error)
-                        .foregroundColor(.red)
+                        .foregroundColor(NexusTheme.Colors.Semantic.red)
                         .font(.caption)
                 }
             }

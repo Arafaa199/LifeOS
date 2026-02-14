@@ -168,7 +168,7 @@ struct MusicView: View {
                             .overlay(
                                 Image(systemName: "music.note")
                                     .font(.title)
-                                    .foregroundColor(.pink)
+                                    .foregroundColor(NexusTheme.Colors.accent)
                             )
                     }
 
@@ -180,7 +180,7 @@ struct MusicView: View {
                             .overlay(
                                 Image(systemName: "waveform")
                                     .font(.caption)
-                                    .foregroundColor(.pink)
+                                    .foregroundColor(NexusTheme.Colors.accent)
                                     .symbolEffect(.variableColor.iterative)
                             )
                             .offset(x: 28, y: 28)
@@ -191,7 +191,7 @@ struct MusicView: View {
                     if musicService.currentEntry != nil {
                         Text("NOW PLAYING")
                             .font(.caption2.weight(.semibold))
-                            .foregroundColor(.pink)
+                            .foregroundColor(NexusTheme.Colors.accent)
 
                         Text(musicService.currentTitle)
                             .font(.headline)
@@ -222,7 +222,7 @@ struct MusicView: View {
                     } label: {
                         Image(systemName: musicService.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                             .font(.system(size: 48))
-                            .foregroundColor(.pink)
+                            .foregroundColor(NexusTheme.Colors.accent)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(musicService.isPlaying ? "Pause" : "Play")
@@ -294,7 +294,7 @@ struct MusicView: View {
                 NavigationLink(destination: MusicLibraryView()) {
                     Text("See All")
                         .font(.subheadline)
-                        .foregroundColor(.pink)
+                        .foregroundColor(NexusTheme.Colors.accent)
                 }
             }
             .padding(.horizontal)
@@ -337,7 +337,7 @@ struct MusicView: View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundColor(.pink)
+                .foregroundColor(NexusTheme.Colors.accent)
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -375,7 +375,7 @@ struct MusicView: View {
                     value: "\(loggingService.todayEvents.count)",
                     label: "Tracks",
                     icon: "music.note",
-                    color: .pink
+                    color: NexusTheme.Colors.accent
                 )
 
                 statCard(
@@ -458,7 +458,7 @@ struct PlaylistCard: View {
                         .overlay(
                             Image(systemName: "music.note.list")
                                 .font(.largeTitle)
-                                .foregroundColor(.pink)
+                                .foregroundColor(NexusTheme.Colors.accent)
                         )
                 }
 
@@ -518,7 +518,7 @@ struct PlaylistDetailView: View {
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(Color.pink)
+                                .background(NexusTheme.Colors.accent)
                                 .foregroundColor(.white)
                                 .cornerRadius(10)
                         }
@@ -533,8 +533,8 @@ struct PlaylistDetailView: View {
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(Color.pink.opacity(0.15))
-                                .foregroundColor(.pink)
+                                .background(NexusTheme.Colors.accent.opacity(0.15))
+                                .foregroundColor(NexusTheme.Colors.accent)
                                 .cornerRadius(10)
                         }
                     }
@@ -606,7 +606,7 @@ struct TrackRow: View {
                         .cornerRadius(4)
                 } else {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.2))
+                        .fill(NexusTheme.Colors.cardAlt)
                         .frame(width: 44, height: 44)
                 }
 

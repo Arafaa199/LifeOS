@@ -2,18 +2,34 @@ import SwiftUI
 
 struct DebugView: View {
     @State private var logs: [DebugLog] = []
+    @State private var apiEntries: [APIDebugLog.Entry] = []
     @State private var isTestingWHOOP = false
     @State private var isTestingSummary = false
     @State private var isTestingFinance = false
+    @State private var expandedEntryId: UUID?
+    @State private var refreshTimer: Timer?
 
     var body: some View {
         List {
+            // API Call History
+            Section("API Calls (\(apiEntries.count))") {
+                if apiEntries.isEmpty {
+                    Text("No API calls recorded yet.")
+                        .foregroundColor(.secondary)
+                        .italic()
+                } else {
+                    ForEach(apiEntries) { entry in
+                        apiEntryRow(entry)
+                    }
+                }
+            }
+
             // API Tests Section
             Section("API Tests") {
                 Button(action: testWHOOPEndpoint) {
                     HStack {
                         Image(systemName: "bed.double.fill")
-                            .foregroundColor(.indigo)
+                            .foregroundColor(NexusTheme.Colors.Semantic.purple)
                         Text("Test WHOOP Sleep API")
                         Spacer()
                         if isTestingWHOOP {
@@ -27,7 +43,7 @@ struct DebugView: View {
                 Button(action: testDailySummary) {
                     HStack {
                         Image(systemName: "chart.bar.fill")
-                            .foregroundColor(.blue)
+                            .foregroundColor(NexusTheme.Colors.Semantic.blue)
                         Text("Test Daily Summary API")
                         Spacer()
                         if isTestingSummary {
@@ -41,7 +57,7 @@ struct DebugView: View {
                 Button(action: testFinanceAPI) {
                     HStack {
                         Image(systemName: "dollarsign.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(NexusTheme.Colors.Semantic.green)
                         Text("Test Finance API")
                         Spacer()
                         if isTestingFinance {
@@ -65,15 +81,17 @@ struct DebugView: View {
                     Image(systemName: KeychainManager.shared.hasAPIKey ? "checkmark.circle.fill" : "xmark.circle.fill")
                         .foregroundColor(KeychainManager.shared.hasAPIKey ? .green : .red)
                 }
+
+                let diag = CircuitBreaker.shared.diagnostics
+                LabeledContent("Circuit Breaker") {
+                    Text(diag.state.rawValue)
+                        .foregroundColor(diag.state == .closed ? .green : .red)
+                }
             }
 
-            // Logs Section
-            Section("Logs (\(logs.count))") {
-                if logs.isEmpty {
-                    Text("No logs yet. Run a test above.")
-                        .foregroundColor(.secondary)
-                        .italic()
-                } else {
+            // Manual Test Logs
+            if !logs.isEmpty {
+                Section("Test Logs (\(logs.count))") {
                     ForEach(logs) { log in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -101,18 +119,130 @@ struct DebugView: View {
 
             // Actions
             Section {
-                Button("Clear Logs", role: .destructive) {
-                    logs.removeAll()
+                Button("Refresh API Log") {
+                    refreshAPIEntries()
                 }
 
-                Button("Copy Logs to Clipboard") {
-                    let text = logs.map { "[\($0.timestamp)] \($0.title): \($0.message)" }.joined(separator: "\n\n")
+                Button("Clear All", role: .destructive) {
+                    logs.removeAll()
+                    APIDebugLog.shared.clear()
+                    apiEntries.removeAll()
+                }
+
+                Button("Copy API Log to Clipboard") {
+                    let text = apiEntries.map { entry in
+                        let status = entry.statusCode.map { "\($0)" } ?? "ERR"
+                        return "[\(formatTime(entry.timestamp))] \(entry.method) \(entry.url) -> \(status) (\(entry.durationMs)ms, \(entry.responseSize)B)"
+                    }.joined(separator: "\n")
                     UIPasteboard.general.string = text
                 }
             }
         }
         .navigationTitle("Debug")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { refreshAPIEntries() }
+        .onDisappear { refreshTimer?.invalidate() }
+    }
+
+    // MARK: - API Entry Row
+
+    @ViewBuilder
+    private func apiEntryRow(_ entry: APIDebugLog.Entry) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Header
+            HStack(spacing: 6) {
+                // Status badge
+                Text(entry.statusCode.map { "\($0)" } ?? "ERR")
+                    .font(.caption2.weight(.bold).monospaced())
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(statusColor(entry).opacity(0.15))
+                    .foregroundColor(statusColor(entry))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                // Method
+                Text(entry.method)
+                    .font(.caption.weight(.semibold).monospaced())
+
+                Spacer()
+
+                // Duration + Size
+                Text("\(entry.durationMs)ms")
+                    .font(.caption2.monospaced())
+                    .foregroundColor(.secondary)
+
+                Text(formatBytes(entry.responseSize))
+                    .font(.caption2.monospaced())
+                    .foregroundColor(.secondary)
+            }
+
+            // URL path (truncated)
+            if let urlPath = URL(string: entry.url)?.path {
+                Text(urlPath)
+                    .font(.caption.monospaced())
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+
+            // Timestamp
+            Text(formatTime(entry.timestamp))
+                .font(.caption2)
+                .foregroundColor(Color(.tertiaryLabel))
+
+            // Expandable response preview
+            if expandedEntryId == entry.id {
+                if let preview = entry.responsePreview {
+                    Text(preview.prefix(1000))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(20)
+                        .textSelection(.enabled)
+                        .padding(8)
+                        .background(NexusTheme.Colors.cardAlt)
+                        .cornerRadius(6)
+                }
+                if let body = entry.requestBody {
+                    Text("Request: \(body.prefix(500))")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(NexusTheme.Colors.Semantic.amber)
+                        .lineLimit(10)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                expandedEntryId = expandedEntryId == entry.id ? nil : entry.id
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func statusColor(_ entry: APIDebugLog.Entry) -> Color {
+        guard let code = entry.statusCode else { return .red }
+        switch code {
+        case 200..<300: return .green
+        case 300..<400: return .orange
+        default: return .red
+        }
+    }
+
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: date)
+    }
+
+    private func formatBytes(_ bytes: Int) -> String {
+        if bytes < 1024 { return "\(bytes)B" }
+        return String(format: "%.1fKB", Double(bytes) / 1024)
+    }
+
+    private func refreshAPIEntries() {
+        apiEntries = APIDebugLog.shared.entries
     }
 
     // MARK: - API Tests
@@ -149,11 +279,13 @@ struct DebugView: View {
                         addLog("WHOOP Failed", "API returned success: false", isError: true)
                     }
                     isTestingWHOOP = false
+                    refreshAPIEntries()
                 }
             } catch {
                 await MainActor.run {
                     addLog("WHOOP Error", "Exception: \(error.localizedDescription)\n\nFull error: \(error)", isError: true)
                     isTestingWHOOP = false
+                    refreshAPIEntries()
                 }
             }
         }
@@ -184,11 +316,13 @@ struct DebugView: View {
                         addLog("Summary Failed", "API returned success: false", isError: true)
                     }
                     isTestingSummary = false
+                    refreshAPIEntries()
                 }
             } catch {
                 await MainActor.run {
                     addLog("Summary Error", "Exception: \(error.localizedDescription)\n\nFull error: \(error)", isError: true)
                     isTestingSummary = false
+                    refreshAPIEntries()
                 }
             }
         }
@@ -218,11 +352,13 @@ struct DebugView: View {
                         addLog("Finance Failed", "API returned success: false", isError: true)
                     }
                     isTestingFinance = false
+                    refreshAPIEntries()
                 }
             } catch {
                 await MainActor.run {
                     addLog("Finance Error", "Exception: \(error.localizedDescription)\n\nFull error: \(error)", isError: true)
                     isTestingFinance = false
+                    refreshAPIEntries()
                 }
             }
         }

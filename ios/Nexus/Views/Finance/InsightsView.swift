@@ -144,7 +144,7 @@ struct InsightsView: View {
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color(.systemGray5))
+                                .fill(NexusTheme.Colors.divider)
                                 .frame(height: 8)
                             RoundedRectangle(cornerRadius: 4)
                                 .fill(budgetStatusColor)

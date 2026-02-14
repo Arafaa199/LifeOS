@@ -11,9 +11,10 @@ struct ExplainTodayCard: View {
                     Image(systemName: "text.quote")
                         .font(.system(size: 18))
                         .foregroundColor(NexusTheme.Colors.accent)
-                    Text("Today's Briefing")
-                        .font(.system(size: 15, weight: .bold))
+                        .accessibilityHidden(true)
+                    NexusTheme.Typography.sectionHeader("Today's Briefing")
                         .foregroundColor(NexusTheme.Colors.textPrimary)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     if let completeness = data.dataCompleteness {
                         Text("\(Int(completeness * 100))% data")
@@ -37,10 +38,12 @@ struct ExplainTodayCard: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 10))
                             .foregroundColor(NexusTheme.Colors.Semantic.amber)
+                            .accessibilityHidden(true)
                         Text("Missing: \(data.dataGaps.joined(separator: ", "))")
                             .font(.system(size: 11))
                             .foregroundColor(NexusTheme.Colors.textSecondary)
                     }
+                    .accessibilityLabel("Missing data: \(data.dataGaps.joined(separator: ", "))")
                 }
             }
             .padding(NexusTheme.Spacing.lg)

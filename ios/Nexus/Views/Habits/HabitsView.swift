@@ -8,7 +8,7 @@ struct HabitsView: View {
         ScrollView {
             VStack(spacing: NexusTheme.Spacing.lg) {
                 if viewModel.isLoading && viewModel.habits.isEmpty {
-                    ProgressView()
+                    ThemeLoadingView()
                         .padding(.top, NexusTheme.Spacing.xxxl)
                 } else if viewModel.habits.isEmpty {
                     ThemeEmptyState(
@@ -196,6 +196,7 @@ struct HabitRow: View {
                             .frame(width: 6, height: 6)
                     }
                 }
+                .accessibilityLabel("\(habit.last7Days.filter { $0 }.count) of 7 days completed")
             }
 
             Spacer()

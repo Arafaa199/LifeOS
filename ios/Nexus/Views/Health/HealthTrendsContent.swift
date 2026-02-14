@@ -262,7 +262,7 @@ struct HealthTrendsContent: View {
                     HStack(spacing: 4) {
                         ForEach(0..<7, id: \.self) { day in
                             Circle()
-                                .fill(day < daysWithData ? NexusTheme.Colors.Semantic.amber : Color(.tertiarySystemFill))
+                                .fill(day < daysWithData ? NexusTheme.Colors.Semantic.amber : NexusTheme.Colors.divider)
                                 .frame(width: 24, height: 24)
                         }
                     }

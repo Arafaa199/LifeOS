@@ -48,7 +48,7 @@ struct AlbumDetailView: View {
                     .shadow(color: Color.black.opacity(0.3), radius: 20, y: 10)
             } else {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(NexusTheme.Colors.cardAlt)
                     .frame(width: 240, height: 240)
                     .overlay(
                         Image(systemName: "music.note")
