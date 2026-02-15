@@ -15,27 +15,46 @@
       "id": "cron-trigger",
       "name": "Daily 10PM Dubai",
       "type": "n8n-nodes-base.scheduleTrigger",
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "typeVersion": 1.2,
       "notes": "Runs at 22:00 Dubai time = 18:00 UTC. n8n uses UTC."
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Check if session already exists for today\nSELECT id, session_type, source, duration_minutes\nFROM health.bjj_sessions\nWHERE session_date = CURRENT_DATE AT TIME ZONE 'Asia/Dubai';\n",
+        "query": "-- Check if session already exists for today\nSELECT COALESCE(\n  (SELECT json_build_object('id', id, 'session_type', session_type, 'source', source, 'duration_minutes', duration_minutes)\n   FROM health.bjj_sessions\n   WHERE session_date = (NOW() AT TIME ZONE 'Asia/Dubai')::date\n   LIMIT 1),\n  json_build_object('id', NULL)\n) as result;",
         "options": {}
       },
       "id": "check-existing",
       "name": "Check Existing Session",
       "type": "n8n-nodes-base.postgres",
-      "position": [460, 300],
+      "position": [
+        460,
+        300
+      ],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const result = $input.first().json.result;\nconst hasExisting = result && result.id != null;\nreturn [{ json: { hasExisting, existing: result } }];"
+      },
+      "id": "parse-existing",
+      "name": "Parse Existing",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        680,
+        300
+      ],
+      "typeVersion": 2
     },
     {
       "parameters": {
@@ -47,12 +66,13 @@
           },
           "conditions": [
             {
-              "id": "has-existing",
-              "leftValue": "={{ $json.length }}",
-              "rightValue": 0,
+              "id": "no-existing",
+              "leftValue": "={{ $json.hasExisting }}",
+              "rightValue": false,
               "operator": {
-                "type": "number",
-                "operation": "equals"
+                "type": "boolean",
+                "operation": "equals",
+                "singleValue": true
               }
             }
           ],
@@ -63,53 +83,65 @@
       "id": "if-no-existing",
       "name": "No Existing Session?",
       "type": "n8n-nodes-base.if",
-      "position": [680, 300],
+      "position": [
+        900,
+        300
+      ],
       "typeVersion": 2
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Query gym presence today using core.match_location()\n-- Looking for 60+ minutes between 7-10 PM Dubai time\nWITH gym_pings AS (\n  SELECT\n    l.recorded_at,\n    m.distance_meters\n  FROM life.locations l\n  CROSS JOIN LATERAL core.match_location(l.latitude::double precision, l.longitude::double precision) m\n  WHERE l.recorded_at AT TIME ZONE 'Asia/Dubai' >= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '19 hours'\n    AND l.recorded_at AT TIME ZONE 'Asia/Dubai' <= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '22 hours'\n    AND m.category = 'gym'\n)\nSELECT\n  COUNT(*) as data_points,\n  MIN(recorded_at) as first_seen,\n  MAX(recorded_at) as last_seen,\n  EXTRACT(EPOCH FROM (MAX(recorded_at) - MIN(recorded_at))) / 60 as duration_minutes,\n  AVG(distance_meters) as avg_distance\nFROM gym_pings\nHAVING COUNT(*) >= 2;\n",
+        "query": "-- Query gym enter/exit events from geofence system\n-- Look for gym exits today with duration >= 20 min\nSELECT\n  le_enter.timestamp AS first_seen,\n  le_exit.timestamp AS last_seen,\n  le_exit.duration_minutes,\n  kl.name AS location_name,\n  kl.category\nFROM core.location_events le_exit\nJOIN core.known_locations kl ON kl.id = le_exit.location_id AND kl.category = 'gym'\nLEFT JOIN LATERAL (\n  SELECT timestamp FROM core.location_events le2\n  WHERE le2.location_id = le_exit.location_id\n    AND le2.event_type = 'enter'\n    AND le2.timestamp < le_exit.timestamp\n  ORDER BY le2.timestamp DESC LIMIT 1\n) le_enter ON true\nWHERE le_exit.event_type = 'exit'\n  AND le_exit.duration_minutes >= 20\n  AND le_exit.timestamp AT TIME ZONE 'Asia/Dubai' >= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai')\nUNION ALL\nSELECT NULL::timestamptz, NULL::timestamptz, NULL::int, NULL, NULL\nORDER BY duration_minutes DESC NULLS LAST\nLIMIT 1;",
         "options": {}
       },
       "id": "query-location",
       "name": "Query Location History",
       "type": "n8n-nodes-base.postgres",
-      "position": [900, 200],
+      "position": [
+        1120,
+        200
+      ],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Query Whoop workouts for today in 7-10 PM window\n-- Looking for strain > 8, duration 50-120 minutes\nSELECT\n  w.id,\n  w.start_time,\n  w.end_time,\n  w.strain,\n  w.average_heart_rate as hr_avg,\n  w.kilojoules,\n  ROUND(w.kilojoules / 4.184) as calories,\n  EXTRACT(EPOCH FROM (w.end_time - w.start_time)) / 60 as duration_minutes\nFROM health.whoop_workouts w\nWHERE w.start_time AT TIME ZONE 'Asia/Dubai' >= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '19 hours'\n  AND w.start_time AT TIME ZONE 'Asia/Dubai' <= (CURRENT_DATE AT TIME ZONE 'Asia/Dubai') + INTERVAL '22 hours'\n  AND w.strain > 8\n  AND EXTRACT(EPOCH FROM (w.end_time - w.start_time)) / 60 BETWEEN 50 AND 120\nORDER BY w.strain DESC\nLIMIT 1;\n",
+        "query": "-- Get today's Whoop strain as supplementary data\nSELECT date, day_strain, avg_hr, calories_active,\n  (raw_data->'score'->>'kilojoule')::numeric as kilojoules\nFROM health.whoop_strain\nWHERE date = (NOW() AT TIME ZONE 'Asia/Dubai')::date\nUNION ALL\nSELECT NULL::date, NULL::numeric, NULL::int, NULL::int, NULL::numeric\nORDER BY day_strain DESC NULLS LAST\nLIMIT 1;",
         "options": {}
       },
       "id": "query-whoop",
-      "name": "Query Whoop Workouts",
+      "name": "Query Whoop Strain",
       "type": "n8n-nodes-base.postgres",
-      "position": [900, 400],
+      "position": [
+        1120,
+        400
+      ],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Merge location and Whoop results\nconst locationData = $('Query Location History').first()?.json || {};\nconst whoopData = $('Query Whoop Workouts').first()?.json || {};\n\nconst locationConfirmed = locationData.duration_minutes && locationData.duration_minutes >= 60;\nconst whoopConfirmed = whoopData.strain && whoopData.strain > 8;\n\n// Determine session type based on start time\n// 7:30-8:30 PM = BJJ (gi class)\n// 8:30-9:30 PM = MMA\nlet sessionType = 'bjj'; // default\nif (whoopData.start_time) {\n  const startHour = new Date(whoopData.start_time).getHours();\n  const startMinute = new Date(whoopData.start_time).getMinutes();\n  const startDecimal = startHour + startMinute / 60;\n  \n  // Convert to Dubai time (assuming UTC input)\n  const dubaiOffset = 4;\n  const dubaiDecimal = (startDecimal + dubaiOffset) % 24;\n  \n  if (dubaiDecimal >= 20.5) { // 8:30 PM+\n    sessionType = 'mma';\n  }\n}\n\n// Determine source priority: location > whoop\nlet source = null;\nif (locationConfirmed) {\n  source = 'auto_location';\n} else if (whoopConfirmed) {\n  source = 'auto_whoop';\n}\n\nreturn [{\n  json: {\n    locationConfirmed,\n    whoopConfirmed,\n    shouldAutoLog: locationConfirmed || whoopConfirmed,\n    source,\n    sessionType,\n    durationMinutes: whoopData.duration_minutes || locationData.duration_minutes || 60,\n    strain: whoopData.strain || null,\n    hrAvg: whoopData.hr_avg || null,\n    calories: whoopData.calories || null,\n    startTime: whoopData.start_time || locationData.first_seen || null,\n    endTime: whoopData.end_time || locationData.last_seen || null\n  }\n}];"
+        "jsCode": "// Merge location and Whoop strain results\nconst locationData = $('Query Location History').first()?.json || {};\nconst whoopData = $('Query Whoop Strain').first()?.json || {};\n\nconst locationConfirmed = locationData.duration_minutes && locationData.duration_minutes >= 20;\nconst hasWhoop = whoopData.day_strain && whoopData.day_strain > 0;\n\n// Determine session type: default BJJ\nlet sessionType = 'bjj';\n\nlet source = null;\nif (locationConfirmed) {\n  source = 'auto_location';\n}\n\n// Calculate duration and times from location data\nlet durationMinutes = locationData.duration_minutes || 60;\nlet startTime = locationData.first_seen || null;\nlet endTime = locationData.last_seen || null;\n\n// Whoop strain supplements the data but doesn't drive detection\nlet strain = (hasWhoop && whoopData.day_strain > 5) ? whoopData.day_strain : null;\nlet hrAvg = hasWhoop ? whoopData.avg_hr : null;\nlet calories = hasWhoop && whoopData.kilojoules ? Math.round(whoopData.kilojoules / 4.184) : null;\n\nreturn [{\n  json: {\n    locationConfirmed,\n    shouldAutoLog: locationConfirmed,\n    source,\n    sessionType,\n    durationMinutes,\n    strain: strain ? parseFloat(strain) : null,\n    hrAvg,\n    calories,\n    startTime,\n    endTime\n  }\n}];"
       },
       "id": "merge-signals",
       "name": "Merge & Decide",
       "type": "n8n-nodes-base.code",
-      "position": [1120, 300],
+      "position": [
+        1340,
+        300
+      ],
       "typeVersion": 2
     },
     {
@@ -139,37 +171,44 @@
       "id": "if-should-log",
       "name": "Auto-Log?",
       "type": "n8n-nodes-base.if",
-      "position": [1340, 300],
+      "position": [
+        1560,
+        300
+      ],
       "typeVersion": 2
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "-- Auto-log BJJ session\nINSERT INTO health.bjj_sessions (\n  session_date,\n  session_type,\n  duration_minutes,\n  start_time,\n  end_time,\n  strain,\n  hr_avg,\n  calories,\n  source\n) VALUES (\n  CURRENT_DATE AT TIME ZONE 'Asia/Dubai',\n  $1,\n  $2,\n  $3::time,\n  $4::time,\n  $5,\n  $6,\n  $7,\n  $8\n)\nON CONFLICT (session_date) DO UPDATE SET\n  session_type = EXCLUDED.session_type,\n  duration_minutes = EXCLUDED.duration_minutes,\n  start_time = EXCLUDED.start_time,\n  end_time = EXCLUDED.end_time,\n  strain = EXCLUDED.strain,\n  hr_avg = EXCLUDED.hr_avg,\n  calories = EXCLUDED.calories,\n  source = EXCLUDED.source,\n  updated_at = NOW()\nRETURNING *;",
-        "options": {
-          "queryParams": "={{ [$json.sessionType, $json.durationMinutes, $json.startTime ? new Date($json.startTime).toTimeString().slice(0,8) : null, $json.endTime ? new Date($json.endTime).toTimeString().slice(0,8) : null, $json.strain, $json.hrAvg, $json.calories, $json.source] }}"
-        }
+        "query": "INSERT INTO health.bjj_sessions (\n  session_date,\n  session_type,\n  duration_minutes,\n  start_time,\n  end_time,\n  strain,\n  hr_avg,\n  calories,\n  source\n) VALUES (\n  (NOW() AT TIME ZONE 'Asia/Dubai')::date,\n  '{{ $json.sessionType }}',\n  {{ $json.durationMinutes }},\n  {{ $json.startTime ? \"'\" + new Date($json.startTime).toISOString().slice(11,19) + \"'::time\" : 'NULL' }},\n  {{ $json.endTime ? \"'\" + new Date($json.endTime).toISOString().slice(11,19) + \"'::time\" : 'NULL' }},\n  {{ $json.strain || 'NULL' }},\n  {{ $json.hrAvg || 'NULL' }},\n  {{ $json.calories || 'NULL' }},\n  '{{ $json.source }}'\n)\nON CONFLICT (session_date) DO UPDATE SET\n  session_type = EXCLUDED.session_type,\n  duration_minutes = EXCLUDED.duration_minutes,\n  start_time = EXCLUDED.start_time,\n  end_time = EXCLUDED.end_time,\n  strain = EXCLUDED.strain,\n  hr_avg = EXCLUDED.hr_avg,\n  calories = EXCLUDED.calories,\n  source = EXCLUDED.source,\n  updated_at = NOW()\nRETURNING *;",
+        "options": {}
       },
       "id": "insert-session",
       "name": "Log Session",
       "type": "n8n-nodes-base.postgres",
-      "position": [1560, 200],
+      "position": [
+        1780,
+        200
+      ],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
           "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus PostgreSQL"
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Format confirmation notification\nconst session = $('Log Session').first()?.json || $input.first()?.json;\nconst strain = session.strain ? `, strain ${session.strain.toFixed(1)}` : '';\nconst duration = session.duration_minutes || session.durationMinutes || 60;\nconst type = (session.session_type || session.sessionType || 'BJJ').toUpperCase();\n\nreturn [{\n  json: {\n    title: `${type} Session Logged ✅`,\n    body: `${duration}min${strain}`,\n    data: {\n      type: 'bjj_logged',\n      session_id: session.id\n    }\n  }\n}];"
+        "jsCode": "// Format confirmation notification\nconst session = $('Log Session').first()?.json || $input.first()?.json;\nconst strain = session.strain ? ', strain ' + parseFloat(session.strain).toFixed(1) : '';\nconst duration = session.duration_minutes || session.durationMinutes || 60;\nconst type = (session.session_type || session.sessionType || 'BJJ').toUpperCase();\n\nreturn [{\n  json: {\n    title: type + ' Session Logged',\n    body: duration + 'min' + strain,\n    data: {\n      type: 'bjj_logged',\n      session_id: session.id\n    }\n  }\n}];"
       },
       "id": "format-confirm-notif",
       "name": "Format Confirmation",
       "type": "n8n-nodes-base.code",
-      "position": [1780, 200],
+      "position": [
+        2000,
+        200
+      ],
       "typeVersion": 2
     },
     {
@@ -186,7 +225,10 @@
       "id": "send-confirm-notif",
       "name": "Send Confirmation",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [2000, 200],
+      "position": [
+        2220,
+        200
+      ],
       "typeVersion": 4.2,
       "credentials": {
         "httpHeaderAuth": {
@@ -197,12 +239,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Format \"Did you train?\" notification with action buttons\nreturn [{\n  json: {\n    title: 'Did you train today? 🥋',\n    body: 'No gym activity detected',\n    data: {\n      type: 'bjj_prompt',\n      actions: [\n        { action: 'BJJ', title: 'BJJ (Gi)' },\n        { action: 'NOGI', title: 'No-Gi' },\n        { action: 'MMA', title: 'MMA' },\n        { action: 'SKIP', title: 'No Training', destructive: true }\n      ]\n    }\n  }\n}];"
+        "jsCode": "// Format 'Did you train?' notification with action buttons\nreturn [{\n  json: {\n    title: 'Did you train today?',\n    body: 'No gym activity detected',\n    data: {\n      type: 'bjj_prompt',\n      actions: [\n        { action: 'BJJ', title: 'BJJ (Gi)' },\n        { action: 'NOGI', title: 'No-Gi' },\n        { action: 'MMA', title: 'MMA' },\n        { action: 'SKIP', title: 'No Training', destructive: true }\n      ]\n    }\n  }\n}];"
       },
       "id": "format-prompt-notif",
       "name": "Format Prompt",
       "type": "n8n-nodes-base.code",
-      "position": [1560, 420],
+      "position": [
+        1780,
+        420
+      ],
       "typeVersion": 2
     },
     {
@@ -219,7 +264,10 @@
       "id": "send-prompt-notif",
       "name": "Send Prompt",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [1780, 420],
+      "position": [
+        2000,
+        420
+      ],
       "typeVersion": 4.2,
       "credentials": {
         "httpHeaderAuth": {
@@ -230,12 +278,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// Session already exists - skip\nconst existing = $('Check Existing Session').first()?.json;\nreturn [{\n  json: {\n    skipped: true,\n    reason: 'Session already logged',\n    existing_session: existing\n  }\n}];"
+        "jsCode": "// Session already exists - skip\nconst existing = $('Parse Existing').first()?.json?.existing;\nreturn [{\n  json: {\n    skipped: true,\n    reason: 'Session already logged',\n    existing_session: existing\n  }\n}];"
       },
       "id": "skip-existing",
       "name": "Skip (Already Logged)",
       "type": "n8n-nodes-base.code",
-      "position": [900, 500],
+      "position": [
+        1120,
+        500
+      ],
       "typeVersion": 2
     },
     {
@@ -253,7 +304,10 @@
       "id": "done-confirm",
       "name": "Done (Confirmed)",
       "type": "n8n-nodes-base.set",
-      "position": [2220, 200],
+      "position": [
+        2440,
+        200
+      ],
       "typeVersion": 3.4
     },
     {
@@ -271,7 +325,10 @@
       "id": "done-prompt",
       "name": "Done (Prompted)",
       "type": "n8n-nodes-base.set",
-      "position": [2000, 420],
+      "position": [
+        2220,
+        420
+      ],
       "typeVersion": 3.4
     }
   ],
@@ -291,6 +348,17 @@
       "main": [
         [
           {
+            "node": "Parse Existing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Existing": {
+      "main": [
+        [
+          {
             "node": "No Existing Session?",
             "type": "main",
             "index": 0
@@ -307,7 +375,7 @@
             "index": 0
           },
           {
-            "node": "Query Whoop Workouts",
+            "node": "Query Whoop Strain",
             "type": "main",
             "index": 0
           }
@@ -332,7 +400,7 @@
         ]
       ]
     },
-    "Query Whoop Workouts": {
+    "Query Whoop Strain": {
       "main": [
         [
           {
@@ -429,13 +497,11 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
-    "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": ""
+    "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "pinData": {}
+  "tags": [
+    {
+      "name": "nexus"
+    }
+  ]
 }

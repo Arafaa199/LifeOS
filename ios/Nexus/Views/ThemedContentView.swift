@@ -20,10 +20,8 @@ struct ThemedContentView: View {
     @State private var showReceipts = false
     @State private var showNotes = false
     @State private var showReminders = false
-    @State private var showMedications = false
-    @State private var showSupplements = false
-    @State private var showWorkouts = false
-    @State private var showBJJ = false
+    @State private var showTraining = false
+    @State private var showMedicationsSupplements = false
     @State private var showHomeControl = false
     @State private var showPipelineHealth = false
     @State private var showSettings = false
@@ -138,24 +136,14 @@ struct ThemedContentView: View {
                 RemindersView()
             }
         }
-        .sheet(isPresented: $showMedications) {
+        .sheet(isPresented: $showTraining) {
             NavigationStack {
-                MedicationsView()
+                TrainingView()
             }
         }
-        .sheet(isPresented: $showSupplements) {
+        .sheet(isPresented: $showMedicationsSupplements) {
             NavigationStack {
-                SupplementsView()
-            }
-        }
-        .sheet(isPresented: $showWorkouts) {
-            NavigationStack {
-                WorkoutsView()
-            }
-        }
-        .sheet(isPresented: $showBJJ) {
-            NavigationStack {
-                BJJView()
+                MedicationsSupplementsView()
             }
         }
         .sheet(isPresented: $showHomeControl) {
@@ -242,14 +230,10 @@ struct ThemedContentView: View {
             showNotes = true
         case .reminders:
             showReminders = true
+        case .training:
+            showTraining = true
         case .medications:
-            showMedications = true
-        case .supplements:
-            showSupplements = true
-        case .workouts:
-            showWorkouts = true
-        case .bjj:
-            showBJJ = true
+            showMedicationsSupplements = true
         case .homeControl:
             showHomeControl = true
         case .pipelineHealth:

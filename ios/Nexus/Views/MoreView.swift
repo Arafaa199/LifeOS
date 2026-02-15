@@ -57,39 +57,21 @@ struct MoreView: View {
                         )
                     }
 
-                    NavigationLink(destination: MedicationsView()) {
+                    NavigationLink(destination: TrainingView()) {
+                        SettingsRow(
+                            icon: "figure.run",
+                            iconColor: .orange,
+                            title: "Training",
+                            subtitle: "Workouts & BJJ"
+                        )
+                    }
+
+                    NavigationLink(destination: MedicationsSupplementsView()) {
                         SettingsRow(
                             icon: "pills.fill",
                             iconColor: .cyan,
                             title: "Medications",
-                            subtitle: "HealthKit data"
-                        )
-                    }
-
-                    NavigationLink(destination: SupplementsView()) {
-                        SettingsRow(
-                            icon: "leaf.fill",
-                            iconColor: .green,
-                            title: "Supplements",
-                            subtitle: "Daily tracking"
-                        )
-                    }
-
-                    NavigationLink(destination: WorkoutsView()) {
-                        SettingsRow(
-                            icon: "figure.run",
-                            iconColor: .orange,
-                            title: "Workouts",
-                            subtitle: "Activity tracking"
-                        )
-                    }
-
-                    NavigationLink(destination: BJJView()) {
-                        SettingsRow(
-                            icon: "figure.martial.arts",
-                            iconColor: .blue,
-                            title: "BJJ",
-                            subtitle: "Training log & streaks"
+                            subtitle: "Medications & supplements"
                         )
                     }
 

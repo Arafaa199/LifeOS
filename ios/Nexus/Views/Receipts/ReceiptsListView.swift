@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ReceiptsListView: View {
     @ObservedObject var viewModel: ReceiptsViewModel
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedReceipt: ReceiptSummary?
 
     var body: some View {
@@ -25,6 +26,17 @@ struct ReceiptsListView: View {
         .task {
             if viewModel.receipts.isEmpty {
                 await viewModel.loadReceipts()
+            }
+        }
+        .navigationTitle("Receipts")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(NexusTheme.Colors.textSecondary)
+                }
             }
         }
     }

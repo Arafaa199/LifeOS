@@ -1,109 +1,30 @@
 {
-  "name": "Nexus: Supplements Webhook",
+  "name": "Supplements API v2",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "GET",
         "path": "nexus-supplements",
-        "responseMode": "responseNode", "options": {}
+        "responseMode": "responseNode",
+        "options": {}
       },
-      "id": "webhook-get",
-      "name": "GET Supplements",
+      "id": "webhook",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "position": [240, 200],
-      "webhookId": "nexus-supplements-get",
+      "position": [240, 300],
+      "webhookId": "nexus-supplements-v2",
       "typeVersion": 2
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  id, name, brand, dose_amount, dose_unit, frequency, times_of_day,\n  category, notes, active, start_date, end_date\nFROM health.supplement_definitions\nWHERE active = TRUE\nORDER BY category, name;",
+        "query": "SELECT jsonb_build_object(\n  'supplements', COALESCE((SELECT jsonb_agg(row_to_json(s)) FROM (\n    SELECT id, name, brand, dose_amount, dose_unit, frequency, times_of_day, category, notes, active\n    FROM health.supplement_definitions WHERE active = TRUE ORDER BY category, name\n  ) s), '[]'::jsonb),\n  'summary', jsonb_build_object(\n    'total_supplements', (SELECT COUNT(*) FROM health.supplement_definitions WHERE active = TRUE),\n    'total_doses_today', (SELECT COUNT(*) FROM health.v_todays_supplements),\n    'taken', (SELECT COUNT(*) FILTER (WHERE status = 'taken') FROM health.v_todays_supplements),\n    'skipped', (SELECT COUNT(*) FILTER (WHERE status = 'skipped') FROM health.v_todays_supplements),\n    'pending', (SELECT COUNT(*) FILTER (WHERE status = 'pending') FROM health.v_todays_supplements),\n    'adherence_pct', CASE WHEN (SELECT COUNT(*) FROM health.v_todays_supplements) > 0\n      THEN ROUND((SELECT COUNT(*) FILTER (WHERE status = 'taken') FROM health.v_todays_supplements)::numeric / (SELECT COUNT(*) FROM health.v_todays_supplements) * 100)\n      ELSE NULL END\n  )\n) as payload;",
         "options": {}
       },
-      "id": "get-supplements",
-      "name": "Get Active Supplements",
+      "id": "get-data",
+      "name": "Get Data",
       "type": "n8n-nodes-base.postgres",
-      "position": [460, 200],
-      "typeVersion": 2.5,
-      "credentials": {
-        "postgres": {
-          "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus DB"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT * FROM health.v_todays_supplements ORDER BY time_slot, name;",
-        "options": {}
-      },
-      "id": "get-today-status",
-      "name": "Get Today Status",
-      "type": "n8n-nodes-base.postgres",
-      "position": [680, 200],
-      "typeVersion": 2.5,
-      "credentials": {
-        "postgres": {
-          "id": "p5cyLWCZ9Db6GiiQ",
-          "name": "Nexus DB"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const supplements = $('Get Active Supplements').all().map(i => i.json);\nconst todayStatus = $('Get Today Status').all().map(i => i.json);\n\n// Group today's status by supplement_id\nconst statusMap = {};\ntodayStatus.forEach(s => {\n  if (!statusMap[s.supplement_id]) {\n    statusMap[s.supplement_id] = [];\n  }\n  statusMap[s.supplement_id].push({\n    time_slot: s.time_slot,\n    status: s.status\n  });\n});\n\n// Enrich supplements with today's status\nconst enriched = supplements.map(s => ({\n  ...s,\n  today_doses: statusMap[s.id] || []\n}));\n\n// Calculate summary\nconst totalDoses = todayStatus.length;\nconst takenDoses = todayStatus.filter(s => s.status === 'taken').length;\nconst skippedDoses = todayStatus.filter(s => s.status === 'skipped').length;\nconst pendingDoses = todayStatus.filter(s => s.status === 'pending').length;\n\nreturn {\n  supplements: enriched,\n  summary: {\n    total_supplements: supplements.length,\n    total_doses_today: totalDoses,\n    taken: takenDoses,\n    skipped: skippedDoses,\n    pending: pendingDoses,\n    adherence_pct: totalDoses > 0 ? Math.round((takenDoses / totalDoses) * 100) : null\n  }\n};"
-      },
-      "id": "format-response",
-      "name": "Format Response",
-      "type": "n8n-nodes-base.code",
-      "position": [900, 200],
-      "typeVersion": 2
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}"
-      },
-      "id": "respond-get",
-      "name": "Respond GET",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "position": [1120, 200],
-      "typeVersion": 1.1
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "nexus-supplement",
-        "responseMode": "responseNode", "options": {}
-      },
-      "id": "webhook-post",
-      "name": "POST Supplement",
-      "type": "n8n-nodes-base.webhook",
-      "position": [240, 500],
-      "webhookId": "nexus-supplement-post",
-      "typeVersion": 2
-    },
-    {
-      "parameters": {
-        "jsCode": "const input = $input.first().json.body || $input.first().json;\n\nconst esc = (s) => (s || '').toString().replace(/'/g, \"''\");\n\nconst id = input.id ? parseInt(input.id) : null;\nconst name = esc(input.name);\nconst brand = input.brand ? `'${esc(input.brand)}'` : 'NULL';\nconst doseAmount = input.dose_amount ? parseFloat(input.dose_amount) : 'NULL';\nconst doseUnit = input.dose_unit ? `'${esc(input.dose_unit)}'` : 'NULL';\nconst frequency = esc(input.frequency || 'daily');\nconst timesOfDay = input.times_of_day && Array.isArray(input.times_of_day) \n  ? `ARRAY[${input.times_of_day.map(t => `'${esc(t)}'`).join(',')}]` \n  : `ARRAY['morning']`;\nconst category = esc(input.category || 'supplement');\nconst notes = input.notes ? `'${esc(input.notes)}'` : 'NULL';\nconst active = input.active !== false ? 'TRUE' : 'FALSE';\n\nlet sql;\nif (id) {\n  // Update existing\n  sql = `UPDATE health.supplement_definitions SET\n    name = '${name}',\n    brand = ${brand},\n    dose_amount = ${doseAmount},\n    dose_unit = ${doseUnit},\n    frequency = '${frequency}',\n    times_of_day = ${timesOfDay},\n    category = '${category}',\n    notes = ${notes},\n    active = ${active}\n  WHERE id = ${id}\n  RETURNING *;`;\n} else {\n  // Insert new\n  sql = `INSERT INTO health.supplement_definitions\n    (name, brand, dose_amount, dose_unit, frequency, times_of_day, category, notes, active)\n  VALUES\n    ('${name}', ${brand}, ${doseAmount}, ${doseUnit}, '${frequency}', ${timesOfDay}, '${category}', ${notes}, ${active})\n  RETURNING *;`;\n}\n\nreturn { sql, action: id ? 'updated' : 'created' };"
-      },
-      "id": "build-upsert-sql",
-      "name": "Build Upsert SQL",
-      "type": "n8n-nodes-base.code",
-      "position": [460, 500],
-      "typeVersion": 2
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "id": "upsert-supplement",
-      "name": "Upsert Supplement",
-      "type": "n8n-nodes-base.postgres",
-      "position": [680, 500],
+      "position": [460, 300],
       "typeVersion": 2.5,
       "credentials": {
         "postgres": {
@@ -115,36 +36,21 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"success\": true,\n  \"action\": \"{{ $('Build Upsert SQL').item.json.action }}\",\n  \"supplement\": {{ JSON.stringify($json) }}\n}"
+        "responseBody": "={{ $json.payload }}"
       },
-      "id": "respond-post",
-      "name": "Respond POST",
+      "id": "respond",
+      "name": "Respond",
       "type": "n8n-nodes-base.respondToWebhook",
-      "position": [900, 500],
+      "position": [680, 300],
       "typeVersion": 1.1
     }
   ],
   "connections": {
-    "GET Supplements": {
-      "main": [[{ "node": "Get Active Supplements", "type": "main", "index": 0 }]]
+    "Webhook": {
+      "main": [[{ "node": "Get Data", "type": "main", "index": 0 }]]
     },
-    "Get Active Supplements": {
-      "main": [[{ "node": "Get Today Status", "type": "main", "index": 0 }]]
-    },
-    "Get Today Status": {
-      "main": [[{ "node": "Format Response", "type": "main", "index": 0 }]]
-    },
-    "Format Response": {
-      "main": [[{ "node": "Respond GET", "type": "main", "index": 0 }]]
-    },
-    "POST Supplement": {
-      "main": [[{ "node": "Build Upsert SQL", "type": "main", "index": 0 }]]
-    },
-    "Build Upsert SQL": {
-      "main": [[{ "node": "Upsert Supplement", "type": "main", "index": 0 }]]
-    },
-    "Upsert Supplement": {
-      "main": [[{ "node": "Respond POST", "type": "main", "index": 0 }]]
+    "Get Data": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
     }
   },
   "settings": { "executionOrder": "v1" },
